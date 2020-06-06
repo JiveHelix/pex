@@ -1,0 +1,6 @@
+attrs==19.3.0
+-e git+https://github.com/JiveHelix/cattrs.git@8ad4b79a49f36201e48d06f565738297e6e6058b#egg=cattrs
+-e git+https://github.com/JiveHelix/mypy.git@5c08b687fc532e11d9b24af1680d55b58bc7725d#egg=mypy
+mypy-extensions==0.4.3
+-e git+https://github.com/JiveHelix/pylint.git@5675afa145ceefd13c5df7f05dcc494bde572bb0#egg=pylint
+wxPython==4.1.0

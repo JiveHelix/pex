@@ -1,0 +1,27 @@
+if [ -v ZSH_VERSION ]
+then
+    # Assume that this script is executed by zsh
+    THIS_DIRECTORY=${0:a:h}
+else
+    # Assume that this script is executed by bash
+    THIS_DIRECTORY="$(cd "$(dirname "${BASH_SOURCE[0]}")" > /dev/null && pwd)"
+fi
+
+VENV_DIRECTORY="${THIS_DIRECTORY}/.venv"
+
+if  [ ! -d "${VENV_DIRECTORY}" ]
+then
+    REQUIREMENTS="${THIS_DIRECTORY}/venv.require"
+    "${THIS_DIRECTORY}/venv/create_venv.sh" \
+        "${VENV_DIRECTORY}" \
+        "${REQUIREMENTS}" || return
+fi
+
+source "${VENV_DIRECTORY}/bin/activate"
+
+PYTHON="${THIS_DIRECTORY}/python"
+export PYLINTRC="${PYTHON}/pylintrc"
+export PYTHONPATH="${PYTHON}:${PYTHONPATH}"
+export MYPYPATH="${PYTHONPATH}"
+
+export ACK_OPTIONS="--ignore-dir=.venv"
