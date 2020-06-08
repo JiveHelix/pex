@@ -29,26 +29,26 @@ class Signal(Tube):
     interfaceManifold_: ClassVar[SignalManifold] = SignalManifold()
     modelManifold_: ClassVar[SignalManifold] = SignalManifold()
 
-    signalPublisher_: SignalManifold
-    signalSubscriber_: SignalManifold
+    input_: SignalManifold
+    output_: SignalManifold
 
     def __init__(self, name: str, nodeType: NodeType):
         super(Signal, self).__init__(name, nodeType)
 
         if nodeType == NodeType.model:
-            # Model nodes subscribe to the model manifold and publish to the
+            # Model nodes connect to the model manifold and publish to the
             # interface manifold
-            self.signalPublisher_ = Signal.interfaceManifold_
-            self.signalSubscriber_ = Signal.modelManifold_
+            self.input_ = Signal.interfaceManifold_
+            self.output_ = Signal.modelManifold_
         else:
             assert nodeType == NodeType.interface
 
-            # Interface nodes subscribe to the interface manifold and publish to
+            # Interface nodes connect to the interface manifold and publish to
             # the model manifold
-            self.signalPublisher_ = Signal.modelManifold_
-            self.signalSubscriber_ = Signal.interfaceManifold_
+            self.input_ = Signal.modelManifold_
+            self.output_ = Signal.interfaceManifold_
 
-        self.signalSubscriber_.Subscribe(self.name_, self.OnSignal_)
+        self.output_.Connect(self.name_, self.OnSignal_)
 
     @classmethod
     def CreateInterfaceNode(class_, name: str) -> Signal:
@@ -62,10 +62,16 @@ class Signal(Tube):
         return self.__class__(self.name_, NodeType.interface)
 
     def Signal(self) -> None:
-        self.signalPublisher_.Publish(self.name_)
+        self.input_.Publish(self.name_)
 
-    def RegisterCallback(self, callback: SignalCallback) -> None:
-        self.signalSubscriber_.Subscribe(self.name_, callback)
+    def Connect(self, callback: SignalCallback) -> None:
+        self.output_.Connect(self.name_, callback)
+
+    def Disconnect(self, callback: SignalCallback) -> None:
+        self.output_.Disconnect(callback)
+
+    def DisconnectAll(self) -> None:
+        self.output_.DisconnectName(self.name_)
 
     def OnSignal_(self) -> None:
         if self.nodeType_ == NodeType.model:

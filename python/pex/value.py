@@ -20,7 +20,7 @@ from .types import ValueCallback, ValueType, NodeType
 from .tube import Tube
 
 
-class ValueBase(Tube, Generic[ValueType]):
+class ValueBase(Generic[ValueType], abc.ABC, Tube):
     value_: ValueType
 
     @classmethod
@@ -54,21 +54,21 @@ class Value(Generic[ValueType], ValueBase[ValueType]):
         super(Value, self).__init__(name, nodeType)
 
         if nodeType == NodeType.model:
-            # Model nodes subscribe to model manifold and publish to the
+            # Model nodes connect to the model manifold and publish to the
             # interface manifold
-            self.valuePublisher_ = Value.interfaceManifold_
-            self.valueSubscriber_ = Value.modelManifold_
+            self.output_ = Value.interfaceManifold_
+            self.input_ = Value.modelManifold_
         else:
             assert nodeType == NodeType.interface
 
-            # Interface nodes subscribe to the interface manifold and publish
+            # Interface nodes connect to the interface manifold and publish
             # to the model manifold
-            self.valuePublisher_ = Value.modelManifold_
-            self.valueSubscriber_ = Value.interfaceManifold_
+            self.output_ = Value.modelManifold_
+            self.input_ = Value.interfaceManifold_
 
         self.value_ = initialValue
         self.valueCallbacks_ = ValueCallbackManifold()
-        self.valueSubscriber_.Subscribe(self.name_, self.OnValueChanged_)
+        self.input_.Connect(self.name_, self.OnValueChanged_)
 
     @classmethod
     def CreateInterfaceNode(
@@ -96,14 +96,20 @@ class Value(Generic[ValueType], ValueBase[ValueType]):
             # When one of them sends a new value, the others should be notified.
             # Interface nodes do not echo, or we would find ourselves in an
             # infinite loop!
-            self.valuePublisher_.Publish(self.name_, self.value_)
+            self.output_.Publish(self.name_, self.value_)
 
-    def RegisterCallback(self, callback: ValueCallback[ValueType]) -> None:
+    def Connect(self, callback: ValueCallback[ValueType]) -> None:
         self.valueCallbacks_.Add(callback)
+
+    def Disconnect(self, callback: ValueCallback) -> None:
+        self.valueCallbacks_.Disconnect(callback)
+
+    def DisconnectAll(self) -> None:
+        self.valueCallbacks_.Clear()
 
     def Set(self, value: ValueType) -> None:
         self.value_ = value
-        self.valuePublisher_.Publish(self.name_, value)
+        self.output_.Publish(self.name_, value)
 
     def Get(self) -> ValueType:
         return self.value_

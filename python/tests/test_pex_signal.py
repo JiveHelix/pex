@@ -42,7 +42,7 @@ class TestSignal(unittest.TestCase):
 
         model = pex.Signal.CreateModelNode("value")
         interface = model.GetInterfaceNode()
-        interface.RegisterCallback(Set)
+        interface.Connect(Set)
         model.Signal()
 
         self.assertTrue(isSet)
@@ -53,7 +53,7 @@ class TestSignal(unittest.TestCase):
 
         model = pex.Signal.CreateModelNode("green")
         interface = model.GetInterfaceNode()
-        interface.RegisterCallback(colorFlags.SetGreen)
+        interface.Connect(colorFlags.SetGreen)
         model.Signal()
 
         self.assertTrue(colorFlags.greenIsSet)
@@ -71,8 +71,8 @@ class TestSignal(unittest.TestCase):
             otherColorFlags.SetGreen()
 
         interface = model.GetInterfaceNode()
-        interface.RegisterCallback(colorFlags.SetGreen)
-        interface.RegisterCallback(SetGreen)
+        interface.Connect(colorFlags.SetGreen)
+        interface.Connect(SetGreen)
 
         model.Signal()
 
@@ -89,8 +89,8 @@ class TestSignal(unittest.TestCase):
         self.assertFalse(otherColorFlags.greenIsSet)
 
         interface = model.GetInterfaceNode()
-        interface.RegisterCallback(colorFlags.SetGreen)
-        interface.RegisterCallback(otherColorFlags.SetGreen)
+        interface.Connect(colorFlags.SetGreen)
+        interface.Connect(otherColorFlags.SetGreen)
 
         model.Signal()
 
@@ -107,8 +107,8 @@ class TestSignal(unittest.TestCase):
 
         redInterface = redModel.GetInterfaceNode()
         greenInterface = greenModel.GetInterfaceNode()
-        redInterface.RegisterCallback(colorFlags.SetRed)
-        greenInterface.RegisterCallback(colorFlags.SetGreen)
+        redInterface.Connect(colorFlags.SetRed)
+        greenInterface.Connect(colorFlags.SetGreen)
 
         redModel.Signal()
 
@@ -130,8 +130,8 @@ class TestSignal(unittest.TestCase):
         self.assertFalse(otherColorFlags.greenIsSet)
 
         interface = greenModel.GetInterfaceNode()
-        interface.RegisterCallback(colorFlags.SetGreen)
-        interface.RegisterCallback(otherColorFlags.SetGreen)
+        interface.Connect(colorFlags.SetGreen)
+        interface.Connect(otherColorFlags.SetGreen)
 
         greenModel.Signal()
 
@@ -160,7 +160,7 @@ class TestSignal(unittest.TestCase):
             nonlocal isSet
             isSet = True
 
-        anotherInterface.RegisterCallback(Set)
+        anotherInterface.Connect(Set)
         interface.Signal()
 
         # Check that anotherInterface got the signal

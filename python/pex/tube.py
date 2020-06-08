@@ -17,7 +17,7 @@ from .types import NodeType
 
 class Tube:
     """
-    Links one model to one or more interface nodes.
+    Links one model node to one or more interface nodes.
 
     Each model node must be a singleton. There is no limit to the number of
     interface nodes that can be created.

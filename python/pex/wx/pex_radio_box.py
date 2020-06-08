@@ -12,10 +12,11 @@ from typing import List, Generic, TypeVar, Callable
 
 import wx
 from .. import pex
+from .pex_window import PexWindow
 
 T = TypeVar('T')
 
-class PexRadioBox(wx.Control, Generic[T]):
+class PexRadioBox(wx.Control, PexWindow, Generic[T]):
     def __init__(
             self,
             parent: wx.Window,
@@ -24,9 +25,9 @@ class PexRadioBox(wx.Control, Generic[T]):
             valueToString: Callable[[T], str] = str) -> None:
 
         assert value.Get() in choices
-        super(PexRadioBox, self).__init__(parent)
-
-        self.value_ = value
+        self.value_ = value.GetInterfaceNode()
+        wx.Control.__init__(self, parent)
+        PexWindow.__init__(self, self.value_)
         self.choices_ = choices
         self.valueToString_ = valueToString
 
@@ -35,10 +36,10 @@ class PexRadioBox(wx.Control, Generic[T]):
             choices=[valueToString(value) for value in choices])
 
         self.radioBox_.SetSelection(choices.index(self.value_.Get()))
-        self.value_.RegisterCallback(self.OnPbValue_)
+        self.value_.Connect(self.OnPexValue_)
         self.radioBox_.Bind(wx.EVT_RADIOBOX, self.OnRadioBox_)
 
-    def OnPbValue_(self, value: T) -> None:
+    def OnPexValue_(self, value: T) -> None:
         self.radioBox_.SetSelection(self.choices_.index(value))
 
     def OnRadioBox_(self, wxEvent: wx.CommandEvent) -> None:

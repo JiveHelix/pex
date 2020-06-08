@@ -10,19 +10,20 @@
 
 import wx
 from .. import pex
+from .pex_window import PexWindow
 
 
-class PexCheckBox(wx.Control):
+class PexCheckBox(wx.Control, PexWindow):
     def __init__(
             self,
             parent: wx.Window,
             label: str,
             value: pex.Value[bool]) -> None:
 
-        super(PexCheckBox, self).__init__(parent)
-
-        self.value_ = value
-        self.value_.RegisterCallback(self.OnValueChanged_)
+        self.value_ = value.GetInterfaceNode()
+        wx.Control.__init__(self, parent)
+        PexWindow.__init__(self, self.value_)
+        self.value_.Connect(self.OnValueChanged_)
         self.checkBox_ = wx.CheckBox(self, label=label)
         self.checkBox_.SetValue(self.value_.Get())
         self.checkBox_.Bind(wx.EVT_CHECKBOX, self.OnCheckBox_)

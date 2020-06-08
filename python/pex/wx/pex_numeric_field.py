@@ -11,6 +11,7 @@
 from typing import Generic, Any
 import wx
 from .. import pex
+from .pex_window import PexWindow
 
 from .utility import (
     NumberValidator,
@@ -20,7 +21,7 @@ from .utility import (
     NumberType)
 
 
-class PexNumericField(wx.Control, Generic[NumberType]):
+class PexNumericField(wx.Control, PexWindow, Generic[NumberType]):
     """
     A numerical entry field is plumbed to the model through the pex interface.
     """
@@ -33,10 +34,10 @@ class PexNumericField(wx.Control, Generic[NumberType]):
             value: pex.Value[NumberType],
             converter: Converter[NumberType]) -> None:
 
-        super(PexNumericField, self).__init__(parent)
         self.value_ = value.GetInterfaceNode()
+        wx.Control.__init__(self, parent)
+        PexWindow.__init__(self, self.value_)
         self.converter_ = converter
-
         valueAsString = self.converter_.Format(self.value_.Get())
 
         self.field_ = wx.TextCtrl(
@@ -47,7 +48,7 @@ class PexNumericField(wx.Control, Generic[NumberType]):
 
         self.field_.Bind(wx.EVT_TEXT_ENTER, self.OnEnter_)
         self.field_.Bind(wx.EVT_KILL_FOCUS, self.OnEnter_)
-        self.value_.RegisterCallback(self.OnValueChanged_)
+        self.value_.Connect(self.OnValueChanged_)
 
     def OnEnter_(self, ignored: wx.CommandEvent) -> None:
         try:

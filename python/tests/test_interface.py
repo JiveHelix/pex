@@ -63,7 +63,7 @@ class TestInterface(unittest.TestCase):
             controller.value,
             self.model_.brightnessDecay.Get())
 
-        self.model_.brightnessDecay.RegisterCallback(controller.OnNotifyValue)
+        self.model_.brightnessDecay.Connect(controller.OnNotifyValue)
         self.user_.brightnessDecay.Set(3.14)
 
         self.assertAlmostEqual(self.model_.brightnessDecay.Get(), 3.14)

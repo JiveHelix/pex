@@ -41,7 +41,7 @@ class TestPexValue(unittest.TestCase):
 
         testPexModel = pex.Value.CreateModelNode("value", value)
         testPexInterface = testPexModel.GetInterfaceNode()
-        testPexInterface.RegisterCallback(SetValue)
+        testPexInterface.Connect(SetValue)
         testPexModel.Set(-56)
 
         self.assertEqual(value, -56)
@@ -50,7 +50,7 @@ class TestPexValue(unittest.TestCase):
         color = Color(0, 128, 224)
         testPexModel = pex.Value.CreateModelNode("green", color.green)
         testPexInterface = testPexModel.GetInterfaceNode()
-        testPexInterface.RegisterCallback(color.SetGreen)
+        testPexInterface.Connect(color.SetGreen)
         testPexModel.Set(64)
 
         self.assertEqual(color.green, 64)
@@ -65,8 +65,8 @@ class TestPexValue(unittest.TestCase):
             anotherColor.green = value
 
         testPexInterface = testPexModel.GetInterfaceNode()
-        testPexInterface.RegisterCallback(color.SetGreen)
-        testPexInterface.RegisterCallback(SetGreen)
+        testPexInterface.Connect(color.SetGreen)
+        testPexInterface.Connect(SetGreen)
 
         testPexModel.Set(100)
 
@@ -81,8 +81,8 @@ class TestPexValue(unittest.TestCase):
 
         redInterface = redModel.GetInterfaceNode()
         greenInterface = greenModel.GetInterfaceNode()
-        redInterface.RegisterCallback(color.SetRed)
-        greenInterface.RegisterCallback(color.SetGreen)
+        redInterface.Connect(color.SetRed)
+        greenInterface.Connect(color.SetGreen)
 
         redModel.Set(113)
         greenModel.Set(42)
@@ -97,8 +97,8 @@ class TestPexValue(unittest.TestCase):
         anotherColor = Color(50, greenModel.Get(), 255)
 
         testPexInterface = greenModel.GetInterfaceNode()
-        testPexInterface.RegisterCallback(color.SetGreen)
-        testPexInterface.RegisterCallback(anotherColor.SetGreen)
+        testPexInterface.Connect(color.SetGreen)
+        testPexInterface.Connect(anotherColor.SetGreen)
 
         greenModel.Set(100)
 

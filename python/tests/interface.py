@@ -62,7 +62,7 @@ class InterfaceNotification:
             # the partial instances here to avoid premature garbage collection.
             self.namedCallbacks_.append(callback)
 
-            value.RegisterCallback(callback)
+            value.Connect(callback)
 
         self.notifyCallback_ = pex.GetReference(notifyCallback)
 

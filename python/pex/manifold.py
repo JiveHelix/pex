@@ -16,30 +16,42 @@ from .types import SignalCallback, ValueCallback, ValueType
 from .reference import GetReference, Reference
 from .proxy import SignalProxy, ValueProxy
 
+# Each manifold uses two dictionaries to allow the same callback to be
+# used for multiple names, and multiple callbacks for each name.
+#
+# On Disconnect/ForgetCallback_, The namesByCallback_ dictionary is used to
+# retreive the list of all the names that hold a reference to the callback.
 
 class SignalManifold:
-    callbacksByTopic_: DefaultDict[str, Set[SignalProxy]]
-    topicsByCallback_: DefaultDict[SignalProxy, Set[str]]
+
+    callbacksByName_: DefaultDict[str, Set[SignalProxy]]
+    namesByCallback_: DefaultDict[SignalProxy, Set[str]]
 
     def __init__(self) -> None:
-        self.callbacksByTopic_ = defaultdict(set)
-        self.topicsByCallback_ = defaultdict(set)
+        self.callbacksByName_ = defaultdict(set)
+        self.namesByCallback_ = defaultdict(set)
 
-    def Subscribe(self, topic: str, callback: SignalCallback) -> None:
+    def Connect(self, name: str, callback: SignalCallback) -> None:
         callbackProxy = SignalProxy.Create(callback, self.ForgetCallback_)
-        self.topicsByCallback_[callbackProxy].add(topic)
-        self.callbacksByTopic_[topic].add(callbackProxy)
+        self.namesByCallback_[callbackProxy].add(name)
+        self.callbacksByName_[name].add(callbackProxy)
 
-    def Unsubscribe(self, callback: SignalCallback) -> None:
+    def Disconnect(self, callback: SignalCallback) -> None:
         self.ForgetCallback_(GetReference(callback))
 
-    def Publish(self, topic: str) -> None:
-        """Calls each of the callbacks registered to this topic.
+    def DisconnectName(self, name: str) -> None:
+        callbacks: Set[SignalProxy] = self.callbacksByName_.get(name, set())
+
+        for callback in callbacks:
+            self.ForgetProxy_(callback)
+
+    def Publish(self, name: str) -> None:
+        """Calls each of the callbacks registered to this name.
 
         Note: The callbackRef is not checked for None. The weakref callback
-        allows us to unsubscribe before the callback reference is finalized.
+        allows us to disconnect before the callback reference is finalized.
         """
-        for callbackProxy in self.callbacksByTopic_.get(topic, []):
+        for callbackProxy in self.callbacksByName_.get(name, set()):
             callbackProxy()
 
     def ForgetCallback_(
@@ -48,44 +60,51 @@ class SignalManifold:
         """
         The referent is about to be finalized. Remove our references to it.
         """
-
         # We have stored SignalProxy(s).
-        signalProxy = SignalProxy(reference)
-        subscribedTopics = \
-            self.topicsByCallback_.pop(signalProxy, set())
+        self.ForgetProxy_(SignalProxy(reference))
 
-        for topic in subscribedTopics:
-            self.callbacksByTopic_[topic].discard(signalProxy)
+    def ForgetProxy_(self, signalProxy: SignalProxy) -> None:
+        connectedNames = \
+            self.namesByCallback_.pop(signalProxy, set())
 
-            if len(self.callbacksByTopic_[topic]) == 0:
-                # All callbacks for this topic have been unsubscribed
-                # Remove the topic.
-                self.callbacksByTopic_.pop(topic)
+        for name in connectedNames:
+            self.callbacksByName_[name].discard(signalProxy)
+
+            if len(self.callbacksByName_[name]) == 0:
+                # All callbacks for this name have been disconnected
+                # Remove the name.
+                self.callbacksByName_.pop(name)
 
 
 class ValueManifold:
-    callbacksByTopic_: DefaultDict[str, Set[ValueCallback[Any]]]
-    topicsByCallback_: DefaultDict[ValueCallback[Any], Set[str]]
+    callbacksByName_: DefaultDict[str, Set[ValueProxy[Any]]]
+    namesByCallback_: DefaultDict[ValueProxy[Any], Set[str]]
 
     def __init__(self) -> None:
-        self.callbacksByTopic_ = defaultdict(set)
-        self.topicsByCallback_ = defaultdict(set)
+        self.callbacksByName_ = defaultdict(set)
+        self.namesByCallback_ = defaultdict(set)
 
-    def Subscribe(self, topic: str, callback: ValueCallback[Any]) -> None:
+    def Connect(self, name: str, callback: ValueCallback[Any]) -> None:
         callbackProxy = ValueProxy.Create(callback, self.ForgetCallback_)
-        self.topicsByCallback_[callbackProxy].add(topic)
-        self.callbacksByTopic_[topic].add(callbackProxy)
+        self.namesByCallback_[callbackProxy].add(name)
+        self.callbacksByName_[name].add(callbackProxy)
 
-    def Unsubscribe(self, callback: ValueCallback[Any]) -> None:
+    def Disconnect(self, callback: ValueCallback[Any]) -> None:
         self.ForgetCallback_(GetReference(callback))
 
-    def Publish(self, topic: str, value: Any) -> None:
-        """Calls each of the callbacks registered to this topic.
+    def DisconnectName(self, name: str) -> None:
+        callbacks: Set[ValueProxy[Any]] = self.callbacksByName_.get(name, set())
+
+        for callback in callbacks:
+            self.ForgetProxy_(callback)
+
+    def Publish(self, name: str, value: Any) -> None:
+        """Calls each of the callbacks registered to this name.
 
         Note: The callbackRef is not checked for None. The weakref callback
-        allows us to unsubscribe before the callback reference is finalized.
+        allows us to disconnect before the callback reference is finalized.
         """
-        for callbackProxy in self.callbacksByTopic_.get(topic, []):
+        for callbackProxy in self.callbacksByName_.get(name, []):
             callbackProxy(value)
 
     def ForgetCallback_(
@@ -96,18 +115,20 @@ class ValueManifold:
         """
 
         # We have stored ValueProxy(s).
-        valueProxy = ValueProxy(reference)
+        self.ForgetProxy_(ValueProxy(reference))
 
-        subscribedTopics = \
-            self.topicsByCallback_.pop(valueProxy, set())
+    def ForgetProxy_(self, valueProxy: ValueProxy[Any]) -> None:
+        connectedNames = \
+            self.namesByCallback_.pop(valueProxy, set())
 
-        for topic in subscribedTopics:
-            self.callbacksByTopic_[topic].discard(valueProxy)
+        for name in connectedNames:
+            self.callbacksByName_[name].discard(valueProxy)
 
-            if len(self.callbacksByTopic_[topic]) == 0:
-                # All callbacks for this topic have been unsubscribed
-                # Remove the topic.
-                self.callbacksByTopic_.pop(topic)
+            if len(self.callbacksByName_[name]) == 0:
+                # All callbacks for this name have been disconnected
+                # Remove the name.
+                self.callbacksByName_.pop(name)
+
 
 
 class ValueCallbackManifold(Generic[ValueType]):
@@ -137,6 +158,12 @@ class ValueCallbackManifold(Generic[ValueType]):
     def Add(self, callback: ValueCallback[ValueType]) -> None:
         valueProxy = ValueProxy.Create(callback, self.ForgetCallback_)
         self.callbacks_.add(valueProxy)
+
+    def Clear(self) -> None:
+        self.callbacks_.clear()
+
+    def Disconnect(self, callback: ValueCallback[ValueType]) -> None:
+        self.ForgetCallback_(GetReference(callback))
 
     def __call__(self, value: ValueType) -> None:
         for callbackProxy in self.callbacks_:
