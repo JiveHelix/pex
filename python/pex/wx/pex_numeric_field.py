@@ -36,7 +36,7 @@ class PexNumericField(wx.Control, PexWindow, Generic[NumberType]):
 
         self.value_ = value.GetInterfaceNode()
         wx.Control.__init__(self, parent)
-        PexWindow.__init__(self, self.value_)
+        PexWindow.__init__(self, [self.value_,])
         self.converter_ = converter
         valueAsString = self.converter_.Format(self.value_.Get())
 

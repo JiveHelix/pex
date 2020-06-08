@@ -27,7 +27,7 @@ class PexRadioBox(wx.Control, PexWindow, Generic[T]):
         assert value.Get() in choices
         self.value_ = value.GetInterfaceNode()
         wx.Control.__init__(self, parent)
-        PexWindow.__init__(self, self.value_)
+        PexWindow.__init__(self, [self.value_,])
         self.choices_ = choices
         self.valueToString_ = valueToString
 
