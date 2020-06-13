@@ -90,7 +90,6 @@ def GetPexType(type_: Type[Any], class_: Type[Any]) \
 
 
 argKey_ = 'arg'
-
 T = TypeVar('T')
 
 
@@ -130,6 +129,11 @@ def ModelNodeInitializer(instance: object, interfaceClass: Type[Any]) -> None:
             modelNode = cast(Signal, memberClass).CreateModelNode(name)
 
         setattr(instance, name, modelNode)
+
+
+def SignalInitializer(instance: Any, interfaceClass: Type[Any]) -> None:
+    for name in attr.fields_dict(interfaceClass):
+        setattr(instance, name, Signal.CreateModelNode(name))
 
 
 def InterfaceNodeInitializer(
