@@ -19,7 +19,8 @@ from typing import (
     Dict,
     ForwardRef,
     Union,
-    cast)
+    cast,
+    Hashable)
 
 import typing
 
@@ -31,45 +32,61 @@ from .value import Value, ValueBase
 
 
 @lru_cache(32)
-def GetClassNamespace_(class_: Type[Any]) -> Dict[str, Any]:
+def GetClassNamespace_(class_: Hashable) -> Dict[str, Any]:
     return vars(sys.modules[class_.__module__])
 
 
 @lru_cache(32)
-def GetPexType(
-        type_: Union[Signal, ValueBase[Any], str],
-        class_: Type[Any]) -> Union[Signal, ValueBase[Any]]:
+def GetPexTypeImpl(type_: Hashable, class_: Hashable) \
+        -> Union[Signal, ValueBase[Any]]:
 
     """Returns the actual type if type_ is a string."""
 
-    if isinstance(type_, str):
-        forwardRef = ForwardRef(type_, is_argument=False)
+    if not isinstance(type_, str):
 
-        result: Union[Signal, ValueBase[Any]]
+        if issubclass(cast(type, type_), Signal):
+            return cast(Signal, type_)
 
-        # pylint: disable=protected-access
-        evaluated = forwardRef._evaluate(GetClassNamespace_(class_), None)
+        if issubclass(cast(type, type_), ValueBase):
+            return cast(ValueBase, type_)
 
-        if evaluated is None:
-            raise RuntimeError("Unable to resolve type {}".format(type_))
+        raise RuntimeError(
+            "model node must be a Signal or ValueBase[Any]. "
+            "Found {}".format(type_))
 
-        if issubclass(type(evaluated), typing._GenericAlias): # type: ignore
-            result = evaluated.__origin__
-        else:
-            result = evaluated
+    forwardRef = ForwardRef(type_, is_argument=False)
 
-        if not (
-                issubclass(cast(type, result), Signal)
-                or issubclass(cast(type, result), ValueBase)):
+    result: Union[Signal, ValueBase[Any]]
 
-            raise RuntimeError(
-                "model node must be a Signal or ValueBase[Any]. "
-                "Found {}".format(result))
+    # pylint: disable=protected-access
+    evaluated = forwardRef._evaluate(GetClassNamespace_(class_), None)
 
-        return result
+    if evaluated is None:
+        raise RuntimeError("Unable to resolve type {}".format(type_))
 
+    if issubclass(type(evaluated), typing._GenericAlias): # type: ignore
+        result = evaluated.__origin__
     else:
-        return type_
+        result = evaluated
+
+    if issubclass(cast(type, result), Signal):
+        return cast(Signal, result)
+
+    if issubclass(cast(type, result), ValueBase):
+        return cast(ValueBase, result)
+
+    raise RuntimeError(
+        "model node must be a Signal or ValueBase[Any]. "
+        "Found {}".format(result))
+
+
+def GetPexType(type_: Type[Any], class_: Type[Any]) \
+        -> Union[Signal, ValueBase[Any]]:
+
+    # I cannot see how mypy/typeshed/python can allow me to declare that I am
+    # passing a union of hashable types.
+    # Explicitly cast them here.
+    return GetPexTypeImpl(cast(Hashable, type_), cast(Hashable, class_))
 
 
 argKey_ = 'arg'
@@ -89,6 +106,9 @@ def ModelNodeInitializer(instance: object, interfaceClass: Type[Any]) -> None:
     for name, attribute in attr.fields_dict(interfaceClass).items():
         # The type of the member may be stored as a string.
         # GetPexType will resolve to the actual class.
+        if attribute.type is None:
+            raise RuntimeError("Cannot resolve attribute.type")
+
         memberClass = GetPexType(attribute.type, interfaceClass)
         modelValue = GetModelValue(attribute)
         modelNode: Union[Signal, Value]

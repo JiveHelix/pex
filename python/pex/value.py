@@ -21,8 +21,6 @@ from .tube import Tube
 
 
 class ValueBase(Generic[ValueType], abc.ABC, Tube):
-    value_: ValueType
-
     @classmethod
     @abc.abstractmethod
     def CreateModelNode(
@@ -30,9 +28,6 @@ class ValueBase(Generic[ValueType], abc.ABC, Tube):
             name: str,
             value: ValueType) -> ValueBase[ValueType]:
         ...
-
-    def __repr__(self) -> str:
-        return "{}: {}".format(self.name_, self.value_)
 
 
 class Value(Generic[ValueType], ValueBase[ValueType]):
@@ -43,6 +38,7 @@ class Value(Generic[ValueType], ValueBase[ValueType]):
     A value callback has a single argument with a type parameterized
     as ValueType.
     """
+    value_: ValueType
 
     # Private singleton manifolds to connect the interface to the model.
     interfaceManifold_: ClassVar[ValueManifold] = ValueManifold()
@@ -113,3 +109,6 @@ class Value(Generic[ValueType], ValueBase[ValueType]):
 
     def Get(self) -> ValueType:
         return self.value_
+
+    def __repr__(self) -> str:
+        return "{}: {}".format(self.name_, self.value_)
