@@ -22,7 +22,7 @@ class PexCheckBox(wx.Control, PexWindow):
 
         self.value_ = value.GetInterfaceNode()
         wx.Control.__init__(self, parent)
-        PexWindow.__init__(self, self.value_)
+        PexWindow.__init__(self, [self.value_,])
         self.value_.Connect(self.OnValueChanged_)
         self.checkBox_ = wx.CheckBox(self, label=label)
         self.checkBox_.SetValue(self.value_.Get())

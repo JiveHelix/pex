@@ -23,7 +23,7 @@ class PexView(wx.StaticText, PexWindow, Generic[T]):
             self,
             parent: wx.Window,
             value: pex.Value[T],
-            formatString: str = "{:.3f}"):
+            formatString: str = "{}"):
 
         self.value_ = value.GetInterfaceNode()
 
@@ -32,7 +32,7 @@ class PexView(wx.StaticText, PexWindow, Generic[T]):
             parent,
             label=formatString.format(value.Get()))
 
-        PexWindow.__init__(self, self.value_)
+        PexWindow.__init__(self, [self.value_,])
         self.value_.Connect(self.OnValueChanged_)
         self.formatString_ = formatString
 
