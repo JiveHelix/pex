@@ -1,33 +1,46 @@
+from typing import Generic, Any, List
+import wx
+from ..types import ValueType
 from .. import pex
 from .pex_window import PexWindow
 
-class PexComboBox(wx.ComboBox, PexWindow):
+
+class PexComboBox(wx.ComboBox, PexWindow, Generic[ValueType]):
+    """
+    A read-only wx.ComboBox backed by a pex.Value.
+    """
     def __init__(
             self,
             parent: wx.Window,
-            choices: pex.Value[List[str]],
-            value: pex.Value[str],
-            *args, **kwargs) -> None:
+            choices: pex.Choices[ValueType],
+            *args: Any,
+            **kwargs: Any) -> None:
 
         self.choices_ = choices.GetInterfaceNode()
-        self.value_ = value.GetInterfaceNode()
+        kwargs['choices'] = self.choices_.GetChoicesAsStrings()
+        kwargs['style'] = wx.CB_READONLY
 
-        kwargs['choices'] = choices.Get()
         wx.ComboBox.__init__(self, parent, *args, **kwargs) 
-        PexWindow.__init__(self, [self.choices_, self.value_])
 
-        self.SetValue(self.value_.Get())
+        PexWindow.__init__(
+            self,
+            [self.choices_.value, self.choices_.choices])
 
-        self.choices_.Connect(self.OnChoices_)
-        self.value_.Connect(self.OnValue_)
+        if self.choices_.GetValueInChoices():
+            self.SetValue(self.choices_.GetValueAsString())
 
+        self.choices_.value.Connect(self.OnValue_)
+        self.choices_.choices.Connect(self.OnChoices_)
         self.Bind(wx.EVT_COMBOBOX, self.OnComboBox_)
+    
+    def OnValue_(self, ignored: ValueType) -> None:
+        self.SetValue(self.choices_.GetValueAsString())
 
-    def OnChoices_(self, choices: List[str]) -> None:
-        self.Set(choices)
-
-    def OnValue_(self, value: str) -> None:
-        self.SetValue(value)
-
+    def OnChoices_(self, ignored: List[ValueType]) -> None:
+        # The available choices have changed.
+        # Update what is displayed
+        self.Set(self.choices_.GetChoicesAsStrings())
+    
     def OnComboBox_(self, ignored: wx.CommandEvent) -> None:
-        self.value_.Set(self.GetString(self.GetSelection())
+        self.choices_.value.Set(
+            self.choices_.choices.Get()[self.GetSelection()])

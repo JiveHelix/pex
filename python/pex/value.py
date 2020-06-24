@@ -12,25 +12,18 @@
 
 from __future__ import annotations
 
-from typing import ClassVar, Generic
-import abc
+from typing import ClassVar, Generic, TypeVar, Type
 
 from .manifold import ValueManifold, ValueCallbackManifold
-from .types import ValueCallback, ValueType, NodeType
+from .proxy import FilterProxy
+from .types import ValueCallback, ValueType, NodeType, FilterCallable, Reference
 from .tube import Tube
 
 
-class ValueBase(Generic[ValueType], abc.ABC, Tube):
-    @classmethod
-    @abc.abstractmethod
-    def CreateModelNode(
-            class_,
-            name: str,
-            value: ValueType) -> ValueBase[ValueType]:
-        ...
+T = TypeVar('T', bound='Value')
 
 
-class Value(Generic[ValueType], ValueBase[ValueType]):
+class Value(Generic[ValueType], Tube):
 
     """
     Manages a synchronized value between model and the interface.
@@ -47,7 +40,7 @@ class Value(Generic[ValueType], ValueBase[ValueType]):
     valueCallbacks_: ValueCallbackManifold[ValueType]
 
     def __init__(self, name: str, nodeType: NodeType, initialValue: ValueType):
-        super(Value, self).__init__(name, nodeType)
+        Tube.__init__(self, name, nodeType)
 
         if nodeType == NodeType.model:
             # Model nodes connect to the model manifold and publish to the
@@ -66,22 +59,16 @@ class Value(Generic[ValueType], ValueBase[ValueType]):
         self.valueCallbacks_ = ValueCallbackManifold()
         self.input_.Connect(self.name_, self.OnValueChanged_)
 
-    @classmethod
-    def CreateInterfaceNode(
-            class_,
-            modelNode: Value[ValueType]) -> Value[ValueType]:
-        return class_(modelNode.name_, NodeType.interface, modelNode.value_)
+    def GetInterfaceNode(self) -> Value[ValueType]:
+        return Value[ValueType](self.name_, NodeType.interface, self.value_)
 
     @classmethod
     def CreateModelNode(
-            class_,
+            class_: Type[T],
             name: str,
-            value: ValueType) -> Value[ValueType]:
+            value: ValueType) -> T:
 
         return class_(name, NodeType.model, value)
-
-    def GetInterfaceNode(self) -> Value[ValueType]:
-        return self.CreateInterfaceNode(self)
 
     def OnValueChanged_(self, value: ValueType) -> None:
         self.value_ = value
@@ -110,5 +97,72 @@ class Value(Generic[ValueType], ValueBase[ValueType]):
     def Get(self) -> ValueType:
         return self.value_
 
+    def Link(self, other: Value[ValueType]) -> None:
+        """ Make a two-way connection between this value and other. """
+        self.Connect(other.Set)
+        other.Connect(self.Set)
+
     def __repr__(self) -> str:
         return "{}: {}".format(self.name_, self.value_)
+
+
+def DefaultFilter(value: ValueType) -> ValueType:
+    """ Default No-op filter. """
+    return value
+
+
+class FilteredValue(Generic[ValueType], Value[ValueType]):
+    """
+    Use AttachFilter to assign a function that will filter any call
+    to Set and any value received from the manifold.
+    """
+    filter_: FilterProxy[ValueType]
+
+    def __init__(self, name: str, nodeType: NodeType, initialValue: ValueType):
+        super(FilteredValue, self).__init__(name, nodeType, initialValue)
+        self.filter_ = FilterProxy.Create(DefaultFilter, None)
+
+    def AttachFilter(
+            self,
+            filterValue: FilterCallable[ValueType]) -> None:
+
+        self.filter_ = \
+            FilterProxy.Create(filterValue, self.RestoreDefaultFilter_)
+
+    def RestoreDefaultFilter_(
+            self,
+            ignored: Reference[FilterCallable[ValueType]]) -> None:
+
+        self.filter_ = FilterProxy.Create(DefaultFilter, None)
+
+    def SetUnfiltered(self, value: ValueType) -> None:
+        Value.Set(self, value)
+
+    def Set(self, value: ValueType) -> None:
+        self.value_ = self.filter_(value)
+        self.output_.Publish(self.name_, value)
+
+    def OnValueChanged_(self, value: ValueType) -> None:
+        self.value_ = self.filter_(value)
+        self.valueCallbacks_(self.value_)
+
+        if self.nodeType_ == NodeType.model:
+            # There may be multiple interface listeners for this model node.
+            # When one of them sends a new value, the others should be notified.
+            # Interface nodes do not echo, or we would find ourselves in an
+            # infinite loop!
+            self.output_.Publish(self.name_, self.value_)
+
+    def GetInterfaceNode(self) -> FilteredValue[ValueType]:
+        return FilteredValue[ValueType](
+            self.name_,
+            NodeType.interface,
+            self.value_)
+
+    @classmethod
+    def CreateModelNode(
+            class_: Type[T],
+            name: str,
+            value: ValueType) -> T:
+
+        return class_(name, NodeType.model, value)

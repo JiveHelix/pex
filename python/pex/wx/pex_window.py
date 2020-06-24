@@ -1,14 +1,15 @@
-from typing import TypeVar, Any, Generic, List
+from typing import List
 import wx
 from .. import pex
 
-pexTube = TypeVar("pexTube", pex.Signal, pex.Value[Any])
 
-class PexWindow(Generic[pexTube]):
+class PexWindow:
     """ A mixin that disconnects pex when the window is destroyed. """
+    tubes_: List[pex.Tube]
+    wxId_: int
 
-    def __init__(self: wx.Window, tubes: List[pexTube]):
-        self.tubes_: List[pexTube] = tubes
+    def __init__(self: wx.Window, tubes: List[pex.Tube]) -> None:
+        self.tubes_ = tubes
         self.wxId_ = self.GetId()
 
         self.Bind(

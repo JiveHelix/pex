@@ -12,10 +12,11 @@
 from __future__ import annotations
 import warnings
 from typing import ClassVar, Dict, NoReturn, Any
+import abc
 from .types import NodeType
 
 
-class Tube:
+class Tube(abc.ABC):
     """
     Links one model node to one or more interface nodes.
 
@@ -68,3 +69,7 @@ class Tube:
     @property
     def nodeType(self) -> NodeType:
         return self.nodeType_
+
+    @abc.abstractmethod
+    def DisconnectAll(self) -> None:
+        ...

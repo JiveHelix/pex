@@ -19,9 +19,14 @@
 
 from __future__ import annotations
 
-from typing import Optional, Callable, Any, Generic
+from typing import Optional, Callable, Any, Generic, TypeVar
 from .reference import Reference, MakeReference
-from .types import SignalCallback, ValueCallback, ValueType, ReferenceType
+from .types import (
+    SignalCallback,
+    ValueCallback,
+    FilterCallable,
+    ValueType,
+    ReferenceType)
 
 class SignalProxy:
     reference_: Reference[SignalCallback]
@@ -84,7 +89,8 @@ class ValueProxy(Generic[ValueType]):
         Execute the callback without checking for None (in release mode,
         anyway).
 
-        We have ensured that only alive references are stored in this instance.
+        It is the responsibility of the client to ensure that only alive
+        references are stored in this instance (using the onFinalize callback.
         """
         callback = self.reference_()
         assert callback is not None
@@ -103,3 +109,66 @@ class ValueProxy(Generic[ValueType]):
 
     def __repr__(self) -> str:
         return "ValueProxy({})".format(hash(self.reference_))
+
+
+class FilterProxy(Generic[ValueType]):
+    reference_: Reference[FilterCallable[ValueType]]
+
+    def __init__(self, reference: Reference[FilterCallable[ValueType]]) -> None:
+        self.reference_ = reference
+
+    @classmethod
+    def Create(
+            class_,
+            callback: FilterCallable[ValueType],
+            onFinalize: Optional[
+                Callable[[Reference[FilterCallable[ValueType]]], Any]]) \
+                    -> FilterProxy[ValueType]:
+
+        return class_(MakeReference(callback, onFinalize))
+
+    def __call__(self, value: ValueType) -> ValueType:
+        """
+        Execute the callback without checking for None (in release mode,
+        anyway).
+
+        It is the responsibility of the client to ensure that only alive
+        references are stored in this instance (using the onFinalize callback.
+        """
+        callback = self.reference_()
+        assert callback is not None
+        return callback(value)
+
+Source = TypeVar("Source")
+Target = TypeVar("Target")
+
+class ConverterProxy(Generic[Source, Target]):
+    reference_: Reference[Callable[[Source], Target]]
+
+    def __init__(
+            self,
+            reference: Reference[Callable[[Source], Target]]) -> None:
+
+        self.reference_ = reference
+
+    @classmethod
+    def Create(
+            class_,
+            callback: Callable[[Source], Target],
+            onFinalize: Optional[
+                Callable[[Reference[Callable[[Source], Target]]], Any]]) \
+                    -> ConverterProxy[Source, Target]:
+
+        return class_(MakeReference(callback, onFinalize))
+
+    def __call__(self, value: Source) -> Target:
+        """
+        Execute the callback without checking for None (in release mode,
+        anyway).
+
+        It is the responsibility of the client to ensure that only alive
+        references are stored in this instance (using the onFinalize callback.
+        """
+        callback = self.reference_()
+        assert callback is not None
+        return callback(value)

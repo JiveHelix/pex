@@ -13,7 +13,7 @@ class PexButton(wx.Button, PexWindow):
 
         self.signal_ = signal
         wx.Button.__init__(self, parent, label=label)
-        PexWindow.__init__(self, self.signal_)
+        PexWindow.__init__(self, [self.signal_])
         self.Bind(wx.EVT_BUTTON, self.OnButton_)
 
     def OnButton_(self, ignored: wx.CommandEvent) -> None:

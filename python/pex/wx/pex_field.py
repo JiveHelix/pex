@@ -8,7 +8,7 @@
 # @copyright Jive Helix
 # Licensed under the MIT license. See LICENSE file.
 
-from typing import Any
+from typing import Any, Optional
 import wx
 from .. import pex
 from .pex_window import PexWindow
@@ -23,16 +23,22 @@ class PexField(wx.Control, PexWindow):
     def __init__(
             self,
             parent: wx.Window,
-            value: pex.Value[str]) -> None
+            value: pex.Value[str],
+            fieldStyle: Optional[Any] = None) -> None:
 
         self.value_ = value.GetInterfaceNode()
         wx.Control.__init__(self, parent)
         PexWindow.__init__(self, [self.value_,])
         valueAsString = self.converter_.Format(self.value_.Get())
+        
+        style = wx.TE_PROCESS_ENTER
+
+        if fieldStyle is not None:
+            style |= fieldStyle
 
         self.field_ = wx.TextCtrl(
             self,
-            style=wx.TE_PROCESS_ENTER,
+            style=style,
             value=value)
 
         self.field_.Bind(wx.EVT_TEXT_ENTER, self.OnEnter_)
@@ -65,15 +71,16 @@ class LabeledPexField(wx.Control):
             parent: wx.Window,
             value: pex.Value[str],
             label: str,
-            style: Any = wx.HORIZONTAL) -> None:
+            fieldStyle: Optional[Any] = None,
+            layoutStyle: Any = wx.HORIZONTAL) -> None:
 
         super(LabeledPexField, self).__init__(parent)
-        self.field_ = PexField(self, value)
+        self.field_ = PexField(self, value, fieldStyle)
 
         label = wx.StaticText(self, label=label)
-        sizer = wx.BoxSizer(style)
+        sizer = wx.BoxSizer(layoutStyle)
 
-        if style == wx.HORIZONTAL:
+        if layoutStyle == wx.HORIZONTAL:
             flag = wx.RIGHT
         else:
             flag = wx.BOTTOM | wx.EXPAND

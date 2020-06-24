@@ -18,7 +18,7 @@ class TestModel(Interface):
     """All of the model nodes are instantiated here."""
 
     def __init__(self) -> None:
-        ModelNodeInitializer(self, Interface)
+        ModelNodeInitializer(self)
 
 
 @attr.s(init=False, eq=False)
@@ -26,4 +26,4 @@ class TestUser(Interface):
     """Uses model to create all of the interface nodes."""
 
     def __init__(self, model: TestModel) -> None:
-        InterfaceNodeInitializer(self, Interface, model)
+        InterfaceNodeInitializer(self, model)
