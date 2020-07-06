@@ -15,10 +15,18 @@ from .signal import Signal
 from .value import Value, FilteredValue
 from .reference import GetReference, MakeReference
 from .types import NodeType, Reference
-from .initializers import (
-    ModelValue,
-    PexModelInitializer,
-    PexInterfaceInitializer)
+
+from .initialize_from_attr import (
+    InitializeModelFromAttr,
+    InitializeInterfaceFromAttr,
+    ModelValue)
+
+
+from .initializers import InitializeModel, InitializeUserInterface
+
+from .transform import Transform
+from .register_model import RegisterModel
+
 from .choices import Choices
 from .proxy import SignalProxy, ValueProxy, FilterProxy, ConverterProxy
 # pylint: enable=unused-import

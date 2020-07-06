@@ -38,6 +38,6 @@ class PexSpinCtrlDouble(wx.SpinCtrlDouble, PexWindow, Generic[Number]):
 
     def OnSpinCtrlDouble_(self, wxEvent: wx.CommandEvent) -> None:
         self.value_.Set(cast(Number, wxEvent.GetValue()))
-    
+
     def OnValue_(self, value: Number) -> None:
         self.SetValue(value)

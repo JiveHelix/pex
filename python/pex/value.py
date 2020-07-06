@@ -1,7 +1,7 @@
 ##
 # @file value.py
 #
-# @brief Value synchronizes a value between the interface and the model, with
+# @brief Synchronizes a value between the interface and the model, with
 # both ends allowed to register callbacks to be notified when the value has
 # changed.
 #

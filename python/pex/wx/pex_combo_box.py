@@ -20,7 +20,7 @@ class PexComboBox(wx.ComboBox, PexWindow, Generic[ValueType]):
         kwargs['choices'] = self.choices_.GetChoicesAsStrings()
         kwargs['style'] = wx.CB_READONLY
 
-        wx.ComboBox.__init__(self, parent, *args, **kwargs) 
+        wx.ComboBox.__init__(self, parent, *args, **kwargs)
 
         PexWindow.__init__(
             self,
@@ -32,7 +32,7 @@ class PexComboBox(wx.ComboBox, PexWindow, Generic[ValueType]):
         self.choices_.value.Connect(self.OnValue_)
         self.choices_.choices.Connect(self.OnChoices_)
         self.Bind(wx.EVT_COMBOBOX, self.OnComboBox_)
-    
+
     def OnValue_(self, ignored: ValueType) -> None:
         self.SetValue(self.choices_.GetValueAsString())
 
@@ -40,7 +40,7 @@ class PexComboBox(wx.ComboBox, PexWindow, Generic[ValueType]):
         # The available choices have changed.
         # Update what is displayed
         self.Set(self.choices_.GetChoicesAsStrings())
-    
+
     def OnComboBox_(self, ignored: wx.CommandEvent) -> None:
         self.choices_.value.Set(
             self.choices_.choices.Get()[self.GetSelection()])

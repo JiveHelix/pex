@@ -1,3 +1,13 @@
+##
+# @file choices.py
+#
+# @brief Connect a list of choices with a selected value to the user interface.
+#
+# @author Jive Helix (jivehelix@gmail.com)
+# @date 06 Jul 2020
+# @copyright Jive Helix
+# Licensed under the MIT license. See LICENSE file.
+
 from __future__ import annotations
 from typing import Generic, List, Optional, cast, Callable
 from .types import ValueType, Reference
