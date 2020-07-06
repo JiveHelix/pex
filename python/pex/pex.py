@@ -15,7 +15,7 @@ from .signal import Signal
 from .value import Value, FilteredValue
 from .reference import GetReference, MakeReference
 from .types import NodeType, Reference
-from .node_initializer import (
+from .initializers import (
     ModelValue,
     PexModelInitializer,
     PexInterfaceInitializer)
