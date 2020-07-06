@@ -97,7 +97,13 @@ class ValueProxy(Generic[ValueType]):
         callback(value)
 
     def __hash__(self) -> int:
-        return hash(self.reference_)
+        try:
+            return hash(self.reference_)
+        except TypeError:
+            print(
+                "Reference must be hashable. If created with attrs, "
+                "be sure to use keyword eq=False")
+            raise
 
     def __eq__(self, other: object) -> bool:
         if isinstance(other, ValueProxy):
