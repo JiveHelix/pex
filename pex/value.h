@@ -1,151 +1,166 @@
+/**
+  * @file value.h
+  * 
+  * @brief Implements model and interface Value nodes.
+  * 
+  * @author Jive Helix (jivehelix@gmail.com)
+  * @date 22 Jul 2020
+  * @copyright Jive Helix
+  * Licensed under the MIT license. See LICENSE file.
+**/
 #pragma once
-#include <vector>
-#include <set>
 #include <type_traits>
-
-#include "jive/compare.h"
+#include "pex/notify.h"
 
 namespace pex
 {
 
+template<typename Observer, typename T>
+using UnboundValueCallable = void (*)(Observer * const observer, T value);
 
-template<typename Callable_>
-class Callback_: jive::Compare<Callback_<Callable_>>
+template<typename Observer>
+using UnboundSignalCallable = void (*)(Observer * const observer);
+
+
+template<typename Observer, typename T>
+using BoundValueCallable = void (Observer::*)(T value);
+
+template<typename Observer>
+using BoundSignalCallable = void (Observer::*)();
+
+
+namespace detail
+{
+
+template<
+    typename Observer,
+    typename T,
+    template<typename, typename> typename ValueCallable>
+class ValueNotify: public Notify_<Observer, ValueCallable<Observer, T>>
 {
 public:
-    using Callable = Callable_;
-
-    Callback_(void * const observer, Callable callable)
-        :
-        observer_(observer),
-        callable_(callable)
-    {
-
-    }
-
-    /** Conversion from observer pointer for comparisons. **/
-    explicit Callback_(void * const observer)
-        :
-        observer_(observer),
-        callable_{}
-    {
-
-    }
-    
-    Callback_(const Callback_ &other)
-        :
-        observer_(other.observer_),
-        callable_(other.callable_)
-    {
-
-    }
-
-    Callback_ & operator=(const Callback_ &other)
-    {
-        this->observer_ = other.observer_;
-        this->callable_ = other.callable_;
-
-        return *this;
-    }
-
-    /** Compare using the memory address of observer_ **/
-    template<typename Operator>
-    bool Compare(const Callback_<Callable> &other) const
-    {
-        return Operator::Call(this->observer_, other.observer_);
-    }
-
-protected:
-    void * observer_;
-    Callable callable_;
-};
-
-
-template<typename T>
-using ValueCallable = void (*)(void * const observer, T value);
-
-using SignalCallable = void (*)(void * const observer);
-
-
-template<typename T>
-class ValueCallback: public Callback_<ValueCallable<T>>
-{
-public:
-    using Base = Callback_<ValueCallable<T>>;
+    using Type = T;
+    using Base = Notify_<Observer, ValueCallable<Observer, T>>;
     using Base::Base;
 
     void operator()(T value)
     {
-        this->callable_(this->observer_, value); 
+        if constexpr(Base::IsMemberFunction)
+        {
+            static_assert(
+                !std::is_same_v<Observer, void>,
+                "Cannot call member function on void type.");
+
+            (this->observer_->*(this->callable_))(value);
+        }
+        else
+        {
+            this->callable_(this->observer_, value);
+        }
     }
 };
 
 
-class SignalCallback: public Callback_<SignalCallable>
+template<typename Observer, template<typename> typename SignalCallable>
+class SignalNotify: public Notify_<Observer, SignalCallable<Observer>>
 {
 public:
-    using Base = Callback_<SignalCallable>;
+    using Base = Notify_<Observer, SignalCallable<Observer>>;
     using Base::Base;
 
     void operator()()
     {
-        this->callable_(this->observer_); 
+        if constexpr(Base::IsMemberFunction)
+        {
+            static_assert(
+                !std::is_same_v<Observer, void>,
+                "Cannot call member function on void type.");
+
+            (this->observer_->*(this->callable_))();
+        }
+        else
+        {
+            this->callable_(this->observer_);
+        }
     }
 };
 
+} // namespace detail
 
-template<typename Callback>
-class Tube
+namespace model
 {
-public:
-    void Connect(void * const observer, typename Callback::Callable callable)
-    {
-        auto callback = Callback(observer, callable);
-        
-        // sorted insert
-        this->callbacks_.insert(
-            std::upper_bound(
-                this->callbacks_.begin(),
-                this->callbacks_.end(),
-                callback),
-            callback);
-    }
 
-    /** Remove all registered callbacks for the observer. **/
-    void Disconnect(void * const observer)
-    {
-        auto [first, last] = std::equal_range(
-            this->callbacks_.begin(),
-            this->callbacks_.end(),
-            Callback(observer));
-
-        this->callbacks_.erase(first, last);
-    }
-
-protected:
-    std::vector<Callback> callbacks_;
-    std::set<Tube *> observed_;
-};
+template<typename T, typename Filter, typename = void>
+struct FilterIsValid_: std::false_type {};
 
 
+/** Filter can be void **/
+template<typename T, typename Filter>
+struct FilterIsValid_
+<
+    T,
+    Filter,
+    std::enable_if_t<std::is_same_v<Filter, void>>
+> : std::true_type {};
+
+
+/** Filter::Set can be normal function, or a function that takes a pointer
+ ** to Filter.
+ **/
+template<typename T, typename Filter>
+struct FilterIsValid_
+<
+    T,
+    Filter,
+    std::enable_if_t
+    <
+        std::is_invocable_r_v<T, decltype(Filter::Set), T>
+        || std::is_invocable_r_v<T, decltype(Filter::Set), Filter *, T>
+    >
+> : std::true_type {};
+
+
+template<typename T, typename Filter>
+constexpr auto FilterIsValid = FilterIsValid_<T, Filter>::value;
+
+
+// Model must use unbound callbacks so it can notify disparate types.
+// All observers are stored as void *.
 template<typename T, typename Filter = void>
-class ModelValue: public Tube<ValueCallback<T>>
+class Value
+    : public detail::NotifyMany<
+        detail::ValueNotify<void, T, UnboundValueCallable>>
 {
+    static_assert(FilterIsValid<T, Filter>);
+
 public:
     using Type = T;
-    
+
     void Set(T value)
     {
         if constexpr (std::is_void_v<Filter>)
         {
             this->value_ = value;
         }
+        else if constexpr (
+            std::is_invocable_r_v<T, decltype(Filter::Set), Filter *, T>)
+        {
+            this->value_ = Filter::Set(this->filterContext_, value);
+        }
         else
         {
-            this->value_ = Filter::Call(value);
+            // The filter is not void
+            // and the filter doesn't accept a Filter * argument.
+            this->value_ = Filter::Set(value);
         }
 
         this->Notify_(this->value_);
+    }
+
+    void SetFilterContext(Filter * const filterContext)
+    {
+        static_assert(!std::is_void_v<Filter>, "Filter must be specified");
+        this->filterContext_ = filterContext;
     }
 
     T Get() const
@@ -153,106 +168,222 @@ public:
         return this->value_;
     }
 
-    ModelValue(): value_{}
-    {
-        
-    }
-
-    ModelValue(T value): value_(value)
+    Value(): value_{}, filterContext_{nullptr}
     {
 
     }
 
-    ModelValue(const ModelValue<T, Filter> &) = delete;
-    ModelValue(ModelValue<T, Filter> &&) = delete;
+    Value(T value): value_(value)
+    {
+
+    }
+
+    Value(const Value<T, Filter> &) = delete;
+    Value(Value<T, Filter> &&) = delete;
 
 private:
-    void Notify_(T value)
-    {
-        for (auto &callback: this->callbacks_)
-        {
-            callback(value);
-        }
-    }
 
     T value_;
+
+    Filter * filterContext_;
 };
 
+} // namespace model
 
-template<typename ModelValue, typename InterfaceFilter = void>
-class InterfaceValue: public Tube<ValueCallback<typename ModelValue::Type>>
+
+namespace interface
+{
+
+template<typename T, typename Filter, typename = void>
+struct GetterIsValid : std::false_type {};
+
+template<typename T, typename Filter>
+struct GetterIsValid
+<
+    T,
+    Filter,
+    std::enable_if_t
+    <
+        std::is_invocable_r_v<T, decltype(Filter::Get), T>
+        || std::is_invocable_r_v<T, decltype(Filter::Get), Filter *, T>
+    >
+> : std::true_type {};
+
+
+template<typename T, typename Filter, typename = void>
+struct SetterIsValid : std::false_type {};
+
+template<typename T, typename Filter>
+struct SetterIsValid
+<
+    T,
+    Filter,
+    std::enable_if_t
+    <
+        std::is_invocable_r_v<void, decltype(Filter::Set), T>
+        || std::is_invocable_r_v<void, decltype(Filter::Set), Filter *, T>
+    >
+> : std::true_type {};
+
+
+template<typename T, typename Filter, typename = void>
+struct FilterIsValid_ : std::false_type {};
+
+
+/** Filter can be void **/
+template<typename T, typename Filter>
+struct FilterIsValid_
+<
+    T,
+    Filter,
+    std::enable_if_t<std::is_same_v<Filter, void>>
+> : std::true_type {};
+
+
+template<typename T, typename Filter>
+struct FilterIsValid_
+<
+    T,
+    Filter,
+    std::enable_if_t
+    <
+        GetterIsValid<T, Filter>::value
+        && SetterIsValid<T, Filter>::value
+    >
+> : std::true_type {};
+
+
+template<typename T, typename Filter>
+constexpr auto FilterIsValid = FilterIsValid_<T, Filter>::value;
+
+
+template<
+    typename Observer,
+    typename ModelValue,
+    typename Filter = void>
+class Value
+#ifdef ALLOW_MULTIPLE_CALLBACKS
+    : public detail::NotifyMany<
+#else
+    : public detail::NotifyOne<
+#endif
+        detail::ValueNotify<
+            Observer,
+            typename ModelValue::Type,
+            BoundValueCallable>>
 {
 public:
     using T = typename ModelValue::Type;
 
-    InterfaceValue(ModelValue * const model)
+    static_assert(FilterIsValid<T, Filter>);
+
+    Value(ModelValue * const model)
         :
         model_(model)
     {
-        this->model_->Connect(this, &InterfaceValue::OnModelChanged_);
+        this->model_->Connect(this, &Value::OnModelChanged_);
     }
 
-    ~InterfaceValue()
+    ~Value()
     {
         this->model_->Disconnect(this);
     }
 
-    InterfaceValue(const InterfaceValue &other)
+    Value(const Value &other)
         :
         model_(other.model_)
     {
-        this->model_->Connect(this, &InterfaceValue::OnModelChanged_);
+        this->model_->Connect(this, &Value::OnModelChanged_);
     }
 
-    /** 
-     ** Assignment could cause an InterfaceValue to track a different model
+    /**
+     ** Assignment could cause an interface::Value to track a different model
      ** value.
      **/
-    InterfaceValue & operator=(const InterfaceValue &) = delete;
-    InterfaceValue & operator=(InterfaceValue &&) = delete;
-    
+    Value & operator=(const Value &) = delete;
+    Value & operator=(Value &&) = delete;
+
+    void SetFilterContext(Filter * const filterContext)
+    {
+        static_assert(
+            !std::is_void_v<Filter>,
+            "Filter must be specified");
+
+        this->filterContext_ = filterContext;
+    }
+
     T Get() const
     {
-        if constexpr (std::is_void_v<InterfaceFilter>)
+        if constexpr (std::is_void_v<Filter>)
         {
             return this->model_->Get();
         }
         else
         {
-            return InterfaceFilter::Get(this->model_->Get());
+            return this->FilterGet_(this->model_->Get());
         }
     }
 
     void Set(T value)
     {
-        if constexpr (std::is_void_v<InterfaceFilter>)
+        if constexpr (std::is_void_v<Filter>)
         {
             this->model_->Set(value);
         }
         else
         {
-            this->model_->Set(InterfaceFilter::Set(value));
+            this->model_->Set(this->FilterSet_(value));
         }
     }
 
 private:
+    T FilterSet_(T value) const
+    {
+        if constexpr (
+            std::is_invocable_r_v<T, decltype(Filter::Set), Filter *, T>)
+        {
+            return Filter::Set(this->filterContext_, value);
+        }
+        else
+        {
+            // The filter doesn't accept a Filter * argument.
+            return Filter::Set(value);
+        }
+    }
+
+    T FilterGet_(T value) const
+    {
+        if constexpr (
+            std::is_invocable_r_v<T, decltype(Filter::Get), Filter *, T>)
+        {
+            return Filter::Get(this->filterContext_, value);
+        }
+        else
+        {
+            // The filter doesn't accept a Filter * argument.
+            return Filter::Get(value);
+        }
+    }
+
     static void OnModelChanged_(void * observer, T value)
     {
         // The model value has changed.
         // Update our observers.
-        if constexpr (!std::is_void_v<InterfaceFilter>)
+        auto self = static_cast<Value *>(observer);
+
+        if constexpr (!std::is_void_v<Filter>)
         {
-            value = InterfaceFilter::Get(value);
+            value = self->FilterGet_(value);
         }
-        
-        auto self = static_cast<InterfaceValue *>(observer);
-        for (auto &callback: self->callbacks_)
-        {
-            callback(value);
-        }
+
+        self->Notify_(value);
     }
 
     ModelValue *model_;
+
+    Filter * filterContext_;
 };
+
+} // namespace interface
 
 } // namespace pex

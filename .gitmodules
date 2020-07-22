@@ -1,3 +1,9 @@
 [submodule "venv"]
 	path = venv
 	url = git@github.com:JiveHelix/venv.git
+[submodule "external/jive"]
+	path = external/jive
+	url = git@github.com:JiveHelix/jive.git
+[submodule "cmake_includes"]
+	path = cmake_includes
+	url = git@github.com:JiveHelix/cmake_includes.git
