@@ -1,3 +1,13 @@
+/**
+  * @file value.cpp
+  *
+  * @brief A brief demonstration of filtering.
+  *
+  * @author Jive Helix (jivehelix@gmail.com)
+  * @date 22 Jul 2020
+  * @copyright Jive Helix
+  * Licensed under the MIT license. See LICENSE file.
+**/
 #include "pex/value.h"
 #include "jive/angles.h"
 #include <iostream>
