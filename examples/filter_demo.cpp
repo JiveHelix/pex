@@ -45,6 +45,7 @@ struct DegreesFilter
 
 using Angle_radians = pex::model::Value<double, ModelFilter>;
 
+Angle_radians f(0.0);
 
 class Foo
 {
@@ -71,13 +72,12 @@ public:
         this->angle_degrees_.Set(angle_degrees);
     }
 
-    pex::interface::Value<Foo, Angle_radians, DegreesFilter> angle_degrees_;
+    pex::interface::Value<Foo, Angle_radians> angle_degrees_;
 };
 
 
 int main()
 {
-    Angle_radians f(0.0);
     Foo p(&f);
     p.Set(250.0);
     p.Set(-181.0);

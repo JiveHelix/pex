@@ -14,6 +14,7 @@
 #include <vector>
 #include <type_traits>
 #include "jive/compare.h"
+#include <iostream>
 
 namespace pex
 {
@@ -27,6 +28,7 @@ class Notify_: jive::Compare<Notify_<Observer_, Callable_>>
 public:
     using Observer = Observer_;
     using Callable = Callable_;
+
     static constexpr auto IsMemberFunction =
         std::is_member_function_pointer_v<Callable>;
 
@@ -106,10 +108,14 @@ public:
         this->notifiers_.erase(first, last);
     }
 
+    size_t GetNotifierCount() const
+    {
+        return this->notifiers_.size();
+    }
+
 protected:
     std::vector<Notify> notifiers_;
 };
-
 
 template<typename Notify, typename = std::void_t<>>
 class NotifyMany : public NotifyMany_<Notify>
@@ -130,7 +136,7 @@ class NotifyMany<Notify, std::void_t<typename Notify::Type>>
     : public NotifyMany_<Notify>
 {
 protected:
-    void Notify_(typename Notify::Type value)
+    void Notify_(typename Notify::argumentType value)
     {
         for (auto &notifier: this->notifiers_)
         {
@@ -180,7 +186,7 @@ class NotifyOne<Notify, std::void_t<typename Notify::Type>>
     : public NotifyOne_<Notify>
 {
 protected:
-    void Notify_(typename Notify::Type value)
+    void Notify_(typename Notify::argumentType value)
     {
         if (this->notify_)
         {
