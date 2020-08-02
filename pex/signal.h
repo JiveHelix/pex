@@ -26,22 +26,30 @@ using BoundSignalCallable = void (Observer::*)();
 
 // Use bound notification methods for all Observers except void.
 template<typename Observer, typename = void>
-struct CallableStyle;
+struct SignalCallableStyle;
 
 template<typename Observer>
-struct CallableStyle<Observer, std::enable_if_t<std::is_void_v<Observer>>>
+struct SignalCallableStyle
+<
+    Observer,
+    std::enable_if_t<std::is_void_v<Observer>>
+>
 {
     using type = detail::UnboundSignalCallable<Observer>;
 };
 
 template<typename Observer>
-struct CallableStyle<Observer, std::enable_if_t<!std::is_void_v<Observer>>>
+struct SignalCallableStyle
+<
+    Observer,
+    std::enable_if_t<!std::is_void_v<Observer>>
+>
 {
     using type = detail::BoundSignalCallable<Observer>;
 };
 
 template<typename Observer>
-using SignalCallable = typename CallableStyle<Observer>::type;
+using SignalCallable = typename SignalCallableStyle<Observer>::type;
 
 
 template<typename Observer>
@@ -96,6 +104,8 @@ class Signal
     public detail::NotifyOne<detail::SignalNotify<Observer>>
 {
 public:
+    Signal() = default;
+
     Signal(model::Signal * const model)
         : model_(model)
     {
@@ -122,13 +132,11 @@ public:
         this->model_->Connect(this, &Signal::OnModelSignaled_);
     }
 
-    /**
-     ** Assignment could cause an interface::Signal to track a different model
-     ** value. By design, an interface value tracks the same model value for
-     ** the duration of its lifetime.
-     **/
-    Signal & operator=(const Signal &) = delete;
-    Signal & operator=(Signal &&) = delete;
+    Signal & operator=(const Signal &other)
+    {
+        this->model_ = other.model_;
+        return *this;
+    }
 
     static void OnModelSignaled_(void * observer)
     {

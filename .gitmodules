@@ -7,3 +7,6 @@
 [submodule "cmake_includes"]
 	path = cmake_includes
 	url = git@github.com:JiveHelix/cmake_includes.git
+[submodule "external/fields"]
+	path = external/fields
+	url = https://github.com/JiveHelix/fields.git

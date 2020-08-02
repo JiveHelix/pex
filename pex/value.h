@@ -28,24 +28,24 @@ struct Argument;
 template<typename T>
 struct Argument<T, std::enable_if_t<std::is_arithmetic_v<T>>>
 {
-    using type = T;
+    using Type = T;
 };
 
 template<typename T>
 struct Argument<T, std::enable_if_t<!std::is_arithmetic_v<T>>>
 {
-    using type = const T &;
+    using Type = const T &;
 };
 
 
 
 template<typename Observer, typename T>
 using UnboundValueCallable =
-    void (*)(Observer * const observer, typename Argument<T>::type value);
+    void (*)(Observer * const observer, typename Argument<T>::Type value);
 
 template<typename Observer, typename T>
 using BoundValueCallable =
-    void (Observer::*)(typename Argument<T>::type value);
+    void (Observer::*)(typename Argument<T>::Type value);
 
 // Use bound notification methods for all Observers except void.
 template<typename Observer, typename T, typename = void>
@@ -54,17 +54,17 @@ struct CallableStyle;
 template<typename Observer, typename T>
 struct CallableStyle<Observer, T, std::enable_if_t<std::is_void_v<Observer>>>
 {
-    using type = UnboundValueCallable<Observer, T>;
+    using Type = UnboundValueCallable<Observer, T>;
 };
 
 template<typename Observer, typename T>
 struct CallableStyle<Observer, T, std::enable_if_t<!std::is_void_v<Observer>>>
 {
-    using type = BoundValueCallable<Observer, T>;
+    using Type = BoundValueCallable<Observer, T>;
 };
 
 template<typename Observer, typename T>
-using ValueCallable = typename CallableStyle<Observer, T>::type;
+using ValueCallable = typename CallableStyle<Observer, T>::Type;
 
 template<typename Observer, typename T>
 class ValueNotify: public Notify_<Observer, ValueCallable<Observer, T>>
@@ -72,10 +72,10 @@ class ValueNotify: public Notify_<Observer, ValueCallable<Observer, T>>
 public:
     using Type = T;
     using Base = Notify_<Observer, ValueCallable<Observer, T>>;
-    using argumentType = typename Argument<T>::type;
+    using argumentType = typename Argument<T>::Type;
     using Base::Base;
 
-    void operator()(typename Argument<T>::type value)
+    void operator()(typename Argument<T>::Type value)
     {
         if constexpr(Base::IsMemberFunction)
         {
@@ -157,14 +157,6 @@ struct SetterIsMember
     std::enable_if_t
     <
         std::is_invocable_r_v<T, decltype(&Filter::Set), Filter, T>
-#if 0
-        std::is_same_v
-        <
-            T,
-            decltype(std::declval<Filter>().Set(std::declval<T>()))
-        >
-        && std::is_member_function_pointer_v<decltype(&Filter::Set)>
-#endif
     >
 > : std::true_type {};
 
@@ -254,7 +246,7 @@ class Value_ : public detail::NotifyMany<detail::ValueNotify<void, T>>
 public:
     using Type = T;
 
-    void Set(typename detail::Argument<T>::type value)
+    void Set(typename detail::Argument<T>::Type value)
     {
         if constexpr (std::is_void_v<Filter>)
         {
@@ -295,7 +287,7 @@ protected:
 
     }
 
-    Value_(T value)
+    explicit Value_(T value)
         :
         value_{value},
         filter_{}
@@ -309,12 +301,12 @@ protected:
 
 
 template<typename T, typename Filter = void, typename = void>
-class Value;
+class FilteredValue;
 
 
 /** Filter provides static methods or Filter is void **/
 template<typename T, typename Filter>
-class Value
+class FilteredValue
 <
     T,
     Filter,
@@ -328,8 +320,8 @@ class Value
 {
 public:
     using Base = Value_<T, Filter>;
-    Value(T value): Base(value) {}
-    Value(): Base() {}
+    explicit FilteredValue(T value): Base(value) {}
+    FilteredValue(): Base() {}
 };
 
 
@@ -338,7 +330,7 @@ public:
  ** Constructor must get a reference to the filter instance.
  ** **/
 template<typename T, typename Filter>
-class Value
+class FilteredValue
 <
     T,
     Filter,
@@ -351,20 +343,24 @@ class Value
     public Value_<T, Filter>
 {
 public:
-    Value(Filter &filter)
+    explicit FilteredValue(Filter &filter)
         :
         Value_<T, Filter>()
     {
         this->filter_ = &filter;
     }
 
-    Value(Filter &filter, T value)
+    explicit FilteredValue(Filter &filter, T value)
         :
         Value_<T, Filter>(value)
     {
         this->filter_ = &filter;
     }
 };
+
+
+template<typename T>
+struct Value: public FilteredValue<T, void> {};
 
 
 } // namespace model
@@ -400,6 +396,46 @@ struct FilterIsVoidOrValid
 > : std::true_type {};
 
 
+template<typename Model, typename = void>
+struct ModelImplementsConnect: std::false_type {};
+
+
+template<typename Model>
+struct ModelImplementsConnect
+<
+    Model,
+    std::enable_if_t
+    <
+        std::is_invocable_v
+        <
+            decltype(&Model::Connect),
+            Model,
+            void * const,
+            detail::UnboundValueCallable<void, typename Model::Type>
+        >
+    >
+> : std::true_type {};
+
+
+template<typename Model, typename = void>
+struct ModelImplementsDisconnect: std::false_type {};
+
+template<typename Model>
+struct ModelImplementsDisconnect
+<
+    Model,
+    std::enable_if_t
+    <
+        std::is_invocable_v
+        <
+            decltype(&Model::Disconnect),
+            Model,
+            void * const
+        >
+    >
+> : std::true_type {};
+
+
 template<
     typename Observer,
     typename Model,
@@ -418,33 +454,76 @@ public:
     static_assert(FilterIsVoidOrValid<T, Filter>::value);
 
 protected:
-    Value_(Model * const model)
+    Value_(): model_(nullptr), filter_(nullptr) {}
+
+    explicit Value_(Model * const model)
         :
-        model_(model)
+        model_(model),
+        filter_(nullptr)
     {
-        this->model_->Connect(this, &Value_::OnModelChanged_);
+        if constexpr (ModelImplementsConnect<Model>::value)
+        {
+            this->model_->Connect(this, &Value_::OnModelChanged_);
+        }
     }
 
 public:
     ~Value_()
     {
-        this->model_->Disconnect(this);
+        if constexpr (ModelImplementsDisconnect<Model>::value)
+        {
+            if (this->model_)
+            {
+                this->model_->Disconnect(this);
+            }
+        }
     }
 
-    Value_(const Value_ &other)
+    explicit Value_(const Value_ &other)
         :
-        model_(other.model_)
+        model_(other.model_),
+        filter_(nullptr)
     {
-        this->model_->Connect(this, &Value_::OnModelChanged_);
+        if constexpr (ModelImplementsConnect<Model>::value)
+        {
+            if (this->model_)
+            {
+                this->model_->Connect(this, &Value_::OnModelChanged_);
+            }
+        }
     }
 
-    /**
-     ** Assignment could cause an interface::Value_ to track a different model
-     ** value. By design, an interface value tracks the same model value for
-     ** the duration of its lifetime.
+    Value_ & operator=(const Value_ &other)
+    {
+        this->model_ = other.model_;
+        this->filter_ = other.filter_;
+
+        if constexpr (ModelImplementsConnect<Model>::value)
+        {
+            if (this->model_)
+            {
+                this->model_->Connect(this, &Value_::OnModelChanged_);
+            }
+        }
+
+        return *this;
+    }
+    
+    /** Implicit bool conversion returns true if the interface is currently
+     ** tracking a Model and a Filter, if it is not void.
      **/
-    Value_ & operator=(const Value_ &) = delete;
-    Value_ & operator=(Value_ &&) = delete;
+    operator bool () const
+    {
+        if constexpr (std::is_void_v<Filter>)
+        {
+            return this->model_ != nullptr;
+        }
+        else
+        {
+            // Filter has been specified.
+            return (this->model_ != nullptr) && (this->filter_ != nullptr); 
+        }
+    }
 
     T Get() const
     {
@@ -458,7 +537,7 @@ public:
         }
     }
 
-    void Set(typename detail::Argument<T>::type value)
+    void Set(typename detail::Argument<T>::Type value)
     {
         if constexpr (std::is_void_v<Filter>)
         {
@@ -471,7 +550,7 @@ public:
     }
 
 private:
-    T FilterSet_(typename detail::Argument<T>::type value) const
+    T FilterSet_(typename detail::Argument<T>::Type value) const
     {
         if constexpr (
             std::is_invocable_r_v<T, decltype(&Filter::Set), Filter, T>)
@@ -485,7 +564,7 @@ private:
         }
     }
 
-    T FilterGet_(typename detail::Argument<T>::type value) const
+    T FilterGet_(typename detail::Argument<T>::Type value) const
     {
         if constexpr (
             std::is_invocable_r_v<T, decltype(&Filter::Get), Filter, T>)
@@ -501,7 +580,7 @@ private:
 
     static void OnModelChanged_(
         void * observer,
-        typename detail::Argument<T>::type value)
+        typename detail::Argument<T>::Type value)
     {
         // The model value has changed.
         // Update our observers.
@@ -520,12 +599,25 @@ private:
 };
 
 
+template<typename Model, typename = void>
+struct ModelDefinesType: std::false_type {};
+
+template<typename Model>
+struct ModelDefinesType<Model, std::void_t<typename Model::Type>>
+    : std::true_type {};
+
+
 template<
     typename Observer,
     typename Model,
-    typename Filter = void,
+    typename Filter,
     typename = void>
-class Value;
+class FilteredValue
+{
+    static_assert(
+        ModelDefinesType<Model>::value,
+        "Any class used as the Model must define Model::Type");
+};
 
 
 /** Filter provides static methods or Filter is void **/
@@ -535,7 +627,7 @@ template
     typename Model,
     typename Filter
 >
-class Value
+class FilteredValue
 <
     Observer,
     Model,
@@ -552,8 +644,27 @@ class Value
 {
 public:
     using Base = Value_<Observer, Model, Filter>;
-    Value(Model * const model): Base(model) {}
-    Value(const Value &other): Base(other) {}
+
+    FilteredValue(): Base()
+    {
+
+    }
+
+    explicit FilteredValue(Model * const model): Base(model)
+    {
+
+    }
+
+    explicit FilteredValue(const FilteredValue &other): Base(other)
+    {
+
+    }
+
+    FilteredValue & operator=(const FilteredValue &other)
+    {
+        Base::operator=(other);
+        return *this;
+    }
 };
         
 
@@ -567,7 +678,7 @@ template
     typename Model,
     typename Filter
 >
-class Value
+class FilteredValue
 <
     Observer,
     Model,
@@ -584,17 +695,45 @@ class Value
 public:
     using Base = Value_<Observer, Model, Filter>;
 
-    Value(Model * const model, Filter &filter)
+    FilteredValue(): Base() {}
+
+    explicit FilteredValue(Model * const model, Filter &filter)
         :
         Base(model)
     {
         this->filter_ = &filter;
     }
 
-    Value(const Value &other): Base(other)
+    explicit FilteredValue(const FilteredValue &other): Base(other)
     {
         
     }
+
+    FilteredValue & operator=(const FilteredValue &other)
+    {
+        Base::operator=(other);
+        return *this;
+    }
+};
+
+
+template<typename Observer, typename ModelType>
+using Value = FilteredValue<Observer, ModelType, void>;
+
+
+template<typename Observer>
+struct BoundFilteredValue
+{
+    template<typename ModelType, typename Filter>
+    using Type = FilteredValue<Observer, ModelType, Filter>;
+};
+
+
+template<typename Observer>
+struct BoundValue
+{
+    template<typename ModelType>
+    using Type = FilteredValue<Observer, ModelType, void>;
 };
 
 

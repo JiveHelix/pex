@@ -8,4 +8,7 @@ target_link_libraries(pex INTERFACE jive)
 target_sources(
     pex
     INTERFACE
+    initialize.h
+    notify.h
+    signal.h
     value.h)
