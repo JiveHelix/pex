@@ -1,8 +1,8 @@
 /**
   * @file value.h
-  * 
+  *
   * @brief Implements model and interface Value nodes.
-  * 
+  *
   * @author Jive Helix (jivehelix@gmail.com)
   * @date 22 Jul 2020
   * @copyright Jive Helix
@@ -21,7 +21,7 @@ namespace detail
 
 // Set and Notify methods will use pass-by-value when T is an integral or
 // floating-point type. Other types, like std::string will be passed by const
-// reference to avoid unnecessary copying. 
+// reference to avoid unnecessary copying.
 template<typename T, typename = void>
 struct Argument;
 
@@ -325,7 +325,7 @@ public:
 };
 
 
-/** 
+/**
  ** Filter provides member methods.
  ** Constructor must get a reference to the filter instance.
  ** **/
@@ -508,7 +508,7 @@ public:
 
         return *this;
     }
-    
+
     /** Implicit bool conversion returns true if the interface is currently
      ** tracking a Model and a Filter, if it is not void.
      **/
@@ -521,7 +521,7 @@ public:
         else
         {
             // Filter has been specified.
-            return (this->model_ != nullptr) && (this->filter_ != nullptr); 
+            return (this->model_ != nullptr) && (this->filter_ != nullptr);
         }
     }
 
@@ -631,7 +631,7 @@ class FilteredValue
 <
     Observer,
     Model,
-    Filter, 
+    Filter,
     std::enable_if_t
     <
         std::is_void_v<Filter>
@@ -666,9 +666,9 @@ public:
         return *this;
     }
 };
-        
 
-/** 
+
+/**
  ** Filter provides member methods, so,
  ** Constructor must get a reference to the filter instance.
  **/
@@ -682,7 +682,7 @@ class FilteredValue
 <
     Observer,
     Model,
-    Filter, 
+    Filter,
     std::enable_if_t
     <
         detail::GetterIsMember<typename Model::Type, Filter>::value
@@ -706,7 +706,7 @@ public:
 
     explicit FilteredValue(const FilteredValue &other): Base(other)
     {
-        
+
     }
 
     FilteredValue & operator=(const FilteredValue &other)
