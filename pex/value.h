@@ -45,6 +45,26 @@ public:
 
     }
 
+    Value_(T value, Filter *filter)
+        :
+        value_{value},
+        filter_{filter}
+    {
+        static_assert(
+            detail::FilterIsMember<T, Filter>::value,
+            "Static or void Filter does not require a filter instance.");
+    }
+
+    Value_(Filter *filter)
+        :
+        value_{},
+        filter_{filter}
+    {
+        static_assert(
+            detail::FilterIsMember<T, Filter>::value,
+            "Static or void Filter does not require a filter instance.");
+    }
+
     Value_(const Value_<T, Filter> &) = delete;
     Value_(Value_<T, Filter> &&) = delete;
 
@@ -77,19 +97,16 @@ public:
 
     void SetFilter(Filter *filter)
     {
-        if constexpr (detail::FilterIsMember<T, Filter>::value)
-        {
-            this->filter_ = filter;    
-        }
-        else
-        {
-            throw std::logic_error("Filter is void or static");
-        }
+        static_assert(
+            detail::FilterIsMember<T, Filter>::value,
+            "Static or void Filter does not require a filter instance.");
+
+        this->filter_ = filter;
     }
 
     /** If Filter requires a Filter instance, and it has been set, then bool
      ** conversion returns true.
-     ** 
+     **
      ** If the Filter is void or static, it always returns true.
      **/
     operator bool () const
@@ -244,15 +261,11 @@ public:
 
     void SetFilter(Filter *filter)
     {
-        if constexpr (
-            detail::FilterIsMember<typename Model::Type, Filter>::value)
-        {
-            this->filter_ = filter;    
-        }
-        else
-        {
-            throw std::logic_error("Filter is void or static");
-        }
+        static_assert(
+            detail::FilterIsMember<T, Filter>::value,
+            "Static or void Filter does not require a filter instance.");
+
+        this->filter_ = filter;
     }
 
     /** Implicit bool conversion returns true if the interface is currently

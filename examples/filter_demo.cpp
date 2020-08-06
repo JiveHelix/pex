@@ -43,7 +43,7 @@ struct DegreesFilter
 };
 
 
-using Angle_radians = pex::model::Value<double, ModelFilter>;
+using Angle_radians = pex::model::FilteredValue<double, ModelFilter>;
 
 Angle_radians f(0.0);
 

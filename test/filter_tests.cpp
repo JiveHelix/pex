@@ -71,10 +71,10 @@ TEMPLATE_TEST_CASE(
     TestType high = angles::pi;
     
     using Model =
-        pex::model::Value<TestType, RangeFilter<TestType>>;
+        pex::model::FilteredValue<TestType, RangeFilter<TestType>>;
 
     RangeFilter<TestType> filter{low, high};
-    Model model{filter};
+    Model model{&filter};
     Observer<TestType, Model> observer(model);
     model.Set(value);
     REQUIRE(observer.observedValue <= high);
@@ -115,10 +115,10 @@ TEMPLATE_TEST_CASE(
     TestType high = 96;
     
     using Model =
-        pex::model::Value<TestType, RangeFilter<TestType>>;
+        pex::model::FilteredValue<TestType, RangeFilter<TestType>>;
     
     RangeFilter<TestType> filter{low, high};
-    Model model{filter};
+    Model model{&filter};
     Observer<TestType, Model> observer(model);
     model.Set(value);
     REQUIRE(observer.observedValue <= high);
@@ -160,7 +160,7 @@ TEMPLATE_TEST_CASE(
 
     using Model = pex::model::Value<TestType>;
     using Interface =
-        pex::interface::Value<void, Model, DegreesFilter<TestType>>;
+        pex::interface::FilteredValue<void, Model, DegreesFilter<TestType>>;
     
     Model model;
     Interface interface(&model);
