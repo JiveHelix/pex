@@ -9,6 +9,8 @@ target_sources(
     pex
     INTERFACE
     initialize.h
-    notify.h
     signal.h
-    value.h)
+    value.h
+    detail/notify.h
+    detail/signal_detail.h
+    detail/value_detail.h)

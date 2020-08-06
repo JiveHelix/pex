@@ -14,7 +14,7 @@
 #include <vector>
 #include <type_traits>
 #include "jive/compare.h"
-#include <iostream>
+#include <optional>
 
 namespace pex
 {
@@ -154,7 +154,7 @@ public:
         typename Notify::Observer * const observer,
         typename Notify::Callable callable)
     {
-        this->notify_ = std::make_unique<Notify>(observer, callable);
+        this->notify_ = Notify(observer, callable);
     }
 
     /** Remove all registered callbacks for the observer. **/
@@ -163,7 +163,7 @@ public:
         this->notify_.reset();
     }
 
-    std::unique_ptr<Notify> notify_;
+    std::optional<Notify> notify_;
 };
 
 

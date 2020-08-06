@@ -10,275 +10,25 @@
 **/
 #pragma once
 #include <type_traits>
-#include "pex/notify.h"
+#include "pex/detail/notify.h"
+#include "pex/detail/value_detail.h"
 
 namespace pex
 {
 
-namespace detail
-{
-
-
-// Set and Notify methods will use pass-by-value when T is an integral or
-// floating-point type. Other types, like std::string will be passed by const
-// reference to avoid unnecessary copying.
-template<typename T, typename = void>
-struct Argument;
-
-template<typename T>
-struct Argument<T, std::enable_if_t<std::is_arithmetic_v<T>>>
-{
-    using Type = T;
-};
-
-template<typename T>
-struct Argument<T, std::enable_if_t<!std::is_arithmetic_v<T>>>
-{
-    using Type = const T &;
-};
-
-
-
-template<typename Observer, typename T>
-using UnboundValueCallable =
-    void (*)(Observer * const observer, typename Argument<T>::Type value);
-
-template<typename Observer, typename T>
-using BoundValueCallable =
-    void (Observer::*)(typename Argument<T>::Type value);
-
-// Use bound notification methods for all Observers except void.
-template<typename Observer, typename T, typename = void>
-struct CallableStyle;
-
-template<typename Observer, typename T>
-struct CallableStyle<Observer, T, std::enable_if_t<std::is_void_v<Observer>>>
-{
-    using Type = UnboundValueCallable<Observer, T>;
-};
-
-template<typename Observer, typename T>
-struct CallableStyle<Observer, T, std::enable_if_t<!std::is_void_v<Observer>>>
-{
-    using Type = BoundValueCallable<Observer, T>;
-};
-
-template<typename Observer, typename T>
-using ValueCallable = typename CallableStyle<Observer, T>::Type;
-
-template<typename Observer, typename T>
-class ValueNotify: public Notify_<Observer, ValueCallable<Observer, T>>
-{
-public:
-    using Type = T;
-    using Base = Notify_<Observer, ValueCallable<Observer, T>>;
-    using argumentType = typename Argument<T>::Type;
-    using Base::Base;
-
-    void operator()(typename Argument<T>::Type value)
-    {
-        if constexpr(Base::IsMemberFunction)
-        {
-            static_assert(
-                !std::is_same_v<Observer, void>,
-                "Cannot call member function on void type.");
-
-            (this->observer_->*(this->callable_))(value);
-        }
-        else
-        {
-            this->callable_(this->observer_, value);
-        }
-    }
-};
-
-
-template<typename T, typename Filter, typename = void>
-struct GetterIsStatic: std::false_type {};
-
-template<typename T>
-struct GetterIsStatic<T, void, void>: std::false_type {};
-
-template<typename T, typename Filter>
-struct GetterIsStatic
-<
-    T,
-    Filter,
-    std::enable_if_t<std::is_invocable_r_v<T, decltype(&Filter::Get), T>>
-> : std::true_type {};
-
-
-template<typename T, typename Filter, typename = void>
-struct GetterIsMember: std::false_type {};
-
-
-template<typename T>
-struct GetterIsMember<T, void, void>: std::false_type {};
-
-
-template<typename T, typename Filter>
-struct GetterIsMember
-<
-    T,
-    Filter,
-    std::enable_if_t
-    <
-        std::is_invocable_r_v<T, decltype(&Filter::Set), Filter, T>
-    >
-> : std::true_type {};
-
-
-template<typename T, typename Filter, typename = void>
-struct SetterIsStatic: std::false_type {};
-
-template<typename T>
-struct SetterIsStatic<T, void, void>: std::false_type {};
-
-template<typename T, typename Filter>
-struct SetterIsStatic
-<
-    T,
-    Filter,
-    std::enable_if_t<std::is_invocable_r_v<T, decltype(&Filter::Set), T>>
-> : std::true_type {};
-
-
-template<typename T, typename Filter, typename = void>
-struct SetterIsMember: std::false_type {};
-
-template<typename T>
-struct SetterIsMember<T, void, void>: std::false_type {};
-
-template<typename T, typename Filter>
-struct SetterIsMember
-<
-    T,
-    Filter,
-    std::enable_if_t
-    <
-        std::is_invocable_r_v<T, decltype(&Filter::Set), Filter, T>
-    >
-> : std::true_type {};
-
-
-/** Filter::Get can be normal function, or a function that takes a pointer
- ** to Filter.
- **/
-template<typename T, typename Filter, typename = void>
-struct GetterIsValid : std::false_type {};
-
-template<typename T>
-struct GetterIsValid<T, void, void> : std::false_type {};
-
-template<typename T, typename Filter>
-struct GetterIsValid
-<
-    T,
-    Filter,
-    std::enable_if_t
-    <
-        GetterIsStatic<T, Filter>::value || GetterIsMember<T, Filter>::value
-    >
-> : std::true_type {};
-
-
-/** Filter::Set can be normal function, or a function that takes a pointer
- ** to Filter.
- **/
-template<typename T, typename Filter, typename = void>
-struct SetterIsValid : std::false_type {};
-
-
-template<typename T>
-struct SetterIsValid<T, void, void> : std::false_type {};
-
-
-template<typename T, typename Filter>
-struct SetterIsValid
-<
-    T,
-    Filter,
-    std::enable_if_t
-    <
-        SetterIsStatic<T, Filter>::value || SetterIsMember<T, Filter>::value
-    >
-> : std::true_type {};
-
-
-} // namespace detail
-
 namespace model
 {
 
-template<typename T, typename Filter, typename = void>
-struct FilterIsVoidOrValid: std::false_type {};
-
-
-/** Filter can be void **/
-template<typename T, typename Filter>
-struct FilterIsVoidOrValid
-<
-    T,
-    Filter,
-    std::enable_if_t<std::is_same_v<Filter, void>>
-> : std::true_type {};
-
-
-/** Filter::Set can be normal function, or a function that takes a pointer
- ** to Filter.
- **/
-template<typename T, typename Filter>
-struct FilterIsVoidOrValid
-<
-    T,
-    Filter,
-    std::enable_if_t<detail::SetterIsValid<T, Filter>::value>
-> : std::true_type {};
-
-
 // Model must use unbound callbacks so it can notify disparate types.
 // All observers are stored as void *.
-template<typename T, typename Filter = void>
+template<typename T, typename Filter>
 class Value_ : public detail::NotifyMany<detail::ValueNotify<void, T>>
 {
-    static_assert(FilterIsVoidOrValid<T, Filter>::value);
+    static_assert(detail::ModelFilterIsVoidOrValid<T, Filter>::value);
 
 public:
     using Type = T;
 
-    void Set(typename detail::Argument<T>::Type value)
-    {
-        if constexpr (std::is_void_v<Filter>)
-        {
-            this->value_ = value;
-        }
-        else if constexpr (
-            std::is_invocable_r_v<T, decltype(&Filter::Set), Filter, T>)
-        {
-            this->value_ = std::invoke(
-                &Filter::Set,
-                *this->filter_,
-                value);
-        }
-        else
-        {
-            // The filter is not void
-            // and the filter doesn't accept a Filter * argument.
-            this->value_ = Filter::Set(value);
-        }
-
-        this->Notify_(this->value_);
-    }
-
-    T Get() const
-    {
-        return this->value_;
-    }
-
-    Value_(const Value_<T, Filter> &) = delete;
-    Value_(Value_<T, Filter> &&) = delete;
-
-protected:
     Value_()
         :
         value_{},
@@ -295,72 +45,75 @@ protected:
 
     }
 
+    Value_(const Value_<T, Filter> &) = delete;
+    Value_(Value_<T, Filter> &&) = delete;
+
+    void Set(typename detail::Argument<T>::Type value)
+    {
+        if constexpr (std::is_void_v<Filter>)
+        {
+            this->value_ = value;
+        }
+        else if constexpr (
+            std::is_invocable_r_v<T, decltype(&Filter::Set), Filter, T>)
+        {
+            NOT_NULL(this->filter_);
+            this->value_ = this->filter_->Set(value);
+        }
+        else
+        {
+            // The filter is not void
+            // and the filter doesn't accept a Filter * argument.
+            this->value_ = Filter::Set(value);
+        }
+
+        this->Notify_(this->value_);
+    }
+
+    T Get() const
+    {
+        return this->value_;
+    }
+
+    void SetFilter(Filter *filter)
+    {
+        if constexpr (detail::FilterIsMember<T, Filter>::value)
+        {
+            this->filter_ = filter;    
+        }
+        else
+        {
+            throw std::logic_error("Filter is void or static");
+        }
+    }
+
+    /** If Filter requires a Filter instance, and it has been set, then bool
+     ** conversion returns true.
+     ** 
+     ** If the Filter is void or static, it always returns true.
+     **/
+    operator bool () const
+    {
+        if constexpr (detail::FilterIsMember<T, Filter>::value)
+        {
+            return this->filter_ != nullptr;
+        }
+        else
+        {
+            return true;
+        }
+    }
+
+private:
     T value_;
     Filter * filter_;
 };
 
-
-template<typename T, typename Filter = void, typename = void>
-class FilteredValue;
-
-
-/** Filter provides static methods or Filter is void **/
-template<typename T, typename Filter>
-class FilteredValue
-<
-    T,
-    Filter,
-    std::enable_if_t
-    <
-        detail::SetterIsStatic<T, Filter>::value || std::is_void_v<Filter>
-    >
->
-    :
-    public Value_<T, Filter>
-{
-public:
-    using Base = Value_<T, Filter>;
-    explicit FilteredValue(T value): Base(value) {}
-    FilteredValue(): Base() {}
-};
-
-
-/**
- ** Filter provides member methods.
- ** Constructor must get a reference to the filter instance.
- ** **/
-template<typename T, typename Filter>
-class FilteredValue
-<
-    T,
-    Filter,
-    std::enable_if_t
-    <
-        detail::SetterIsMember<T, Filter>::value
-    >
->
-    :
-    public Value_<T, Filter>
-{
-public:
-    explicit FilteredValue(Filter &filter)
-        :
-        Value_<T, Filter>()
-    {
-        this->filter_ = &filter;
-    }
-
-    explicit FilteredValue(Filter &filter, T value)
-        :
-        Value_<T, Filter>(value)
-    {
-        this->filter_ = &filter;
-    }
-};
-
-
 template<typename T>
-struct Value: public FilteredValue<T, void> {};
+using Value = Value_<T, void>;
+
+template<typename T, typename Filter>
+using FilteredValue = Value_<T, Filter>;
 
 
 } // namespace model
@@ -368,72 +121,6 @@ struct Value: public FilteredValue<T, void> {};
 
 namespace interface
 {
-
-template<typename T, typename Filter, typename = void>
-struct FilterIsVoidOrValid : std::false_type {};
-
-
-/** Filter can be void **/
-template<typename T, typename Filter>
-struct FilterIsVoidOrValid
-<
-    T,
-    Filter,
-    std::enable_if_t<std::is_same_v<Filter, void>>
-> : std::true_type {};
-
-
-template<typename T, typename Filter>
-struct FilterIsVoidOrValid
-<
-    T,
-    Filter,
-    std::enable_if_t
-    <
-        detail::GetterIsValid<T, Filter>::value
-        && detail::SetterIsValid<T, Filter>::value
-    >
-> : std::true_type {};
-
-
-template<typename Model, typename = void>
-struct ModelImplementsConnect: std::false_type {};
-
-
-template<typename Model>
-struct ModelImplementsConnect
-<
-    Model,
-    std::enable_if_t
-    <
-        std::is_invocable_v
-        <
-            decltype(&Model::Connect),
-            Model,
-            void * const,
-            detail::UnboundValueCallable<void, typename Model::Type>
-        >
-    >
-> : std::true_type {};
-
-
-template<typename Model, typename = void>
-struct ModelImplementsDisconnect: std::false_type {};
-
-template<typename Model>
-struct ModelImplementsDisconnect
-<
-    Model,
-    std::enable_if_t
-    <
-        std::is_invocable_v
-        <
-            decltype(&Model::Disconnect),
-            Model,
-            void * const
-        >
-    >
-> : std::true_type {};
 
 
 template<
@@ -449,28 +136,33 @@ class Value_
         detail::ValueNotify<Observer, typename Model::Type>>
 {
 public:
+
+    static_assert(
+        detail::DefinesType<Model>::value,
+        "Model must define Model::Type");
+
     using T = typename Model::Type;
 
-    static_assert(FilterIsVoidOrValid<T, Filter>::value);
+    static_assert(detail::InterfaceFilterIsVoidOrValid<T, Filter>::value);
 
-protected:
     Value_(): model_(nullptr), filter_(nullptr) {}
 
-    explicit Value_(Model * const model)
+    explicit Value_(Model * model)
         :
         model_(model),
         filter_(nullptr)
     {
-        if constexpr (ModelImplementsConnect<Model>::value)
+        NOT_NULL(model);
+
+        if constexpr (detail::ImplementsConnect<Model>::value)
         {
             this->model_->Connect(this, &Value_::OnModelChanged_);
         }
     }
 
-public:
     ~Value_()
     {
-        if constexpr (ModelImplementsDisconnect<Model>::value)
+        if constexpr (detail::ImplementsDisconnect<Model>::value)
         {
             if (this->model_)
             {
@@ -479,12 +171,16 @@ public:
         }
     }
 
-    explicit Value_(const Value_ &other)
+    /** Allow copy and assignment from another Value that may have different
+     ** observers and filters, but tracks the same model.
+     **/
+    template<typename OtherObserver, typename OtherFilter>
+    explicit Value_(const Value_<OtherObserver, Model, OtherFilter> &other)
         :
         model_(other.model_),
         filter_(nullptr)
     {
-        if constexpr (ModelImplementsConnect<Model>::value)
+        if constexpr (detail::ImplementsConnect<Model>::value)
         {
             if (this->model_)
             {
@@ -493,40 +189,93 @@ public:
         }
     }
 
-    Value_ & operator=(const Value_ &other)
+    /** When the filter type matches, the filter can be copied, too. **/
+    template<typename OtherObserver>
+    explicit Value_(const Value_<OtherObserver, Model, Filter> &other)
+        :
+        model_(other.model_),
+        filter_(other.filter_)
     {
-        this->model_ = other.model_;
-        this->filter_ = other.filter_;
-
-        if constexpr (ModelImplementsConnect<Model>::value)
+        if constexpr (detail::ImplementsConnect<Model>::value)
         {
             if (this->model_)
             {
                 this->model_->Connect(this, &Value_::OnModelChanged_);
+            }
+        }
+    }
+
+    template<typename OtherObserver, typename OtherModel, typename OtherFilter>
+    Value_<Observer, Model, Filter> & operator=(
+        const Value_<OtherObserver, OtherModel, OtherFilter> &other)
+    {
+        static_assert(
+            std::is_same_v<Model, OtherModel>,
+            "Copy may differ in observer and filter types, but must track the "
+            "same model value.");
+
+        if constexpr (detail::ImplementsDisconnect<Model>::value)
+        {
+            if (this->model_)
+            {
+                this->model_->Disconnect(this);
+            }
+        }
+
+        this->model_ = other.model_;
+
+        if constexpr (std::is_same_v<OtherFilter, Filter>)
+        {
+            this->filter_ = other.filter_;
+        }
+
+        if constexpr (detail::ImplementsConnect<Model>::value)
+        {
+            if (this->model_)
+            {
+                this->model_->Connect(
+                    this,
+                    &Value_<Observer, Model, Filter>::OnModelChanged_);
             }
         }
 
         return *this;
     }
 
-    /** Implicit bool conversion returns true if the interface is currently
-     ** tracking a Model and a Filter, if it is not void.
-     **/
-    operator bool () const
+    void SetFilter(Filter *filter)
     {
-        if constexpr (std::is_void_v<Filter>)
+        if constexpr (
+            detail::FilterIsMember<typename Model::Type, Filter>::value)
         {
-            return this->model_ != nullptr;
+            this->filter_ = filter;    
         }
         else
         {
-            // Filter has been specified.
+            throw std::logic_error("Filter is void or static");
+        }
+    }
+
+    /** Implicit bool conversion returns true if the interface is currently
+     ** tracking a Model and a Filter if required.
+     **/
+    operator bool () const
+    {
+        if constexpr (
+            detail::FilterIsMember<typename Model::Type, Filter>::value)
+        {
+            // Filter requires a filter instance.
             return (this->model_ != nullptr) && (this->filter_ != nullptr);
+        }
+        else
+        {
+            return this->model_ != nullptr;
         }
     }
 
     T Get() const
     {
+        NOT_NULL(this->model_);
+
         if constexpr (std::is_void_v<Filter>)
         {
             return this->model_->Get();
@@ -539,6 +288,8 @@ public:
 
     void Set(typename detail::Argument<T>::Type value)
     {
+        NOT_NULL(this->model_);
+
         if constexpr (std::is_void_v<Filter>)
         {
             this->model_->Set(value);
@@ -555,11 +306,12 @@ private:
         if constexpr (
             std::is_invocable_r_v<T, decltype(&Filter::Set), Filter, T>)
         {
-            return std::invoke(&Filter::Set, *this->filter_, value);
+            NOT_NULL(this->filter_);
+            return this->filter_->Set(value);
         }
         else
         {
-            // The filter doesn't accept a Filter * argument.
+            // The filter is not a member method.
             return Filter::Set(value);
         }
     }
@@ -569,7 +321,8 @@ private:
         if constexpr (
             std::is_invocable_r_v<T, decltype(&Filter::Get), Filter, T>)
         {
-            return std::invoke(&Filter::Get, *this->filter_, value);
+            NOT_NULL(this->filter_);
+            return this->filter_->Get(value);
         }
         else
         {
@@ -599,141 +352,28 @@ private:
 };
 
 
-template<typename Model, typename = void>
-struct ModelDefinesType: std::false_type {};
 
-template<typename Model>
-struct ModelDefinesType<Model, std::void_t<typename Model::Type>>
-    : std::true_type {};
+template<typename Observer, typename Model>
+using Value = Value_<Observer, Model, void>;
 
 
-template<
-    typename Observer,
-    typename Model,
-    typename Filter,
-    typename = void>
-class FilteredValue
-{
-    static_assert(
-        ModelDefinesType<Model>::value,
-        "Any class used as the Model must define Model::Type");
-};
-
-
-/** Filter provides static methods or Filter is void **/
-template
-<
-    typename Observer,
-    typename Model,
-    typename Filter
->
-class FilteredValue
-<
-    Observer,
-    Model,
-    Filter,
-    std::enable_if_t
-    <
-        std::is_void_v<Filter>
-        || (detail::GetterIsStatic<typename Model::Type, Filter>::value
-            && detail::SetterIsStatic<typename Model::Type, Filter>::value)
-    >
->
-    :
-    public Value_<Observer, Model, Filter>
-{
-public:
-    using Base = Value_<Observer, Model, Filter>;
-
-    FilteredValue(): Base()
-    {
-
-    }
-
-    explicit FilteredValue(Model * const model): Base(model)
-    {
-
-    }
-
-    explicit FilteredValue(const FilteredValue &other): Base(other)
-    {
-
-    }
-
-    FilteredValue & operator=(const FilteredValue &other)
-    {
-        Base::operator=(other);
-        return *this;
-    }
-};
-
-
-/**
- ** Filter provides member methods, so,
- ** Constructor must get a reference to the filter instance.
- **/
-template
-<
-    typename Observer,
-    typename Model,
-    typename Filter
->
-class FilteredValue
-<
-    Observer,
-    Model,
-    Filter,
-    std::enable_if_t
-    <
-        detail::GetterIsMember<typename Model::Type, Filter>::value
-        || detail::SetterIsMember<typename Model::Type, Filter>::value
-    >
->
-    :
-    public Value_<Observer, Model, Filter>
-{
-public:
-    using Base = Value_<Observer, Model, Filter>;
-
-    FilteredValue(): Base() {}
-
-    explicit FilteredValue(Model * const model, Filter &filter)
-        :
-        Base(model)
-    {
-        this->filter_ = &filter;
-    }
-
-    explicit FilteredValue(const FilteredValue &other): Base(other)
-    {
-
-    }
-
-    FilteredValue & operator=(const FilteredValue &other)
-    {
-        Base::operator=(other);
-        return *this;
-    }
-};
-
-
-template<typename Observer, typename ModelType>
-using Value = FilteredValue<Observer, ModelType, void>;
+template<typename Observer, typename Model, typename Filter>
+using FilteredValue = Value_<Observer, Model, Filter>;
 
 
 template<typename Observer>
 struct BoundFilteredValue
 {
-    template<typename ModelType, typename Filter>
-    using Type = FilteredValue<Observer, ModelType, Filter>;
+    template<typename Model, typename Filter>
+    using Type = FilteredValue<Observer, Model, Filter>;
 };
 
 
 template<typename Observer>
 struct BoundValue
 {
-    template<typename ModelType>
-    using Type = FilteredValue<Observer, ModelType, void>;
+    template<typename Model>
+    using Type = Value<Observer, Model>;
 };
 
 

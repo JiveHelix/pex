@@ -15,7 +15,6 @@ void Initialize(Model &model, Interface &interface)
         using type = std::remove_reference_t<
             decltype(interface.*(interfaceField.member))>;
 
-
         // Create a new interface field from the model.
         interface.*(interfaceField.member) =
             type(&(model.*(modelField.member)));
