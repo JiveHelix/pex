@@ -2,31 +2,14 @@
 
 #include <type_traits>
 #include "pex/detail/notify.h"
+#include "pex/detail/argument.h"
+
 
 namespace pex
 {
 
 namespace detail
 {
-
-
-// Set and Notify methods will use pass-by-value when T is an integral or
-// floating-point type. Other types, like std::string will be passed by const
-// reference to avoid unnecessary copying.
-template<typename T, typename = void>
-struct Argument;
-
-template<typename T>
-struct Argument<T, std::enable_if_t<std::is_arithmetic_v<T>>>
-{
-    using Type = T;
-};
-
-template<typename T>
-struct Argument<T, std::enable_if_t<!std::is_arithmetic_v<T>>>
-{
-    using Type = const T &;
-};
 
 
 template<typename Observer, typename T>

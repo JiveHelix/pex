@@ -12,6 +12,7 @@
 #include <type_traits>
 #include "pex/detail/notify.h"
 #include "pex/detail/value_detail.h"
+#include "pex/value.h"
 
 namespace pex
 {
@@ -141,26 +142,31 @@ namespace interface
 
 
 template<
-    typename Observer,
-    typename Model,
-    typename Filter = void>
+    typename Observer_,
+    typename Model_,
+    typename Filter_ = void>
 class Value_
 #ifdef ALLOW_MULTIPLE_CALLBACKS
     : public detail::NotifyMany<
 #else
     : public detail::NotifyOne<
 #endif
-        detail::ValueNotify<Observer, typename Model::Type>>
+        detail::ValueNotify<Observer_, typename Model_::Type>>
 {
 public:
+    using Observer = Observer_;
+    using Model = Model_;
+    using Filter = Filter_;
+    using Type = typename Model::Type;
+
+    template<typename AnyObserver, typename AnyModel, typename AnyFilter>
+    friend class Value_;
 
     static_assert(
         detail::DefinesType<Model>::value,
         "Model must define Model::Type");
 
-    using T = typename Model::Type;
-
-    static_assert(detail::InterfaceFilterIsVoidOrValid<T, Filter>::value);
+    static_assert(detail::InterfaceFilterIsVoidOrValid<Type, Filter>::value);
 
     Value_(): model_(nullptr), filter_(nullptr) {}
 
@@ -262,7 +268,7 @@ public:
     void SetFilter(Filter *filter)
     {
         static_assert(
-            detail::FilterIsMember<T, Filter>::value,
+            detail::FilterIsMember<Type, Filter>::value,
             "Static or void Filter does not require a filter instance.");
 
         this->filter_ = filter;
@@ -285,7 +291,7 @@ public:
         }
     }
 
-    T Get() const
+    Type Get() const
     {
         NOT_NULL(this->model_);
 
@@ -299,7 +305,7 @@ public:
         }
     }
 
-    void Set(typename detail::Argument<T>::Type value)
+    void Set(typename detail::Argument<Type>::Type value)
     {
         NOT_NULL(this->model_);
 
@@ -314,10 +320,10 @@ public:
     }
 
 private:
-    T FilterSet_(typename detail::Argument<T>::Type value) const
+    Type FilterSet_(typename detail::Argument<Type>::Type value) const
     {
         if constexpr (
-            std::is_invocable_r_v<T, decltype(&Filter::Set), Filter, T>)
+            std::is_invocable_r_v<Type, decltype(&Filter::Set), Filter, Type>)
         {
             NOT_NULL(this->filter_);
             return this->filter_->Set(value);
@@ -329,10 +335,10 @@ private:
         }
     }
 
-    T FilterGet_(typename detail::Argument<T>::Type value) const
+    Type FilterGet_(typename detail::Argument<Type>::Type value) const
     {
         if constexpr (
-            std::is_invocable_r_v<T, decltype(&Filter::Get), Filter, T>)
+            std::is_invocable_r_v<Type, decltype(&Filter::Get), Filter, Type>)
         {
             NOT_NULL(this->filter_);
             return this->filter_->Get(value);
@@ -346,7 +352,7 @@ private:
 
     static void OnModelChanged_(
         void * observer,
-        typename detail::Argument<T>::Type value)
+        typename detail::Argument<Type>::Type value)
     {
         // The model value has changed.
         // Update our observers.
@@ -365,13 +371,20 @@ private:
 };
 
 
-
 template<typename Observer, typename Model>
 using Value = Value_<Observer, Model, void>;
 
 
 template<typename Observer, typename Model, typename Filter>
 using FilteredValue = Value_<Observer, Model, Filter>;
+
+
+template<typename Observer, typename Value>
+struct ObservedValue
+{
+    using Type =
+        Value_<Observer, typename Value::Model, typename Value::Filter>;
+};
 
 
 template<typename Observer>
@@ -386,7 +399,7 @@ template<typename Observer>
 struct BoundValue
 {
     template<typename Model>
-    using Type = Value<Observer, Model>;
+    using Type = Value_<Observer, Model>;
 };
 
 

@@ -59,7 +59,7 @@ public:
 
     ~Foo()
     {
-        this->angle_degrees_.Disconnect(this);
+        this->angle_degrees_.Disconnect();
     }
 
     void OnAngleChanged_(double angle_degrees)

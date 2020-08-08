@@ -62,16 +62,24 @@ public:
         this->model_->Trigger();
     }
 
-    Signal(const Signal &other)
+    template<typename OtherObserver>
+    explicit Signal(const Signal<OtherObserver> &other)
         :
         model_(other.model_)
     {
         this->model_->Connect(this, &Signal::OnModelSignaled_);
     }
 
-    Signal & operator=(const Signal &other)
+    template<typename OtherObserver>
+    Signal<Observer> & operator=(const Signal<OtherObserver> &other)
     {
+        if (this->model_)
+        {
+            this->model_->Disconnect();
+        }
+
         this->model_ = other.model_;
+        this->model_->Connect(this, &Signal::OnModelSignaled_);
         return *this;
     }
 
@@ -82,6 +90,14 @@ public:
         auto self = static_cast<Signal *>(observer);
         self->Notify_();
     }
+
+    operator bool () const
+    {
+        return (this->model_ != nullptr);
+    }
+    
+    template<typename T>
+    friend class Signal;
 
 private:
     model::Signal * model_;

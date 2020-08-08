@@ -10,3 +10,6 @@
 [submodule "external/fields"]
 	path = external/fields
 	url = https://github.com/JiveHelix/fields.git
+[submodule "external/wx"]
+	path = external/wx
+	url = git@github.com:JiveHelix/wx.git

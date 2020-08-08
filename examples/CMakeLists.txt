@@ -6,3 +6,5 @@ target_link_libraries(
     project_warnings
     project_options
     pex)
+
+add_subdirectory(wx)

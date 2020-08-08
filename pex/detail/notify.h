@@ -158,7 +158,7 @@ public:
     }
 
     /** Remove all registered callbacks for the observer. **/
-    void Disconnect(typename Notify::Observer * const)
+    void Disconnect()
     {
         this->notify_.reset();
     }
