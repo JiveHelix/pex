@@ -27,12 +27,20 @@ public:
     Button(
         wxWindow *parent,
         const std::string &label,
-        pex::interface::Signal<void> signal) 
+        pex::interface::Signal<void> signal,
+        const WindowProperties &properties = WindowProperties{})
         :
-        Base(parent, wxID_ANY, label),
+        Base(
+            parent,
+            wxID_ANY,
+            label,
+            properties.position,
+            properties.size,
+            properties.style,
+            wxDefaultValidator,
+            properties.name),
         signal_(signal)
     {
-        this->RegisterTubes(this->signal_);
         this->Bind(wxEVT_BUTTON, &Button::OnButton_, this);
     }
 

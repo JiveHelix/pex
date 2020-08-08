@@ -77,7 +77,6 @@ public:
             properties.name),
         value_(value)
     {
-        this->RegisterTubes(this->value_);
         this->value_.Connect(this, &View::OnValueChanged_);
     }
 

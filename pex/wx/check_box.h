@@ -45,7 +45,6 @@ public:
             properties.style),
         value_(value)
     {
-        this->RegisterTubes(this->value_);
         this->SetValue(this->value_.Get());
         this->value_.Connect(this, &CheckBox::OnValueChanged_);
         this->Bind(wxEVT_CHECKBOX, &CheckBox::OnCheckBox_, this);

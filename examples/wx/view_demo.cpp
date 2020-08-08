@@ -76,18 +76,6 @@ class ExampleFrame: public wxFrame
 {
 public:
     ExampleFrame(Interface value, InterfaceSignal signal);
-
-private:
-    ~ExampleFrame()
-    {
-        std::cout << "~ExampleFrame()" << std::endl;
-    }
-
-    bool Destroy() override
-    {
-        std::cout << "ExampleFrame::Destroy()" << std::endl;
-        return wxFrame::Destroy();
-    }
 };
 
 #pragma GCC diagnostic push
