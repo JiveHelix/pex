@@ -39,40 +39,25 @@ class SliderInterface(Generic[T]):
     def ToInt(value: T) -> int:
         return int(value)
 
-    @classmethod
-    def CreateModelNode(
-            class_,
-            name: str,
-            initialValue: T,
-            minimum: T,
-            maximum: T,
+    def __init__(
+            self,
+            value: pex.Value[T],
+            minimum: pex.Value[T],
+            maximum: pex.Value[T],
             toValue: Callable[[int], T] = SliderInterface.FromInt,
-            fromValue: Callable[[T], int] = SliderInterface.ToInt) \
-                -> SliderInterface[T]:
+            fromValue: Callable[[T], int] = SliderInterface.ToInt) -> None:
+        
+        self.value = value
+        self.minimum = minimum
+        self.maximum = maximum
 
-        instance = class_()
-
-        instance.value = pex.Value.CreateModelNode(
-            "{}.value".format(name),
-            initialValue)
-
-        instance.minimum = pex.Value.CreateModelNode(
-            "{}.minimum".format(name),
-            minimum)
-
-        instance.maximum = pex.Value.CreateModelNode(
-            "{}.maximum".format(name),
-            maximum)
-
-        instance.toValue = ConverterProxy.Create(
+        self.toValue = ConverterProxy.Create(
             toValue,
-            instance.RestoreDefaultToValue_)
+            self.RestoreDefaultToValue_)
 
-        instance.fromValue = ConverterProxy.Create(
+        self.fromValue = ConverterProxy.Create(
             fromValue,
-            instance.RestoreDefaultFromValue_)
-
-        return instance
+            self.RestoreDefaultFromValue_)
 
     def RestoreDefaultToValue_(
             self,
@@ -130,7 +115,7 @@ class PexSlider(wx.Control, PexWindow, Generic[T]):
 
         self.slider_.Bind(wx.EVT_SLIDER, self.OnSlider_)
         self.slider_.Bind(wx.EVT_LEFT_DOWN, self.OnSliderLeftDown_)
-
+    
     def OnPexValue_(self, value: T) -> None:
         self.slider_.SetValue(self.sliderInterface_.fromValue(value))
 
@@ -163,12 +148,15 @@ class PexSliderAndValue(wx.Control, PexWindow, Generic[T]):
             sliderInterface: SliderInterface,
             formatString: str = "{}",
             **sliderKwargs: Any) -> None:
-
+        
         self.sliderInterface_ = sliderInterface.GetInterfaceNode()
-
+        
         wx.Control.__init__(self, parent)
         PexWindow.__init__(self, [self.sliderInterface_.value, ])
-        self.pexSlider_ = PexSlider(parent, name, sliderInterface, **sliderKwargs)
+
+        self.pexSlider_ = \
+            PexSlider(parent, name, sliderInterface, **sliderKwargs)
+
         self.formatString_ = formatString
 
         self.valueDisplay_ = wx.StaticText(

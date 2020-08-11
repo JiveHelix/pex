@@ -1,14 +1,16 @@
 /**
   * @file value.h
-  * 
+  *
   * @brief Implements model and interface Signal nodes.
-  * 
+  *
   * @author Jive Helix (jivehelix@gmail.com)
   * @date 22 Jul 2020
   * @copyright Jive Helix
   * Licensed under the MIT license. See LICENSE file.
 **/
+
 #pragma once
+
 #include <type_traits>
 #include "pex/detail/signal_detail.h"
 
@@ -95,7 +97,7 @@ public:
     {
         return (this->model_ != nullptr);
     }
-    
+
     template<typename T>
     friend class Signal;
 

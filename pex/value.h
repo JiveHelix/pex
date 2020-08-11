@@ -8,11 +8,12 @@
   * @copyright Jive Helix
   * Licensed under the MIT license. See LICENSE file.
 **/
+
 #pragma once
+
 #include <type_traits>
-#include "pex/detail/notify.h"
 #include "pex/detail/value_detail.h"
-#include "pex/value.h"
+
 
 namespace pex
 {
@@ -20,12 +21,14 @@ namespace pex
 namespace model
 {
 
+
 // Model must use unbound callbacks so it can notify disparate types.
 // All observers are stored as void *.
 template<typename T, typename Filter>
 class Value_ : public detail::NotifyMany<detail::ValueNotify<void, T>>
 {
     static_assert(detail::ModelFilterIsVoidOrValid<T, Filter>::value);
+    using Notify = detail::ValueNotify<void, T>;
 
 public:
     using Type = T;
@@ -69,6 +72,7 @@ public:
     Value_(const Value_<T, Filter> &) = delete;
     Value_(Value_<T, Filter> &&) = delete;
 
+    /** Set the value and notify interfaces **/
     void Set(typename detail::Argument<T>::Type value)
     {
         if constexpr (std::is_void_v<Filter>)
@@ -102,6 +106,7 @@ public:
             detail::FilterIsMember<T, Filter>::value,
             "Static or void Filter does not require a filter instance.");
 
+        NOT_NULL(filter);
         this->filter_ = filter;
     }
 
@@ -147,17 +152,25 @@ template<
     typename Filter_ = void>
 class Value_
 #ifdef ALLOW_MULTIPLE_CALLBACKS
-    : public detail::NotifyMany<
+    : public detail::NotifyMany
+      <
 #else
-    : public detail::NotifyOne<
+    : public detail::NotifyOne
+      <
 #endif
-        detail::ValueNotify<Observer_, typename Model_::Type>>
+        detail::ValueNotify
+        <
+            Observer_,
+            typename detail::FilterType<typename Model_::Type, Filter_>::Type
+        >
+      >
 {
 public:
     using Observer = Observer_;
     using Model = Model_;
     using Filter = Filter_;
-    using Type = typename Model::Type;
+    using ModelType = typename Model::Type;
+    using Type = typename detail::FilterType<ModelType, Filter>::Type;
 
     template<typename AnyObserver, typename AnyModel, typename AnyFilter>
     friend class Value_;
@@ -166,7 +179,8 @@ public:
         detail::DefinesType<Model>::value,
         "Model must define Model::Type");
 
-    static_assert(detail::InterfaceFilterIsVoidOrValid<Type, Filter>::value);
+    static_assert(
+        detail::InterfaceFilterIsVoidOrValid<ModelType, Filter>::value);
 
     Value_(): model_(nullptr), filter_(nullptr) {}
 
@@ -268,7 +282,7 @@ public:
     void SetFilter(Filter *filter)
     {
         static_assert(
-            detail::FilterIsMember<Type, Filter>::value,
+            detail::FilterIsMember<ModelType, Filter>::value,
             "Static or void Filter does not require a filter instance.");
 
         this->filter_ = filter;
@@ -280,7 +294,7 @@ public:
     operator bool () const
     {
         if constexpr (
-            detail::FilterIsMember<typename Model::Type, Filter>::value)
+            detail::FilterIsMember<ModelType, Filter>::value)
         {
             // Filter requires a filter instance.
             return (this->model_ != nullptr) && (this->filter_ != nullptr);
@@ -320,10 +334,9 @@ public:
     }
 
 private:
-    Type FilterSet_(typename detail::Argument<Type>::Type value) const
+    ModelType FilterSet_(typename detail::Argument<Type>::Type value) const
     {
-        if constexpr (
-            std::is_invocable_r_v<Type, decltype(&Filter::Set), Filter, Type>)
+        if constexpr (detail::SetterIsMember<ModelType, Filter>::value)
         {
             NOT_NULL(this->filter_);
             return this->filter_->Set(value);
@@ -335,10 +348,10 @@ private:
         }
     }
 
-    Type FilterGet_(typename detail::Argument<Type>::Type value) const
+    Type FilterGet_(
+        typename detail::Argument<ModelType>::Type value) const
     {
-        if constexpr (
-            std::is_invocable_r_v<Type, decltype(&Filter::Get), Filter, Type>)
+        if constexpr (detail::GetterIsMember<ModelType, Filter>::value)
         {
             NOT_NULL(this->filter_);
             return this->filter_->Get(value);
@@ -352,7 +365,7 @@ private:
 
     static void OnModelChanged_(
         void * observer,
-        typename detail::Argument<Type>::Type value)
+        typename detail::Argument<ModelType>::Type value)
     {
         // The model value has changed.
         // Update our observers.
@@ -360,10 +373,12 @@ private:
 
         if constexpr (!std::is_void_v<Filter>)
         {
-            value = self->FilterGet_(value);
+            self->Notify_(self->FilterGet_(value));
         }
-
-        self->Notify_(value);
+        else
+        {
+            self->Notify_(value);
+        }
     }
 
     Model *model_;
@@ -380,10 +395,18 @@ using FilteredValue = Value_<Observer, Model, Filter>;
 
 
 template<typename Observer, typename Value>
-struct ObservedValue
+struct ObservedValue;
+
+template
+<
+    typename Observer,
+    template<typename, typename...> typename Value,
+    typename OtherObserver,
+    typename... Others
+>
+struct ObservedValue<Observer, Value<OtherObserver, Others...>>
 {
-    using Type =
-        Value_<Observer, typename Value::Model, typename Value::Filter>;
+    using Type = Value<Observer, Others...>;
 };
 
 

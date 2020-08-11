@@ -1,3 +1,14 @@
+/**
+  * @file signal_detail.h
+  *
+  * @brief Implementation details for Signal.
+  *
+  * @author Jive Helix (jivehelix@gmail.com)
+  * @date 11 Aug 2020
+  * @copyright Jive Helix
+  * Licensed under the MIT license. See LICENSE file.
+**/
+
 #pragma once
 
 #include <type_traits>

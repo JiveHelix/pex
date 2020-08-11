@@ -1,3 +1,14 @@
+/**
+  * @file initialize.h
+  *
+  * @brief Provides automated interface initialization using fields tuples.
+  *
+  * @author Jive Helix (jivehelix@gmail.com)
+  * @date 11 Aug 2020
+  * @copyright Jive Helix
+  * Licensed under the MIT license. See LICENSE file.
+**/
+
 #pragma once
 
 #include "jive/zip_apply.h"

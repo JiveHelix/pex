@@ -11,6 +11,11 @@ target_sources(
     initialize.h
     signal.h
     value.h
+    detail/argument.h
+    detail/callable_style.h
+    detail/filters.h
+    detail/implements_connect.h
     detail/notify.h
     detail/signal_detail.h
-    detail/value_detail.h)
+    detail/value_detail.h
+    detail/value_notify.h)

@@ -159,8 +159,10 @@ TEMPLATE_TEST_CASE(
                 static_cast<TestType>(720.0))));
 
     using Model = pex::model::Value<TestType>;
+    using Filter = DegreesFilter<TestType>;
+
     using Interface =
-        pex::interface::FilteredValue<void, Model, DegreesFilter<TestType>>;
+        pex::interface::FilteredValue<void, Model, Filter>;
     
     Model model;
     Interface interface(&model);

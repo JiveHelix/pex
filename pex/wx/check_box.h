@@ -15,6 +15,7 @@
 #include "pex/wx/pex_window.h"
 #include "pex/value.h"
 
+
 namespace pex
 {
 
@@ -28,21 +29,20 @@ class CheckBox: public PexWindow<wxCheckBox>
 public:
     using Base = PexWindow<wxCheckBox>;
 
-    template<typename AnyObserver, typename AnyFilter>
+    template<typename CompatibleValue>
     CheckBox(
         wxWindow *parent,
         const std::string &label,
-        pex::interface::Value_<
-            AnyObserver, typename Value::Model, AnyFilter> value,
-        const WindowProperties &properties = WindowProperties{})
+        CompatibleValue value,
+        long style = 0)
         :
         Base(
             parent,
             wxID_ANY,
             label,
-            properties.position,
-            properties.size,
-            properties.style),
+            wxDefaultPosition,
+            wxDefaultSize,
+            style),
         value_(value)
     {
         this->SetValue(this->value_.Get());

@@ -16,6 +16,7 @@
 #include "wxshim.h"
 #include "pex/value.h"
 #include "pex/wx/pex_window.h"
+#include "pex/wx/converter.h"
 #include "pex/detail/argument.h"
 
 namespace pex
@@ -25,56 +26,32 @@ namespace wx
 {
 
 
-template<typename Value, typename = void>
-struct DefaultFormatter
-{
-    using Type = typename Value::Type;
-
-    static std::string ToString(typename detail::Argument<Type>::Type value)
-    {
-        return std::to_string(value);
-    }
-};
-
-
-/** Specialization for std::string that doesn't create an extra copy. **/
-template<typename Value>
-struct DefaultFormatter
+template
 <
-    Value,
-    std::enable_if_t<std::is_same_v<typename Value::Type, std::string>>
+    typename Value,
+    typename ConverterTraits = DefaultConverterTraits
 >
-{
-    template<typename T>
-    static T ToString(T &&value)
-    {
-        return std::forward<T>(value);
-    }
-};
-
-
-template<typename Value, typename Formatter = DefaultFormatter<Value>>
 class View: public PexWindow<wxStaticText>
 {
 public:
     using Base = PexWindow<wxStaticText>;
     using Type = typename Value::Type;
-    
+    using Model = typename Value::Model;
+    using Convert = Converter<Type, ConverterTraits>;
+
     template<typename AnyObserver, typename AnyFilter>
     View(
         wxWindow *parent,
-        pex::interface::Value_<
-            AnyObserver, typename Value::Model, AnyFilter> value,
-        const WindowProperties &properties = WindowProperties{})
+        pex::interface::Value_<AnyObserver, Model, AnyFilter> value,
+        long style = 0)
         :
         Base(
             parent,
             wxID_ANY,
-            Formatter::ToString(Value(value).Get()),
-            properties.position,
-            properties.size,
-            properties.style,
-            properties.name),
+            Convert::ToString(Value(value).Get()),
+            wxDefaultPosition,
+            wxDefaultSize,
+            style),
         value_(value)
     {
         this->value_.Connect(this, &View::OnValueChanged_);
@@ -83,11 +60,11 @@ public:
 private:
     void OnValueChanged_(typename detail::Argument<Type>::Type value)
     {
-        this->SetLabel(Formatter::ToString(value));
+        this->SetLabel(Convert::ToString(value));
         this->GetParent()->Layout();
     }
-    
-    using Observer = View<Value, Formatter>;
+
+    using Observer = View<Value, ConverterTraits>;
     typename pex::interface::ObservedValue<Observer, Value>::Type value_;
 };
 

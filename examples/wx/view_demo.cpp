@@ -8,13 +8,13 @@
   * @copyright Jive Helix
   * Licensed under the MIT license. See LICENSE file.
 **/
-#include "wxshim.h"
-#include "pex/wx/view.h"
+
 #include <iostream>
 #include <string>
-#include <thread>
-
+#include "wxshim.h"
+#include "pex/wx/view.h"
 #include "pex/signal.h"
+#include "pex/value.h"
 #include "pex/wx/button.h"
 #include "jive/formatter.h"
 #include "jive/angles.h"
@@ -62,7 +62,7 @@ public:
 
     void OnSignal_()
     {
-        this->angle_.Set(this->angle_.Get() + 1.0);
+        this->angle_.Set(this->angle_.Get() + 1.01);
     }
 
 private:
@@ -99,24 +99,37 @@ bool ExampleApp::OnInit()
     return true;
 }
 
+#if 0
 
 /** Define other ways to format the angle **/
-struct ThreeDigits
+struct ThreeDigits: pex::wx::DefaultConverterTraits
 {
-    static std::string ToString(Angle::Type value)
-    {
-        return jive::Formatter<32>("%.3f", value); 
-    }
+    static constexpr int precision = 3;
 };
 
+
+struct FifteenDigits: pex::wx::DefaultConverterTraits
+{
+    static constexpr int precision = 15;
+};
+
+#else
+
+struct ThreeDigits
+{
+    static constexpr int base = 10;
+    static constexpr int width = -1;
+    static constexpr int precision = 3;
+};
 
 struct FifteenDigits
 {
-    static std::string ToString(Angle::Type value)
-    {
-        return jive::Formatter<32>("%.15f", value); 
-    }
+    static constexpr int base = 10;
+    static constexpr int width = -1;
+    static constexpr int precision = 15;
 };
+
+#endif
 
 
 ExampleFrame::ExampleFrame(
@@ -138,7 +151,7 @@ ExampleFrame::ExampleFrame(
         new pex::wx::Button(this, "Press Me", interfaceSignal);
 
     wxBoxSizer *topSizer = new wxBoxSizer(wxVERTICAL); 
-    auto flags = wxLEFT | wxBOTTOM | wxRIGHT;
+    auto flags = wxLEFT | wxBOTTOM | wxRIGHT | wxEXPAND;
 
     topSizer->Add(view, 0, wxALL, 10);
     topSizer->Add(three, 0, flags, 10);

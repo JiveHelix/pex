@@ -29,7 +29,7 @@ class PexField(wx.Control, PexWindow):
         self.value_ = value.GetInterfaceNode()
         wx.Control.__init__(self, parent)
         PexWindow.__init__(self, [self.value_,])
-        valueAsString = self.converter_.Format(self.value_.Get())
+        valueAsString = self.value_.Get()
 
         style = wx.TE_PROCESS_ENTER
 

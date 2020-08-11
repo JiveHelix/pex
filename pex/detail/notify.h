@@ -1,14 +1,15 @@
 /**
   * @file notify.h
-  * 
+  *
   * @brief Provides Connect, Disconnect, and Notify_ methods for notification
   * callbacks.
-  * 
+  *
   * @author Jive Helix (jivehelix@gmail.com)
   * @date 15 Jul 2020
   * @copyright Jive Helix
   * Licensed under the MIT license. See LICENSE file.
 **/
+
 #pragma once
 
 #include <vector>

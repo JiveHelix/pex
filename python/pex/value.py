@@ -97,11 +97,6 @@ class Value(Generic[ValueType], Tube):
     def Get(self) -> ValueType:
         return self.value_
 
-    def Link(self, other: Value[ValueType]) -> None:
-        """ Make a two-way connection between this value and other. """
-        self.Connect(other.Set)
-        other.Connect(self.Set)
-
     def __repr__(self) -> str:
         return "{}: {}".format(self.name_, self.value_)
 
