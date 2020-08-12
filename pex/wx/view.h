@@ -29,7 +29,7 @@ namespace wx
 template
 <
     typename Value,
-    typename ConverterTraits = DefaultConverterTraits
+    typename Convert = Converter<typename Value::Type>
 >
 class View: public PexWindow<wxStaticText>
 {
@@ -37,7 +37,6 @@ public:
     using Base = PexWindow<wxStaticText>;
     using Type = typename Value::Type;
     using Model = typename Value::Model;
-    using Convert = Converter<Type, ConverterTraits>;
 
     template<typename AnyObserver, typename AnyFilter>
     View(
@@ -64,7 +63,7 @@ private:
         this->GetParent()->Layout();
     }
 
-    using Observer = View<Value, ConverterTraits>;
+    using Observer = View<Value, Convert>;
     typename pex::interface::ObservedValue<Observer, Value>::Type value_;
 };
 

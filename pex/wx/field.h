@@ -39,10 +39,10 @@ public:
 
     using Convert = Converter<Type, ConverterTraits>;
 
-    template<typename AnyObserver, typename AnyFilter>
+    template<typename CompatibleValue>
     Field(
         wxWindow *parent,
-        pex::interface::Value_<AnyObserver, Model, AnyFilter> value,
+        CompatibleValue value,
         long style = 0)
         :
         Base(parent, wxID_ANY),

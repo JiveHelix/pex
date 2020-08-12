@@ -28,11 +28,10 @@ template<typename Widget>
 class LabeledWidget: public wxControl
 {
 public:
-    template<typename AnyObserver, typename AnyFilter>
+    template<typename CompatibleValue>
     LabeledWidget(
         wxWindow *parent,
-        pex::interface::Value_<
-            AnyObserver, typename Widget::Model, AnyFilter> value,
+        CompatibleValue value,
         const std::string &label,
         int layoutStyle = wxHORIZONTAL,
         long fieldStyle = 0)

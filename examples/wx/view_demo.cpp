@@ -13,6 +13,7 @@
 #include <string>
 #include "wxshim.h"
 #include "pex/wx/view.h"
+#include "pex/wx/converter.h"
 #include "pex/signal.h"
 #include "pex/value.h"
 #include "pex/wx/button.h"
@@ -24,6 +25,7 @@ using Angle = pex::model::Value<double>;
 using Interface = pex::interface::Value<void, Angle>;
 using Signal = pex::model::Signal;
 using InterfaceSignal = pex::interface::Signal<void>;
+
 
 /** Allow an interface to use radians, while the model uses degrees. **/
 struct DegreesFilter
@@ -99,37 +101,24 @@ bool ExampleApp::OnInit()
     return true;
 }
 
-#if 0
-
 /** Define other ways to format the angle **/
-struct ThreeDigits: pex::wx::DefaultConverterTraits
+struct ThreeDigitsTraits: pex::wx::DefaultConverterTraits
 {
     static constexpr int precision = 3;
 };
 
 
-struct FifteenDigits: pex::wx::DefaultConverterTraits
+struct FifteenDigitsTraits: pex::wx::DefaultConverterTraits
 {
     static constexpr int precision = 15;
 };
 
-#else
 
-struct ThreeDigits
-{
-    static constexpr int base = 10;
-    static constexpr int width = -1;
-    static constexpr int precision = 3;
-};
+template<typename T>
+using ThreeDigits = pex::wx::Converter<T, ThreeDigitsTraits>;
 
-struct FifteenDigits
-{
-    static constexpr int base = 10;
-    static constexpr int width = -1;
-    static constexpr int precision = 15;
-};
-
-#endif
+template<typename T>
+using FifteenDigits = pex::wx::Converter<T, FifteenDigitsTraits>;
 
 
 ExampleFrame::ExampleFrame(
@@ -138,14 +127,16 @@ ExampleFrame::ExampleFrame(
     :
     wxFrame(nullptr, wxID_ANY, "pex::wx::View Demo")
 {
+    using Type = typename Interface::Type;
+
     auto view =
         new pex::wx::View<Interface>(this, interface);
     
     auto three =
-        new pex::wx::View<Interface, ThreeDigits>(this, interface);
+        new pex::wx::View<Interface, ThreeDigits<Type>>(this, interface);
 
     auto fifteen =
-        new pex::wx::View<RadiansInterface, FifteenDigits>(this, interface);
+        new pex::wx::View<RadiansInterface, FifteenDigits<Type>>(this, interface);
 
     auto button =
         new pex::wx::Button(this, "Press Me", interfaceSignal);

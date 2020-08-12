@@ -51,3 +51,14 @@ target_link_libraries(
     project_options
     pex
     wx::net wx::core wx::base)
+
+
+add_executable(radio_box_demo radio_box_demo.cpp)
+
+target_link_libraries(
+    radio_box_demo
+    PUBLIC
+    project_warnings
+    project_options
+    pex
+    wx::net wx::core wx::base)
