@@ -12,7 +12,7 @@
 #pragma once
 
 #include <type_traits>
-
+#include "pex/access_tag.h"
 
 namespace pex
 {
@@ -239,23 +239,52 @@ struct ModelFilterIsVoidOrValid
  ** Interface filters, if provided, must provide both Set and Get methods.
  ** These can be any mixture of static and member methods.
  **/
-template<typename T, typename Filter, typename = void>
+
+template<typename T, typename Filter, typename Access, typename = void>
+struct InterfaceFilterIsValid : std::false_type {};
+
+template<typename T, typename Filter, typename Access>
+struct InterfaceFilterIsValid
+<
+    T,
+    Filter,
+    Access,
+    std::enable_if_t
+    <
+        std::is_same_v<Access, GetOnlyTag>
+        && GetterIsValid<T, Filter>::value
+    >
+> : std::true_type {};
+
+template<typename T, typename Filter, typename Access>
+struct InterfaceFilterIsValid
+<
+    T,
+    Filter,
+    Access,
+    std::enable_if_t
+    <
+        std::is_same_v<Access, GetAndSetTag>
+        && GetterIsValid<T, Filter>::value
+        && SetterIsValid<T, Filter>::value
+    >
+> : std::true_type {};
+
+
+template<typename T, typename Filter, typename Access, typename = void>
 struct InterfaceFilterIsVoidOrValid : std::false_type {};
 
 /** Filter can be void **/
-template<typename T>
-struct InterfaceFilterIsVoidOrValid<T, void, void> : std::true_type {};
+template<typename T, typename Access>
+struct InterfaceFilterIsVoidOrValid<T, void, Access, void> : std::true_type {};
 
-template<typename T, typename Filter>
+template<typename T, typename Filter, typename Access>
 struct InterfaceFilterIsVoidOrValid
 <
     T,
     Filter,
-    std::enable_if_t
-    <
-        GetterIsValid<T, Filter>::value
-        && SetterIsValid<T, Filter>::value
-    >
+    Access,
+    std::enable_if_t<InterfaceFilterIsValid<T, Filter, Access>::value>
 > : std::true_type {};
 
 

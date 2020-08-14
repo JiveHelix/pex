@@ -15,7 +15,7 @@
 #include "wxshim.h"
 #include "pex/value.h"
 #include "pex/wx/pex_window.h"
-#include "pex/wx/converter.h"
+#include "pex/converter.h"
 
 
 namespace pex

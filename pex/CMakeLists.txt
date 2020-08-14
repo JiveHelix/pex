@@ -8,6 +8,7 @@ target_link_libraries(pex INTERFACE jive wxshim)
 target_sources(
     pex
     INTERFACE
+    access_tag.h
     initialize.h
     signal.h
     value.h

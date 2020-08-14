@@ -62,3 +62,14 @@ target_link_libraries(
     project_options
     pex
     wx::net wx::core wx::base)
+
+
+add_executable(combo_box_demo combo_box_demo.cpp)
+
+target_link_libraries(
+    combo_box_demo
+    PUBLIC
+    project_warnings
+    project_options
+    pex
+    wx::net wx::core wx::base)

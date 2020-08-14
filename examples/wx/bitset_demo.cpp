@@ -4,6 +4,7 @@
 #include <bitset>
 #include <array>
 #include "wxshim.h"
+#include "pex/value.h"
 #include "pex/wx/view.h"
 #include "pex/wx/field.h"
 
@@ -79,9 +80,8 @@ public:
 
     void Set(bool value)
     {
-        auto bitset = this->bitsetModel_->Get();
-        bitset[this->index_] = value;
-        this->bitsetModel_->Set(bitset);
+        pex::Reference r(*this->bitsetModel_);
+        r.Get()[this->index_] = value;
     }
 
     bool Get()

@@ -77,7 +77,6 @@ struct LongConverter
 using UnitsModel = pex::model::Value<UnitSystem>;
 using UnitsInterface = pex::interface::Value<void, UnitsModel>;
 
-
 class ExampleApp: public wxApp
 {
 public:

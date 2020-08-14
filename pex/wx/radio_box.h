@@ -1,8 +1,8 @@
 /**
   * @file radio_box.h
-  * 
+  *
   * @brief A wx.RadioBox connected to a pex.Value interface node.
-  * 
+  *
   * @author Jive Helix (jivehelix@gmail.com)
   * @date 11 Aug 2020
   * @copyright Jive Helix
@@ -15,7 +15,8 @@
 #include "wxshim.h"
 #include "pex/value.h"
 #include "pex/wx/pex_window.h"
-#include "pex/wx/converter.h"
+#include "pex/converter.h"
+#include "pex/find_index.h"
 #include "pex/wx/array_string.h"
 
 namespace pex
@@ -79,34 +80,25 @@ public:
 private:
     int GetIndex_(typename detail::Argument<Type>::Type value)
     {
-        auto found = std::find(
-            this->choices_.begin(),
-            this->choices_.end(),
-            value);
+        auto index = FindIndex(value, this->choices_);
 
-        if (found == this->choices_.end())
+        if (-1 == index)
         {
             throw std::out_of_range("Value not found");
         }
 
-        auto result = found - this->choices_.begin();
-
-        if (result > std::numeric_limits<int>::max())
+        if (index > std::numeric_limits<int>::max())
         {
-            throw std::out_of_range("Index is out of range");    
+            throw std::out_of_range("Index is out of range");
         }
 
-        return static_cast<int>(result);
+        return static_cast<int>(index);
     }
 
     bool ValueInChoices_(const Value &value)
     {
-        auto result = std::find(
-            this->choices_.begin(),
-            this->choices_.end(),
-            value.Get());
-
-        return (result != this->choices_.end());
+        auto index = FindIndex(value, this->choices_);
+        return (index != -1);
     }
 
     using Observer = RadioBox<Value, Convert>;

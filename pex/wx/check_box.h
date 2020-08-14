@@ -28,12 +28,15 @@ class CheckBox: public PexWindow<wxCheckBox>
 {
 public:
     using Base = PexWindow<wxCheckBox>;
+    using Type = typename Value::Type;
+    using Model = typename Value::Model;
+    using Access = typename Value::Access;
 
-    template<typename CompatibleValue>
+    template<typename Compatible>
     CheckBox(
         wxWindow *parent,
         const std::string &label,
-        CompatibleValue value,
+        Compatible value,
         long style = 0)
         :
         Base(
@@ -45,12 +48,18 @@ public:
             style),
         value_(value)
     {
+        static_assert(
+            std::is_same_v<Model, typename Compatible::Model>);
+
+        static_assert(
+            std::is_same_v<Access, typename Compatible::Access>);
+
         this->SetValue(this->value_.Get());
         this->value_.Connect(this, &CheckBox::OnValueChanged_);
         this->Bind(wxEVT_CHECKBOX, &CheckBox::OnCheckBox_, this);
     }
 
-    void OnValueChanged_(bool value)
+    void OnValueChanged_(Type value)
     {
         this->SetValue(value);
     }

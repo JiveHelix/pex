@@ -12,17 +12,19 @@
 #include <iostream>
 #include <string>
 #include "wxshim.h"
-#include "pex/wx/view.h"
-#include "pex/wx/converter.h"
-#include "pex/signal.h"
-#include "pex/value.h"
-#include "pex/wx/button.h"
 #include "jive/formatter.h"
 #include "jive/angles.h"
+#include "pex/signal.h"
+#include "pex/value.h"
+#include "pex/converter.h"
+#include "pex/wx/view.h"
+#include "pex/wx/button.h"
 
 
 using Angle = pex::model::Value<double>;
+
 using Interface = pex::interface::Value<void, Angle>;
+
 using Signal = pex::model::Signal;
 using InterfaceSignal = pex::interface::Signal<void>;
 
@@ -102,23 +104,23 @@ bool ExampleApp::OnInit()
 }
 
 /** Define other ways to format the angle **/
-struct ThreeDigitsTraits: pex::wx::DefaultConverterTraits
+struct ThreeDigitsTraits: pex::DefaultConverterTraits
 {
     static constexpr int precision = 3;
 };
 
 
-struct FifteenDigitsTraits: pex::wx::DefaultConverterTraits
+struct FifteenDigitsTraits: pex::DefaultConverterTraits
 {
     static constexpr int precision = 15;
 };
 
 
 template<typename T>
-using ThreeDigits = pex::wx::Converter<T, ThreeDigitsTraits>;
+using ThreeDigits = pex::Converter<T, ThreeDigitsTraits>;
 
 template<typename T>
-using FifteenDigits = pex::wx::Converter<T, FifteenDigitsTraits>;
+using FifteenDigits = pex::Converter<T, FifteenDigitsTraits>;
 
 
 ExampleFrame::ExampleFrame(
@@ -136,7 +138,9 @@ ExampleFrame::ExampleFrame(
         new pex::wx::View<Interface, ThreeDigits<Type>>(this, interface);
 
     auto fifteen =
-        new pex::wx::View<RadiansInterface, FifteenDigits<Type>>(this, interface);
+        new pex::wx::View<RadiansInterface, FifteenDigits<Type>>(
+            this,
+            interface);
 
     auto button =
         new pex::wx::Button(this, "Press Me", interfaceSignal);

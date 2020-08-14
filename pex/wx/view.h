@@ -16,7 +16,7 @@
 #include "wxshim.h"
 #include "pex/value.h"
 #include "pex/wx/pex_window.h"
-#include "pex/wx/converter.h"
+#include "pex/converter.h"
 #include "pex/detail/argument.h"
 
 namespace pex
@@ -37,11 +37,12 @@ public:
     using Base = PexWindow<wxStaticText>;
     using Type = typename Value::Type;
     using Model = typename Value::Model;
+    using Access = typename Value::Access;
 
-    template<typename AnyObserver, typename AnyFilter>
+    template<typename Compatible>
     View(
         wxWindow *parent,
-        pex::interface::Value_<AnyObserver, Model, AnyFilter> value,
+        Compatible value,
         long style = 0)
         :
         Base(
@@ -53,6 +54,12 @@ public:
             style),
         value_(value)
     {
+        static_assert(
+            std::is_same_v<Model, typename Compatible::Model>);
+
+        static_assert(
+            std::is_same_v<Access, typename Compatible::Access>);
+
         this->value_.Connect(this, &View::OnValueChanged_);
     }
 

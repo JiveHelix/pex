@@ -11,16 +11,17 @@
 
 #pragma once
 
+#include <bitset>
+#include <string>
 #include "jive/auto_format.h"
 #include "jive/formatter.h"
 #include "jive/to_integer.h"
 #include "jive/to_float.h"
 
+
 namespace pex
 {
 
-namespace wx
-{
 
 /** Selects the larger of width, precision, or minimumBufferSize. **/
 template<typename T, int width, int precision>
@@ -168,6 +169,5 @@ struct Converter
     }
 };
 
-} // namespace wx
 
 } // namespace pex

@@ -15,7 +15,8 @@ template<typename T, typename Model>
 class Observer
 {
 public:
-    using Interface = pex::interface::Value<Observer<T, Model>, Model>;
+    using Interface =
+        pex::interface::Value<Observer<T, Model>, Model>;
 
     Observer(Model &model)
         :

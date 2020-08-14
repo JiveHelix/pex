@@ -12,6 +12,8 @@
 #pragma once
 
 #include <type_traits>
+#include "pex/access_tag.h"
+#include "pex/reference.h"
 #include "pex/detail/value_detail.h"
 
 
@@ -24,14 +26,27 @@ namespace model
 
 // Model must use unbound callbacks so it can notify disparate types.
 // All observers are stored as void *.
-template<typename T, typename Filter>
+template<typename T, typename Filter_>
 class Value_ : public detail::NotifyMany<detail::ValueNotify<void, T>>
 {
-    static_assert(detail::ModelFilterIsVoidOrValid<T, Filter>::value);
-    using Notify = detail::ValueNotify<void, T>;
+    static_assert(detail::ModelFilterIsVoidOrValid<T, Filter_>::value);
 
 public:
+    using Notify = detail::ValueNotify<void, T>;
     using Type = T;
+    using Filter = Filter_;
+
+    // All model nodes have writable access.
+    using Access = GetAndSetTag;
+
+    template<typename Pex>
+    friend class Transaction;
+
+    template<typename Pex>
+    friend class ::pex::Reference;
+
+    template<typename Pex>
+    friend class ::pex::ConstReference;
 
     Value_()
         :
@@ -115,7 +130,7 @@ public:
      **
      ** If the Filter is void or static, it always returns true.
      **/
-    operator bool () const
+    explicit operator bool () const
     {
         if constexpr (detail::FilterIsMember<T, Filter>::value)
         {
@@ -131,6 +146,75 @@ private:
     T value_;
     Filter * filter_;
 };
+
+
+/**
+ ** While Transaction exists, the model's value has been changed, but not
+ ** published.
+ **
+ ** When you are ready to publish, call Commit.
+ **
+ ** If the Transaction goes out of scope without a call to Commit, the model
+ ** value is reverted, and nothing is published.
+ **
+ **/
+template<typename Pex>
+class Transaction
+{
+    static_assert(
+        std::is_same_v<void, typename Pex::Filter>,
+        "Direct access to underlying value is incompatible with filters.");
+
+public:
+    using Type = typename Pex::Type;
+
+    Transaction(Pex &model)
+        :
+        model_(&model),
+        oldValue_(model.Get())
+    {
+
+    }
+
+    Transaction(Pex &model, Type value)
+        :
+        model_(&model),
+        oldValue_(model.Get())
+    {
+        this->model_->SetWithoutNotify_(value);
+    }
+
+    Transaction(const Transaction &) = delete;
+    Transaction & operator=(const Transaction &) = delete;
+
+    Type & Get()
+    {
+        NOT_NULL(this->model_);
+        return this->model_->value_;
+    }
+
+    void Commit()
+    {
+        if (nullptr != this->model_)
+        {
+            this->model_->Notify_(this->model_->value_);
+            this->model_ = nullptr;
+        }
+    }
+
+    ~Transaction()
+    {
+        // Revert on destruction
+        if (nullptr != this->model_)
+        {
+            this->model_->SetWithoutNotify_(this->oldValue_);
+        }
+    }
+
+    Pex *model_;
+    Type oldValue_;
+};
+
 
 template<typename T>
 using Value = Value_<T, void>;
@@ -149,30 +233,35 @@ namespace interface
 template<
     typename Observer_,
     typename Model_,
-    typename Filter_ = void>
+    typename Filter_ = void,
+    typename Access_ = GetAndSetTag
+>
 class Value_
-#ifdef ALLOW_MULTIPLE_CALLBACKS
-    : public detail::NotifyMany
-      <
-#else
-    : public detail::NotifyOne
-      <
-#endif
+    :
+    public detail::NotifyOne
+    <
         detail::ValueNotify
         <
             Observer_,
             typename detail::FilterType<typename Model_::Type, Filter_>::Type
         >
-      >
+    >
 {
 public:
     using Observer = Observer_;
     using Model = Model_;
     using Filter = Filter_;
+    using Access = Access_;
     using ModelType = typename Model::Type;
     using Type = typename detail::FilterType<ModelType, Filter>::Type;
 
-    template<typename AnyObserver, typename AnyModel, typename AnyFilter>
+    template
+    <
+        typename AnyObserver,
+        typename AnyModel,
+        typename AnyFilter,
+        typename AnyAccess
+    >
     friend class Value_;
 
     static_assert(
@@ -180,7 +269,12 @@ public:
         "Model must define Model::Type");
 
     static_assert(
-        detail::InterfaceFilterIsVoidOrValid<ModelType, Filter>::value);
+        detail::InterfaceFilterIsVoidOrValid
+        <
+            ModelType,
+            Filter,
+            Access
+        >::value);
 
     Value_(): model_(nullptr), filter_(nullptr) {}
 
@@ -212,7 +306,8 @@ public:
      ** observers and filters, but tracks the same model.
      **/
     template<typename OtherObserver, typename OtherFilter>
-    explicit Value_(const Value_<OtherObserver, Model, OtherFilter> &other)
+    explicit Value_(
+        const Value_<OtherObserver, Model, OtherFilter, Access> &other)
         :
         model_(other.model_),
         filter_(nullptr)
@@ -228,7 +323,7 @@ public:
 
     /** When the filter type matches, the filter can be copied, too. **/
     template<typename OtherObserver>
-    explicit Value_(const Value_<OtherObserver, Model, Filter> &other)
+    explicit Value_(const Value_<OtherObserver, Model, Filter, Access> &other)
         :
         model_(other.model_),
         filter_(other.filter_)
@@ -242,14 +337,29 @@ public:
         }
     }
 
-    template<typename OtherObserver, typename OtherModel, typename OtherFilter>
-    Value_<Observer, Model, Filter> & operator=(
-        const Value_<OtherObserver, OtherModel, OtherFilter> &other)
+    template
+    <
+        typename OtherObserver,
+        typename OtherModel,
+        typename OtherFilter,
+        typename OtherAccess
+    >
+    Value_<Observer, Model, Filter, Access> & operator=(
+        const Value_<
+            OtherObserver,
+            OtherModel,
+            OtherFilter,
+            OtherAccess> &other)
     {
         static_assert(
             std::is_same_v<Model, OtherModel>,
             "Copy may differ in observer and filter types, but must track the "
             "same model value.");
+
+        static_assert(
+            std::is_same_v<Access, OtherAccess>,
+            "Copy may differ in observer and filter types, but must have the "
+            "same access level.");
 
         if constexpr (detail::ImplementsDisconnect<Model>::value)
         {
@@ -291,7 +401,7 @@ public:
     /** Implicit bool conversion returns true if the interface is currently
      ** tracking a Model and a Filter if required.
      **/
-    operator bool () const
+    explicit operator bool () const
     {
         if constexpr (
             detail::FilterIsMember<ModelType, Filter>::value)
@@ -321,6 +431,10 @@ public:
 
     void Set(typename detail::Argument<Type>::Type value)
     {
+        static_assert(
+            std::is_same_v<Access, GetAndSetTag>,
+            "Cannot Set a read-only value.");
+
         NOT_NULL(this->model_);
 
         if constexpr (std::is_void_v<Filter>)
@@ -336,6 +450,10 @@ public:
 private:
     ModelType FilterSet_(typename detail::Argument<Type>::Type value) const
     {
+        static_assert(
+            std::is_same_v<Access, GetAndSetTag>,
+            "Cannot Set a read-only value.");
+
         if constexpr (detail::SetterIsMember<ModelType, Filter>::value)
         {
             NOT_NULL(this->filter_);
@@ -386,12 +504,18 @@ private:
 };
 
 
-template<typename Observer, typename Model>
-using Value = Value_<Observer, Model, void>;
+template<typename Observer, typename Model, typename Access = GetAndSetTag>
+using Value = Value_<Observer, Model, void, Access>;
 
 
-template<typename Observer, typename Model, typename Filter>
-using FilteredValue = Value_<Observer, Model, Filter>;
+template
+<
+    typename Observer,
+    typename Model,
+    typename Filter,
+    typename Access = GetAndSetTag
+>
+using FilteredValue = Value_<Observer, Model, Filter, Access>;
 
 
 template<typename Observer, typename Value>
