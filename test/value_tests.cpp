@@ -61,7 +61,7 @@ TEMPLATE_TEST_CASE(
 {
     auto original = GENERATE(
         take(
-            3, 
+            3,
             random(
                 CastLimits<TestType>::Min(),
                 CastLimits<TestType>::Max())));
@@ -102,14 +102,14 @@ TEMPLATE_TEST_CASE(
 TEST_CASE("std::string propagation", "[value]")
 {
     auto wordCount = GENERATE(take(10, random(1u, 10u)));
-    
+
     std::string original = RandomGettysWords().MakeWords(wordCount);
     std::string propagated = RandomGettysWords().MakeWords(wordCount);
 
     using Model = pex::model::Value<std::string>;
     Model model(original);
     Observer<std::string, Model> observer(model);
-    
+
     REQUIRE(observer.observedValue == original);
     model.Set(propagated);
     REQUIRE(observer.observedValue == propagated);
@@ -133,7 +133,7 @@ TEMPLATE_TEST_CASE(
 {
     auto original = GENERATE(
         take(
-            3, 
+            3,
             random(
                 CastLimits<TestType>::Min(),
                 CastLimits<TestType>::Max())));

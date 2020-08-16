@@ -144,7 +144,7 @@ ExampleFrame::ExampleFrame(UnitsInterface unitsInterface)
             this,
             unitsInterface);
 
-    wxBoxSizer *topSizer = new wxBoxSizer(wxVERTICAL); 
+    wxBoxSizer *topSizer = new wxBoxSizer(wxVERTICAL);
 
     topSizer->Add(radioBox, 0, wxALL, 10);
     topSizer->Add(view, 0, wxLEFT | wxBOTTOM | wxRIGHT, 10);

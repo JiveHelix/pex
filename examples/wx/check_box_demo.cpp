@@ -90,8 +90,8 @@ ExampleFrame::ExampleFrame(
         new pex::wx::CheckBox<IsCheckedInterface>(this, "Check me", isChecked);
 
     auto view = new pex::wx::View<MessageInterface>(this, message);
-    
-    wxBoxSizer *topSizer = new wxBoxSizer(wxVERTICAL); 
+
+    wxBoxSizer *topSizer = new wxBoxSizer(wxVERTICAL);
 
     topSizer->Add(checkBox, 0, wxALL, 10);
     topSizer->Add(view, 0, wxLEFT | wxBOTTOM | wxRIGHT, 10);

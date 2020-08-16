@@ -14,33 +14,46 @@
 #include <type_traits>
 #include "pex/access_tag.h"
 #include "pex/reference.h"
+#include "pex/transaction.h"
 #include "pex/detail/value_detail.h"
 
 
 namespace pex
 {
 
+template<typename Observer, typename T, typename Filter>
+using Notification =
+    detail::ValueNotify
+    <
+        Observer,
+        typename detail::FilteredType<T, Filter>::Type
+    >;
+
 namespace model
 {
 
-
-// Model must use unbound callbacks so it can notify disparate types.
+// Model must use unbound callbacks so it can send notifications to
+// different observer types.
 // All observers are stored as void *.
 template<typename T, typename Filter_>
-class Value_ : public detail::NotifyMany<detail::ValueNotify<void, T>>
+class Value_
+    :
+    // Notification values will be the type returned by the Filter, or T if
+    // the filter is void.
+    public detail::NotifyMany<Notification<void, T, Filter_>>
 {
-    static_assert(detail::ModelFilterIsVoidOrValid<T, Filter_>::value);
+    static_assert(detail::FilterIsVoidOrValid<T, Filter_, SetTag>::value);
 
 public:
-    using Notify = detail::ValueNotify<void, T>;
     using Type = T;
     using Filter = Filter_;
+    using Notify = Notification<void, T, Filter>;
 
     // All model nodes have writable access.
     using Access = GetAndSetTag;
 
     template<typename Pex>
-    friend class Transaction;
+    friend class ::pex::Transaction;
 
     template<typename Pex>
     friend class ::pex::Reference;
@@ -50,24 +63,26 @@ public:
 
     Value_()
         :
-        value_{},
-        filter_{}
+        filter_{},
+        value_{}
     {
 
     }
 
     explicit Value_(T value)
         :
-        value_{value},
-        filter_{}
+        filter_{},
+        value_{this->FilterOnSet_(value)}
     {
-
+        static_assert(
+            detail::FilterIsVoidOrStatic<T, Filter, SetTag>::value,
+            "A filter with member functions requires a pointer.");
     }
 
     Value_(T value, Filter *filter)
         :
-        value_{value},
-        filter_{filter}
+        filter_{filter},
+        value_{this->FilterOnSet_(value)}
     {
         static_assert(
             detail::FilterIsMember<T, Filter>::value,
@@ -76,8 +91,8 @@ public:
 
     Value_(Filter *filter)
         :
-        value_{},
-        filter_{filter}
+        filter_{filter},
+        value_{}
     {
         static_assert(
             detail::FilterIsMember<T, Filter>::value,
@@ -90,24 +105,8 @@ public:
     /** Set the value and notify interfaces **/
     void Set(typename detail::Argument<T>::Type value)
     {
-        if constexpr (std::is_void_v<Filter>)
-        {
-            this->value_ = value;
-        }
-        else if constexpr (
-            std::is_invocable_r_v<T, decltype(&Filter::Set), Filter, T>)
-        {
-            NOT_NULL(this->filter_);
-            this->value_ = this->filter_->Set(value);
-        }
-        else
-        {
-            // The filter is not void
-            // and the filter doesn't accept a Filter * argument.
-            this->value_ = Filter::Set(value);
-        }
-
-        this->Notify_(this->value_);
+        this->SetWithoutNotify_(value);
+        this->DoNotify_();
     }
 
     T Get() const
@@ -143,76 +142,62 @@ public:
     }
 
 private:
-    T value_;
+    void SetWithoutNotify_(typename detail::Argument<T>::Type value)
+    {
+        if constexpr (std::is_void_v<Filter>)
+        {
+            this->value_ = value;
+        }
+        else
+        {
+            this->value_ = this->FilterOnSet_(value);
+        }
+    }
+
+    void DoNotify_()
+    {
+        this->Notify_(this->value_);
+    }
+
+    T FilterOnSet_(typename detail::Argument<T>::Type value) const
+    {
+        if constexpr (std::is_same_v<void, Filter>)
+        {
+            return value;
+        }
+        else if constexpr (detail::SetterIsMember<T, Filter>::value)
+        {
+            NOT_NULL(this->filter_);
+            return this->filter_->Set(value);
+        }
+        else
+        {
+            // The filter is not a member method.
+            return Filter::Set(value);
+        }
+    }
+
+    T FilterOnGet_(
+        typename detail::Argument<T>::Type value) const
+    {
+        if constexpr (std::is_same_v<void, Filter>)
+        {
+            return value;
+        }
+        else if constexpr (detail::GetterIsMember<T, Filter>::value)
+        {
+            NOT_NULL(this->filter_);
+            return this->filter_->Get(value);
+        }
+        else
+        {
+            // The filter doesn't accept a Filter * argument.
+            return Filter::Get(value);
+        }
+    }
+
     Filter * filter_;
-};
-
-
-/**
- ** While Transaction exists, the model's value has been changed, but not
- ** published.
- **
- ** When you are ready to publish, call Commit.
- **
- ** If the Transaction goes out of scope without a call to Commit, the model
- ** value is reverted, and nothing is published.
- **
- **/
-template<typename Pex>
-class Transaction
-{
-    static_assert(
-        std::is_same_v<void, typename Pex::Filter>,
-        "Direct access to underlying value is incompatible with filters.");
-
-public:
-    using Type = typename Pex::Type;
-
-    Transaction(Pex &model)
-        :
-        model_(&model),
-        oldValue_(model.Get())
-    {
-
-    }
-
-    Transaction(Pex &model, Type value)
-        :
-        model_(&model),
-        oldValue_(model.Get())
-    {
-        this->model_->SetWithoutNotify_(value);
-    }
-
-    Transaction(const Transaction &) = delete;
-    Transaction & operator=(const Transaction &) = delete;
-
-    Type & Get()
-    {
-        NOT_NULL(this->model_);
-        return this->model_->value_;
-    }
-
-    void Commit()
-    {
-        if (nullptr != this->model_)
-        {
-            this->model_->Notify_(this->model_->value_);
-            this->model_ = nullptr;
-        }
-    }
-
-    ~Transaction()
-    {
-        // Revert on destruction
-        if (nullptr != this->model_)
-        {
-            this->model_->SetWithoutNotify_(this->oldValue_);
-        }
-    }
-
-    Pex *model_;
-    Type oldValue_;
+    T value_;
 };
 
 
@@ -238,13 +223,11 @@ template<
 >
 class Value_
     :
+    // Notification values will be the type returned by the Filter, or
+    // Model_::Type if the filter is void.
     public detail::NotifyOne
     <
-        detail::ValueNotify
-        <
-            Observer_,
-            typename detail::FilterType<typename Model_::Type, Filter_>::Type
-        >
+        Notification<Observer_, typename Model_::Type, Filter_>
     >
 {
 public:
@@ -253,7 +236,7 @@ public:
     using Filter = Filter_;
     using Access = Access_;
     using ModelType = typename Model::Type;
-    using Type = typename detail::FilterType<ModelType, Filter>::Type;
+    using Type = typename detail::FilteredType<ModelType, Filter>::Type;
 
     template
     <
@@ -269,12 +252,7 @@ public:
         "Model must define Model::Type");
 
     static_assert(
-        detail::InterfaceFilterIsVoidOrValid
-        <
-            ModelType,
-            Filter,
-            Access
-        >::value);
+        detail::FilterIsVoidOrValid<ModelType, Filter, Access>::value);
 
     Value_(): model_(nullptr), filter_(nullptr) {}
 
@@ -283,6 +261,27 @@ public:
         model_(model),
         filter_(nullptr)
     {
+        static_assert(
+            detail::FilterIsVoidOrStatic<ModelType, Filter, Access>::value,
+            "A filter with member methods requires a pointer.");
+
+        NOT_NULL(model);
+
+        if constexpr (detail::ImplementsConnect<Model>::value)
+        {
+            this->model_->Connect(this, &Value_::OnModelChanged_);
+        }
+    }
+
+    explicit Value_(Model * model, Filter *filter)
+        :
+        model_(model),
+        filter_(filter)
+    {
+        static_assert(
+            detail::FilterIsMember<ModelType, Filter>::value,
+            "A void or static filter cannot use a pointer.");
+
         NOT_NULL(model);
 
         if constexpr (detail::ImplementsConnect<Model>::value)
@@ -425,7 +424,7 @@ public:
         }
         else
         {
-            return this->FilterGet_(this->model_->Get());
+            return this->FilterOnGet_(this->model_->Get());
         }
     }
 
@@ -443,18 +442,18 @@ public:
         }
         else
         {
-            this->model_->Set(this->FilterSet_(value));
+            this->model_->Set(this->FilterOnSet_(value));
         }
     }
 
 private:
-    ModelType FilterSet_(typename detail::Argument<Type>::Type value) const
+    ModelType FilterOnSet_(typename detail::Argument<Type>::Type value) const
     {
-        static_assert(
-            std::is_same_v<Access, GetAndSetTag>,
-            "Cannot Set a read-only value.");
-
-        if constexpr (detail::SetterIsMember<ModelType, Filter>::value)
+        if constexpr (std::is_same_v<void, Filter>)
+        {
+            return value;
+        }
+        else if constexpr (detail::SetterIsMember<ModelType, Filter>::value)
         {
             NOT_NULL(this->filter_);
             return this->filter_->Set(value);
@@ -466,10 +465,14 @@ private:
         }
     }
 
-    Type FilterGet_(
+    Type FilterOnGet_(
         typename detail::Argument<ModelType>::Type value) const
     {
-        if constexpr (detail::GetterIsMember<ModelType, Filter>::value)
+        if constexpr (std::is_same_v<void, Filter>)
+        {
+            return value;
+        }
+        else if constexpr (detail::GetterIsMember<ModelType, Filter>::value)
         {
             NOT_NULL(this->filter_);
             return this->filter_->Get(value);
@@ -491,7 +494,7 @@ private:
 
         if constexpr (!std::is_void_v<Filter>)
         {
-            self->Notify_(self->FilterGet_(value));
+            self->Notify_(self->FilterOnGet_(value));
         }
         else
         {

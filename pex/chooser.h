@@ -46,7 +46,7 @@ public:
         <
             void,
             Choices,
-            ::pex::GetOnlyTag
+            ::pex::GetTag
         >;
 
 private:

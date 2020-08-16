@@ -65,25 +65,32 @@ struct GetterIsMember
  ** The default is the unmodified type T.
  **/
 template<typename T, typename Filter, typename = void>
-struct FilterType
+struct FilteredType
 {
     using Type = T;
 };
 
 template<typename T>
-struct FilterType<T, void, void>
+struct FilteredType<T, void, void>
 {
     using Type = T;
 };
 
 template<typename T, typename Filter>
-struct FilterType<T, Filter, std::enable_if_t<GetterIsMember<T, Filter>::value>>
+struct FilteredType
+<
+    T,
+    Filter,
+    std::enable_if_t<GetterIsMember<T, Filter>::value>>
 {
     using Type = std::invoke_result_t<decltype(&Filter::Get), Filter, T>;
 };
 
 template<typename T, typename Filter>
-struct FilterType<T, Filter, std::enable_if_t<GetterIsStatic<T, Filter>::value>>
+struct FilteredType<
+    T,
+    Filter,
+    std::enable_if_t<GetterIsStatic<T, Filter>::value>>
 {
     using Type = std::invoke_result_t<decltype(&Filter::Get), T>;
 };
@@ -92,7 +99,7 @@ struct FilterType<T, Filter, std::enable_if_t<GetterIsStatic<T, Filter>::value>>
 /** Setter Checks
  **
  ** Set can be either static or member, and it may modify the type.
- ** Use the FilterType helper class to select the correct argument to the
+ ** Use the FilteredType helper class to select the correct argument to the
  ** Set function.
  **/
 template<typename T, typename Filter, typename = void>
@@ -112,7 +119,7 @@ struct SetterIsStatic
         <
             T,
             decltype(&Filter::Set),
-            typename FilterType<T, Filter>::Type
+            typename FilteredType<T, Filter>::Type
         >
     >
 > : std::true_type {};
@@ -136,7 +143,7 @@ struct SetterIsMember
             T,
             decltype(&Filter::Set),
             Filter,
-            typename FilterType<T, Filter>::Type
+            typename FilteredType<T, Filter>::Type
         >
     >
 > : std::true_type {};
@@ -159,7 +166,7 @@ struct GetterIsValid
     std::enable_if_t
     <
         (GetterIsStatic<T, Filter>::value || GetterIsMember<T, Filter>::value)
-        && !std::is_same_v<typename FilterType<T, Filter>::Type, void>
+        && !std::is_same_v<typename FilteredType<T, Filter>::Type, void>
     >
 > : std::true_type {};
 
@@ -186,6 +193,58 @@ struct SetterIsValid
 
 
 /**
+ ** FilterIsStatic evaluates to true when both Get and Set methods are static.
+ **/
+template
+<
+    typename T,
+    typename Filter,
+    typename Access,
+    typename = void
+>
+struct FilterIsStatic : std::false_type {};
+
+/** For read-only interfaces, only the getter is checked. **/
+template<typename T, typename Filter>
+struct FilterIsStatic
+<
+    T,
+    Filter,
+    GetTag,
+    std::enable_if_t
+    <
+        GetterIsStatic<T, Filter>::value
+    >
+> : std::true_type {};
+
+template<typename T, typename Filter>
+struct FilterIsStatic
+<
+    T,
+    Filter,
+    SetTag,
+    std::enable_if_t
+    <
+        SetterIsStatic<T, Filter>::value
+    >
+> : std::true_type {};
+
+/** Check both the getter and setter for settable interfaces. **/
+template<typename T, typename Filter>
+struct FilterIsStatic
+<
+    T,
+    Filter,
+    GetAndSetTag,
+    std::enable_if_t
+    <
+        GetterIsStatic<T, Filter>::value
+        && SetterIsStatic<T, Filter>::value
+    >
+> : std::true_type {};
+
+
+/**
  ** Checks whether Set or Get are member functions.
  **
  ** This is used to check whether a pointer to the Filter structure will be
@@ -206,85 +265,100 @@ struct FilterIsMember
 > : std::true_type {};
 
 
-/** Model filter validation
- **
- ** Model filters only use the Set method to filter on input.
- **/
-template<typename T, typename Filter, typename = void>
-struct ModelFilterIsVoidOrValid: std::false_type {};
+template
+<
+    typename T,
+    typename Filter,
+    typename Access,
+    typename = void
+>
+struct FilterIsVoidOrStatic : std::false_type {};
 
 /** Filter can be void **/
-template<typename T, typename Filter>
-struct ModelFilterIsVoidOrValid
+template<typename T, typename Access>
+struct FilterIsVoidOrStatic<T, void, Access, void> : std::true_type {};
+
+template<typename T, typename Filter, typename Access>
+struct FilterIsVoidOrStatic
 <
     T,
     Filter,
-    std::enable_if_t<std::is_same_v<Filter, void>>
+    Access,
+    std::enable_if_t<FilterIsStatic<T, Filter, Access>::value>
 > : std::true_type {};
 
-/** Filter::Set can be normal function, or a function that takes a pointer
- ** to Filter.
+
+
+/** Filter Validation
+ **
+ ** A Filter, if provided, must provide both Set and Get methods.
+ ** These can be any mixture of static and member methods.
+ **
+ ** Get can return a different type than its argument, but Set must then accept
+ ** the same type as returned by Get.
  **/
+
+template
+<
+    typename T,
+    typename Filter,
+    typename Access,
+    typename = void
+>
+struct FilterIsValid : std::false_type {};
+
 template<typename T, typename Filter>
-struct ModelFilterIsVoidOrValid
+struct FilterIsValid
 <
     T,
     Filter,
+    GetTag,
+    std::enable_if_t<GetterIsValid<T, Filter>::value>
+> : std::true_type {};
+
+template<typename T, typename Filter>
+struct FilterIsValid
+<
+    T,
+    Filter,
+    SetTag,
     std::enable_if_t<SetterIsValid<T, Filter>::value>
 > : std::true_type {};
 
-
-/** Interface filter validation
- **
- ** Interface filters, if provided, must provide both Set and Get methods.
- ** These can be any mixture of static and member methods.
- **/
-
-template<typename T, typename Filter, typename Access, typename = void>
-struct InterfaceFilterIsValid : std::false_type {};
-
-template<typename T, typename Filter, typename Access>
-struct InterfaceFilterIsValid
+template<typename T, typename Filter>
+struct FilterIsValid
 <
     T,
     Filter,
-    Access,
+    GetAndSetTag,
     std::enable_if_t
     <
-        std::is_same_v<Access, GetOnlyTag>
-        && GetterIsValid<T, Filter>::value
-    >
-> : std::true_type {};
-
-template<typename T, typename Filter, typename Access>
-struct InterfaceFilterIsValid
-<
-    T,
-    Filter,
-    Access,
-    std::enable_if_t
-    <
-        std::is_same_v<Access, GetAndSetTag>
-        && GetterIsValid<T, Filter>::value
+        GetterIsValid<T, Filter>::value
         && SetterIsValid<T, Filter>::value
     >
 > : std::true_type {};
 
 
-template<typename T, typename Filter, typename Access, typename = void>
-struct InterfaceFilterIsVoidOrValid : std::false_type {};
+template
+<
+    typename T,
+    typename Filter,
+    typename Access,
+    typename = void
+>
+struct FilterIsVoidOrValid : std::false_type {};
 
 /** Filter can be void **/
 template<typename T, typename Access>
-struct InterfaceFilterIsVoidOrValid<T, void, Access, void> : std::true_type {};
+struct FilterIsVoidOrValid<T, void, Access, void> : std::true_type {};
 
 template<typename T, typename Filter, typename Access>
-struct InterfaceFilterIsVoidOrValid
+struct FilterIsVoidOrValid
 <
     T,
     Filter,
     Access,
-    std::enable_if_t<InterfaceFilterIsValid<T, Filter, Access>::value>
+    std::enable_if_t<FilterIsValid<T, Filter, Access>::value>
 > : std::true_type {};
 
 

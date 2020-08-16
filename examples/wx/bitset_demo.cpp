@@ -40,7 +40,7 @@ public:
             this->bitsetModel_->Connect(this, &FlagInterface::OnModelChanged_);
         }
     }
-    
+
     ~FlagInterface()
     {
         if (this->bitsetModel_)
@@ -80,8 +80,7 @@ public:
 
     void Set(bool value)
     {
-        pex::Reference r(*this->bitsetModel_);
-        r.Get()[this->index_] = value;
+        (*pex::Reference(*this->bitsetModel_))[this->index_] = value;
     }
 
     bool Get()
@@ -207,7 +206,7 @@ ExampleFrame::ExampleFrame(Interface interface)
             5);
     }
 
-    wxBoxSizer *topSizer = new wxBoxSizer(wxVERTICAL); 
+    wxBoxSizer *topSizer = new wxBoxSizer(wxVERTICAL);
 
     auto flags = wxLEFT | wxBOTTOM | wxRIGHT | wxEXPAND;
 

@@ -40,7 +40,7 @@ public:
 
 template<typename T>
 struct RangeFilter
-{ 
+{
     T Set(T value)
     {
         return std::max(this->low, std::min(value, this->high));
@@ -70,7 +70,7 @@ TEMPLATE_TEST_CASE(
     using angles = jive::Angles<TestType>;
     TestType low = -angles::pi;
     TestType high = angles::pi;
-    
+
     using Model =
         pex::model::FilteredValue<TestType, RangeFilter<TestType>>;
 
@@ -114,10 +114,10 @@ TEMPLATE_TEST_CASE(
     }
 
     TestType high = 96;
-    
+
     using Model =
         pex::model::FilteredValue<TestType, RangeFilter<TestType>>;
-    
+
     RangeFilter<TestType> filter{low, high};
     Model model{&filter};
     Observer<TestType, Model> observer(model);
@@ -164,13 +164,13 @@ TEMPLATE_TEST_CASE(
 
     using Interface =
         pex::interface::FilteredValue<void, Model, Filter>;
-    
+
     Model model;
     Interface interface(&model);
 
     // Set value in degrees.
     interface.Set(value);
-    
+
     using angles = jive::Angles<TestType>;
 
     // Expect model to be in radians.

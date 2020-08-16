@@ -18,8 +18,9 @@ namespace pex
 
 
 struct AccessTag {};
-struct GetOnlyTag : AccessTag {};
-struct GetAndSetTag : AccessTag {};
+struct GetTag : AccessTag {};
+struct SetTag : AccessTag {};
+struct GetAndSetTag : GetTag, SetTag {};
 
 
 } // namespace pex

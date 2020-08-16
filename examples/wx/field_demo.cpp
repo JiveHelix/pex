@@ -1,8 +1,8 @@
 /**
   * @file field_demo.cpp
-  * 
+  *
   * @brief Demonstrates the use of pex::wx::Field.
-  * 
+  *
   * @author Jive Helix (jivehelix@gmail.com)
   * @date 09 Aug 2020
   * @copyright Jive Helix
@@ -60,7 +60,7 @@ public:
         :
         angle_{0.0}
     {
-        this->angle_.Connect(this, &ExampleApp::OnUpdate_); 
+        this->angle_.Connect(this, &ExampleApp::OnUpdate_);
     }
 
     bool OnInit() override;
@@ -117,19 +117,19 @@ ExampleFrame::ExampleFrame(RadiansInterface interface)
             interface,
             "Degrees:");
 
-    auto radiansEntry = 
+    auto radiansEntry =
         new pex::wx::LabeledWidget<pex::wx::Field<RadiansInterface>>(
             this,
             interface,
             "Radians:");
 
-    auto degreesEntry = 
+    auto degreesEntry =
         new pex::wx::LabeledWidget<pex::wx::Field<DegreesInterface>>(
             this,
             interface,
             "Degrees:");
 
-    wxBoxSizer *topSizer = new wxBoxSizer(wxVERTICAL); 
+    wxBoxSizer *topSizer = new wxBoxSizer(wxVERTICAL);
     auto flags = wxLEFT | wxBOTTOM | wxRIGHT | wxEXPAND;
 
     topSizer->Add(radiansView, 0, wxALL, 10);

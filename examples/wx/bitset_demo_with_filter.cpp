@@ -10,6 +10,8 @@
 #include "pex/wx/labeled_widget.h"
 #include "pex/wx/check_box.h"
 
+#include "pex/detail/filters.h"
+
 constexpr auto bitCount = 8;
 using Bitset = std::bitset<bitCount>;
 
@@ -36,7 +38,7 @@ public:
 
     Bitset Set(bool value)
     {
-        Bitset result = this->model_->Get(); 
+        Bitset result = this->model_->Get();
         result[this->index_] = value;
         return result;
     }
@@ -77,9 +79,8 @@ struct Interface
     {
         for (size_t i = 0; i < bitCount; ++i)
         {
-            flags[i] = FlagInterface(&model.bitset);
             filters[i] = FlagFilter(&model.bitset, i);
-            flags[i].SetFilter(&filters[i]);
+            flags[i] = FlagInterface(&model.bitset, &filters[i]);
         }
     }
 
@@ -162,7 +163,7 @@ ExampleFrame::ExampleFrame(Interface interface)
             5);
     }
 
-    wxBoxSizer *topSizer = new wxBoxSizer(wxVERTICAL); 
+    wxBoxSizer *topSizer = new wxBoxSizer(wxVERTICAL);
 
     auto flags = wxLEFT | wxBOTTOM | wxRIGHT | wxEXPAND;
 

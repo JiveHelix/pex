@@ -133,7 +133,7 @@ ExampleFrame::ExampleFrame(
 
     auto view =
         new pex::wx::View<Interface>(this, interface);
-    
+
     auto three =
         new pex::wx::View<Interface, ThreeDigits<Type>>(this, interface);
 
@@ -145,7 +145,7 @@ ExampleFrame::ExampleFrame(
     auto button =
         new pex::wx::Button(this, "Press Me", interfaceSignal);
 
-    wxBoxSizer *topSizer = new wxBoxSizer(wxVERTICAL); 
+    wxBoxSizer *topSizer = new wxBoxSizer(wxVERTICAL);
     auto flags = wxLEFT | wxBOTTOM | wxRIGHT | wxEXPAND;
 
     topSizer->Add(view, 0, wxALL, 10);

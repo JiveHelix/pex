@@ -49,6 +49,7 @@ struct ValueToString
     {
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wformat-nonliteral"
+#pragma GCC diagnostic ignored "-Wdouble-promotion"
         return jive::Formatter<BufferSize<T, width, precision>::value>(
             format,
             width,

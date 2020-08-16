@@ -1,9 +1,9 @@
 /**
   * @file combo_box_demo.cpp
-  * 
+  *
   * @brief A demonstration of pex::wx::ComboBox, backed by
   * a pex::interface::Chooser.
-  * 
+  *
   * @author Jive Helix (jivehelix@gmail.com)
   * @date 14 Aug 2020
   * @copyright Jive Helix
@@ -132,7 +132,7 @@ ExampleFrame::ExampleFrame(
 
     auto view = new pex::wx::View<UnitsInterface>(this, unitsInterface);
 
-    wxBoxSizer *topSizer = new wxBoxSizer(wxVERTICAL); 
+    wxBoxSizer *topSizer = new wxBoxSizer(wxVERTICAL);
 
     topSizer->Add(firkinsCheckbox, 0, wxALL, 10);
     topSizer->Add(comboBox, 0, wxLEFT | wxBOTTOM | wxRIGHT, 10);

@@ -73,3 +73,14 @@ target_link_libraries(
     project_options
     pex
     wx::net wx::core wx::base)
+
+
+add_executable(slider_demo slider_demo.cpp)
+
+target_link_libraries(
+    slider_demo
+    PUBLIC
+    project_warnings
+    project_options
+    pex
+    wx::net wx::core wx::base)

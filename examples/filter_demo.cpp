@@ -66,7 +66,7 @@ public:
     {
         std::cout << "Foo::OnAngleChanged_: " << angle_degrees << std::endl;
     }
-    
+
     void Set(double angle_degrees)
     {
         this->angle_degrees_.Set(angle_degrees);
