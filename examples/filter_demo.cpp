@@ -8,6 +8,7 @@
   * @copyright Jive Helix
   * Licensed under the MIT license. See LICENSE file.
 **/
+
 #include "pex/value.h"
 #include "jive/angles.h"
 #include <iostream>

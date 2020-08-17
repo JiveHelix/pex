@@ -1,3 +1,15 @@
+/**
+  * @file range.h
+  * 
+  * @brief A class encapsulating a bounded value, with pex::Value's for value,
+  * minimum, and maximum.
+  * 
+  * @author Jive Helix (jivehelix@gmail.com)
+  * @date 17 Aug 2020
+  * @copyright Jive Helix
+  * Licensed under the MIT license. See LICENSE file.
+**/
+
 #pragma once
 
 #include <type_traits>

@@ -1,3 +1,14 @@
+/**
+  * @file slider_demo.cpp
+  * 
+  * @brief A demonstration of pex::wx::Slider.
+  * 
+  * @author Jive Helix (jivehelix@gmail.com)
+  * @date 17 Aug 2020
+  * @copyright Jive Helix
+  * Licensed under the MIT license. See LICENSE file.
+**/
+
 #include "pex/range.h"
 #include "pex/wx/slider.h"
 

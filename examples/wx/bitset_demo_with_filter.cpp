@@ -1,3 +1,14 @@
+/**
+  * @file bitset_demo_with_filter.cpp
+  * 
+  * @brief A simpler demonstration of a bitset Field, using FlagFilter to
+  * convert between bitset and boolean flags.
+  * 
+  * @author Jive Helix (jivehelix@gmail.com)
+  * @date 17 Aug 2020
+  * @copyright Jive Helix
+  * Licensed under the MIT license. See LICENSE file.
+**/
 
 #include <iostream>
 #include <string>

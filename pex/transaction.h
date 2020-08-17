@@ -1,3 +1,17 @@
+/**
+  * @file transaction.h
+  * 
+  * @brief A class that allows modifying a model value with out publishing, and
+  * reverting to the original value on destruction if Commit is not called.
+  *
+  * Allows your controller to delay the notification of any values until all
+  * have been set.
+  * 
+  * @author Jive Helix (jivehelix@gmail.com)
+  * @date 17 Aug 2020
+  * @copyright Jive Helix
+  * Licensed under the MIT license. See LICENSE file.
+**/
 
 #pragma once
 

@@ -1,3 +1,15 @@
+/**
+  * @file bitset_demo.cpp
+  * 
+  * @brief Demonstrates the use of std::bitset with a pex::wx::Field. This
+  * version uses a FlagInterface class to map bitset to boolean flags for the
+  * check boxes. A simpler version can be found in bitset_demo_with_filter.cpp.
+  * 
+  * @author Jive Helix (jivehelix@gmail.com)
+  * @date 17 Aug 2020
+  * @copyright Jive Helix
+  * Licensed under the MIT license. See LICENSE file.
+**/
 
 #include <iostream>
 #include <string>
