@@ -11,7 +11,7 @@
 
 #include "wxshim.h"
 #include "pex/chooser.h"
-#include "pex/wx/pex_window.h"
+#include "pex/wx/window.h"
 #include "pex/wx/wx_chooser.h"
 
 
@@ -27,10 +27,10 @@ template
     typename T,
     typename Convert = Converter<T>
 >
-class ComboBox : public PexWindow<wxComboBox>
+class ComboBox : public Window<wxComboBox>
 {
 public:
-    using Base = PexWindow<wxComboBox>;
+    using Base = Window<wxComboBox>;
     using Interface = typename ::pex::interface::Chooser<ComboBox, T>;
     using Selection = typename Interface::Selection;
     using Choices = typename Interface::Choices;

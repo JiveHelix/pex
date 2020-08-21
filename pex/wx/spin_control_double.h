@@ -20,7 +20,7 @@
 #pragma GCC diagnostic pop
 
 #include "pex/range.h"
-#include "pex/wx/pex_window.h"
+#include "pex/wx/window.h"
 
 namespace pex
 {
@@ -30,10 +30,10 @@ namespace wx
 
 
 template<typename RangeModel>
-class SpinControlDouble : public PexWindow<wxSpinCtrlDouble>
+class SpinControlDouble : public Window<wxSpinCtrlDouble>
 {
 public:
-    using Base = PexWindow<wxSpinCtrlDouble>;
+    using Base = Window<wxSpinCtrlDouble>;
     using This = SpinControlDouble<RangeModel>;
     using Range = ::pex::interface::Range<This, RangeModel>;
     using Value = typename Range::Value;

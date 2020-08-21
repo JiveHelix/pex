@@ -15,7 +15,7 @@
 #include <string>
 #include "wxshim.h"
 #include "pex/value.h"
-#include "pex/wx/pex_window.h"
+#include "pex/wx/window.h"
 #include "pex/converter.h"
 #include "pex/detail/argument.h"
 
@@ -31,10 +31,10 @@ template
     typename Value,
     typename Convert = Converter<typename Value::Type>
 >
-class View: public PexWindow<wxStaticText>
+class View: public Window<wxStaticText>
 {
 public:
-    using Base = PexWindow<wxStaticText>;
+    using Base = Window<wxStaticText>;
     using Type = typename Value::Type;
     using Model = typename Value::Model;
     using Access = typename Value::Access;

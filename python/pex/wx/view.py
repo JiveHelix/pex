@@ -1,5 +1,5 @@
 ##
-# @file pex_view.py
+# @file view.py
 #
 # @brief A read-only view of a pex.Value interface node.
 #
@@ -12,13 +12,13 @@ from typing import Generic, TypeVar
 
 import wx
 from .. import pex
-from .pex_window import PexWindow
+from .window import Window
 
 
 T = TypeVar('T')
 
 
-class PexView(wx.StaticText, PexWindow, Generic[T]):
+class View(wx.StaticText, Window, Generic[T]):
     def __init__(
             self,
             parent: wx.Window,
@@ -32,7 +32,7 @@ class PexView(wx.StaticText, PexWindow, Generic[T]):
             parent,
             label=formatString.format(value.Get()))
 
-        PexWindow.__init__(self, [self.value_,])
+        Window.__init__(self, [self.value_,])
         self.value_.Connect(self.OnValueChanged_)
         self.formatString_ = formatString
 

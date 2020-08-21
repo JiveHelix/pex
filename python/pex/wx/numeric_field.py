@@ -1,5 +1,5 @@
 ##
-# @file pex_numeric_field.py
+# @file numeric_field.py
 #
 # @brief A numeric field connected to a pex.Value interface node.
 #
@@ -11,7 +11,7 @@
 from typing import Generic, Any
 import wx
 from .. import pex
-from .pex_window import PexWindow
+from .window import Window
 
 from .utility import (
     NumberValidator,
@@ -21,7 +21,7 @@ from .utility import (
     NumberType)
 
 
-class PexNumericField(wx.Control, PexWindow, Generic[NumberType]):
+class NumericField(wx.Control, Window, Generic[NumberType]):
     """
     A numerical entry field is plumbed to the model through the pex interface.
     """
@@ -36,7 +36,7 @@ class PexNumericField(wx.Control, PexWindow, Generic[NumberType]):
 
         self.value_ = value.GetInterfaceNode()
         wx.Control.__init__(self, parent)
-        PexWindow.__init__(self, [self.value_,])
+        Window.__init__(self, [self.value_,])
         self.converter_ = converter
         valueAsString = self.converter_.Format(self.value_.Get())
 
@@ -70,12 +70,12 @@ class PexNumericField(wx.Control, PexWindow, Generic[NumberType]):
         self.field_.ChangeValue(self.converter_.Format(value))
 
 
-class LabeledPexNumericField(Generic[NumberType], wx.Control):
+class LabeledNumericField(Generic[NumberType], wx.Control):
     """
     Combines a label and the TextCtrl entry field.
 
     """
-    numericField_: PexNumericField[NumberType]
+    numericField_: NumericField[NumberType]
 
     def __init__(
             self,
@@ -85,8 +85,8 @@ class LabeledPexNumericField(Generic[NumberType], wx.Control):
             label: str,
             style: Any = wx.HORIZONTAL) -> None:
 
-        super(LabeledPexNumericField, self).__init__(parent)
-        self.numericField_ = PexNumericField(self, value, converter)
+        super(LabeledNumericField, self).__init__(parent)
+        self.numericField_ = NumericField(self, value, converter)
 
         label = wx.StaticText(self, label=label)
         sizer = wx.BoxSizer(style)

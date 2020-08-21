@@ -18,7 +18,7 @@
 #include "pex/converter.h"
 
 #include "wxshim.h"
-#include "pex/wx/pex_window.h"
+#include "pex/wx/window.h"
 #include "pex/wx/view.h"
 
 namespace pex
@@ -74,10 +74,10 @@ template
     typename RangeModel,
     typename Filter = DefaultRangeFilter<typename RangeModel::Type>
 >
-class Slider : public pex::wx::PexWindow<wxSlider>
+class Slider : public pex::wx::Window<wxSlider>
 {
 public:
-    using Base = PexWindow<wxSlider>;
+    using Base = Window<wxSlider>;
     using This = Slider<RangeModel, Filter>;
     using Range = ::pex::interface::Range<This, RangeModel, Filter>;
     using Value = typename Range::Value;
@@ -162,10 +162,10 @@ template
     typename Filter = DefaultRangeFilter<typename RangeModel::Type>,
     typename Convert = pex::Converter<typename Value::Type>
 >
-class SliderAndValue : public pex::wx::PexWindow<wxControl>
+class SliderAndValue : public pex::wx::Window<wxControl>
 {
 public:
-    using Base = pex::wx::PexWindow<wxControl>;
+    using Base = pex::wx::Window<wxControl>;
 
     template<typename CompatibleRange, typename CompatibleValue>
     SliderAndValue(

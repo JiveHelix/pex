@@ -12,7 +12,7 @@
 #pragma once
 
 #include "wxshim.h"
-#include "pex/wx/pex_window.h"
+#include "pex/wx/window.h"
 #include "pex/value.h"
 
 
@@ -24,10 +24,10 @@ namespace wx
 
 
 template<typename Value>
-class CheckBox: public PexWindow<wxCheckBox>
+class CheckBox: public Window<wxCheckBox>
 {
 public:
-    using Base = PexWindow<wxCheckBox>;
+    using Base = Window<wxCheckBox>;
     using Type = typename Value::Type;
     using Model = typename Value::Model;
     using Access = typename Value::Access;

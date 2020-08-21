@@ -3,7 +3,7 @@ import wx
 from .. import pex
 
 
-class PexWindow:
+class Window:
     """ A mixin that disconnects pex when the window is destroyed. """
     tubes_: List[pex.Tube]
     wxId_: int

@@ -1,11 +1,11 @@
 from typing import Generic, TypeVar, cast
 import wx
 from .. import pex
-from .pex_window import PexWindow
+from .window import Window
 
 Number = TypeVar("Number", int, float)
 
-class PexSpinCtrlDouble(wx.SpinCtrlDouble, PexWindow, Generic[Number]):
+class SpinCtrlDouble(wx.SpinCtrlDouble, Window, Generic[Number]):
     """ wx.SpinCtrlDouble backed by a pex.Value. """
 
     value_: pex.Value[Number]
@@ -28,7 +28,7 @@ class PexSpinCtrlDouble(wx.SpinCtrlDouble, PexWindow, Generic[Number]):
             initial=self.value_.Get(),
             inc=increment)
 
-        PexWindow.__init__(self, [self.value_, ])
+        Window.__init__(self, [self.value_, ])
 
         self.Bind(
             wx.EVT_SPINCTRLDOUBLE,

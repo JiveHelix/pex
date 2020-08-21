@@ -14,7 +14,7 @@
 
 #include "wxshim.h"
 #include "pex/value.h"
-#include "pex/wx/pex_window.h"
+#include "pex/wx/window.h"
 #include "pex/converter.h"
 
 
@@ -30,10 +30,10 @@ template
     typename Value,
     typename ConverterTraits = DefaultConverterTraits
 >
-class Field: public PexWindow<wxControl>
+class Field: public Window<wxControl>
 {
 public:
-    using Base = PexWindow<wxControl>;
+    using Base = Window<wxControl>;
     using Type = typename Value::Type;
     using Model = typename Value::Model;
 

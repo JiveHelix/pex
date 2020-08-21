@@ -14,7 +14,7 @@
 
 #include "wxshim.h"
 #include "pex/value.h"
-#include "pex/wx/pex_window.h"
+#include "pex/wx/window.h"
 #include "pex/converter.h"
 #include "pex/find_index.h"
 #include "pex/wx/array_string.h"
@@ -28,10 +28,10 @@ namespace wx
 
 
 template<typename Value, typename Convert = Converter<typename Value::Type>>
-class RadioBox: public PexWindow<wxRadioBox>
+class RadioBox: public Window<wxRadioBox>
 {
 public:
-    using Base = PexWindow<wxRadioBox>;
+    using Base = Window<wxRadioBox>;
     using Type = typename Value::Type;
 
     template<typename CompatibleValue>

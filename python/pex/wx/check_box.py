@@ -1,5 +1,5 @@
 ##
-# @file pex_check_box.py
+# @file check_box.py
 #
 # @brief A CheckBox backed by a pex.Value interface node.
 #
@@ -10,10 +10,10 @@
 
 import wx
 from .. import pex
-from .pex_window import PexWindow
+from .window import Window
 
 
-class PexCheckBox(wx.Control, PexWindow):
+class CheckBox(wx.Control, Window):
     def __init__(
             self,
             parent: wx.Window,
@@ -22,7 +22,7 @@ class PexCheckBox(wx.Control, PexWindow):
 
         self.value_ = value.GetInterfaceNode()
         wx.Control.__init__(self, parent)
-        PexWindow.__init__(self, [self.value_,])
+        Window.__init__(self, [self.value_,])
         self.value_.Connect(self.OnValueChanged_)
         self.checkBox_ = wx.CheckBox(self, label=label)
         self.checkBox_.SetValue(self.value_.Get())

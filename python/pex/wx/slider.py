@@ -1,5 +1,5 @@
 ##
-# @file pex_slider.py
+# @file slider.py
 #
 # @brief A wx.Slider connected to a pex.Value interface node.
 #
@@ -13,7 +13,7 @@ from typing import List, Generic, TypeVar, Callable, Any
 
 import wx
 from .. import pex
-from .pex_window import PexWindow
+from .window import Window
 from ..types import Reference
 from ..proxy import ConverterProxy
 
@@ -79,7 +79,7 @@ class SliderInterface(Generic[T]):
         return interfaceNode
 
 
-class PexSlider(wx.Control, PexWindow, Generic[T]):
+class Slider(wx.Control, Window, Generic[T]):
     defaultValue_: T
     sliderInterface_: SliderInterface
 
@@ -95,7 +95,7 @@ class PexSlider(wx.Control, PexWindow, Generic[T]):
 
         wx.Control.__init__(self, parent, **kwargs)
 
-        PexWindow.__init__(
+        Window.__init__(
             self,
             [
                 self.sliderInterface_.value,
@@ -109,20 +109,20 @@ class PexSlider(wx.Control, PexWindow, Generic[T]):
             maxValue=self.sliderInterface_.maximum.Get(),
             name=name)
 
-        self.sliderInterface_.value.Connect(self.OnPexValue_)
-        self.sliderInterface_.minimum.Connect(self.OnPexMinimum_)
-        self.sliderInterface_.maximum.Connect(self.OnPexMaximum_)
+        self.sliderInterface_.value.Connect(self.OnValue_)
+        self.sliderInterface_.minimum.Connect(self.OnMinimum_)
+        self.sliderInterface_.maximum.Connect(self.OnMaximum_)
 
         self.slider_.Bind(wx.EVT_SLIDER, self.OnSlider_)
         self.slider_.Bind(wx.EVT_LEFT_DOWN, self.OnSliderLeftDown_)
     
-    def OnPexValue_(self, value: T) -> None:
+    def OnValue_(self, value: T) -> None:
         self.slider_.SetValue(self.sliderInterface_.fromValue(value))
 
-    def OnPexMinimum_(self, minimum: T) -> None:
+    def OnMinimum_(self, minimum: T) -> None:
         self.slider_.SetMin(self.sliderInterface_.fromValue(minimum))
 
-    def OnPexMaximum_(self, maximum: T) -> None:
+    def OnMaximum_(self, maximum: T) -> None:
         self.slider_.SetMax(self.sliderInterface_.fromValue(maximum))
 
     def OnSlider_(self, wxEvent: wx.CommandEvent) -> None:
@@ -135,9 +135,9 @@ class PexSlider(wx.Control, PexWindow, Generic[T]):
             self.sliderInterface_.fromValue(self.defaultValue_))
 
 
-class PexSliderAndValue(wx.Control, PexWindow, Generic[T]):
+class SliderAndValue(wx.Control, Window, Generic[T]):
     sliderInterface_: SliderInterface
-    pexSlider_: PexSlider
+    pexSlider_: Slider
     formatString_: str
     valueDisplay_: wx.StaticText
 
@@ -152,10 +152,10 @@ class PexSliderAndValue(wx.Control, PexWindow, Generic[T]):
         self.sliderInterface_ = sliderInterface.GetInterfaceNode()
         
         wx.Control.__init__(self, parent)
-        PexWindow.__init__(self, [self.sliderInterface_.value, ])
+        Window.__init__(self, [self.sliderInterface_.value, ])
 
         self.pexSlider_ = \
-            PexSlider(parent, name, sliderInterface, **sliderKwargs)
+            Slider(parent, name, sliderInterface, **sliderKwargs)
 
         self.formatString_ = formatString
 

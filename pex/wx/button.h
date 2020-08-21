@@ -11,7 +11,7 @@
 
 #pragma once
 
-#include "pex/wx/pex_window.h"
+#include "pex/wx/window.h"
 #include "pex/signal.h"
 
 namespace pex
@@ -20,10 +20,10 @@ namespace pex
 namespace wx
 {
 
-class Button: public PexWindow<wxButton>
+class Button: public Window<wxButton>
 {
 public:
-    using Base = PexWindow<wxButton>;
+    using Base = Window<wxButton>;
 
     Button(
         wxWindow *parent,

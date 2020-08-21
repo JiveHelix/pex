@@ -1,5 +1,5 @@
 ##
-# @file pex_radio_box.py
+# @file radio_box.py
 #
 # @brief A wx.RadioBox connected to a pex.Value interface node.
 #
@@ -12,11 +12,11 @@ from typing import List, Generic, TypeVar, Callable
 
 import wx
 from .. import pex
-from .pex_window import PexWindow
+from .window import Window
 
 T = TypeVar('T')
 
-class PexRadioBox(wx.Control, PexWindow, Generic[T]):
+class RadioBox(wx.Control, Window, Generic[T]):
     def __init__(
             self,
             parent: wx.Window,
@@ -27,7 +27,7 @@ class PexRadioBox(wx.Control, PexWindow, Generic[T]):
         assert value.Get() in choices
         self.value_ = value.GetInterfaceNode()
         wx.Control.__init__(self, parent)
-        PexWindow.__init__(self, [self.value_,])
+        Window.__init__(self, [self.value_,])
         self.choices_ = choices
         self.valueToString_ = valueToString
 
@@ -36,10 +36,10 @@ class PexRadioBox(wx.Control, PexWindow, Generic[T]):
             choices=[valueToString(value) for value in choices])
 
         self.radioBox_.SetSelection(choices.index(self.value_.Get()))
-        self.value_.Connect(self.OnPexValue_)
+        self.value_.Connect(self.OnValue_)
         self.radioBox_.Bind(wx.EVT_RADIOBOX, self.OnRadioBox_)
 
-    def OnPexValue_(self, value: T) -> None:
+    def OnValue_(self, value: T) -> None:
         self.radioBox_.SetSelection(self.choices_.index(value))
 
     def OnRadioBox_(self, wxEvent: wx.CommandEvent) -> None:

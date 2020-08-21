@@ -75,7 +75,7 @@ def GetModifierString(modifierBitfield: int) -> str:
 
 
 @attr.s(auto_attribs=True, eq=False, slots=True)
-class PexShortcut:
+class Shortcut:
     signal: pex.Signal
     modifier: int
     ascii: str
@@ -95,7 +95,7 @@ class ShortcutMethods:
     description_: str
     longDescription_: str
 
-    def __init__(self, shortcut: PexShortcut) -> None:
+    def __init__(self, shortcut: Shortcut) -> None:
         self.signal_ = shortcut.signal
         self.id_ = wx.Window.NewControlId()
         self.modifier_ = shortcut.modifier
@@ -150,8 +150,8 @@ class HasWxShortcutMethods(Protocol):
 class ShortcutMixin:
     def __init__(
             self: HasWxShortcutMethods,
-            acceleratorShortcuts: Iterable[PexShortcut],
-            menuShortcuts: Iterable[PexShortcut]):
+            acceleratorShortcuts: Iterable[Shortcut],
+            menuShortcuts: Iterable[Shortcut]):
 
         self.acceleratorShortcutMethods_ = [
             ShortcutMethods(shortcut) for shortcut in acceleratorShortcuts]

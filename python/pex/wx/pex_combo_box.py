@@ -2,10 +2,10 @@ from typing import Generic, Any, List
 import wx
 from ..types import ValueType
 from .. import pex
-from .pex_window import PexWindow
+from .window import Window
 
 
-class PexComboBox(wx.ComboBox, PexWindow, Generic[ValueType]):
+class ComboBox(wx.ComboBox, Window, Generic[ValueType]):
     """
     A read-only wx.ComboBox backed by a pex.Value.
     """
@@ -22,7 +22,7 @@ class PexComboBox(wx.ComboBox, PexWindow, Generic[ValueType]):
 
         wx.ComboBox.__init__(self, parent, *args, **kwargs)
 
-        PexWindow.__init__(
+        Window.__init__(
             self,
             [self.choices_.value, self.choices_.choices])
 

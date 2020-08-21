@@ -1,5 +1,5 @@
 ##
-# @file pex_field.py
+# @file field.py
 #
 # @brief A text field connected to a pex.Value interface node.
 #
@@ -11,10 +11,10 @@
 from typing import Any, Optional
 import wx
 from .. import pex
-from .pex_window import PexWindow
+from .window import Window
 
 
-class PexField(wx.Control, PexWindow):
+class Field(wx.Control, Window):
     """
     A text entry field is plumbed to the model through the pex interface.
     """
@@ -28,7 +28,7 @@ class PexField(wx.Control, PexWindow):
 
         self.value_ = value.GetInterfaceNode()
         wx.Control.__init__(self, parent)
-        PexWindow.__init__(self, [self.value_,])
+        Window.__init__(self, [self.value_,])
         valueAsString = self.value_.Get()
 
         style = wx.TE_PROCESS_ENTER
@@ -59,12 +59,12 @@ class PexField(wx.Control, PexWindow):
         self.field_.ChangeValue(value)
 
 
-class LabeledPexField(wx.Control):
+class LabeledField(wx.Control):
     """
     Combines a label and the TextCtrl entry field.
 
     """
-    field_: PexField
+    field_: Field
 
     def __init__(
             self,
@@ -74,8 +74,8 @@ class LabeledPexField(wx.Control):
             fieldStyle: Optional[Any] = None,
             layoutStyle: Any = wx.HORIZONTAL) -> None:
 
-        super(LabeledPexField, self).__init__(parent)
-        self.field_ = PexField(self, value, fieldStyle)
+        super(LabeledField, self).__init__(parent)
+        self.field_ = Field(self, value, fieldStyle)
 
         label = wx.StaticText(self, label=label)
         sizer = wx.BoxSizer(layoutStyle)

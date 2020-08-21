@@ -1,5 +1,5 @@
 /**
-  * @file pex_window.h
+  * @file window.h
   *
   * @brief A base class that may turn out to be unnecessary.
   *
@@ -37,11 +37,10 @@ struct WindowProperties
  ** from wxWindow.
  **/
 template<typename WxBase>
-class PexWindow: public WxBase
+class Window: public WxBase
 {
 public:
     using WxBase::WxBase;
-
 };
 
 
