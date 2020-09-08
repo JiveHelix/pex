@@ -1,15 +1,15 @@
 [submodule "venv"]
 	path = venv
-	url = git@github.com:JiveHelix/venv.git
+	url = https://github.com/JiveHelix/venv.git
 [submodule "external/jive"]
 	path = external/jive
-	url = git@github.com:JiveHelix/jive.git
+	url = https://github.com/JiveHelix/jive.git
 [submodule "cmake_includes"]
 	path = cmake_includes
-	url = git@github.com:JiveHelix/cmake_includes.git
+	url = https://github.com/JiveHelix/cmake_includes.git
 [submodule "external/fields"]
 	path = external/fields
 	url = https://github.com/JiveHelix/fields.git
 [submodule "external/wx"]
 	path = external/wx
-	url = git@github.com:JiveHelix/wx.git
+	url = https://github.com/JiveHelix/wx.git

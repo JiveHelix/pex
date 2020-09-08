@@ -15,6 +15,10 @@
 
 #pragma once
 
+
+#include "pex/detail/not_null.h"
+
+
 namespace pex
 {
 

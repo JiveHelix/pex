@@ -16,6 +16,7 @@
 #include "pex/reference.h"
 #include "pex/transaction.h"
 #include "pex/detail/value_detail.h"
+#include "pex/detail/not_null.h"
 
 
 namespace pex

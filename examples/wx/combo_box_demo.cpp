@@ -131,11 +131,11 @@ ExampleFrame::ExampleFrame(
         new pex::wx::ComboBox<std::string>(this, chooserInterface);
 
     auto view = new pex::wx::View<UnitsInterface>(this, unitsInterface);
-
-    wxBoxSizer *topSizer = new wxBoxSizer(wxVERTICAL);
+    auto topSizer = std::make_unique<wxBoxSizer>(wxVERTICAL);
 
     topSizer->Add(firkinsCheckbox, 0, wxALL, 10);
     topSizer->Add(comboBox, 0, wxLEFT | wxBOTTOM | wxRIGHT, 10);
     topSizer->Add(view, 0, wxLEFT | wxBOTTOM | wxRIGHT, 10);
-    this->SetSizerAndFit(topSizer);
+
+    this->SetSizerAndFit(topSizer.release());
 }

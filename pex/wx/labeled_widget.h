@@ -40,7 +40,7 @@ public:
     {
         auto labelView = new wxStaticText(this, wxID_ANY, label);
         auto field = new Widget(this, value, fieldStyle);
-        auto sizer = new wxBoxSizer(layoutStyle);
+        auto sizer = std::make_unique<wxBoxSizer>(layoutStyle);
 
         auto flag = (layoutStyle == wxHORIZONTAL)
             ? wxRIGHT
@@ -48,7 +48,7 @@ public:
 
         sizer->Add(labelView, 0, flag, 5);
         sizer->Add(field, 1, flag);
-        this->SetSizerAndFit(sizer);
+        this->SetSizerAndFit(sizer.release());
     }
 };
 

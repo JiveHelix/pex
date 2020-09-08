@@ -38,15 +38,3 @@ struct DefinesType<T, std::void_t<typename T::Type>>
 } // namespace detail
 
 } // namespace pex
-
-
-#ifndef NDEBUG
-#define NOT_NULL(pointer)                                     \
-    if (pointer == nullptr)                                   \
-    {                                                         \
-        throw std::logic_error(#pointer " must not be NULL"); \
-    }
-
-#else
-#define NOT_NULL(pointer)
-#endif

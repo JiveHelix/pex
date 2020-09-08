@@ -160,7 +160,7 @@ ExampleFrame::ExampleFrame(Interface interface)
             interface.bitset,
             "Bitset (field):");
 
-    wxBoxSizer *flagsSizer = new wxBoxSizer(wxHORIZONTAL);
+    auto flagsSizer = std::make_unique<wxBoxSizer>(wxHORIZONTAL);
 
     for (size_t i = 0; i < bitCount; ++i)
     {
@@ -174,13 +174,12 @@ ExampleFrame::ExampleFrame(Interface interface)
             5);
     }
 
-    wxBoxSizer *topSizer = new wxBoxSizer(wxVERTICAL);
-
+    auto topSizer = std::make_unique<wxBoxSizer>(wxVERTICAL);
     auto flags = wxLEFT | wxBOTTOM | wxRIGHT | wxEXPAND;
 
     topSizer->Add(bitsetView, 0, wxALL, 10);
     topSizer->Add(bitsetField, 0, flags, 10);
-    topSizer->Add(flagsSizer, 0, flags, 10);
+    topSizer->Add(flagsSizer.release(), 0, flags, 10);
 
-    this->SetSizerAndFit(topSizer);
+    this->SetSizerAndFit(topSizer.release());
 }

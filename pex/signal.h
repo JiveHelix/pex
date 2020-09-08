@@ -13,6 +13,7 @@
 
 #include <type_traits>
 #include "pex/detail/signal_detail.h"
+#include "pex/detail/not_null.h"
 
 namespace pex
 {
@@ -43,17 +44,21 @@ class Signal
     public detail::NotifyOne<detail::SignalNotify<Observer>>
 {
 public:
-    Signal() = default;
+    Signal(): model_(nullptr) {}
 
     Signal(model::Signal * const model)
         : model_(model)
     {
+        NOT_NULL(this->model_);
         this->model_->Connect(this, &Signal::OnModelSignaled_);
     }
 
     ~Signal()
     {
-        this->model_->Disconnect(this);
+        if (this->model_)
+        {
+            this->model_->Disconnect(this);
+        }
     }
 
     /** Signals the model node, which echoes the signal back to all of the
@@ -61,6 +66,7 @@ public:
      **/
     void Trigger()
     {
+        NOT_NULL(this->model_);
         this->model_->Trigger();
     }
 
@@ -69,6 +75,7 @@ public:
         :
         model_(other.model_)
     {
+        NOT_NULL(this->model_);
         this->model_->Connect(this, &Signal::OnModelSignaled_);
     }
 
@@ -81,6 +88,8 @@ public:
         }
 
         this->model_ = other.model_;
+
+        NOT_NULL(this->model_);
         this->model_->Connect(this, &Signal::OnModelSignaled_);
         return *this;
     }

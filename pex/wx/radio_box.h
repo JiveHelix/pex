@@ -97,7 +97,7 @@ private:
 
     bool ValueInChoices_(const Value &value)
     {
-        auto index = FindIndex(value, this->choices_);
+        auto index = FindIndex(value.Get(), this->choices_);
         return (index != -1);
     }
 

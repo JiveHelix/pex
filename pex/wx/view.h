@@ -75,6 +75,17 @@ private:
 };
 
 
+template
+<
+    typename Value,
+    typename Convert = Converter<typename Value::Type>
+>
+View<Value, Convert> * MakeView(wxWindow *parent, Value value, long style = 0)
+{
+    return new View<Value, Convert>(parent, value, style);
+}
+
+
 } // namespace wx
 
 } // namespace pex

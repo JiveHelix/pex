@@ -137,10 +137,11 @@ ExampleFrame::ExampleFrame(
     auto speedView =
         new pex::wx::View<PlaybackSpeedValue>(this, playbackSpeedValue);
 
-    wxBoxSizer *topSizer = new wxBoxSizer(wxVERTICAL);
+    auto topSizer = std::make_unique<wxBoxSizer>(wxVERTICAL);
 
     topSizer->Add(positionSlider, 0, wxALL | wxEXPAND, 10);
     topSizer->Add(playbackSpeedSlider, 0, wxALL | wxEXPAND, 10);
     topSizer->Add(speedView, 0, wxALL | wxEXPAND, 10);
-    this->SetSizerAndFit(topSizer);
+
+    this->SetSizerAndFit(topSizer.release());
 }

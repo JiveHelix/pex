@@ -145,7 +145,7 @@ ExampleFrame::ExampleFrame(
     auto button =
         new pex::wx::Button(this, "Press Me", interfaceSignal);
 
-    wxBoxSizer *topSizer = new wxBoxSizer(wxVERTICAL);
+    auto topSizer = std::make_unique<wxBoxSizer>(wxVERTICAL);
     auto flags = wxLEFT | wxBOTTOM | wxRIGHT | wxEXPAND;
 
     topSizer->Add(view, 0, wxALL, 10);
@@ -153,5 +153,5 @@ ExampleFrame::ExampleFrame(
     topSizer->Add(fifteen, 0, flags, 10);
     topSizer->Add(button, 0, flags, 10);
 
-    this->SetSizerAndFit(topSizer);
+    this->SetSizerAndFit(topSizer.release());
 }

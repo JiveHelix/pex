@@ -218,7 +218,7 @@ ExampleFrame::ExampleFrame(Interface interface)
             5);
     }
 
-    wxBoxSizer *topSizer = new wxBoxSizer(wxVERTICAL);
+    auto topSizer = std::make_unique<wxBoxSizer>(wxVERTICAL);
 
     auto flags = wxLEFT | wxBOTTOM | wxRIGHT | wxEXPAND;
 
@@ -226,5 +226,5 @@ ExampleFrame::ExampleFrame(Interface interface)
     topSizer->Add(bitsetField, 0, flags, 10);
     topSizer->Add(flagsSizer, 0, flags, 10);
 
-    this->SetSizerAndFit(topSizer);
+    this->SetSizerAndFit(topSizer.release());
 }

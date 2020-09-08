@@ -95,3 +95,15 @@ target_link_libraries(
     project_options
     pex
     wx::core)
+
+
+add_executable(shortcut_demo shortcut_demo.cpp)
+
+target_link_libraries(
+    shortcut_demo
+    PRIVATE
+    project_warnings
+    project_options
+    pex
+    fields
+    wx::core)

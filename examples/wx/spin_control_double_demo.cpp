@@ -112,11 +112,11 @@ ExampleFrame::ExampleFrame(
     auto wobbleSpinControl =
         new WobbleSpinControl(this, wobbleRange, wobbleIncrement);
 
-    wxBoxSizer *topSizer = new wxBoxSizer(wxVERTICAL);
+    auto topSizer = std::make_unique<wxBoxSizer>(wxVERTICAL);
 
     topSizer->Add(wibbleSpinControl, 0, wxALL | wxEXPAND, 10);
     topSizer->Add(wibbleView, 0, wxALL | wxEXPAND, 10);
     topSizer->Add(wobbleSpinControl, 0, wxALL | wxEXPAND, 10);
     topSizer->Add(wobbleView, 0, wxALL | wxEXPAND, 10);
-    this->SetSizerAndFit(topSizer);
+    this->SetSizerAndFit(topSizer.release());
 }

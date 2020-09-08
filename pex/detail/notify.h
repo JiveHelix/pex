@@ -118,6 +118,7 @@ protected:
     std::vector<Notify> notifiers_;
 };
 
+
 template<typename Notify, typename = std::void_t<>>
 class NotifyMany : public NotifyMany_<Notify>
 {
@@ -182,6 +183,8 @@ protected:
 };
 
 
+// Selected if Notify has the member 'Type'.
+// This Notify_ method takes an argument.
 template<typename Notify>
 class NotifyOne<Notify, std::void_t<typename Notify::Type>>
     : public NotifyOne_<Notify>

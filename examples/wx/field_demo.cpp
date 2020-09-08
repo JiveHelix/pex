@@ -129,7 +129,7 @@ ExampleFrame::ExampleFrame(RadiansInterface interface)
             interface,
             "Degrees:");
 
-    wxBoxSizer *topSizer = new wxBoxSizer(wxVERTICAL);
+    auto topSizer = std::make_unique<wxBoxSizer>(wxVERTICAL);
     auto flags = wxLEFT | wxBOTTOM | wxRIGHT | wxEXPAND;
 
     topSizer->Add(radiansView, 0, wxALL, 10);
@@ -137,5 +137,5 @@ ExampleFrame::ExampleFrame(RadiansInterface interface)
     topSizer->Add(radiansEntry, 0, flags, 10);
     topSizer->Add(degreesEntry, 0, flags, 10);
 
-    this->SetSizerAndFit(topSizer);
+    this->SetSizerAndFit(topSizer.release());
 }

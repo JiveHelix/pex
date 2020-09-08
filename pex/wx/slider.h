@@ -13,6 +13,7 @@
 
 #include <limits>
 #include <stdexcept>
+#include <cstdint>
 
 #include "pex/range.h"
 #include "pex/converter.h"
@@ -20,6 +21,8 @@
 #include "wxshim.h"
 #include "pex/wx/window.h"
 #include "pex/wx/view.h"
+#include "jive/overflow.h"
+
 
 namespace pex
 {
@@ -31,17 +34,15 @@ namespace wx
 /** wxSlider uses `int`, so the default filter will attempt to convert T to
  ** `int`.
  **/
-
 template<typename Target, typename T>
 void RequireConvertible(T value)
 {
-    if (
-        (value > std::numeric_limits<Target>::max())
-        || (value < std::numeric_limits<Target>::min()))
+    if (!jive::CheckConvertible<Target>(value))
     {
         throw std::range_error("value is not convertible to Target.");
     }
 }
+
 
 #ifndef NDEBUG
 #define CHECK_TO_INT_RANGE(value) RequireConvertible<int>(value)
@@ -182,7 +183,7 @@ public:
         auto sizerStyle =
             (wxSL_HORIZONTAL == style) ? wxHORIZONTAL : wxVERTICAL;
 
-        auto sizer = new wxBoxSizer(sizerStyle);
+        auto sizer = std::make_unique<wxBoxSizer>(sizerStyle);
 
         auto flag = (wxSL_HORIZONTAL == style)
             ? wxRIGHT | wxALIGN_CENTER_VERTICAL
@@ -192,7 +193,7 @@ public:
 
         sizer->Add(slider, 1, flag, spacing);
         sizer->Add(view, 0);
-        this->SetSizerAndFit(sizer);
+        this->SetSizerAndFit(sizer.release());
     }
 };
 
