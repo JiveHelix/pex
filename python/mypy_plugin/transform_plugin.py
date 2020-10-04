@@ -255,20 +255,10 @@ def transform_type_info(
                     proto_node.node.type.type.fullname,
                     None)
         except AttributeError:
+            # proto_node.node may not have type and proto_node.node.type may
+            # not have type.
+            # Without these, this member is not transformable anyway.
             nestedTypeInfo = None
-            if isinstance(
-                    proto_node.node.type,
-                    (mypy.types.AnyType, mypy.types.TypeVarType)):
-                # These are the types I know about that don't have a type.type.
-                # The fullname is at proto_node.node.type.fullname, but these
-                # are not transformable types anyway.
-                pass
-            else:
-                print(
-                    "Warning: Failed to check fullname of {}: {} ({})".format(
-                        name,
-                        proto_node.node.type,
-                        type(proto_node.node.type)))
 
         if nestedTypeInfo is not None:
             # This member's type has been transformed.
