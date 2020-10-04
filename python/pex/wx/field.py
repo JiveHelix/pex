@@ -1,35 +1,44 @@
 ##
-# @file field.py
+# @file numeric_field.py
 #
-# @brief A text field connected to a pex.Value interface node.
+# @brief A numeric field connected to a pex.InterfaceValue node.
 #
 # @author Jive Helix (jivehelix@gmail.com)
 # @date 06 Jun 2020
 # @copyright Jive Helix
 # Licensed under the MIT license. See LICENSE file.
 
-from typing import Any, Optional
+from typing import Generic, Any, Optional, TypeVar, Union
 import wx
 from .. import pex
 from .window import Window
 
+from .utility import Converter
 
-class Field(wx.Control, Window):
+
+T = TypeVar('T')
+
+
+class Field(wx.Control, Window, Generic[T]):
     """
-    A text entry field is plumbed to the model through the pex interface.
+    A numerical entry field is plumbed to the model through the pex interface.
     """
-    value_: pex.Value[str]
+    value_: pex.Interface[T]
+    converter_: Converter[T]
+    displayedString_: str
 
     def __init__(
             self,
             parent: wx.Window,
-            value: pex.Value[str],
+            value: pex.Interface[T],
+            converter: Converter[T],
             fieldStyle: Optional[Any] = None) -> None:
 
-        self.value_ = value.GetInterfaceNode()
+        self.value_ = value
         wx.Control.__init__(self, parent)
         Window.__init__(self, [self.value_,])
-        valueAsString = self.value_.Get()
+        self.converter_ = converter
+        self.displayedString_ = self.converter_.ToString(self.value_.Get())
 
         style = wx.TE_PROCESS_ENTER
 
@@ -39,54 +48,29 @@ class Field(wx.Control, Window):
         self.field_ = wx.TextCtrl(
             self,
             style=style,
-            value=value)
+            value=self.displayedString_)
 
         self.field_.Bind(wx.EVT_TEXT_ENTER, self.OnEnter_)
         self.field_.Bind(wx.EVT_KILL_FOCUS, self.OnEnter_)
         self.value_.Connect(self.OnValueChanged_)
 
-    def OnEnter_(self, ignored: wx.CommandEvent) -> None:
-        value = self.field_.GetValue()
-        if self.value_.Get() == value:
+    def OnEnter_(self, event: wx.CommandEvent) -> None:
+        event.Skip()
+        valueAsString = self.field_.GetValue()
+
+        if valueAsString == self.displayedString_:
             # value has not changed.
             # Ignore this input.
             return
 
-        self.field_.ChangeValue(value)
+        try:
+            value = self.converter_.ToValue(valueAsString)
+        except ValueError:
+            self.field_.ChangeValue(self.displayedString_)
+            return
+
         self.value_.Set(value)
 
-    def OnValueChanged_(self, value: str) -> None:
-        self.field_.ChangeValue(value)
-
-
-class LabeledField(wx.Control):
-    """
-    Combines a label and the TextCtrl entry field.
-
-    """
-    field_: Field
-
-    def __init__(
-            self,
-            parent: wx.Window,
-            value: pex.Value[str],
-            label: str,
-            fieldStyle: Optional[Any] = None,
-            layoutStyle: Any = wx.HORIZONTAL) -> None:
-
-        super(LabeledField, self).__init__(parent)
-        self.field_ = Field(self, value, fieldStyle)
-
-        label = wx.StaticText(self, label=label)
-        sizer = wx.BoxSizer(layoutStyle)
-
-        if layoutStyle == wx.HORIZONTAL:
-            flag = wx.RIGHT
-        else:
-            flag = wx.BOTTOM | wx.EXPAND
-
-        sizer.AddMany((
-            (label, 0, flag, 5),
-            (self.field_, 1, flag)))
-
-        self.SetSizerAndFit(sizer)
+    def OnValueChanged_(self, value: T) -> None:
+        self.displayedString_ = self.converter_.ToString(value)
+        self.field_.ChangeValue(self.displayedString_)

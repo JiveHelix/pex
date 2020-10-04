@@ -11,11 +11,11 @@
 
 from __future__ import annotations
 
-from typing import ClassVar
+from typing import ClassVar, cast
 
 from .manifold import SignalManifold
 from .types import SignalCallback, NodeType
-from .tube import Tube
+from .tube import Tube, HasDisconnectAll
 
 
 class Signal(Tube):
@@ -61,7 +61,7 @@ class Signal(Tube):
     def GetInterfaceNode(self) -> Signal:
         return self.__class__(self.name_, NodeType.interface)
 
-    def Signal(self) -> None:
+    def Trigger(self) -> None:
         self.input_.Publish(self.name_)
 
     def Connect(self, callback: SignalCallback) -> None:
@@ -77,4 +77,16 @@ class Signal(Tube):
         if self.nodeType_ == NodeType.model:
             # Echo the signal back to any interface nodes that might be
             # listening.
-            self.Signal()
+            self.Trigger()
+
+
+class ModelSignal(Signal):
+    @classmethod
+    def Create(class_, name: str) -> ModelSignal:
+        return class_(name, NodeType.model)
+
+
+class InterfaceSignal(Signal, HasDisconnectAll):
+    @classmethod
+    def Create(class_, model: ModelSignal) -> InterfaceSignal:
+        return class_(model.name, NodeType.interface)

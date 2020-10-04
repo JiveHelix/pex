@@ -16,7 +16,13 @@ import abc
 from .types import NodeType
 
 
-class Tube(abc.ABC):
+class HasDisconnectAll(abc.ABC):
+    @abc.abstractmethod
+    def DisconnectAll(self) -> None:
+        ...
+
+
+class Tube:
     """
     Links one model node to one or more interface nodes.
 
@@ -69,7 +75,3 @@ class Tube(abc.ABC):
     @property
     def nodeType(self) -> NodeType:
         return self.nodeType_
-
-    @abc.abstractmethod
-    def DisconnectAll(self) -> None:
-        ...

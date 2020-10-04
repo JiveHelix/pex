@@ -76,7 +76,7 @@ def GetModifierString(modifierBitfield: int) -> str:
 
 @attr.s(auto_attribs=True, eq=False, slots=True)
 class Shortcut:
-    signal: pex.Signal
+    signal: pex.InterfaceSignal
     modifier: int
     ascii: str
     description: str
@@ -88,7 +88,7 @@ class Shortcut:
 
 
 class ShortcutMethods:
-    signal_: pex.Signal
+    signal_: pex.InterfaceSignal
     id_: int
     modifier_: int
     key_: Key
@@ -123,7 +123,7 @@ class ShortcutMethods:
         return (self.modifier_, int(self.key_), self.id_)
 
     def OnEventMenu(self, ignored: wx.CommandEvent) -> None:
-        self.signal_.Signal()
+        self.signal_.Trigger()
 
     def GetId(self) -> int:
         return self.id_

@@ -1,14 +1,15 @@
 from typing import List
+import abc
 import wx
 from .. import pex
 
 
 class Window:
     """ A mixin that disconnects pex when the window is destroyed. """
-    tubes_: List[pex.Tube]
+    tubes_: List[pex.HasDisconnectAll]
     wxId_: int
 
-    def __init__(self: wx.Window, tubes: List[pex.Tube]) -> None:
+    def __init__(self: wx.Window, tubes: List[pex.HasDisconnectAll]) -> None:
         self.tubes_ = tubes
         self.wxId_ = self.GetId()
 

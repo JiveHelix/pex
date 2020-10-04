@@ -1,7 +1,7 @@
 ##
 # @file check_box.py
 #
-# @brief A CheckBox backed by a pex.Value interface node.
+# @brief A CheckBox backed by a pex.InterfaceValue node.
 #
 # @author Jive Helix (jivehelix@gmail.com)
 # @date 06 Jun 2020
@@ -18,9 +18,9 @@ class CheckBox(wx.Control, Window):
             self,
             parent: wx.Window,
             label: str,
-            value: pex.Value[bool]) -> None:
+            value: pex.InterfaceValue[bool]) -> None:
 
-        self.value_ = value.GetInterfaceNode()
+        self.value_ = value
         wx.Control.__init__(self, parent)
         Window.__init__(self, [self.value_,])
         self.value_.Connect(self.OnValueChanged_)

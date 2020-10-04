@@ -11,6 +11,7 @@
 from __future__ import annotations
 from typing import Set, DefaultDict, Any, Generic
 from collections import defaultdict
+import copy
 
 from .types import SignalCallback, ValueCallback, ValueType
 from .reference import GetReference, Reference
@@ -40,7 +41,8 @@ class SignalManifold:
         self.ForgetCallback_(GetReference(callback))
 
     def DisconnectName(self, name: str) -> None:
-        callbacks: Set[SignalProxy] = self.callbacksByName_.get(name, set())
+        callbacks: Set[SignalProxy] = \
+            copy.copy(self.callbacksByName_.get(name, set()))
 
         for callback in callbacks:
             self.ForgetProxy_(callback)
@@ -93,7 +95,8 @@ class ValueManifold:
         self.ForgetCallback_(GetReference(callback))
 
     def DisconnectName(self, name: str) -> None:
-        callbacks: Set[ValueProxy[Any]] = self.callbacksByName_.get(name, set())
+        callbacks: Set[ValueProxy[Any]] = \
+            copy.copy(self.callbacksByName_.get(name, set()))
 
         for callback in callbacks:
             self.ForgetProxy_(callback)

@@ -8,8 +8,12 @@
 # @copyright Jive Helix
 # Licensed under the MIT license. See LICENSE file.
 
+from .button import Button
 from .check_box import CheckBox
-from .numeric_field import NumericField, LabeledNumericField
+from .field import Field
 from .radio_box import RadioBox
+from .combo_box import ComboBox
+from .slider import Slider
 from .view import View
+from .add_label import AddLabel
 from .utility.converter import FloatConverter, IntegerConverter

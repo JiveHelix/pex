@@ -3,13 +3,13 @@ from .. import pex
 from .window import Window
 
 class Button(wx.Button, Window):
-    signal_: pex.Signal
+    signal_: pex.InterfaceSignal
 
     def __init__(
             self,
             parent: wx.Window,
             label: str,
-            signal: pex.Signal) -> None:
+            signal: pex.InterfaceSignal) -> None:
 
         self.signal_ = signal
         wx.Button.__init__(self, parent, label=label)
@@ -17,5 +17,5 @@ class Button(wx.Button, Window):
         self.Bind(wx.EVT_BUTTON, self.OnButton_)
 
     def OnButton_(self, ignored: wx.CommandEvent) -> None:
-        self.signal_.Signal()
+        self.signal_.Trigger()
 

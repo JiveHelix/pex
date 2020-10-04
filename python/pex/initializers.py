@@ -13,58 +13,72 @@ from typing import Optional, Any
 
 import attr
 
-from .initialize_from_attr import (
-    InitializeModelFromAttr,
-    InitializeInterfaceFromAttr)
+from .initialize_from_attr import InitializeFromAttr
 
-from .transform import IsTransformed, GetInstanceVars
-from .register_model import GetMemberModel, GetIsModelClass
+from .transform_common import (
+    IsTransformed,
+    IsPrototype,
+    GetDecoratedClass,
+    GetTransformedInstanceVars,
+    GetMemberType)
+
+from .signal import ModelSignal, InterfaceSignal
 
 
-def InitializeModel(
-        model: Any,
-        protoType: Any,
+def Initialize(
+        series: str,
+        instance: Any,
+        prototype: Any,
         namePrefix: Optional[str] = None) -> None:
 
-    if IsTransformed(type(model)):
-        for name in GetInstanceVars(type(model)):
-            memberModel = GetMemberModel(protoType, name)
+    if IsTransformed(type(instance)):
+        for name in GetTransformedInstanceVars(type(instance)):
+            memberType = GetMemberType(prototype, name)
 
-            if memberModel is not None:
-                # This member is also a transformed class
+            if IsPrototype(memberType, series):
+                # This member was used as a prototype to a transformed class.
                 # Use it directly as a nested transformation
+                decoratedClass = GetDecoratedClass(memberType, series)
+
                 if namePrefix is not None:
                     memberName = "{}.{}".format(namePrefix, name)
                 else:
                     memberName = name
 
                 setattr(
-                    model,
+                    instance,
                     name,
-                    memberModel(getattr(protoType, name), memberName))
+                    decoratedClass(getattr(prototype, name), memberName))
+
+            elif issubclass(memberType, ModelSignal):
+                # ModelSignal is always transformed to InterfaceSignal
+                setattr(
+                    instance,
+                    name,
+                    InterfaceSignal.Create(getattr(prototype, name)))
+
             else:
                 setattr(
-                    model,
+                    instance,
                     name,
-                    model.TransformMember(name, protoType, namePrefix))
+                    instance.TransformMember(name, prototype, namePrefix))
 
-    if attr.has(type(model)):
+    if attr.has(type(instance)):
         # Initialize additional attrs members.
-        InitializeModelFromAttr(model, namePrefix)
+        InitializeFromAttr(instance, prototype, namePrefix)
 
 
-# Convenience functions for user-interface classes created by @Transform
-def InitializeUserInterface(userInterface: Any, model: Any) -> None:
-    if IsTransformed(type(model)):
-        for name in GetInstanceVars(type(userInterface)):
-            modelNode = getattr(model, name)
+def InitializeModel(
+        instance: Any,
+        prototype: Any,
+        namePrefix: Optional[str] = None) -> None:
 
-            if GetIsModelClass(type(modelNode)):
-                # Model classes are initialized with recursive calls
-                setattr(userInterface, name, type(modelNode).__base__())
-                InitializeUserInterface(getattr(userInterface, name), modelNode)
-            else:
-                setattr(userInterface, name, modelNode.GetInterfaceNode())
+    Initialize("model", instance, prototype, namePrefix)
 
-    if attr.has(type(userInterface)):
-        InitializeInterfaceFromAttr(userInterface, model)
+
+def InitializeInterface(
+        instance: Any,
+        prototype: Any,
+        namePrefix: Optional[str] = None) -> None:
+
+    Initialize("interface", instance, prototype, namePrefix)

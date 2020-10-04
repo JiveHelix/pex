@@ -27,7 +27,11 @@ SignalCallback = Callable[[], None]
 
 ValueType = TypeVar("ValueType")
 ValueCallback = Callable[[ValueType], None]
-FilterCallable = Callable[[ValueType], ValueType]
+
+
+InterfaceType = TypeVar('InterfaceType')
+ModelType = TypeVar('ModelType')
+
 
 class NodeType(Enum):
     model = auto()

@@ -25,7 +25,7 @@ from typing import (
 import typing
 
 from .signal import Signal
-from .value import Value, FilteredValue
+from .value import ModelValue, FilteredModelValue
 
 T = TypeVar('T')
 
@@ -35,29 +35,19 @@ def GetClassNamespace_(class_: Hashable) -> Dict[str, Any]:
 
 
 @lru_cache(32)
-def GetPexTypeImpl(type_: Hashable, parentClass: Hashable) \
-        -> Union[Signal, Value[Any], FilteredValue[Any]]:
+def GetUnsubscriptedTypeImpl(
+        type_: Hashable,
+        parentClass: Hashable) -> Type[Any]:
 
-    """Returns the actual type if type_ is a string."""
+    if isinstance(type_, type):
+        return cast(Type[Any], type_)
 
     if not isinstance(type_, str):
-
-        if issubclass(cast(type, type_), Signal):
-            return cast(Signal, type_)
-
-        if issubclass(cast(type, type_), FilteredValue):
-            return cast(FilteredValue, type_)
-
-        if issubclass(cast(type, type_), Value):
-            return cast(Value, type_)
-
-        raise RuntimeError(
-            "model node must be a Signal, Value[Any], or FilteredValue[Any] "
-            "Found {}".format(type_))
+        # It's not a type and it's not a str.
+        # We don't know what to do with it.
+        raise ValueError("Bad type argument: {}".format(type_))
 
     forwardRef = ForwardRef(type_, is_argument=False)
-
-    result: Union[Signal, Value[Any], FilteredValue[Any]]
 
     # pylint: disable=protected-access
     evaluated = forwardRef._evaluate(GetClassNamespace_(parentClass), None)
@@ -65,34 +55,22 @@ def GetPexTypeImpl(type_: Hashable, parentClass: Hashable) \
     if evaluated is None:
         raise RuntimeError("Unable to resolve type {}".format(type_))
 
-    if issubclass(type(evaluated), typing._GenericAlias): # type: ignore
-        result = evaluated.__origin__
+    if isinstance(evaluated, typing._GenericAlias): # type: ignore
+        return evaluated.__origin__
     else:
-        result = evaluated
-
-    if issubclass(cast(type, result), Signal):
-        return cast(Signal, result)
-
-    if issubclass(cast(type, result), FilteredValue):
-        return cast(FilteredValue, result)
-
-    if issubclass(cast(type, result), Value):
-        return cast(Value, result)
-
-    raise RuntimeError(
-        "model node must be a Signal or Value[Any]. "
-        "Found {}".format(result))
+        return evaluated
 
 
 @lru_cache(32)
-def GetValueTypeImpl(type_: Hashable, parentClass: Type[Any]) -> Type[Any]:
-
-    """Returns the actual type if type_ is a string."""
+def GetFirstTypeArgImpl_(type_: Hashable, parentClass: Type[Any]) -> Type[Any]:
+    """ Returns the actual type, even if type_ is a string. """
 
     if isinstance(type_, type):
         return type_
 
     if not isinstance(type_, str):
+        # It's not a type and it's not a str.
+        # We don't know what to do with it.
         raise ValueError("Bad type argument: {}".format(type_))
 
     forwardRef = ForwardRef(type_, is_argument=False)
@@ -114,14 +92,29 @@ def GetValueTypeImpl(type_: Hashable, parentClass: Type[Any]) -> Type[Any]:
     return evaluated
 
 
-def GetPexType(type_: Type[Any], parentClass: Type[Any]) \
-        -> Union[Signal, Value[Any], FilteredValue[Any]]:
+def GetUnsubscriptedType(type_: Type[Any], parentClass: Type[Any]) -> Type[Any]:
+    """
+    Return the unsubscripted type, or if the type_ argument is not
+    a GenericAlias, returns the type_.
+
+    GetUnsbuscriptedType(List[int]) -> List
+    GetUnsbuscriptedType(ModelValue[str]) -> ModelValue
+    GetUnsbuscriptedType(float) -> float
+
+    """
 
     # I cannot see how mypy/typeshed/python can allow me to declare that I am
     # passing a union of hashable types.
     # Explicitly cast them here.
-    return GetPexTypeImpl(cast(Hashable, type_), cast(Hashable, parentClass))
+    return GetUnsubscriptedTypeImpl(
+        cast(Hashable, type_),
+        cast(Hashable, parentClass))
 
 
-def GetValueType(type_: Union[Type[T], str], parentClass: Type[Any]) -> Type[T]:
-    return GetValueTypeImpl(cast(Hashable, type_), cast(Hashable, parentClass))
+def GetFirstTypeArg(
+        type_: Union[Type[T], str],
+        parentClass: Type[Any]) -> Type[T]:
+
+    return GetFirstTypeArgImpl_(
+        cast(Hashable, type_),
+        cast(Hashable, parentClass))

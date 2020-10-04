@@ -23,5 +23,3 @@ PYTHON="${THIS_DIRECTORY}/python"
 export PYLINTRC="${PYTHON}/pylintrc"
 export PYTHONPATH="${PYTHON}:${PYTHONPATH}"
 export MYPYPATH="${PYTHONPATH}"
-
-export ACK_OPTIONS="--ignore-dir=.venv"

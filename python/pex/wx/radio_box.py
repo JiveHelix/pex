@@ -1,7 +1,7 @@
 ##
 # @file radio_box.py
 #
-# @brief A wx.RadioBox connected to a pex.Value interface node.
+# @brief A wx.RadioBox connected to a pex.InterfaceValue node.
 #
 # @author Jive Helix (jivehelix@gmail.com)
 # @date 06 Jun 2020
@@ -13,34 +13,48 @@ from typing import List, Generic, TypeVar, Callable
 import wx
 from .. import pex
 from .window import Window
+from .wx_chooser_adapter import WxChooserAdapter
 
-T = TypeVar('T')
 
-class RadioBox(wx.Control, Window, Generic[T]):
+ValueType = TypeVar('ValueType')
+
+
+class RadioBox(wx.Control, Window, Generic[ValueType]):
+    chooser_: pex.ChooserInterface[ValueType]
+    chooserAdapter_: WxChooserAdapter
+
     def __init__(
             self,
             parent: wx.Window,
-            value: pex.Value[T],
-            choices: List[T],
-            valueToString: Callable[[T], str] = str) -> None:
+            chooser: pex.ChooserInterface[ValueType],
+            toString: Callable[[ValueType], str] = str) -> None:
 
-        assert value.Get() in choices
-        self.value_ = value.GetInterfaceNode()
+        self.chooser_ = chooser
+        self.chooserAdapter_ = WxChooserAdapter(toString)
         wx.Control.__init__(self, parent)
-        Window.__init__(self, [self.value_,])
-        self.choices_ = choices
-        self.valueToString_ = valueToString
+        Window.__init__(self, [self.chooser_.selection, self.chooser_.choices])
+
+        choices = self.chooserAdapter_.GetChoicesAsStrings(
+            self.chooser_.choices.Get())
 
         self.radioBox_ = wx.RadioBox(
             self,
-            choices=[valueToString(value) for value in choices])
+            choices=choices)
 
-        self.radioBox_.SetSelection(choices.index(self.value_.Get()))
-        self.value_.Connect(self.OnValue_)
+        self.radioBox_.SetSelection(self.chooser_.selection.Get())
+
+        self.chooser_.selection.Connect(self.OnSelection_)
+        self.chooser_.choices.Connect(self.OnChoices_)
         self.radioBox_.Bind(wx.EVT_RADIOBOX, self.OnRadioBox_)
 
-    def OnValue_(self, value: T) -> None:
-        self.radioBox_.SetSelection(self.choices_.index(value))
+    def OnSelection_(self, selection: int) -> None:
+        self.radioBox_.SetSelection(selection)
+
+    def OnChoices_(self, ignored: List[ValueType]) -> None:
+        # TODO: Replace the radioBox_ when the choices change.
+        print(
+            "WARNING: RadioBox ignores changes to the choice list. "
+            "Create a new RadioBox instead.")
 
     def OnRadioBox_(self, wxEvent: wx.CommandEvent) -> None:
-        self.value_.Set(self.choices_[wxEvent.GetSelection()])
+        self.chooser_.selection.Set(wxEvent.GetSelection())

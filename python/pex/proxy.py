@@ -24,7 +24,6 @@ from .reference import Reference, MakeReference
 from .types import (
     SignalCallback,
     ValueCallback,
-    FilterCallable,
     ValueType,
     ReferenceType)
 
@@ -117,38 +116,10 @@ class ValueProxy(Generic[ValueType]):
         return "ValueProxy({})".format(hash(self.reference_))
 
 
-class FilterProxy(Generic[ValueType]):
-    reference_: Reference[FilterCallable[ValueType]]
+Source = TypeVar('Source')
+Target = TypeVar('Target')
 
-    def __init__(self, reference: Reference[FilterCallable[ValueType]]) -> None:
-        self.reference_ = reference
-
-    @classmethod
-    def Create(
-            class_,
-            callback: FilterCallable[ValueType],
-            onFinalize: Optional[
-                Callable[[Reference[FilterCallable[ValueType]]], Any]]) \
-                    -> FilterProxy[ValueType]:
-
-        return class_(MakeReference(callback, onFinalize))
-
-    def __call__(self, value: ValueType) -> ValueType:
-        """
-        Execute the callback without checking for None (in release mode,
-        anyway).
-
-        It is the responsibility of the client to ensure that only alive
-        references are stored in this instance (using the onFinalize callback.
-        """
-        callback = self.reference_()
-        assert callback is not None
-        return callback(value)
-
-Source = TypeVar("Source")
-Target = TypeVar("Target")
-
-class ConverterProxy(Generic[Source, Target]):
+class FilterProxy(Generic[Source, Target]):
     reference_: Reference[Callable[[Source], Target]]
 
     def __init__(
@@ -163,7 +134,7 @@ class ConverterProxy(Generic[Source, Target]):
             callback: Callable[[Source], Target],
             onFinalize: Optional[
                 Callable[[Reference[Callable[[Source], Target]]], Any]]) \
-                    -> ConverterProxy[Source, Target]:
+                    -> FilterProxy[Source, Target]:
 
         return class_(MakeReference(callback, onFinalize))
 

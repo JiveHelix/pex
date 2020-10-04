@@ -1,7 +1,7 @@
 ##
 # @file view.py
 #
-# @brief A read-only view of a pex.Value interface node.
+# @brief A read-only view of a pex.InterfaceValue node.
 #
 # @author Jive Helix (jivehelix@gmail.com)
 # @date 06 Jun 2020
@@ -15,17 +15,17 @@ from .. import pex
 from .window import Window
 
 
-T = TypeVar('T')
+ModelType = TypeVar('ModelType')
 
 
-class View(wx.StaticText, Window, Generic[T]):
+class View(wx.StaticText, Window, Generic[ModelType]):
     def __init__(
             self,
             parent: wx.Window,
-            value: pex.Value[T],
+            value: pex.InterfaceValue[ModelType],
             formatString: str = "{}"):
 
-        self.value_ = value.GetInterfaceNode()
+        self.value_ = value
 
         wx.StaticText.__init__(
             self,
@@ -36,6 +36,6 @@ class View(wx.StaticText, Window, Generic[T]):
         self.value_.Connect(self.OnValueChanged_)
         self.formatString_ = formatString
 
-    def OnValueChanged_(self, value: T) -> None:
+    def OnValueChanged_(self, value: ModelType) -> None:
         self.SetLabel(self.formatString_.format(value))
         self.GetParent().Layout()

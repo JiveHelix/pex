@@ -20,11 +20,10 @@ class TransformPlugin(mypy.plugin.Plugin):
     def get_class_decorator_hook(self, fullName: str) \
             -> Optional[Callable[[mypy.plugin.ClassDefContext], None]]:
 
-        if fullName in transform_makers:
+        if fullName.split('.')[-1] in transform_makers:
             return transform_class_maker_callback
 
         return None
-
 
 def plugin(ignored: str):
     return TransformPlugin

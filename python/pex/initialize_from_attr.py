@@ -23,65 +23,111 @@ from typing import (
 
 import attr
 
-from .signal import Signal
-from .value import Value
+from .signal import ModelSignal, InterfaceSignal
+from .value import ModelValueBase
+from .compound_creator import CompoundCreator
 
-from .type_inspection import GetPexType, GetValueType
+
+from .type_inspection import GetUnsubscriptedType, GetFirstTypeArg
 
 T = TypeVar('T')
 
 argKey_ = 'arg'
 
 
-def ModelValue(arg: Optional[T] = None) -> Dict[str, Optional[T]]:
+def MakeDefault(arg: Optional[T] = None) -> Dict[str, Optional[T]]:
     return {argKey_: arg}
 
 
-def GetModelValue(attribute: attr.Attribute) -> Optional[Any]:
-    return attribute.metadata.get(argKey_, None)
+def GetDefault(attribute: attr.Attribute) -> Optional[Any]:
+    result = attribute.metadata.get(argKey_, None)
+    if result is not None:
+        return result
+
+    if isinstance(attribute.default, type(attr.NOTHING)):
+        return None
+
+    try:
+        return attribute.default.factory # type: ignore
+    except AttributeError:
+        return attribute.default
 
 
-def InitializeModelFromAttr(
+def InitializeFromAttr(
         instance: Any,
+        prototype: Any,
         prefix: Optional[str] = None) -> None:
 
     for name, attribute in attr.fields_dict(type(instance)).items():
-        # The type of the member may be stored as a string.
-        # GetPexType will resolve to the actual class.
         if attribute.type is None:
             raise RuntimeError("Cannot resolve attribute.type")
 
-        memberClass = GetPexType(attribute.type, type(instance))
-        modelValue = GetModelValue(attribute)
-        modelNode: Union[Signal, Value]
+        memberClass = GetUnsubscriptedType(attribute.type, type(instance))
 
         if prefix is not None:
             nodeName = "{}.{}".format(prefix, name)
         else:
             nodeName = name
 
-        # GetPexType has to return a Union
-        # Use typing.cast to tell the type system that this is a type.
-        if issubclass(cast(type, memberClass), Value):
-            if modelValue is None:
-                modelValue = GetValueType(attribute.type, type(instance))
+        if issubclass(memberClass, ModelSignal):
+            setattr(
+                instance,
+                name,
+                cast(ModelSignal, memberClass).Create(nodeName))
 
-            if callable(modelValue):
-                initialValue = modelValue()
-            else:
-                initialValue = modelValue
+            continue
 
-            modelNode = \
-                cast(Value[Any], memberClass).CreateModelNode(
-                    nodeName,
-                    initialValue)
+        if issubclass(memberClass, InterfaceSignal):
+            setattr(
+                instance,
+                name,
+                cast(
+                    InterfaceSignal,
+                    memberClass).Create(getattr(prototype, name)))
+
+            continue
+
+        # Get the default value set with the metadata=MakeDefault(...) argument
+        # to attr.ib, if any.
+        default = GetDefault(attribute)
+
+        if hasattr(prototype, name):
+            initialValue = getattr(prototype, name)
+
         else:
-            assert issubclass(cast(type, memberClass), Signal)
-            modelNode = cast(Signal, memberClass).CreateModelNode(nodeName)
+            if default is None:
+                default = GetFirstTypeArg(
+                    attribute.type,
+                    type(instance))
 
-        setattr(instance, name, modelNode)
+            if callable(default):
+                initialValue = default()
+            else:
+                initialValue = default
 
+        if issubclass(memberClass, ModelValueBase):
+            # This is a model node.
+            # The Create method takes a name an an initial value.
+            setattr(
+                instance,
+                name,
+                cast(ModelValueBase[Any], memberClass).Create(
+                    nodeName,
+                    initialValue))
 
-def InitializeInterfaceFromAttr(instance: object, model: Any) -> None:
-    for name in attr.fields_dict(type(instance)):
-        setattr(instance, name, getattr(model, name).GetInterfaceNode())
+        elif issubclass(memberClass, CompoundCreator):
+            setattr(
+                instance,
+                name,
+                cast(CompoundCreator[Any], memberClass).Create(
+                    nodeName,
+                    initialValue))
+
+        elif hasattr(memberClass, "Create"):
+            # This memberClass behaves like an interface node.
+            setattr(
+                instance,
+                name,
+                memberClass.Create(initialValue))
+        else:
+            setattr(instance, name, initialValue)

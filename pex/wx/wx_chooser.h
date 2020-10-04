@@ -25,7 +25,7 @@ namespace wx
 
 
 template<typename T, typename Convert = Converter<T>>
-struct WxChoices
+struct WxChooser
 {
     static wxString GetSelectionAsString(
         size_t index,

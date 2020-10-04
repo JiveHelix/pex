@@ -35,7 +35,7 @@ public:
     using Selection = typename Interface::Selection;
     using Choices = typename Interface::Choices;
     using ChoicesVector = typename Choices::Type;
-    using WxAdapter = WxChoices<T, Convert>;
+    using WxAdapter = WxChooser<T, Convert>;
 
     ComboBox(
         wxWindow *parent,
@@ -68,7 +68,6 @@ public:
         // Uncomment this line to see how the compiler enforces that choices_
         // is read-only.
         // this->choices_.Set(std::vector<std::string>{"foo", "bar"});
-
     }
 
     void OnChoicesChanged_(const ChoicesVector &choices)

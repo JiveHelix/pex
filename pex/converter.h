@@ -104,6 +104,14 @@ struct ValueToString
 };
 
 
+/**
+ ** StringToValue with a floating-point or integral value may throw
+ ** std::out_of_range or std::invalid_argument if the conversion is not
+ ** possible.
+ **
+ ** Additional specializations a create a direct pass-through for std::string
+ ** and conversions to std::bitset<N>
+ **/
 template<typename T, int base, typename = void>
 struct StringToValue
 {
@@ -136,6 +144,7 @@ struct StringToValue<T, base, std::enable_if_t<IsBitset<T>::value>>
 {
     static T Call(const std::string_view &asString)
     {
+        // std::bitset is constructed from a std::string of 1's and 0's.
         return T(std::string(asString));
     }
 };

@@ -14,4 +14,4 @@ from .converter import (
     Converter,
     IntegerConverter,
     FloatConverter,
-    NumberType)
+    ValueType)

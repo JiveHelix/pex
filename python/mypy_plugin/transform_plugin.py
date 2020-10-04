@@ -11,6 +11,9 @@
 from __future__ import annotations
 
 import copy
+from typing import DefaultDict
+from collections import defaultdict
+
 import mypy.plugin
 import mypy.types
 
@@ -18,6 +21,7 @@ from mypy.nodes import (
     Argument,
     Var,
     ARG_POS,
+    ARG_OPT,
     MemberExpr,
     TypeInfo,
     FuncDef,
@@ -27,9 +31,11 @@ from mypy.nodes import (
 from mypy.plugins.common import add_method_to_class
 
 
-transform_makers = {"pex.transform.Transform", }
+transform_makers = {"Transform", "TransformModel", "TransformInterface"}
 
-typeInfoByProtoTypeName: Dict[str, TypeInfo] = {}
+
+typeInfoByPrototypeNameBySeries: DefaultDict[str, Dict[str, TypeInfo]] = \
+    defaultdict(dict)
 
 
 class LookupMemberError(RuntimeError):
@@ -52,6 +58,7 @@ def lookup_member_expr(
             "Unable to find node name: {}".format(node_name))
 
     node_member = nodeType.node.names[node_name].node
+
     if isinstance(node_member, TypeInfo):
         return node_member
 
@@ -71,10 +78,27 @@ def transform_class_maker_callback(
     proto_type = context.reason.args[0]
     attribute_type = context.reason.args[1]
 
+    if context.reason.callee.name == "TransformModel":
+        series = "model"
+    elif context.reason.callee.name == "TransformInterface":
+        series = "interface"
+    else:
+        try:
+            seriesIndex = context.reason.arg_names.index("series")
+        except ValueError:
+            # No series specified.
+            # Default to model.
+            series = "model"
+        else:
+            series = context.reason.args[seriesIndex].value
+
     try:
-        init = ('True' == context.reason.args[2].name)
-    except IndexError:
+        initIndex = context.reason.arg_names.index("init")
+    except ValueError:
+        # init defaults to False
         init = False
+    else:
+        init = ('True' == context.reason.args[initIndex].name)
 
     proto_type_node = proto_type.node
 
@@ -108,8 +132,14 @@ def transform_class_maker_callback(
         try:
             # attribute_type may be named in another module
             attribute_type_node = lookup_member_expr(context, attribute_type)
-        except MemberLookupError as error:
-            print("Member lookup failed: {}".format(error))
+        except LookupMemberError as error:
+            print(
+                'Unable to find member "{}" in "{}"'.format(
+                    attribute_type.name,
+                    attribute_type.expr.fullname))
+            print(
+                'Transform is currently unable to look up inherited members')
+
             return
 
     if isinstance(attribute_type_node, FuncDef):
@@ -142,30 +172,70 @@ def transform_class_maker_callback(
         context,
         proto_type_node,
         attribute_type_node,
-        init)
+        init,
+        series)
 
-    typeInfoByProtoTypeName[proto_type_node.fullname] = context.cls.info
+    typeInfoByPrototypeNameBySeries[series][proto_type_node.fullname] = \
+        context.cls.info
+
+
+def module_name_matches(searchParts: List[str], moduleParts: List[str]) -> bool:
+
+    if len(moduleParts) <= len(searchParts):
+        return False
+
+    return moduleParts[-len(searchParts):] == searchParts
+
+
+def find_module(
+        api: mypy.semanal.SemanticAnalyzer,
+        moduleName: str) -> Optional[mypy.nodes.MypyFile]:
+
+    splitSearchName = moduleName.split('.')
+
+    if moduleName in api.modules:
+        return api.modules[moduleName]
+
+    # Find the pex.value module
+
+    for name in api.modules:
+        splitName = name.split('.')
+        if module_name_matches(splitSearchName, name.split('.')):
+            return api.modules[name]
+
+    return None
 
 
 def transform_type_info(
         context: mypy.plugin.ClassDefContext,
         proto_type_node: TypeInfo,
         attribute_type_node: TypeInfo,
-        init: bool) -> TypeInfo:
+        init: bool,
+        series: str) -> TypeInfo:
 
     transformed_info: TypeInfo = context.cls.info
 
     # Get the list of proto_type class members that are not dunders or private
+    # Also, any names that are already defined in the transformed class are
+    # allowed to override anything in the prototype class.
     names = [
         name for name in proto_type_node.names
-        if not name.startswith('_')]
+        if not name.startswith('_') and name not in context.cls.info.names]
 
     transformedNames = []
 
+    tubeModule = find_module(context.api, "pex.tube")
+
+    if tubeModule is None:
+        raise RuntimeError("Unable to locate pex.tube.")
+
+    tubeFullname = tubeModule.names['Tube'].fullname
+
     for name in names:
+
         proto_node = proto_type_node.names[name] # SymbolTableNode
 
-        if isinstance(proto_node.node, FuncDef):
+        if isinstance(proto_node.node, (FuncDef, Decorator)):
             # Ignore methods
             continue
 
@@ -180,27 +250,65 @@ def transform_type_info(
         copied_node.plugin_generated = True
 
         try:
-            nestedTypeInfo = typeInfoByProtoTypeName.get(
-                proto_node.node.type.type.fullname,
-                None)
+            nestedTypeInfo = \
+                typeInfoByPrototypeNameBySeries[series].get(
+                    proto_node.node.type.type.fullname,
+                    None)
         except AttributeError:
             nestedTypeInfo = None
-            if isinstance(proto_node.node.type, mypy.types.AnyType):
-                # AnyType is not a transformable class anyway.
+            if isinstance(
+                    proto_node.node.type,
+                    (mypy.types.AnyType, mypy.types.TypeVarType)):
+                # These are the types I know about that don't have a type.type.
+                # The fullname is at proto_node.node.type.fullname, but these
+                # are not transformable types anyway.
                 pass
             else:
                 print(
-                    "Warning: Failed to check fullname of {}: {}".format(
+                    "Warning: Failed to check fullname of {}: {} ({})".format(
                         name,
-                        proto_node.node.type))
+                        proto_node.node.type,
+                        type(proto_node.node.type)))
 
         if nestedTypeInfo is not None:
             # This member's type has been transformed.
+            typeArgs = []
+
+            if nestedTypeInfo.is_generic():
+                # The nested type has type args
+                if (hasattr(proto_node.node.type, "type")
+                        and proto_node.node.type.type.is_generic()):
+                    # The proto_node is a generic with type args
+                    typeArgs = proto_node.node.type.args
+
             copied_node.node.type = \
-                mypy.types.Instance(nestedTypeInfo, [])
+                mypy.types.Instance(nestedTypeInfo, typeArgs)
+
+        elif (hasattr(proto_node.type, "type")
+                and proto_node.type.type.name == "ModelSignal"):
+
+            # ModelSignal is always transformed to InterfaceSignal
+            pexSignalModule = find_module(context.api, "pex.signal")
+            interfaceSignal = pexSignalModule.names["InterfaceSignal"]
+
+            copied_node.node.type = \
+                mypy.types.Instance(interfaceSignal.node, [])
+
         else:
+            typeArgs = []
+
             if attribute_type_node.is_generic():
-                typeArgs = [proto_node.node.type]
+                if not hasattr(proto_node.node.type, "type"):
+                    # Check below would have failed: type.type.has_base(tube)
+                    # This proto_node is not a pex.tube.Tube
+                    typeArgs = [proto_node.node.type]
+                elif (attribute_type_node.has_base(tubeFullname)
+                        and proto_node.node.type.type.has_base(tubeFullname)):
+                    # When transforming pex types, use the type args to the pex
+                    # type rather than the pex type itself.
+                    typeArgs = proto_node.node.type.args
+                else:
+                    typeArgs = [proto_node.node.type]
             else:
                 typeArgs = []
 
@@ -209,34 +317,72 @@ def transform_type_info(
 
         transformed_info.names[name] = copied_node
 
-    protoTypeInstance = mypy.types.Instance(proto_type_node, [])
+    prototypeInstance = mypy.types.Instance(proto_type_node, [])
+
+    prototypeArgument = Argument(
+        Var(
+            proto_type_node.name.lower(),
+            prototypeInstance),
+        prototypeInstance,
+        None,
+        ARG_POS)
 
     if init:
-        argument = Argument(
-            Var(
-                proto_type_node.name.lower(),
-                protoTypeInstance),
-            protoTypeInstance,
+        nameType = context.api.named_type('__builtins__.str')
+
+        optionalNamedArgument = Argument(
+            Var("name", nameType),
+            nameType,
             None,
-            ARG_POS)
+            ARG_OPT)
 
         add_method_to_class(
             context.api,
             context.cls,
             "__init__",
-            [argument, ],
+            [prototypeArgument, optionalNamedArgument],
             mypy.types.NoneType())
 
-    add_method_to_class(
-        context.api,
-        context.cls,
-        "GetProtoType",
-        [],
-        protoTypeInstance)
+    if series == "model":
+        # Only model nodes support GetPrototype
+        add_method_to_class(
+            context.api,
+            context.cls,
+            "GetPrototype",
+            [],
+            prototypeInstance)
+
+        # Find the pex.value module
+        pexValueModule = find_module(context.api, "pex.value")
+
+        if pexValueModule is not None:
+
+            multipleValueContext = \
+                pexValueModule.names['MultipleValueContext'].node
+
+            multipleValueContextInstance = \
+                mypy.types.Instance(multipleValueContext, [])
+
+            optionalContext = Argument(
+                Var(
+                    'context',
+                    multipleValueContextInstance),
+                multipleValueContextInstance,
+                None,
+                ARG_OPT)
+
+            add_method_to_class(
+                context.api,
+                context.cls,
+                "LoadPrototype",
+                [prototypeArgument, optionalContext],
+                mypy.types.NoneType())
+
+        else:
+            print("Warning: Transform plugin unable to locate module pex.value")
 
     # Now that the class is built, update the info
     for name in transformedNames:
         transformed_info.names[name].node.info = transformed_info
 
     return transformed_info
-

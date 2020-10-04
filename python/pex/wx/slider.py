@@ -1,7 +1,7 @@
 ##
 # @file slider.py
 #
-# @brief A wx.Slider connected to a pex.Value interface node.
+# @brief A wx.Slider connected to a pex.RangeInterface node.
 #
 # @author Jive Helix (jivehelix@gmail.com)
 # @date 06 Jun 2020
@@ -9,169 +9,101 @@
 # Licensed under the MIT license. See LICENSE file.
 
 from __future__ import annotations
-from typing import List, Generic, TypeVar, Callable, Any
+from typing import Generic, Any, TypeVar
 
 import wx
 from .. import pex
+from ..value import InterfaceValue
+from ..range import RangeInterface, ModelNumber, InterfaceNumber
+
 from .window import Window
-from ..types import Reference
-from ..proxy import ConverterProxy
+from .view import View
 
 
-T = TypeVar('T', int, float)
-
-# toValue: Callable[[int], T] = PassThrough[T].FromInt,
-# fromValue: Callable[[T], int] = PassThrough[T].ToInt) \
-
-
-class SliderInterface(Generic[T]):
-    value: pex.Value[T]
-    minimum: pex.Value[T]
-    maximum: pex.Value[T]
-    toValue: ConverterProxy[int, T]
-    fromValue: ConverterProxy[T, int]
-
-    @staticmethod
-    def FromInt(value: int) -> T:
-        return value
-
-    @staticmethod
-    def ToInt(value: T) -> int:
-        return int(value)
-
-    def __init__(
-            self,
-            value: pex.Value[T],
-            minimum: pex.Value[T],
-            maximum: pex.Value[T],
-            toValue: Callable[[int], T] = SliderInterface.FromInt,
-            fromValue: Callable[[T], int] = SliderInterface.ToInt) -> None:
-        
-        self.value = value
-        self.minimum = minimum
-        self.maximum = maximum
-
-        self.toValue = ConverterProxy.Create(
-            toValue,
-            self.RestoreDefaultToValue_)
-
-        self.fromValue = ConverterProxy.Create(
-            fromValue,
-            self.RestoreDefaultFromValue_)
-
-    def RestoreDefaultToValue_(
-            self,
-            ignored: Reference[Callable[[int], T]]) -> None:
-        self.toValue = ConverterProxy.Create(self.FromInt, None)
-
-    def RestoreDefaultFromValue_(
-            self,
-            ignored: Reference[Callable[[T], int]]) -> None:
-        self.fromValue = ConverterProxy.Create(self.ToInt, None)
-
-    def GetInterfaceNode(self) -> SliderInterface:
-        interfaceNode = type(self)()
-        interfaceNode.value = self.value.GetInterfaceNode()
-        interfaceNode.minimum = self.minimum.GetInterfaceNode()
-        interfaceNode.maximum = self.maximum.GetInterfaceNode()
-        interfaceNode.toValue = self.toValue
-        interfaceNode.fromValue = self.fromValue
-        return interfaceNode
-
-
-class Slider(wx.Control, Window, Generic[T]):
-    defaultValue_: T
-    sliderInterface_: SliderInterface
+class Slider(wx.Slider, Window, Generic[ModelNumber]):
+    defaultValue_: int
+    rangeInterface_: RangeInterface[ModelNumber, int]
 
     def __init__(
             self,
             parent: wx.Window,
-            name: str,
-            sliderInterface: SliderInterface,
+            rangeInterface: RangeInterface[ModelNumber, int],
             **kwargs: Any) -> None:
 
-        self.defaultValue_ = sliderInterface.value.Get()
-        self.sliderInterface_ = sliderInterface.GetInterfaceNode()
+        self.defaultValue_ = rangeInterface.value.Get()
+        self.rangeInterface_ = rangeInterface
 
-        wx.Control.__init__(self, parent, **kwargs)
+        wx.Slider.__init__(
+            self,
+            parent,
+            value=self.rangeInterface_.value.Get(),
+            minValue=self.rangeInterface_.minimum.Get(),
+            maxValue=self.rangeInterface_.maximum.Get(),
+            **kwargs)
 
         Window.__init__(
             self,
             [
-                self.sliderInterface_.value,
-                self.sliderInterface_.minimum,
-                self.sliderInterface_.maximum])
+                self.rangeInterface_.value,
+                self.rangeInterface_.minimum,
+                self.rangeInterface_.maximum])
 
-        self.slider_ = wx.Slider(
-            self,
-            value=self.sliderInterface_.value.Get(),
-            minValue=self.sliderInterface_.minimum.Get(),
-            maxValue=self.sliderInterface_.maximum.Get(),
-            name=name)
+        self.rangeInterface_.value.Connect(self.OnValue_)
+        self.rangeInterface_.minimum.Connect(self.OnMinimum_)
+        self.rangeInterface_.maximum.Connect(self.OnMaximum_)
 
-        self.sliderInterface_.value.Connect(self.OnValue_)
-        self.sliderInterface_.minimum.Connect(self.OnMinimum_)
-        self.sliderInterface_.maximum.Connect(self.OnMaximum_)
+        self.Bind(wx.EVT_SLIDER, self.OnSlider_)
+        self.Bind(wx.EVT_LEFT_DOWN, self.OnSliderLeftDown_)
 
-        self.slider_.Bind(wx.EVT_SLIDER, self.OnSlider_)
-        self.slider_.Bind(wx.EVT_LEFT_DOWN, self.OnSliderLeftDown_)
-    
-    def OnValue_(self, value: T) -> None:
-        self.slider_.SetValue(self.sliderInterface_.fromValue(value))
+    def OnValue_(self, value: int) -> None:
+        self.SetValue(value)
 
-    def OnMinimum_(self, minimum: T) -> None:
-        self.slider_.SetMin(self.sliderInterface_.fromValue(minimum))
+    def OnMinimum_(self, minimum: int) -> None:
+        self.SetMin(minimum)
 
-    def OnMaximum_(self, maximum: T) -> None:
-        self.slider_.SetMax(self.sliderInterface_.fromValue(maximum))
+    def OnMaximum_(self, maximum: int) -> None:
+        self.SetMax(maximum)
 
     def OnSlider_(self, wxEvent: wx.CommandEvent) -> None:
-        value = self.sliderInterface_.toValue(wxEvent.GetInt())
-        self.sliderInterface_.value.Set(value)
+        self.rangeInterface_.value.Set(wxEvent.GetInt())
 
     def OnSliderLeftDown_(self, wxEvent: wx.CommandEvent) -> None:
-        """ Set the slider back to the default value. """
-        self.slider_.SetValue(
-            self.sliderInterface_.fromValue(self.defaultValue_))
+        """
+        Set the slider back to the default value when alt/option key is also
+        active.
+
+        """
+        if wxEvent.AltDown():
+            self.SetValue(self.defaultValue_)
+        else:
+            wxEvent.Skip()
 
 
-class SliderAndValue(wx.Control, Window, Generic[T]):
-    sliderInterface_: SliderInterface
-    pexSlider_: Slider
-    formatString_: str
-    valueDisplay_: wx.StaticText
+class SliderAndValue(Generic[ModelNumber], wx.Control):
+    pexSlider_: Slider[ModelNumber]
+    view_: View[ModelNumber]
 
     def __init__(
             self,
             parent: wx.Window,
-            name: str,
-            sliderInterface: SliderInterface,
+            rangeInterface: RangeInterface[ModelNumber, int],
+            value: InterfaceValue[ModelNumber],
             formatString: str = "{}",
             **sliderKwargs: Any) -> None:
-        
-        self.sliderInterface_ = sliderInterface.GetInterfaceNode()
-        
+        """
+        range is filtered to an int for direct use in the wx.Slider.
+        value is the unfiltered value from the model for display in the view.
+        """
         wx.Control.__init__(self, parent)
-        Window.__init__(self, [self.sliderInterface_.value, ])
 
         self.pexSlider_ = \
-            Slider(parent, name, sliderInterface, **sliderKwargs)
+            Slider(parent, rangeInterface, **sliderKwargs)
 
-        self.formatString_ = formatString
-
-        self.valueDisplay_ = wx.StaticText(
-            self,
-            label=self.formatString_.format(self.sliderInterface_.value.Get()))
-
-        self.sliderInterface_.value.Connect(self.UpdateValueDisplay)
+        self.view_ = View(parent, value)
 
         self.sizer_ = wx.BoxSizer(wx.HORIZONTAL)
         self.sizer_.AddMany(
             (self.pexSlider_, 1, wx.RIGHT | wx.ALIGN_CENTER_VERTICAL, 5),
-            (self.valueDisplay_, 0))
+            (self.view_, 0))
 
         self.SetSizerAndFit(self.sizer_)
-
-    def UpdateValueDisplay_(self, value: T) -> None:
-        self.valueDisplay_.SetLabel(self.formatString_.format(value))
-        self.sizer_.Layout()

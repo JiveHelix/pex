@@ -107,25 +107,25 @@ public:
         maximum_(range.maximum),
         defaultValue_(this->value_.Get())
     {
-        this->value_.Connect(this, &Slider::OnPexValue_);
-        this->minimum_.Connect(this, &Slider::OnPexMinimum_);
-        this->maximum_.Connect(this, &Slider::OnPexMaximum_);
+        this->value_.Connect(this, &Slider::OnValue_);
+        this->minimum_.Connect(this, &Slider::OnMinimum_);
+        this->maximum_.Connect(this, &Slider::OnMaximum_);
 
         this->Bind(wxEVT_SLIDER, &Slider::OnSlider_, this);
         this->Bind(wxEVT_LEFT_DOWN, &Slider::OnSliderLeftDown_, this);
     }
 
-    void OnPexValue_(int value)
+    void OnValue_(int value)
     {
         this->SetValue(value);
     }
 
-    void OnPexMinimum_(int minimum)
+    void OnMinimum_(int minimum)
     {
         this->SetMin(minimum);
     }
 
-    void OnPexMaximum_(int maximum)
+    void OnMaximum_(int maximum)
     {
         this->SetMax(maximum);
     }
@@ -168,6 +168,8 @@ class SliderAndValue : public pex::wx::Window<wxControl>
 public:
     using Base = pex::wx::Window<wxControl>;
 
+    // range is filtered to an int for direct use in the wx.Slider.
+    // value is the unfiltered value from the model for display in the view.
     template<typename CompatibleRange, typename CompatibleValue>
     SliderAndValue(
         wxWindow *parent,

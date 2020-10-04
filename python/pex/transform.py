@@ -10,236 +10,276 @@
 # Licensed under the MIT license. See LICENSE file.
 
 from __future__ import annotations
-from typing import (
-    TypeVar,
-    Callable,
-    Type,
-    Any,
-    Optional,
-    List,
-    ClassVar,
-    Dict,
-    Generic,
-    Union)
 
-import types
-import inspect
-import attr
+from .transform_common import *
+from .initializers import Initialize
+from .value import MultipleValueContext
 
-from .initialize_from_attr import InitializeModelFromAttr
-
-
-T = TypeVar("T")
-ProtoType = TypeVar("ProtoType")
-AttributeType = TypeVar("AttributeType")
-
-
-def GetHasName(attributeMaker: Callable[..., AttributeType]) -> bool:
-    """ @return True if 'name' is the first parameter """
-
-    if isinstance(attributeMaker, type):
-        # this is a class
-        try: # type: ignore
-            init = getattr(attributeMaker, '__init__')
-        except AttributeError:
-            return False
-
-        signature = inspect.signature(init)
-    else:
-        signature = inspect.signature(attributeMaker)
-
-    return next(iter(signature.parameters.keys())) == 'name'
-
-
-def GetClassName(class_: Type[Any]) -> str:
-    return "{}.{}".format(class_.__module__, class_.__name__)
-
-
-def GetMemberType(
-        protoType: Union[Any, Type[Any]],
-        memberName: str) -> Type[Any]:
-    return type(getattr(protoType, memberName))
-
-
-def GetMemberTypeName(
-        protoType: Union[Any, Type[Any]],
-        memberName: str) -> str:
-    return GetClassName(GetMemberType(protoType, memberName))
-
-
-class Transform(Generic[AttributeType, ProtoType]):
+class Transform(Generic[Attribute, Prototype]):
     """
-    Create a new class by converting all of protoType members to a new type
+    Create a new class by converting all of prototype members to a new type
     using attributeMaker.
 
-    If any protoType members have already been transformed, that transform will
+    If any prototype members have already been transformed, that transform will
     be used, allowing nesting of transformed classes.
 
     """
 
-    # A global record of transformed prototypes
-    classByProtoTypeName: ClassVar[Dict[str, Type[Any]]] = {}
-
     # Instance vars:
-    protoType_: Type[ProtoType]
-    attributeMaker_: Callable[..., AttributeType]
+    prototype_: Type[Prototype]
+    attributeMaker_: Callable[..., Attribute]
     init_: bool
+    series_: str
     hasName_: bool
 
     def __init__(
             self,
-            protoType: Type[ProtoType],
-            attributeMaker: Callable[..., AttributeType],
-            init: bool = False) -> None:
+            prototype: Type[Prototype],
+            attributeMaker: Callable[..., Attribute],
+            init: bool = False,
+            series: str = "model") -> None:
 
-        self.protoType_ = protoType
+        self.prototype_ = prototype
+
+        # This hack gets around mypy's failure to allow assigning a callable as
+        # a member.
         setattr(self, "attributeMaker_", attributeMaker)
+
         self.init_ = init
+        self.series_ = series
         self.hasName_ = GetHasName(attributeMaker)
 
-    def __call__(self, class_: Type[T]) -> Type[T]:
+    def CreateInitMethod_(
+            self,
+            class_: Type[T],
+            instanceVars: List[str]) -> None:
 
+        series = self.series_
+
+        def __init__( # pylint: disable=invalid-name
+                self: Any,
+                prototype: Prototype,
+                namePrefix: Optional[str] = None) -> None:
+
+            if prototype is not None:
+                Initialize(
+                    series,
+                    self,
+                    prototype,
+                    namePrefix)
+
+        setattr(class_, "__init__", __init__)
+
+
+    def __call__(self, class_: Type[T]) -> Type[T]:
+        """
+        Creates a method in the transformed class called TransformMember.
+
+        Any class members (not instance members) will be instantiated here.
+
+        """
+        # TODO attributeMaker can be overridden by targetTypeByClassName
         if self.hasName_:
             # The attributeMaker accepts a name argument
             def MakeNodeName(
                     name: str,
                     instanceName: Optional[str] = None) -> str:
                 if instanceName is not None:
-                    return '.'.join((class_.__name__, instanceName, name))
+                    return '.'.join((instanceName, name))
                 else:
                     return '.'.join((class_.__name__, name))
 
             def TransformMember(
                     name: str,
-                    protoType: Union[ProtoType, Type[ProtoType]],
-                    instanceName: Optional[str] = None) -> AttributeType:
+                    prototype: Union[Prototype, Type[Prototype]],
+                    instanceName: Optional[str] = None) -> Attribute:
 
                 return self.attributeMaker_(
                     MakeNodeName(name, instanceName),
-                    getattr(protoType, name))
+                    getattr(prototype, name))
         else:
             # attributeMaker has no name argument
             def TransformMember(
                     name: str,
-                    protoType: Union[ProtoType, Type[ProtoType]],
-                    instanceName: Optional[str] = None) -> AttributeType:
+                    prototype: Union[Prototype, Type[Prototype]],
+                    instanceName: Optional[str] = None) -> Attribute:
 
-                if instanceName is not None:
-                    print(
-                        "Warning: instanceName ({}) ignored".format(
-                            instanceName))
+                return self.attributeMaker_(getattr(prototype, name))
 
-                return self.attributeMaker_(getattr(protoType, name))
+        setattr(class_, "TransformMember", staticmethod(TransformMember))
 
-
-        # Set the class vars from protoType
+        # Get the class vars from prototype
+        # Ignore dunders, private names, attrs-defined members, methods, and
+        # functions.
         classVars: List[str] = []
 
-        # dir, when called on the class itself, only returns ClassVars
-        # It will also return member descriptors, which we do not actually
-        # want to transform.
-        attrsMembers = attr.fields_dict(self.protoType_)
+        prototypeMembers: Set[str] = set()
 
-        for name in dir(self.protoType_):
+        classVarCandidates: Set[str] = set(dir(self.prototype_))
+
+        if IsTransformed(self.prototype_):
+            classVarCandidates.update(GetClassVars(self.prototype_))
+            prototypeMembers.update(
+                GetTransformedInstanceVars(self.prototype_))
+
+        if attr.has(self.prototype_):
+            prototypeMembers.update(attr.fields_dict(self.prototype_).keys())
+
+        if attr.has(class_):
+            attrsOverrides = attr.fields_dict(class_)
+        else:
+            attrsOverrides = {}
+
+        for name in classVarCandidates:
 
             if name.startswith("_"):
                 # Ignoring dunders and private names
                 continue
 
-            if name in attrsMembers:
+            if name in prototypeMembers:
                 # Ignoring member descriptor that should not be initialized
                 # until the __init__ method.
                 continue
 
-            memberType: Type[Any] = GetMemberType(self.protoType_, name)
+            if name in attrsOverrides:
+                # The decorated class overrides a member of the prototype
+                # class.
+                continue
+
+            memberType: Type[Any] = GetMemberType(self.prototype_, name)
 
             if memberType in (types.MethodType, types.FunctionType):
                 # Ignoring functions and methods
                 continue
 
-            memberClass = Transform.classByProtoTypeName.get(
-                GetClassName(memberType),
-                None)
-
-            if memberClass is not None:
+            # Check the cache for an existing transformation.
+            try:
+                decoratedClass = GetDecoratedClass(memberType, self.series_)
+            except KeyError:
+                # This memberType does not have a transformation.
+                setattr(
+                    class_,
+                    name,
+                    TransformMember(name, self.prototype_))
+            else:
                 # This member has already been transformed
                 # Instead of the attributeMaker, use the transformed class.
                 setattr(
                     class_,
                     name,
-                    memberClass(getattr(self.protoType_, name), name))
-            else:
-                setattr(
-                    class_,
-                    name,
-                    TransformMember(name, self.protoType_))
+                    decoratedClass(getattr(self.prototype_, name), name))
 
             classVars.append(name)
 
+        setattr(class_, '__transform_class_vars__', classVars)
 
-        setattr(class_, "TransformMember", staticmethod(TransformMember))
-        setattr(class_, '__transform_all_vars__', classVars)
+        transformedInstanceVars = [
+            name for name in prototypeMembers
+            if name not in attrsOverrides]
 
-        instanceVars = list(attr.fields_dict(self.protoType_).keys())
-        setattr(class_, '__transform_vars__', instanceVars)
+        setattr(class_, '__transform_vars__', transformedInstanceVars)
 
         if self.init_:
-            def __init__( # pylint: disable=invalid-name
-                    self: Any,
-                    protoType: ProtoType,
-                    namePrefix: Optional[str] = None) -> None:
+            self.CreateInitMethod_(
+                class_,
+                transformedInstanceVars)
 
-                for name in instanceVars:
-                    memberClass = Transform.classByProtoTypeName.get(
-                        GetMemberTypeName(protoType, name),
-                        None)
+        if self.series_ == "model":
+            # Only Model nodes support GetPrototype
+            def GetPrototype(instance: Any) -> Prototype:
+                """
+                Create an instance of the prototype class populated with values
+                from the pex nodes.
+                """
+                values: Dict[str, Any] = {}
 
-                    if memberClass is not None:
-                        # This member is also a transformed class
-                        # Use it directly as a nested transformation
-                        if namePrefix is not None:
-                            memberName = "{}.{}".format(namePrefix, name)
-                        else:
-                            memberName = name
+                for name in prototypeMembers:
+                    node = getattr(instance, name)
 
-                        setattr(
-                            self,
-                            name,
-                            memberClass(getattr(protoType, name), memberName))
+                    if hasattr(node, "Get"):
+                        value = node.Get()
+                    elif hasattr(node, "GetPrototype"):
+                        value = node.GetPrototype()
                     else:
-                        setattr(
-                            self,
-                            name,
-                            TransformMember(name, protoType, namePrefix))
+                        print(
+                            "Warning: {} of {} ignored".format(
+                                node, instance))
 
-                if attr.has(class_):
-                    # Initialize
-                    InitializeModelFromAttr(self, namePrefix)
+                    values[name] = value
 
-            setattr(class_, "__init__", __init__)
+                return self.prototype_(**values) # type: ignore
 
-        def GetProtoType(instance: Any) -> ProtoType:
-            values: Dict[str, Any] = {
-                name: getattr(instance, name).Get()
-                for name in instanceVars}
+            setattr(class_, "GetPrototype", GetPrototype)
 
-            return self.protoType_(**values) # type: ignore
+            def LoadPrototype(
+                    instance: Any,
+                    proto: Prototype,
+                    context: Optional[MultipleValueContext] = None) -> None:
+                """
+                Set the values of all nodes using values from the Prototype.
+                """
+                def AssignMembers(
+                        instance: Any,
+                        proto: Prototype,
+                        context: MultipleValueContext) -> None:
 
-        setattr(class_, "GetProtoType", GetProtoType)
+                    for name in prototypeMembers:
+                        node = getattr(instance, name)
+                        value = getattr(proto, name)
+
+                        if hasattr(node, "Set"):
+                            context.Set(node, value)
+                        elif hasattr(node, "LoadPrototype"):
+                            node.LoadPrototype(value, context)
+                        else:
+                            print(
+                                "Warning: Ignoring {}. "
+                                "Missing Set/LoadPrototype.")
+
+                if context is None:
+                    with MultipleValueContext() as context:
+                        AssignMembers(instance, proto, context)
+                else:
+                    AssignMembers(instance, proto, context)
+
+            setattr(class_, "LoadPrototype", LoadPrototype)
+
 
         # Cache this transformed class for later use.
-        Transform.classByProtoTypeName[GetClassName(self.protoType_)] = class_
+        classByPrototypeNameBySeries[self.series_][
+            GetClassName(self.prototype_)] = class_
 
         return class_
 
 
-def GetInstanceVars(class_: Type[Any]) -> List[str]:
-    return class_.__transform_vars__
+class TransformModel(
+        Generic[Attribute, Prototype],
+        Transform[Attribute, Prototype]):
+
+    def __init__(
+            self,
+            prototype: Type[Prototype],
+            attributeMaker: Callable[..., Attribute],
+            init: bool = False):
+        super(TransformModel, self).__init__(
+            prototype,
+            attributeMaker,
+            init=init,
+            series='model')
 
 
-def IsTransformed(class_: Type[Any]) -> bool:
-    return hasattr(class_, "__transform_vars__")
+class TransformInterface(
+        Generic[Attribute, Prototype],
+        Transform[Attribute, Prototype]):
 
+    def __init__(
+            self,
+            prototype: Type[Prototype],
+            attributeMaker: Callable[..., Attribute],
+            init: bool = False):
+        super(TransformInterface, self).__init__(
+            prototype,
+            attributeMaker,
+            init=init,
+            series='interface')
 
-def GetAllVars(class_: Type[Any]) -> List[str]:
-    return class_.__transform_all_vars__
