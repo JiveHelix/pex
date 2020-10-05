@@ -131,3 +131,24 @@ class RangeInterface(Generic[ModelNumber, InterfaceNumber]):
             filterOnSet: Callable[[InterfaceNumber], ModelNumber]) -> None:
 
         self.value.AttachFilterOnSet(filterOnSet)
+
+
+class RangeFactory(Generic[ModelNumber]):
+    value_: ModelNumber
+    minimum_: ModelNumber
+    maximum_: ModelNumber
+
+    def __init__(
+            self,
+            value: ModelNumber,
+            minimum: ModelNumber,
+            maximum: ModelNumber) -> None:
+
+        self.value_ = value
+        self.minimum_ = minimum
+        self.maximum_ = maximum
+
+    def __call__(self) -> Range[ModelNumber]:
+        return Range(self.value_, self.minimum_, self.maximum_)
+
+

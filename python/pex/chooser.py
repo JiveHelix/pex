@@ -125,3 +125,21 @@ class ChooserInterface(Generic[ValueType]):
 
     def Disconnect(self, callback: ValueCallback) -> None:
         self.selection.Disconnect(callback)
+
+
+class ChooserFactory(Generic[ValueType]):
+    selectedValue_: ValueType
+    choices_: List[ValueType]
+
+    def __init__(
+            self,
+            selectedValue: ValueType,
+            choices: List[ValueType]) -> None:
+
+        self.selectedValue_ = selectedValue
+        self.choices_ = choices
+
+    def __call__(self) -> Chooser[ValueType]:
+        return Chooser(self.selectedValue_, self.choices_)
+
+

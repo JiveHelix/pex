@@ -27,8 +27,8 @@ from .types import NodeType, Reference, ValueCallback, ModelType, InterfaceType
 from .initialize_from_attr import InitializeFromAttr, MakeDefault
 from .initializers import InitializeModel, InitializeInterface
 from .transform import Transform, TransformModel, TransformInterface
-from .chooser import Chooser, ChooserModel, ChooserInterface
-from .range import Range, RangeModel, RangeInterface
+from .chooser import Chooser, ChooserModel, ChooserInterface, ChooserFactory
+from .range import Range, RangeModel, RangeInterface, RangeFactory
 from .proxy import SignalProxy, ValueProxy, FilterProxy
 
 # pylint: enable=unused-import
