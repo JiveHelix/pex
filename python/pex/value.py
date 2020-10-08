@@ -171,11 +171,15 @@ class ReadableValue(
         Generic[ModelType],
         ValueBase[ModelType, ModelType]):
 
-    def __init__(self, name: str, initialValue: ModelType) -> None:
+    model_: ModelValueBase[ModelType]
+
+    def __init__(self, modelValue: ModelValueBase[ModelType]) -> None:
         super(ReadableValue, self).__init__(
-            name,
+            modelValue.name_,
             NodeType.interface,
-            initialValue)
+            modelValue.value_)
+
+        self.model_ = modelValue
 
     @classmethod
     def Create(
@@ -184,17 +188,16 @@ class ReadableValue(
 
         return cast(
             InterfaceClass,
-            ReadableValue(modelValue.name_, modelValue.value_))
+            ReadableValue(modelValue))
 
     def Get(self) -> ModelType:
-        return self.value_
+        return self.model_.Get()
 
 
 class InterfaceValue(ReadableValue[ModelType], Interface[ModelType]):
 
     """ Adds write access through Set method. """
     def Set(self, value: ModelType) -> None:
-        self.value_ = value
         self.output_.Publish(self.name_, cast(ModelType, value))
 
     @classmethod
@@ -205,7 +208,7 @@ class InterfaceValue(ReadableValue[ModelType], Interface[ModelType]):
 
         return cast(
             InterfaceClass,
-            InterfaceValue(modelValue.name_, modelValue.value_))
+            InterfaceValue(modelValue))
 
 
 def DefaultFilterOnSet(value: InterfaceType) -> ModelType:
@@ -227,14 +230,17 @@ class FilteredReadOnlyValue(ValueBase[ModelType, InterfaceType]):
     Use AttachFilter to assign a function that will filter any call
     to Set and any value received from the manifold.
     """
+
+    model_: ModelValueBase[ModelType]
     filterOnGet_: FilterProxy[ModelType, InterfaceType]
 
-    def __init__(self, name: str, initialValue: ModelType) -> None:
+    def __init__(self, modelValue: ModelValueBase[ModelType]) -> None:
         super(FilteredReadOnlyValue, self).__init__(
-            name,
+            modelValue.name_,
             NodeType.interface,
-            initialValue)
+            modelValue.value_)
 
+        self.model_ = modelValue
         self.filterOnGet_ = FilterProxy.Create(DefaultFilterOnGet, None)
 
     @classmethod
@@ -244,7 +250,7 @@ class FilteredReadOnlyValue(ValueBase[ModelType, InterfaceType]):
 
         return cast(
             FilteredInterface,
-            FilteredReadOnlyValue(modelValue.name_, modelValue.value_))
+            FilteredReadOnlyValue(modelValue))
 
     def AttachFilterOnGet(
             self,
@@ -261,11 +267,10 @@ class FilteredReadOnlyValue(ValueBase[ModelType, InterfaceType]):
 
     def OnValueChanged_(self, value: ModelType) -> None:
         """ Overrides the method in ModelValueBase to insert filterOnGet_ """
-        self.value_ = value
         self.valueCallbacks_(self.filterOnGet_(value))
 
     def Get(self) -> InterfaceType:
-        return self.filterOnGet_(self.value_)
+        return self.filterOnGet_(self.model_.Get())
 
 
 class FilteredInterfaceValue(
@@ -278,8 +283,8 @@ class FilteredInterfaceValue(
     """
     filterOnSet_: FilterProxy[InterfaceType, ModelType]
 
-    def __init__(self, name: str, initialValue: ModelType) -> None:
-        super(FilteredInterfaceValue, self).__init__(name, initialValue)
+    def __init__(self, modelValue: ModelValueBase[ModelType]) -> None:
+        super(FilteredInterfaceValue, self).__init__(modelValue)
         self.filterOnSet_ = FilterProxy.Create(DefaultFilterOnSet, None)
         self.filterOnGet_ = FilterProxy.Create(DefaultFilterOnGet, None)
 
@@ -297,8 +302,7 @@ class FilteredInterfaceValue(
         self.filterOnSet_ = FilterProxy.Create(DefaultFilterOnSet, None)
 
     def Set(self, value: InterfaceType) -> None:
-        self.value_ = self.filterOnSet_(value)
-        self.output_.Publish(self.name_, self.value_)
+        self.output_.Publish(self.name_, self.filterOnSet_(value))
 
     @classmethod
     def Create(
@@ -307,7 +311,7 @@ class FilteredInterfaceValue(
 
         return cast(
             FilteredInterface,
-            FilteredInterfaceValue(modelValue.name_, modelValue.value_))
+            FilteredInterfaceValue[ModelType, InterfaceType](modelValue))
 
 
 class ModelValue(Generic[ModelType], ModelValueBase[ModelType]):

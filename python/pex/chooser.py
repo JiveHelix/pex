@@ -29,14 +29,20 @@ class Chooser(Generic[ValueType]):
 
     def __init__(
             self,
-            value: ValueType,
+            value: Optional[ValueType],
             choices: Optional[List[ValueType]]) -> None:
 
         if choices is not None:
             self.choices = cast(List[ValueType], choices)
-            self.selection = self.choices.index(value)
+
+            if value is None:
+                self.selection = 0
+            else:
+                self.selection = self.choices.index(value)
+
         else:
-            self.choices = [value, ]
+            assert value is not None, "value or choices must be specified"
+            self.choices = [cast(ValueType, value), ]
             self.selection = 0
 
         assert self.selection >= 0, "initialValue must be in initialChoices"

@@ -30,5 +30,6 @@ from .transform import Transform, TransformModel, TransformInterface
 from .chooser import Chooser, ChooserModel, ChooserInterface, ChooserFactory
 from .range import Range, RangeModel, RangeInterface, RangeFactory
 from .proxy import SignalProxy, ValueProxy, FilterProxy
+from .group import Group
 
 # pylint: enable=unused-import
