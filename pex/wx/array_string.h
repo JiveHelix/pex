@@ -13,7 +13,7 @@
 #pragma once
 
 #include <vector>
-#include "wxshim.h"
+#include "pex/wx/wxshim.h"
 
 
 namespace pex

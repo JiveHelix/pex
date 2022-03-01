@@ -11,18 +11,18 @@
 
 #include <iostream>
 #include <string>
-#include "wxshim.h"
+#include "pex/wx/wxshim.h"
 #include "pex/wx/view.h"
 #include "pex/wx/field.h"
 #include "pex/wx/labeled_widget.h"
 #include "pex/value.h"
-#include "jive/angles.h"
+#include "tau/angles.h"
 
 
 struct AngleFilter
 {
-    static constexpr auto minimum = -jive::Angles<double>::pi;
-    static constexpr auto maximum = jive::Angles<double>::pi;
+    static constexpr auto minimum = -tau::Angles<double>::pi;
+    static constexpr auto maximum = tau::Angles<double>::pi;
 
     static double Set(double input)
     {
@@ -39,13 +39,13 @@ struct DegreesFilter
     /** Convert to degrees on retrieval **/
     static double Get(double value)
     {
-        return jive::ToDegrees(value);
+        return tau::ToDegrees(value);
     }
 
     /** Convert back to radians on assignment **/
     static double Set(double value)
     {
-        return jive::ToRadians(value);
+        return tau::ToRadians(value);
     }
 };
 
@@ -82,13 +82,9 @@ public:
     ExampleFrame(RadiansInterface value);
 };
 
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wold-style-cast"
 
 // Creates the main function for us, and initializes the app's run loop.
-wxIMPLEMENT_APP(ExampleApp);
-
-#pragma GCC diagnostic pop
+wxshimIMPLEMENT_APP(ExampleApp)
 
 
 bool ExampleApp::OnInit()
@@ -105,37 +101,39 @@ ExampleFrame::ExampleFrame(RadiansInterface interface)
     :
     wxFrame(nullptr, wxID_ANY, "pex::wx::Field Demo")
 {
+    using namespace pex::wx;
+
     auto radiansView =
-        new pex::wx::LabeledWidget<pex::wx::View<RadiansInterface>>(
+        new LabeledWidget(
             this,
-            interface,
+            MakeWidget<View, RadiansInterface>(interface),
             "Radians:");
 
     auto degreesView =
-        new pex::wx::LabeledWidget<pex::wx::View<DegreesInterface>>(
+        new LabeledWidget(
             this,
-            interface,
+            MakeWidget<View, DegreesInterface>(interface),
             "Degrees:");
 
     auto radiansEntry =
-        new pex::wx::LabeledWidget<pex::wx::Field<RadiansInterface>>(
+        new LabeledWidget(
             this,
-            interface,
+            MakeWidget<Field, RadiansInterface>(interface),
             "Radians:");
 
     auto degreesEntry =
-        new pex::wx::LabeledWidget<pex::wx::Field<DegreesInterface>>(
+        new LabeledWidget(
             this,
-            interface,
+            MakeWidget<Field, DegreesInterface>(interface),
             "Degrees:");
 
     auto topSizer = std::make_unique<wxBoxSizer>(wxVERTICAL);
     auto flags = wxLEFT | wxBOTTOM | wxRIGHT | wxEXPAND;
 
-    topSizer->Add(radiansView, 0, wxALL, 10);
-    topSizer->Add(degreesView, 0, flags, 10);
-    topSizer->Add(radiansEntry, 0, flags, 10);
-    topSizer->Add(degreesEntry, 0, flags, 10);
+    topSizer->Add(radiansView->Layout().release(), 0, wxALL, 10);
+    topSizer->Add(degreesView->Layout().release(), 0, flags, 10);
+    topSizer->Add(radiansEntry->Layout().release(), 0, flags, 10);
+    topSizer->Add(degreesEntry->Layout().release(), 0, flags, 10);
 
     this->SetSizerAndFit(topSizer.release());
 }

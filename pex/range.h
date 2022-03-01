@@ -56,11 +56,16 @@ public:
     void SetMinimum(T minimum)
     {
         minimum = std::min(minimum, this->maximum_.Get());
+
+        // Use a pex::Reference to delay notifying of the bounds change until
+        // the value has been (maybe) adjusted.
         auto changeMinimum = ::pex::Reference<Bound>(this->minimum_);
         *changeMinimum = minimum;
 
         if (this->value_.Get() < minimum)
         {
+            // The current value is less than the new minimum.
+            // Adjust the value to the minimum.
             this->value_.Set(minimum);
         }
     }
@@ -130,6 +135,7 @@ class Range
 {
 public:
     using Filter = Filter_;
+    using ModelType = typename RangeModel::Type;
 
     using Value =
         ::pex::interface::FilteredValue
@@ -140,6 +146,7 @@ public:
             pex::GetAndSetTag
         >;
 
+    // Read-only Bound type for accessing range bounds.
     using Bound =
         ::pex::interface::FilteredValue
         <
@@ -148,7 +155,6 @@ public:
             Filter,
             pex::GetTag
         >;
-
 
     Range(RangeModel * model)
         :
@@ -168,3 +174,41 @@ public:
 } // namespace interface
 
 } // namespace pex
+
+
+#include "jive/overflow.h"
+
+template<typename Target, typename T>
+void RequireConvertible(T value)
+{
+    if (!jive::CheckConvertible<Target>(value))
+    {
+        throw std::range_error("value is not convertible to Target.");
+    }
+}
+
+
+#ifndef NDEBUG
+#define CHECK_TO_INT_RANGE(value) RequireConvertible<int>(value)
+#define CHECK_FROM_INT_RANGE(T, value) RequireConvertible<T, int>(value)
+#else
+#define CHECK_TO_INT_RANGE(value)
+#define CHECK_FROM_INT_RANGE(T, value)
+#endif
+
+
+template<typename T>
+struct ExampleRangeFilter
+{
+    static int Get(T value)
+    {
+        CHECK_TO_INT_RANGE(value);
+        return static_cast<int>(value);
+    }
+
+    static T Set(int value)
+    {
+        CHECK_FROM_INT_RANGE(T, value);
+        return static_cast<T>(value);
+    }
+};

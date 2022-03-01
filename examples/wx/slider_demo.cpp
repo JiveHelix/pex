@@ -13,29 +13,11 @@
 #include "pex/wx/slider.h"
 
 
-using Position = pex::model::Range<size_t>;
+using Position = pex::model::Range<int>;
 
 inline constexpr size_t defaultPosition = 0;
 inline constexpr size_t minimumPosition = 0;
 inline constexpr size_t maximumPosition = 1000;
-
-
-template<typename T>
-struct PlaybackSpeedFilter
-{
-    static constexpr auto base = static_cast<T>(2.0);
-    static constexpr auto divisor = static_cast<T>(20.0);
-
-    static int Get(T value)
-    {
-        return static_cast<int>(round(divisor * std::log2(value)));
-    }
-
-    static T Set(int value)
-    {
-        return static_cast<T>(powf(base, static_cast<T>(value) / divisor));
-    }
-};
 
 
 using PlaybackSpeed = pex::model::Range<float>;
@@ -66,52 +48,80 @@ private:
     PlaybackSpeed playbackSpeed_;
 };
 
-using PositionValue =
-    pex::interface::Value<void, typename Position::Value>;
 
+// Do not filter the position.
+using PositionInterface = pex::interface::Range<void, Position>;
+
+// This is the interface node used to display position's value.
+using PositionValue = pex::interface::Value<void, Position::Value>;
+
+
+/**
+ ** Create a filter that converts between a logarithmic value and a linear one.
+ **/
+template<typename T>
+struct PlaybackSpeedFilter
+{
+    static constexpr auto base = static_cast<T>(2.0);
+
+    // Higher divisor increases the integer range of the filter, which gives
+    // the slider finer control.
+    static constexpr auto divisor = static_cast<T>(100.0);
+
+    static int Get(T value)
+    {
+        return static_cast<int>(round(divisor * std::log2(value)));
+    }
+
+    static T Set(int value)
+    {
+        return static_cast<T>(powf(base, static_cast<T>(value) / divisor));
+    }
+};
+
+
+using PlaybackSpeedInterface = ::pex::interface::Range<
+    void,
+    PlaybackSpeed,
+    PlaybackSpeedFilter<float>>;
+
+// The unfiltered value used to display playback speed
 using PlaybackSpeedValue =
     pex::interface::Value<void, typename PlaybackSpeed::Value>;
 
-// Use the default filter for position.
+
+const int precision = 3;
+
 using PositionSlider =
-    pex::wx::SliderAndValue<Position, PositionValue>;
+    pex::wx::SliderAndValue<PositionInterface, PositionValue, precision>;
+
 
 using PlaybackSpeedSlider =
-    pex::wx::Slider
-    <
-        PlaybackSpeed,
-        PlaybackSpeedFilter<float>
-    >;
+    pex::wx::SliderAndValue<PlaybackSpeedInterface, PlaybackSpeedValue>;
 
-using PositionRange = ::pex::interface::Range<void, Position>;
-using PlaybackSpeedRange = ::pex::interface::Range<void, PlaybackSpeed>;
 
 class ExampleFrame: public wxFrame
 {
 public:
     ExampleFrame(
-        PositionRange positionRange,
+        PositionInterface positionRange,
         PositionValue positionValue,
-        PlaybackSpeedRange playbackSpeedRange,
+        PlaybackSpeedInterface playbackSpeedRange,
         PlaybackSpeedValue playbackSpeedValue);
 };
 
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wold-style-cast"
 
 // Creates the main function for us, and initializes the app's run loop.
-wxIMPLEMENT_APP(ExampleApp);
-
-#pragma GCC diagnostic pop
+wxshimIMPLEMENT_APP(ExampleApp)
 
 
 bool ExampleApp::OnInit()
 {
     ExampleFrame *exampleFrame =
         new ExampleFrame(
-            PositionRange(&this->position_),
+            PositionInterface(&this->position_),
             PositionValue(this->position_.GetValueInterface()),
-            PlaybackSpeedRange(&this->playbackSpeed_),
+            PlaybackSpeedInterface(&this->playbackSpeed_),
             PlaybackSpeedValue(this->playbackSpeed_.GetValueInterface()));
 
     exampleFrame->Show();
@@ -121,9 +131,9 @@ bool ExampleApp::OnInit()
 
 
 ExampleFrame::ExampleFrame(
-    PositionRange positionRange,
+    PositionInterface positionRange,
     PositionValue positionValue,
-    PlaybackSpeedRange playbackSpeedRange,
+    PlaybackSpeedInterface playbackSpeedRange,
     PlaybackSpeedValue playbackSpeedValue)
     :
     wxFrame(nullptr, wxID_ANY, "pex::wx::Slider Demo")
@@ -132,7 +142,7 @@ ExampleFrame::ExampleFrame(
         new PositionSlider(this, positionRange, positionValue);
 
     auto playbackSpeedSlider =
-        new PlaybackSpeedSlider(this, playbackSpeedRange);
+        new PlaybackSpeedSlider(this, playbackSpeedRange, playbackSpeedValue);
 
     auto speedView =
         new pex::wx::View<PlaybackSpeedValue>(this, playbackSpeedValue);

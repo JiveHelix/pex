@@ -12,9 +12,8 @@
 
 #pragma once
 
-#include "wxshim.h"
+#include "pex/wx/wxshim.h"
 #include "pex/value.h"
-#include "pex/wx/window.h"
 #include "pex/converter.h"
 
 
@@ -30,10 +29,10 @@ template
     typename Value,
     typename ConverterTraits = DefaultConverterTraits
 >
-class Field: public Window<wxControl>
+class Field: public wxControl
 {
 public:
-    using Base = Window<wxControl>;
+    using Base = wxControl;
     using Type = typename Value::Type;
     using Model = typename Value::Model;
 
@@ -61,6 +60,13 @@ public:
         this->textControl_->Bind(wxEVT_TEXT_ENTER, &Field::OnEnter_, this);
         this->textControl_->Bind(wxEVT_KILL_FOCUS, &Field::OnKillFocus_, this);
         this->value_.Connect(this, &Field::OnValueChanged_);
+    }
+
+    // NOTE: As of wx 3.1.3, changing the font size does not affect
+    // wxTextCtrl's GetBestSize, defeating the window layout mechanism.
+    bool SetFont(const wxFont &font) override
+    {
+        return this->textControl_->SetFont(font);
     }
 
     void OnEnter_(wxCommandEvent &)
@@ -99,7 +105,7 @@ public:
         }
     }
 
-    void OnValueChanged_(typename ::pex::detail::Argument<Type>::Type value)
+    void OnValueChanged_(::pex::ArgumentT<Type> value)
     {
         this->displayedString_ = Convert::ToString(value);
         this->textControl_->ChangeValue(this->displayedString_);

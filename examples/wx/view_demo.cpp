@@ -11,9 +11,9 @@
 
 #include <iostream>
 #include <string>
-#include "wxshim.h"
+#include "pex/wx/wxshim.h"
 #include "jive/formatter.h"
-#include "jive/angles.h"
+#include "tau/angles.h"
 #include "pex/signal.h"
 #include "pex/value.h"
 #include "pex/converter.h"
@@ -23,6 +23,7 @@
 
 using Angle = pex::model::Value<double>;
 
+// Create the interface value without an observer.
 using Interface = pex::interface::Value<void, Angle>;
 
 using Signal = pex::model::Signal;
@@ -35,13 +36,13 @@ struct DegreesFilter
     /** Convert to degrees on retrieval **/
     static double Get(double value)
     {
-        return jive::ToRadians(value);
+        return tau::ToRadians(value);
     }
 
     /** Convert back to radians on assignment **/
     static double Set(double value)
     {
-        return jive::ToDegrees(value);
+        return tau::ToDegrees(value);
     }
 };
 
@@ -82,13 +83,9 @@ public:
     ExampleFrame(Interface value, InterfaceSignal signal);
 };
 
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wold-style-cast"
 
 // Creates the main function for us, and initializes the app's run loop.
-wxIMPLEMENT_APP(ExampleApp);
-
-#pragma GCC diagnostic pop
+wxshimIMPLEMENT_APP(ExampleApp)
 
 
 bool ExampleApp::OnInit()

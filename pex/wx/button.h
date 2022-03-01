@@ -11,7 +11,12 @@
 
 #pragma once
 
-#include "pex/wx/window.h"
+#include "pex/wx/ignores.h"
+
+WXSHIM_PUSH_IGNORES
+#include "wx/button.h"
+WXSHIM_POP_IGNORES
+
 #include "pex/signal.h"
 
 namespace pex
@@ -20,26 +25,17 @@ namespace pex
 namespace wx
 {
 
-class Button: public Window<wxButton>
+class Button: public wxButton
 {
 public:
-    using Base = Window<wxButton>;
+    using Base = wxButton;
 
     Button(
         wxWindow *parent,
         const std::string &label,
-        pex::interface::Signal<void> signal,
-        const WindowProperties &properties = WindowProperties{})
+        pex::interface::Signal<void> signal)
         :
-        Base(
-            parent,
-            wxID_ANY,
-            label,
-            properties.position,
-            properties.size,
-            properties.style,
-            wxDefaultValidator,
-            properties.name),
+        Base(parent, wxID_ANY, label),
         signal_(signal)
     {
         this->Bind(wxEVT_BUTTON, &Button::OnButton_, this);

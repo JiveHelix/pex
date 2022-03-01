@@ -26,13 +26,13 @@ public:
         this->interface_.Connect(this, &Observer::Observe_);
     }
 
-    void Set(typename pex::detail::Argument<T>::Type value)
+    void Set(pex::ArgumentT<T> value)
     {
         this->interface_.Set(value);
     }
 
 private:
-    void Observe_(typename pex::detail::Argument<T>::Type value)
+    void Observe_(pex::ArgumentT<T> value)
     {
         this->observedValue = value;
     }

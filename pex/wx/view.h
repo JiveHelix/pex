@@ -13,9 +13,8 @@
 
 #include <type_traits>
 #include <string>
-#include "wxshim.h"
+#include "pex/wx/wxshim.h"
 #include "pex/value.h"
-#include "pex/wx/window.h"
 #include "pex/converter.h"
 #include "pex/detail/argument.h"
 
@@ -31,14 +30,17 @@ template
     typename Value,
     typename Convert = Converter<typename Value::Type>
 >
-class View: public Window<wxStaticText>
+class View: public wxStaticText
 {
 public:
-    using Base = Window<wxStaticText>;
+    using Base = wxStaticText;
     using Type = typename Value::Type;
     using Model = typename Value::Model;
     using Access = typename Value::Access;
 
+    /** @tparam Compatible A deduced value that has the same Model and Access
+     ** as Value.
+     **/
     template<typename Compatible>
     View(
         wxWindow *parent,
@@ -58,13 +60,14 @@ public:
             std::is_same_v<Model, typename Compatible::Model>);
 
         static_assert(
-            std::is_same_v<Access, typename Compatible::Access>);
+            std::is_same_v<Access, typename Compatible::Access>,
+            "Access level of initial value must match.");
 
         this->value_.Connect(this, &View::OnValueChanged_);
     }
 
 private:
-    void OnValueChanged_(typename detail::Argument<Type>::Type value)
+    void OnValueChanged_(ArgumentT<Type> value)
     {
         this->SetLabel(Convert::ToString(value));
         this->GetParent()->Layout();

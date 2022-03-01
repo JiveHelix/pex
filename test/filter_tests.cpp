@@ -7,7 +7,7 @@
 #include <catch2/catch.hpp>
 #include "pex/value.h"
 #include "jive/testing/cast_limits.h"
-#include "jive/angles.h"
+#include "tau/angles.h"
 
 
 template<typename T, typename Model>
@@ -67,7 +67,7 @@ TEMPLATE_TEST_CASE(
                 static_cast<TestType>(-12.0),
                 static_cast<TestType>(12.0))));
 
-    using angles = jive::Angles<TestType>;
+    using angles = tau::Angles<TestType>;
     TestType low = -angles::pi;
     TestType high = angles::pi;
 
@@ -134,13 +134,13 @@ struct DegreesFilter
     /** Convert to degrees on retrieval **/
     static T Get(T value)
     {
-        return jive::ToDegrees(value);
+        return tau::ToDegrees(value);
     }
 
     /** Convert back to radians on assignment **/
     static T Set(T value)
     {
-        return jive::ToRadians(value);
+        return tau::ToRadians(value);
     }
 };
 
@@ -171,10 +171,10 @@ TEMPLATE_TEST_CASE(
     // Set value in degrees.
     interface.Set(value);
 
-    using angles = jive::Angles<TestType>;
+    using angles = tau::Angles<TestType>;
 
     // Expect model to be in radians.
-    auto expected = angles::pi * value / angles::halfRotationDegrees;
+    auto expected = angles::pi * value / angles::pi;
     REQUIRE(model.Get() == Approx(expected));
 
     // Expect interface to retrieve degrees.

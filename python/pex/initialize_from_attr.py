@@ -107,7 +107,7 @@ def InitializeFromAttr(
 
         if issubclass(memberClass, ModelValueBase):
             # This is a model node.
-            # The Create method takes a name an an initial value.
+            # The Create method takes a name and an initial value.
             setattr(
                 instance,
                 name,

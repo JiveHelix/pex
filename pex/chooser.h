@@ -54,7 +54,7 @@ private:
     using Reference = ::pex::Reference<Choices>;
 
 public:
-    Chooser(typename detail::Argument<T>::Type initialValue)
+    Chooser(ArgumentT<T> initialValue)
         :
         selectedIndex_(static_cast<size_t>(0)),
         choices_(std::vector<T>{initialValue})
@@ -63,7 +63,7 @@ public:
     }
 
     Chooser(
-        typename detail::Argument<T>::Type initialValue,
+        ArgumentT<T> initialValue,
         const std::vector<T> &choices)
         :
         selectedIndex_(RequireIndex(initialValue, choices)),
@@ -116,7 +116,7 @@ public:
             .Get()[this->selectedIndex_.Get()];
     }
 
-    void SetSelection(typename detail::Argument<T>::Type value)
+    void SetSelection(ArgumentT<T> value)
     {
         this->selectedIndex_.Set(
             RequireIndex(

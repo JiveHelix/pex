@@ -5,6 +5,7 @@ target_link_libraries(
     PUBLIC
     project_warnings
     project_options
+    CONAN_PKG::tau
     pex)
 
 add_subdirectory(wx)

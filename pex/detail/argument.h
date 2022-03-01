@@ -40,4 +40,9 @@ struct Argument<T, std::enable_if_t<!std::is_arithmetic_v<T>>>
 
 } // namespace detail
 
+
+template<typename T>
+using ArgumentT = typename detail::Argument<T>::Type;
+
+
 } // namespace pex

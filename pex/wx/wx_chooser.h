@@ -15,7 +15,7 @@
 
 #include "pex/converter.h"
 #include "pex/wx/array_string.h"
-#include "wxshim.h"
+#include "pex/wx/wxshim.h"
 
 namespace pex
 {

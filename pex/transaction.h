@@ -47,7 +47,7 @@ public:
 
     }
 
-    Transaction(Model &model, typename detail::Argument<Type>::Type value)
+    Transaction(Model &model, ArgumentT<Type> value)
         :
         model_(&model),
         oldValue_(model.Get())
@@ -74,7 +74,7 @@ public:
         return this->model_->Get();
     }
 
-    void Set(typename detail::Argument<Type>::Type value)
+    void Set(ArgumentT<Type> value)
     {
         NOT_NULL(this->model_);
         this->model_->SetWithoutNotify_(value);

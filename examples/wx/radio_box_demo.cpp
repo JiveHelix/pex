@@ -100,13 +100,9 @@ public:
     ExampleFrame(UnitsInterface units);
 };
 
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wold-style-cast"
 
 // Creates the main function for us, and initializes the app's run loop.
-wxIMPLEMENT_APP(ExampleApp);
-
-#pragma GCC diagnostic pop
+wxshimIMPLEMENT_APP(ExampleApp)
 
 
 bool ExampleApp::OnInit()

@@ -1,7 +1,7 @@
 /**
   * @file shortcut_demo.cpp
   *
-  * @brief Demonstrates the usage of pex::wx::View and pex::wx::Button.
+  * @brief Demonstrates the usage of pex::Shortcut and wx menus.
   *
   * @author Jive Helix (jivehelix@gmail.com)
   * @date 23 Aug 2020
@@ -12,7 +12,7 @@
 #include <iostream>
 #include <string>
 #include <string_view>
-#include "wxshim.h"
+#include "pex/wx/wxshim.h"
 #include "pex/signal.h"
 #include "pex/value.h"
 #include "pex/initialize.h"
@@ -184,7 +184,7 @@ private:
 };
 
 
-wxIMPLEMENT_APP(ExampleApp);
+wxshimIMPLEMENT_APP(ExampleApp)
 
 
 bool ExampleApp::OnInit()
@@ -228,7 +228,6 @@ bool ExampleApp::OnInit()
                     "Hello",
                     "Say 'Hello'"))));
     
-
     auto exampleFrame = new ExampleFrame(
         applicationInterface,
         shortcutsByMenu);

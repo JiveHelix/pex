@@ -57,7 +57,7 @@ public:
         return this->model_.Get();
     }
 
-    void Set(typename detail::Argument<Type>::Type value)
+    void Set(ArgumentT<Type> value)
     {
         this->model_.SetWithoutNotify_(value);
     }

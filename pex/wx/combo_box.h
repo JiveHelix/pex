@@ -9,9 +9,8 @@
   * Licensed under the MIT license. See LICENSE file.
 **/
 
-#include "wxshim.h"
+#include "pex/wx/wxshim.h"
 #include "pex/chooser.h"
-#include "pex/wx/window.h"
 #include "pex/wx/wx_chooser.h"
 
 
@@ -27,10 +26,10 @@ template
     typename T,
     typename Convert = Converter<T>
 >
-class ComboBox : public Window<wxComboBox>
+class ComboBox : public wxComboBox
 {
 public:
-    using Base = Window<wxComboBox>;
+    using Base = wxComboBox;
     using Interface = typename ::pex::interface::Chooser<ComboBox, T>;
     using Selection = typename Interface::Selection;
     using Choices = typename Interface::Choices;

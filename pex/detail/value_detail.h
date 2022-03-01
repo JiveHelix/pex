@@ -12,11 +12,7 @@
 #pragma once
 
 #include <type_traits>
-
-#include "pex/detail/notify.h"
-#include "pex/detail/value_notify.h"
 #include "pex/detail/implements_connect.h"
-#include "pex/detail/filters.h"
 
 
 namespace pex

@@ -12,15 +12,13 @@
 
 #pragma once
 
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wold-style-cast"
-#pragma GCC diagnostic ignored "-Wsign-conversion"
-#pragma GCC diagnostic ignored "-Wdouble-promotion"
+#include "pex/wx/ignores.h"
+
+WXSHIM_PUSH_IGNORES
 #include "wx/spinctrl.h"
-#pragma GCC diagnostic pop
+WXSHIM_POP_IGNORES
 
 #include "pex/range.h"
-#include "pex/wx/window.h"
 
 namespace pex
 {
@@ -30,10 +28,10 @@ namespace wx
 
 
 template<typename RangeModel>
-class SpinControlDouble : public Window<wxSpinCtrlDouble>
+class SpinControlDouble : public wxSpinCtrlDouble
 {
 public:
-    using Base = Window<wxSpinCtrlDouble>;
+    using Base = wxSpinCtrlDouble;
     using This = SpinControlDouble<RangeModel>;
     using Range = ::pex::interface::Range<This, RangeModel>;
     using Value = typename Range::Value;

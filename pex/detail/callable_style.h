@@ -32,6 +32,9 @@ using BoundValueCallable =
     void (Observer::*)(typename Argument<T>::Type value);
 
 // Use bound notification methods for all Observers except void.
+// Note: If the compiler complains that your callback function takes the wrong
+// number of arguments, it is possible that your Observer type is accidentally
+// void.
 template<typename Observer, typename T, typename = void>
 struct CallableStyle;
 

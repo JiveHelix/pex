@@ -12,6 +12,8 @@
 #pragma once
 
 #include <type_traits>
+#include "pex/detail/notify_one.h"
+#include "pex/detail/notify_many.h"
 #include "pex/detail/signal_detail.h"
 #include "pex/detail/not_null.h"
 

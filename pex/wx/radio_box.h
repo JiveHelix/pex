@@ -12,9 +12,8 @@
 #include <vector>
 #include <algorithm>
 
-#include "wxshim.h"
+#include "pex/wx/wxshim.h"
 #include "pex/value.h"
-#include "pex/wx/window.h"
 #include "pex/converter.h"
 #include "pex/find_index.h"
 #include "pex/wx/array_string.h"
@@ -28,10 +27,10 @@ namespace wx
 
 
 template<typename Value, typename Convert = Converter<typename Value::Type>>
-class RadioBox: public Window<wxRadioBox>
+class RadioBox: public wxRadioBox
 {
 public:
-    using Base = Window<wxRadioBox>;
+    using Base = wxRadioBox;
     using Type = typename Value::Type;
 
     template<typename CompatibleValue>
@@ -60,7 +59,7 @@ public:
         this->Bind(wxEVT_RADIOBOX, &RadioBox::OnRadioBox_, this);
     }
 
-    void OnValueChanged_(typename detail::Argument<Type>::Type value)
+    void OnValueChanged_(ArgumentT<Type> value)
     {
         this->SetSelection(this->GetIndex_(value));
     }
@@ -78,7 +77,7 @@ public:
     }
 
 private:
-    int GetIndex_(typename detail::Argument<Type>::Type value)
+    int GetIndex_(ArgumentT<Type> value)
     {
         auto index = FindIndex(value, this->choices_);
 

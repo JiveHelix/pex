@@ -161,21 +161,21 @@ struct DefaultConverterTraits
 template<typename T, typename Traits = DefaultConverterTraits>
 struct Converter
 {
-    using ToStringFunctor =
+    using ConvertToString =
         ValueToString<T, Traits::base, Traits::width, Traits::precision>;
 
-    using ToValueFunctor = StringToValue<T, Traits::base>;
+    using ConvertToValue = StringToValue<T, Traits::base>;
 
     template<typename U>
     static std::string ToString(U &&value)
     {
-        return ToStringFunctor::Call(std::forward<U>(value));
+        return ConvertToString::Call(std::forward<U>(value));
     }
 
     template<typename U>
     static T ToValue(U &&asString)
     {
-        return ToValueFunctor::Call(std::forward<U>(asString));
+        return ConvertToValue::Call(std::forward<U>(asString));
     }
 };
 

@@ -21,7 +21,8 @@ target_link_libraries(
     project_warnings
     project_options
     pex_catch_main
-    pex)
+    pex
+    CONAN_PKG::tau)
 
 # Automatically discover tests that are defined in catch based test files.
 catch_discover_tests(

@@ -6,7 +6,8 @@
 #include "jive/strings.h"
 #include "jive/formatter.h"
 #include "jive/for_each.h"
-#include "wxshim.h"
+#include "pex/wx/wxshim.h"
+
 
 namespace pex
 {
@@ -146,12 +147,12 @@ public:
     
     int GetId() const { return this->id_; }
 
-    void OnEventMenu(wxCommandEvent &)
+    void OnEventMenu()
     {
         this->signal_.Trigger();
     }
 
-// private: 
+private: 
     wxString GetMenuItemLabel_() const
     {
         auto modifier = GetModifierString(this->modifier_);
@@ -180,10 +181,25 @@ public:
 
     SignalType signal_;
     int id_;
-    const int modifier_;
-    const Key key_;
+    int modifier_;
+    Key key_;
     const std::string description_;
     const std::string longDescription_;
+};
+
+
+class ShortcutFunctor
+{
+public:
+    ShortcutFunctor(const Shortcut &shortcut): shortcut_(shortcut) {}
+
+    void operator()(wxCommandEvent &)
+    {
+        this->shortcut_.OnEventMenu();
+    }
+
+private:
+    Shortcut shortcut_;
 };
 
 
@@ -200,10 +216,7 @@ void BindShortcuts(Window *window, ShortcutsTuple &shortcutsTuple)
         {
             window->Bind(
                 wxEVT_MENU,
-                std::bind(
-                    &Shortcut::OnEventMenu,
-                    &shortcut,
-                    std::placeholders::_1),
+                ShortcutFunctor(shortcut),
                 shortcut.GetId());
         });
 }

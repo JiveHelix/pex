@@ -11,8 +11,7 @@
 
 #pragma once
 
-#include "wxshim.h"
-#include "pex/wx/window.h"
+#include "pex/wx/wxshim.h"
 #include "pex/value.h"
 
 
@@ -24,10 +23,10 @@ namespace wx
 
 
 template<typename Value>
-class CheckBox: public Window<wxCheckBox>
+class CheckBox: public wxCheckBox
 {
 public:
-    using Base = Window<wxCheckBox>;
+    using Base = wxCheckBox;
     using Type = typename Value::Type;
     using Model = typename Value::Model;
     using Access = typename Value::Access;
@@ -72,6 +71,7 @@ public:
 private:
     using Observer = CheckBox<Value>;
     typename pex::interface::ObservedValue<Observer, Value>::Type value_;
+    size_t id_;
 };
 
 

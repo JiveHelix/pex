@@ -1,41 +1,36 @@
 cmake_minimum_required(VERSION 3.15)
 
-# detect whether pex has been added as a subproject
-if(NOT DEFINED PROJECT_NAME)
-    set(PEX_NOT_SUBPROJECT ON)
-endif()
-
-include(cmake_includes/DefineProjectOnce.cmake)
-
-define_project_once(pex)
-
 project(pex CXX)
 
-if(PEX_NOT_SUBPROJECT)
-    # This is the top-level project
-    include(cmake_includes/Standalone.cmake)
-    option(ENABLE_UNITY "Enable Unity builds of projects" OFF)
-endif()
+include(${CMAKE_CURRENT_LIST_DIR}/cmake_includes/setup_project.cmake)
+setup_project()
 
-add_subdirectory(external)
 add_subdirectory(pex)
 
-if(PEX_NOT_SUBPROJECT)
-
-    add_subdirectory(examples)
-
-    if(ENABLE_TESTING)
-        enable_testing()
+if (${PROJECT_IS_TOP_LEVEL})
+    if (ENABLE_TESTING)
         add_subdirectory(test)
     endif()
 
-elseif(RECURSIVE_BUILD_TESTS AND ENABLE_TESTING)
-
-    # A parent project has requested tests.
+elseif (${RECURSIVE_BUILD_TESTS} AND ${ENABLE_TESTING})
     add_subdirectory(test)
+endif ()
 
-endif()
 
-if(ENABLE_UNITY)
-      set_target_properties(pex PROPERTIES UNITY_BUILD ON)
-endif()
+if (APPLE AND NOT CMAKE_OSX_DEPLOYMENT_TARGET)
+    set(
+        CMAKE_OSX_DEPLOYMENT_TARGET 10.12
+        CACHE STRING "macOS Deployment Target")
+endif ()
+
+
+if (${PROJECT_IS_TOP_LEVEL})
+    option(
+        BUILD_EXAMPLES
+        "Build the example targets"
+        ${ENABLES_DEFAULT})
+
+    if (${BUILD_EXAMPLES})
+        add_subdirectory(examples)
+    endif ()
+endif ()
