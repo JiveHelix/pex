@@ -16,7 +16,10 @@
 namespace pex
 {
 
-template<typename Model, typename Interface>
+template<
+    template<typename> typename Fields,
+    typename Model,
+    typename Interface>
 void Initialize(Model &model, Interface &interface)
 {
     auto initializer = [&model, &interface](
@@ -31,7 +34,10 @@ void Initialize(Model &model, Interface &interface)
             type(&(model.*(modelField.member)));
     };
 
-    jive::ZipApply(initializer, Model::fields, Interface::fields);
+    jive::ZipApply(
+        initializer,
+        Fields<Model>::value,
+        Fields<Interface>::value);
 }
 
 } // namespace pex

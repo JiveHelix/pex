@@ -41,11 +41,6 @@ struct ApplicationModel
     pex::model::Signal frobnicate;
     pex::model::Value<std::string> message;
 
-    static constexpr auto fieldsTypeName = "ApplicationModel";
-
-    static constexpr auto fields =
-        ApplicationFields<ApplicationModel>::value;
-
     ApplicationModel()
     {
         this->sayHello.Connect(
@@ -99,16 +94,11 @@ struct ApplicationInterface
     pex::interface::Signal<void> frobnicate;
     pex::interface::Value<void, pex::model::Value<std::string>> message;
 
-    static constexpr auto fieldsTypeName = "ApplicationInterface";
-
-    static constexpr auto fields =
-        ApplicationFields<ApplicationInterface>::value;
-
     ApplicationInterface() = default;
 
     ApplicationInterface(ApplicationModel &model)
     {
-        pex::Initialize(model, *this);
+        pex::Initialize<ApplicationFields>(model, *this);
     }
 };
 
