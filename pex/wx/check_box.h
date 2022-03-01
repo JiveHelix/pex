@@ -13,6 +13,7 @@
 
 #include "pex/wx/wxshim.h"
 #include "pex/value.h"
+#include "pex/is_compatible.h"
 
 
 namespace pex
@@ -28,8 +29,6 @@ class CheckBox: public wxCheckBox
 public:
     using Base = wxCheckBox;
     using Type = typename Value::Type;
-    using Model = typename Value::Model;
-    using Access = typename Value::Access;
 
     template<typename Compatible>
     CheckBox(
@@ -47,11 +46,7 @@ public:
             style),
         value_(value)
     {
-        static_assert(
-            std::is_same_v<Model, typename Compatible::Model>);
-
-        static_assert(
-            std::is_same_v<Access, typename Compatible::Access>);
+        static_assert(pex::IsCompatibleV<Value, Compatible>);
 
         this->SetValue(this->value_.Get());
         this->value_.Connect(this, &CheckBox::OnValueChanged_);

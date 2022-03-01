@@ -36,8 +36,8 @@ void Initialize(Model &model, Interface &interface)
 
     jive::ZipApply(
         initializer,
-        Fields<Model>::value,
-        Fields<Interface>::value);
+        Fields<Model>::fields,
+        Fields<Interface>::fields);
 }
 
 } // namespace pex

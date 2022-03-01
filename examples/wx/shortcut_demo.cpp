@@ -24,7 +24,7 @@
 template<typename T>
 struct ApplicationFields
 {
-    static constexpr auto value = std::make_tuple(
+    static constexpr auto fields = std::make_tuple(
         fields::Field(&T::sayWhatsUp, "sayWhatsUp"),
         fields::Field(&T::sayHello, "sayHello"),
         fields::Field(&T::sayFortyTwo, "sayFortyTwo"),

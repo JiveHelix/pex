@@ -13,6 +13,7 @@
 
 #include "pex/wx/wxshim.h"
 #include "pex/value.h"
+#include "pex/is_compatible.h"
 
 namespace pex
 {
@@ -82,15 +83,7 @@ struct MakeWidget
         interface(interface_),
         style(style_)
     {
-        static_assert(
-            std::is_same_v<
-                typename Interface::Model,
-                typename Compatible::Model>);
-
-        static_assert(
-            std::is_same_v<
-                typename Interface::Access,
-                typename Compatible::Access>);
+        static_assert(pex::IsCompatibleV<Interface, Compatible>);
     }
 
     Type * operator()(wxWindow *parent) const

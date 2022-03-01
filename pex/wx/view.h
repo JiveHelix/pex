@@ -16,6 +16,7 @@
 #include "pex/wx/wxshim.h"
 #include "pex/value.h"
 #include "pex/converter.h"
+#include "pex/is_compatible.h"
 #include "pex/detail/argument.h"
 
 namespace pex
@@ -35,8 +36,6 @@ class View: public wxStaticText
 public:
     using Base = wxStaticText;
     using Type = typename Value::Type;
-    using Model = typename Value::Model;
-    using Access = typename Value::Access;
 
     /** @tparam Compatible A deduced value that has the same Model and Access
      ** as Value.
@@ -56,12 +55,7 @@ public:
             style),
         value_(value)
     {
-        static_assert(
-            std::is_same_v<Model, typename Compatible::Model>);
-
-        static_assert(
-            std::is_same_v<Access, typename Compatible::Access>,
-            "Access level of initial value must match.");
+        static_assert(pex::IsCompatibleV<Value, Compatible>);
 
         this->value_.Connect(this, &View::OnValueChanged_);
     }
