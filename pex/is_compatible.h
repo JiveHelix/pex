@@ -19,7 +19,7 @@ struct IsCompatible
     B,
     std::enable_if_t
     <
-        (std::is_same_v<typename A::Model, typename B::Model>
+        (std::is_same_v<typename A::Pex, typename B::Pex>
         && std::is_same_v<typename A::Access, typename B::Access>)
     >
 >: std::true_type {};

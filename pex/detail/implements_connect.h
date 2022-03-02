@@ -11,7 +11,7 @@
 
 #pragma once
 
-#include "pex/detail/callable_style.h"
+#include "pex/detail/function_style.h"
 
 namespace pex
 {
@@ -33,7 +33,7 @@ struct ImplementsConnect
             decltype(&T::Connect),
             T,
             void * const,
-            UnboundValueCallable<void, typename T::Type>
+            FreeFunction<void, typename T::Type>
         >
     >
 > : std::true_type {};

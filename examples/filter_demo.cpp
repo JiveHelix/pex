@@ -27,7 +27,7 @@ struct ModelFilter
 };
 
 
-/** The interface uses degrees, while the model uses radians. **/
+/** The control uses degrees, while the model uses radians. **/
 struct DegreesFilter
 {
     /** Convert to degrees on retrieval **/
@@ -51,7 +51,7 @@ Angle_radians f(0.0);
 class Foo
 {
 public:
-    Foo(Angle_radians * const angle_radians)
+    Foo(Angle_radians &angle_radians)
         :
         angle_degrees(angle_radians)
     {
@@ -60,7 +60,7 @@ public:
 
     ~Foo()
     {
-        this->angle_degrees.Disconnect();
+        this->angle_degrees.Disconnect(this);
     }
 
     void OnAngleChanged_(double value)
@@ -68,13 +68,13 @@ public:
         std::cout << "Foo::OnAngleChanged_: " << value << std::endl;
     }
 
-    pex::interface::FilteredValue<Foo, Angle_radians, DegreesFilter> angle_degrees;
+    pex::control::FilteredValue<Foo, Angle_radians, DegreesFilter> angle_degrees;
 };
 
 
 int main()
 {
-    Foo p(&f);
+    Foo p(f);
     p.angle_degrees.Set(250.0);
     p.angle_degrees.Set(-181.0);
     p.angle_degrees.Set(45.0);

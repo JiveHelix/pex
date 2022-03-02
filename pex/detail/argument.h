@@ -26,8 +26,23 @@ namespace detail
 template<typename T, typename = void>
 struct Argument;
 
+
+template<>
+struct Argument<void, void>
+{
+
+};
+
+
 template<typename T>
-struct Argument<T, std::enable_if_t<std::is_arithmetic_v<T>>>
+struct Argument
+<
+    T,
+    std::enable_if_t
+    <
+        std::is_arithmetic_v<T>
+    >
+>
 {
     using Type = T;
 };

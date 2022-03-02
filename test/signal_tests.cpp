@@ -8,20 +8,24 @@
 #include "pex/signal.h"
 
 
+template<typename Access = pex::GetAndSetTag>
 class Observer
 {
 public:
     Observer(pex::model::Signal &model)
         :
-        interface_(&model),
+        control_(model),
         observedCount{0}
     {
-        this->interface_.Connect(this, &Observer::Observe_);
+        if constexpr (pex::HasAccess<pex::GetTag, Access>)
+        {
+            this->control_.Connect(this, &Observer::Observe_);
+        }
     }
 
     void Trigger()
     {
-        this->interface_.Trigger();
+        this->control_.Trigger();
     }
 
 private:
@@ -30,7 +34,7 @@ private:
         ++this->observedCount;
     }
 
-    pex::interface::Signal<Observer> interface_;
+    pex::control::Signal<Observer, Access> control_;
 
 public:
     int observedCount;
@@ -62,13 +66,34 @@ TEST_CASE("Signal fan out", "[signal]")
     Observer observer2(signal);
     Observer observer3(signal);
 
-    // Interface signals echo back to us, and fan out to all other observers.
+    // Control signals echo back to us, and fan out to all other observers.
     while (signalCount-- > 0)
     {
         observer1.Trigger();
     }
 
     REQUIRE(observer1.observedCount == expectedObservedCount);
+    REQUIRE(observer2.observedCount == expectedObservedCount);
+    REQUIRE(observer3.observedCount == expectedObservedCount);
+}
+
+
+TEST_CASE("Signal fan out from write-only control", "[signal]")
+{
+    auto signalCount = GENERATE(take(10, random(1, 10000)));
+    auto expectedObservedCount = signalCount;
+    pex::model::Signal signal;
+    Observer<pex::SetTag> observer1(signal);
+    Observer<pex::GetTag> observer2(signal);
+    Observer<pex::GetTag> observer3(signal);
+
+    // Control signals echo back to us, and fan out to all other observers.
+    while (signalCount-- > 0)
+    {
+        observer1.Trigger();
+    }
+
+    REQUIRE(observer1.observedCount == 0);
     REQUIRE(observer2.observedCount == expectedObservedCount);
     REQUIRE(observer3.observedCount == expectedObservedCount);
 }

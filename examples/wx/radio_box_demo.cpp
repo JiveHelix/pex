@@ -75,7 +75,7 @@ struct LongConverter
 
 
 using UnitsModel = pex::model::Value<UnitSystem>;
-using UnitsInterface = pex::interface::Value<void, UnitsModel>;
+using UnitsControl = pex::control::Value<void, UnitsModel>;
 
 class ExampleApp: public wxApp
 {
@@ -97,7 +97,7 @@ private:
 class ExampleFrame: public wxFrame
 {
 public:
-    ExampleFrame(UnitsInterface units);
+    ExampleFrame(UnitsControl units);
 };
 
 
@@ -108,7 +108,7 @@ wxshimIMPLEMENT_APP(ExampleApp)
 bool ExampleApp::OnInit()
 {
     ExampleFrame *exampleFrame =
-        new ExampleFrame(UnitsInterface(&this->units_));
+        new ExampleFrame(UnitsControl(this->units_));
 
     exampleFrame->Show();
     return true;
@@ -124,21 +124,21 @@ auto choices = std::vector<UnitSystem>
 };
 
 
-ExampleFrame::ExampleFrame(UnitsInterface unitsInterface)
+ExampleFrame::ExampleFrame(UnitsControl unitsControl)
     :
     wxFrame(nullptr, wxID_ANY, "pex::wx::RadioBox Demo")
 {
     auto radioBox =
-        new pex::wx::RadioBox<UnitsInterface, ShortConverter>(
+        new pex::wx::RadioBox<UnitsControl, ShortConverter>(
             this,
-            unitsInterface,
+            unitsControl,
             choices,
             "Choose Units");
 
     auto view =
-        new pex::wx::View<UnitsInterface, LongConverter>(
+        new pex::wx::View<UnitsControl, LongConverter>(
             this,
-            unitsInterface);
+            unitsControl);
 
     auto topSizer = std::make_unique<wxBoxSizer>(wxVERTICAL);
 

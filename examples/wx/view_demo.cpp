@@ -23,14 +23,14 @@
 
 using Angle = pex::model::Value<double>;
 
-// Create the interface value without an observer.
-using Interface = pex::interface::Value<void, Angle>;
+// Create the control value without an observer.
+using Control = pex::control::Value<void, Angle>;
 
 using Signal = pex::model::Signal;
-using InterfaceSignal = pex::interface::Signal<void>;
+using ControlSignal = pex::control::Signal<void>;
 
 
-/** Allow an interface to use radians, while the model uses degrees. **/
+/** Allow an control to use radians, while the model uses degrees. **/
 struct DegreesFilter
 {
     /** Convert to degrees on retrieval **/
@@ -47,8 +47,8 @@ struct DegreesFilter
 };
 
 
-using RadiansInterface =
-    pex::interface::FilteredValue<void, Angle, DegreesFilter>;
+using RadiansControl =
+    pex::control::FilteredValue<void, Angle, DegreesFilter>;
 
 
 class ExampleApp: public wxApp
@@ -58,7 +58,7 @@ public:
         :
         angle_{42.0},
         signal_{},
-        signalInterface_{&this->signal_}
+        signalControl_{this->signal_}
     {
 
     }
@@ -73,14 +73,14 @@ public:
 private:
     Angle angle_ = Angle(42.0);
     Signal signal_;
-    pex::interface::Signal<ExampleApp> signalInterface_;
+    pex::control::Signal<ExampleApp> signalControl_;
 };
 
 
 class ExampleFrame: public wxFrame
 {
 public:
-    ExampleFrame(Interface value, InterfaceSignal signal);
+    ExampleFrame(Control value, ControlSignal signal);
 };
 
 
@@ -92,10 +92,10 @@ bool ExampleApp::OnInit()
 {
     ExampleFrame *exampleFrame =
         new ExampleFrame(
-            Interface(&this->angle_),
-            InterfaceSignal(&this->signal_));
+            Control(this->angle_),
+            ControlSignal(this->signal_));
 
-    this->signalInterface_.Connect(this, &ExampleApp::OnSignal_);
+    this->signalControl_.Connect(this, &ExampleApp::OnSignal_);
     exampleFrame->Show();
     return true;
 }
@@ -121,23 +121,23 @@ using FifteenDigits = pex::Converter<T, FifteenDigitsTraits>;
 
 
 ExampleFrame::ExampleFrame(
-    Interface interface,
-    InterfaceSignal interfaceSignal)
+    Control control,
+    ControlSignal interfaceSignal)
     :
     wxFrame(nullptr, wxID_ANY, "pex::wx::View Demo")
 {
-    using Type = typename Interface::Type;
+    using Type = typename Control::Type;
 
     auto view =
-        new pex::wx::View<Interface>(this, interface);
+        new pex::wx::View<Control>(this, control);
 
     auto three =
-        new pex::wx::View<Interface, ThreeDigits<Type>>(this, interface);
+        new pex::wx::View<Control, ThreeDigits<Type>>(this, control);
 
     auto fifteen =
-        new pex::wx::View<RadiansInterface, FifteenDigits<Type>>(
+        new pex::wx::View<RadiansControl, FifteenDigits<Type>>(
             this,
-            interface);
+            control);
 
     auto button =
         new pex::wx::Button(this, "Press Me", interfaceSignal);

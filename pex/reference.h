@@ -1,7 +1,7 @@
 /**
   * @file reference.h
   *
-  * @brief Provides access to Model/Interface values by reference, delaying the
+  * @brief Provides access to Model/Control values by reference, delaying the
   * notification (if any) until editing is complete.
   *
   *
@@ -12,6 +12,7 @@
 **/
 #pragma once
 
+#include "pex/no_filter.h"
 #include "pex/detail/argument.h"
 
 namespace pex
@@ -46,7 +47,7 @@ public:
     Type & operator * ()
     {
         static_assert(
-            std::is_same_v<void, typename Model::Filter>,
+            std::is_same_v<NoFilter, typename Model::Filter>,
             "Direct access to underlying value is incompatible with filters.");
 
         return this->model_.value_;
@@ -83,7 +84,7 @@ template<typename Model>
 class ConstReference
 {
     static_assert(
-        std::is_same_v<void, typename Model::Filter>,
+        std::is_same_v<NoFilter, typename Model::Filter>,
         "Direct access to underlying value is incompatible with filters.");
 
 public:

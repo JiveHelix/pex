@@ -28,20 +28,20 @@ public:
 
     FlagFilter() = default;
 
-    FlagFilter(const BitsetModel<bitCount> *model, size_t index)
+    FlagFilter(const BitsetModel<bitCount> &model, size_t index)
         :
-        model_(model),
+        model_(&model),
         index_(index)
     {
 
     }
 
-    bool Get(const Bitset &bitset)
+    bool Get(const Bitset &bitset) const
     {
         return bitset[this->index_];
     }
 
-    Bitset Set(bool value)
+    Bitset Set(bool value) const
     {
         Bitset result = this->model_->Get();
         result[this->index_] = value;
@@ -55,63 +55,32 @@ private:
 
 
 template<size_t bitCount>
-using FlagInterface =
-    pex::interface::FilteredValue<
+using FlagControl =
+    pex::control::FilteredValue<
         void,
         BitsetModel<bitCount>,
         FlagFilter<bitCount>>;
 
 
 template<size_t bitCount>
-class BitsetFlagsInterface
+class BitsetFlagsControl
 {
 public:
     using Filter = FlagFilter<bitCount>;
-    using Flag = FlagInterface<bitCount>;
+    using Flag = FlagControl<bitCount>;
 
-    BitsetFlagsInterface(BitsetModel<bitCount> *bitset)
+    BitsetFlagsControl(BitsetModel<bitCount> &bitset)
         :
-        flags{},
-        filters_{}
+        flags{}
     {
         for (size_t i = 0; i < bitCount; ++i)
         {
-            this->filters_[i] = Filter(bitset, i);
-            this->flags[i] = Flag(bitset, &this->filters_[i]);
-        }
-    }
-
-    BitsetFlagsInterface(const BitsetFlagsInterface &other)
-        :
-        flags(other.flags),
-        filters_(other.filters_)
-    {
-        // The flags need to point to the filters that are members of the new
-        // instance.
-        for (size_t i = 0; i < bitCount; ++i)
-        {
-            flags[i].SetFilter(&this->filters_[i]);
-        }
-    }
-
-    BitsetFlagsInterface & operator=(const BitsetFlagsInterface &other)
-    {
-        this->flags = other.flags;
-        this->filters_ = other.filters_;
-
-        // The flags need to point to the filters that are members of this
-        // instance.
-        for (size_t i = 0; i < bitCount; ++i)
-        {
-            flags[i].SetFilter(&this->filters_[i]);
+            this->flags[i] = Flag(bitset, Filter(bitset, i));
         }
     }
 
 public:
     std::array<Flag, bitCount> flags;
-
-private:
-    std::array<Filter, bitCount> filters_;
 };
 
 
@@ -148,12 +117,12 @@ template<size_t bitCount>
 class BitsetCheckBoxes: public wxControl
 {
 public:
-    using Interface = BitsetFlagsInterface<bitCount>;
-    using CheckBoxInterface = typename Interface::Flag;
+    using Control = BitsetFlagsControl<bitCount>;
+    using CheckBoxControl = typename Control::Flag;
 
     BitsetCheckBoxes(
         wxWindow *parent,
-        Interface interface,
+        Control control,
         const FlagNames<bitCount> &flagNames =
             FlagNames<bitCount>::MakeDefault(),
         long style = 0,
@@ -166,17 +135,17 @@ public:
             wxDefaultPosition,
             wxDefaultSize,
             style),
-        interface_(interface)
+        control_(control)
     {
         auto flagsSizer = std::make_unique<wxBoxSizer>(orient);
 
         for (size_t i = 0; i < bitCount; ++i)
         {
             flagsSizer->Add(
-                new CheckBox<CheckBoxInterface>(
+                new CheckBox<CheckBoxControl>(
                     this,
                     flagNames[i],
-                    this->interface_.flags[i],
+                    this->control_.flags[i],
                     checkBoxStyle),
                 0,
                 (orient == wxHORIZONTAL) ? wxRIGHT : wxBOTTOM,
@@ -187,7 +156,7 @@ public:
     }
 
 private:
-    Interface interface_; 
+    Control control_; 
 };
 
 
@@ -196,9 +165,9 @@ struct MakeBitsetCheckBoxes
 {
 public:
     using Type = BitsetCheckBoxes<bitCount>;
-    using Interface = typename Type::Interface;
+    using Control = typename Type::Control;
 
-    Interface interface;
+    Control control;
     FlagNames<bitCount> flagNames = FlagNames<bitCount>::MakeDefault();
     long style = 0;
     long checkBoxStyle = 0;
@@ -208,7 +177,7 @@ public:
     {
         return new Type(
             parent,
-            this->interface,
+            this->control,
             this->flagNames,
             this->style,
             this->checkBoxStyle,

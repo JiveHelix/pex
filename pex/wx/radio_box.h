@@ -1,7 +1,7 @@
 /**
   * @file radio_box.h
   *
-  * @brief A wx.RadioBox connected to a pex.Value interface node.
+  * @brief A wx.RadioBox connected to a pex.Value control node.
   *
   * @author Jive Helix (jivehelix@gmail.com)
   * @date 11 Aug 2020
@@ -101,7 +101,7 @@ private:
     }
 
     using Observer = RadioBox<Value, Convert>;
-    typename pex::interface::ObservedValue<Observer, Value>::Type value_;
+    typename pex::control::ObservedValue<Observer, Value>::Type value_;
 
     std::vector<Type> choices_;
 };

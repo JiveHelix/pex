@@ -22,7 +22,7 @@
 
 
 using Angle = pex::model::Value<double>;
-using Interface = pex::interface::Value<void, Angle>;
+using Control = pex::control::Value<void, Angle>;
 
 
 class ExampleApp: public wxApp
@@ -45,7 +45,7 @@ private:
 class ExampleFrame: public wxFrame
 {
 public:
-    ExampleFrame(Interface value);
+    ExampleFrame(Control value);
 };
 
 
@@ -55,20 +55,20 @@ wxshimIMPLEMENT_APP(ExampleApp)
 
 bool ExampleApp::OnInit()
 {
-    ExampleFrame *exampleFrame = new ExampleFrame(Interface(&this->angle_));
+    ExampleFrame *exampleFrame = new ExampleFrame(Control(&this->angle_));
     exampleFrame->Show();
     return true;
 }
 
 
-ExampleFrame::ExampleFrame(Interface interface)
+ExampleFrame::ExampleFrame(Control control)
     :
     wxFrame(nullptr, wxID_ANY, "pex::wx::Sandbox")
 {
     // Any instance constructed with a parent automatically becomes owned by
     // the parent, so there is no need to protect it with unique_ptr.
-    auto view = new pex::wx::View<Interface>(this, interface);
-    auto knob = new pex::wx::Knob<Interface>(this, interface);
+    auto view = new pex::wx::View<Control>(this, control);
+    auto knob = new pex::wx::Knob<Control>(this, control);
 
     // Sizers are not owned until a call to SetSizer.
     // unique_ptr will manage it until then.

@@ -37,11 +37,11 @@ public:
     using Type = T;
     using Value = typename ::pex::model::Value<T>;
     using Bound = typename ::pex::model::Value<T>;
-    using ValueInterface = typename ::pex::interface::Value<void, Value>;
+    using ValueControl = typename ::pex::control::Value<void, Value>;
 
     template<typename Access>
-    using BoundInterface =
-        typename ::pex::interface::Value<void, Bound, Access>;
+    using BoundControl =
+        typename ::pex::control::Value<void, Bound, Access>;
 
 public:
     Range(T value, T minimum, T maximum)
@@ -91,26 +91,26 @@ public:
         this->value_.Set(value);
     }
 
-    void Connect(void * context, typename Value::Notify::Callable callable)
+    void Connect(void * context, typename Value::Callable callable)
     {
         this->value_.Connect(context, callable);
     }
 
-    ValueInterface GetValueInterface()
+    ValueControl GetValueControl()
     {
-        return ValueInterface(&this->value_);
+        return ValueControl(this->value_);
     }
 
     template<typename Access = GetTag>
-    BoundInterface<Access> GetMinimumInterface()
+    BoundControl<Access> GetMinimumControl()
     {
-        return BoundInterface<Access>(&this->minimum_);
+        return BoundControl<Access>(this->minimum_);
     }
 
     template<typename Access = GetTag>
-    BoundInterface<Access> GetMaximumInterface()
+    BoundControl<Access> GetMaximumControl()
     {
-        return BoundInterface<Access>(&this->maximum_);
+        return BoundControl<Access>(this->maximum_);
     }
 
 private:
@@ -122,14 +122,14 @@ private:
 } // namespace model
 
 
-namespace interface
+namespace control
 {
 
 template
 <
     typename Observer,
     typename RangeModel,
-    typename Filter_ = void
+    typename Filter_ = NoFilter
 >
 class Range
 {
@@ -138,7 +138,7 @@ public:
     using ModelType = typename RangeModel::Type;
 
     using Value =
-        ::pex::interface::FilteredValue
+        ::pex::control::FilteredValue
         <
             Observer,
             typename RangeModel::Value,
@@ -148,7 +148,7 @@ public:
 
     // Read-only Bound type for accessing range bounds.
     using Bound =
-        ::pex::interface::FilteredValue
+        ::pex::control::FilteredValue
         <
             Observer,
             typename RangeModel::Bound,
@@ -156,11 +156,11 @@ public:
             pex::GetTag
         >;
 
-    Range(RangeModel * model)
+    Range(RangeModel &model)
         :
-        value(model->GetValueInterface()),
-        minimum(model->GetMinimumInterface()),
-        maximum(model->GetMaximumInterface())
+        value(model.GetValueControl()),
+        minimum(model.GetMinimumControl()),
+        maximum(model.GetMaximumControl())
     {
 
     }
@@ -171,7 +171,7 @@ public:
 };
 
 
-} // namespace interface
+} // namespace control
 
 } // namespace pex
 

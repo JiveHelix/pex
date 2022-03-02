@@ -14,15 +14,15 @@ template<typename T, typename Model>
 class Observer
 {
 public:
-    using Interface =
-        pex::interface::Value<Observer<T, Model>, Model>;
+    using Control =
+        pex::control::Value<Observer<T, Model>, Model>;
 
     Observer(Model &model)
         :
-        interface_(&model),
-        observedValue{this->interface_.Get()}
+        control_(model),
+        observedValue{this->control_.Get()}
     {
-        this->interface_.Connect(this, &Observer::Observe_);
+        this->control_.Connect(this, &Observer::Observe_);
     }
 
 private:
@@ -31,7 +31,7 @@ private:
         this->observedValue = value;
     }
 
-    Interface interface_;
+    Control control_;
 
 public:
     T observedValue;
@@ -41,7 +41,7 @@ public:
 template<typename T>
 struct RangeFilter
 {
-    T Set(T value)
+    T Set(T value) const
     {
         return std::max(this->low, std::min(value, this->high));
     }
@@ -75,7 +75,7 @@ TEMPLATE_TEST_CASE(
         pex::model::FilteredValue<TestType, RangeFilter<TestType>>;
 
     RangeFilter<TestType> filter{low, high};
-    Model model{&filter};
+    Model model{filter};
     Observer<TestType, Model> observer(model);
     model.Set(value);
     REQUIRE(observer.observedValue <= high);
@@ -119,7 +119,7 @@ TEMPLATE_TEST_CASE(
         pex::model::FilteredValue<TestType, RangeFilter<TestType>>;
 
     RangeFilter<TestType> filter{low, high};
-    Model model{&filter};
+    Model model{filter};
     Observer<TestType, Model> observer(model);
     model.Set(value);
     REQUIRE(observer.observedValue <= high);
@@ -127,7 +127,7 @@ TEMPLATE_TEST_CASE(
 }
 
 
-/** The interface uses degrees, while the model uses radians. **/
+/** The control uses degrees, while the model uses radians. **/
 template<typename T>
 struct DegreesFilter
 {
@@ -146,7 +146,7 @@ struct DegreesFilter
 
 
 TEMPLATE_TEST_CASE(
-    "Use interface filter to convert from radians to degrees.",
+    "Use filter to convert from radians to degrees.",
     "[filters]",
     float,
     double,
@@ -162,21 +162,21 @@ TEMPLATE_TEST_CASE(
     using Model = pex::model::Value<TestType>;
     using Filter = DegreesFilter<TestType>;
 
-    using Interface =
-        pex::interface::FilteredValue<void, Model, Filter>;
+    using Control =
+        pex::control::FilteredValue<void, Model, Filter>;
 
     Model model;
-    Interface interface(&model);
+    Control control(model);
 
     // Set value in degrees.
-    interface.Set(value);
+    control.Set(value);
 
     using angles = tau::Angles<TestType>;
 
     // Expect model to be in radians.
-    auto expected = angles::pi * value / angles::pi;
+    auto expected = angles::pi * value / angles::piDegrees;
     REQUIRE(model.Get() == Approx(expected));
 
-    // Expect interface to retrieve degrees.
-    REQUIRE(interface.Get() == Approx(value));
+    // Expect control to retrieve degrees.
+    REQUIRE(control.Get() == Approx(value));
 }

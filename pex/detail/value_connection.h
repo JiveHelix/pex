@@ -12,9 +12,9 @@
 
 #pragma once
 
-#include "pex/detail/notify.h"
+#include "pex/detail/connection.h"
 #include "pex/detail/argument.h"
-#include "pex/detail/callable_style.h"
+#include "pex/detail/function_style.h"
 
 
 namespace pex
@@ -25,18 +25,15 @@ namespace detail
 
 
 template<typename Observer, typename T>
-using ValueCallable = typename CallableStyle<Observer, T>::Type;
-
-template<typename Observer, typename T>
-class ValueNotify: public Notify_<Observer, ValueCallable<Observer, T>>
+class ValueConnection
+    : public Connection<Observer, ValueFunctionStyle<Observer, T>>
 {
 public:
     using Type = T;
-    using Base = Notify_<Observer, ValueCallable<Observer, T>>;
-    using argumentType = typename Argument<T>::Type;
+    using Base = Connection<Observer, ValueFunctionStyle<Observer, T>>;
     using Base::Base;
 
-    void operator()(typename Argument<T>::Type value)
+    void operator()(ArgumentT<T> value)
     {
         if constexpr(Base::IsMemberFunction)
         {

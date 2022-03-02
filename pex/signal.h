@@ -1,7 +1,7 @@
 /**
   * @file value.h
   *
-  * @brief Implements model and interface Signal nodes.
+  * @brief Implements model and control Signal nodes.
   *
   * @author Jive Helix (jivehelix@gmail.com)
   * @date 22 Jul 2020
@@ -14,8 +14,8 @@
 #include <type_traits>
 #include "pex/detail/notify_one.h"
 #include "pex/detail/notify_many.h"
-#include "pex/detail/signal_detail.h"
-#include "pex/detail/not_null.h"
+#include "pex/detail/signal_connection.h"
+#include "pex/detail/require_has_value.h"
 
 namespace pex
 {
@@ -25,7 +25,7 @@ namespace model
 
 class Signal
     :
-    public detail::NotifyMany<detail::SignalNotify<void>>
+    public detail::NotifyMany<detail::SignalConnection<void>, GetAndSetTag>
 {
 public:
     void Trigger()
@@ -37,21 +37,20 @@ public:
 } // namespace model
 
 
-namespace interface
+namespace control
 {
 
-template<typename Observer>
+template<typename Observer, typename Access = GetAndSetTag>
 class Signal
     :
-    public detail::NotifyOne<detail::SignalNotify<Observer>>
+    public detail::NotifyOne<detail::SignalConnection<Observer>, Access>
 {
 public:
     Signal(): model_(nullptr) {}
 
-    Signal(model::Signal * const model)
-        : model_(model)
+    Signal(model::Signal &model)
+        : model_(&model)
     {
-        NOT_NULL(this->model_);
         this->model_->Connect(this, &Signal::OnModelSignaled_);
     }
 
@@ -68,7 +67,7 @@ public:
      **/
     void Trigger()
     {
-        NOT_NULL(this->model_);
+        REQUIRE_HAS_VALUE(this->model_);
         this->model_->Trigger();
     }
 
@@ -77,7 +76,7 @@ public:
         :
         model_(other.model_)
     {
-        NOT_NULL(this->model_);
+        REQUIRE_HAS_VALUE(this->model_);
         this->model_->Connect(this, &Signal::OnModelSignaled_);
     }
 
@@ -91,7 +90,7 @@ public:
 
         this->model_ = other.model_;
 
-        NOT_NULL(this->model_);
+        REQUIRE_HAS_VALUE(this->model_);
         this->model_->Connect(this, &Signal::OnModelSignaled_);
         return *this;
     }
@@ -109,14 +108,14 @@ public:
         return (this->model_ != nullptr);
     }
 
-    template<typename T>
+    template<typename U, typename V>
     friend class Signal;
 
 private:
     model::Signal * model_;
 };
 
-} // namespace interface
+} // namespace control
 
 
 

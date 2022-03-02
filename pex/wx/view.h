@@ -1,7 +1,7 @@
 /**
   * @file pex_view.h
   *
-  * @brief A read-only view of a pex.Value interface node.
+  * @brief A read-only view of a pex.Value control node.
   *
   * @author Jive Helix (jivehelix@gmail.com)
   * @date 06 Aug 2020
@@ -68,7 +68,7 @@ private:
     }
 
     using Observer = View<Value, Convert>;
-    typename pex::interface::ObservedValue<Observer, Value>::Type value_;
+    typename pex::control::ObservedValue<Observer, Value>::Type value_;
 };
 
 

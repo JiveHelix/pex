@@ -2,7 +2,7 @@
   * @file combo_box_demo.cpp
   *
   * @brief A demonstration of pex::wx::ComboBox, backed by
-  * a pex::interface::Chooser.
+  * a pex::control::Chooser.
   *
   * @author Jive Helix (jivehelix@gmail.com)
   * @date 14 Aug 2020
@@ -28,14 +28,14 @@ static inline const std::vector<std::string> unitsList
 std::string fffUnits = "furlong-firkin-fortnight";
 
 using Chooser = pex::model::Chooser<std::string>;
-using ChooserInterface = pex::interface::Chooser<void, std::string>;
+using ChooserControl = pex::control::Chooser<void, std::string>;
 
 using Firkins = pex::model::Value<bool>;
 
-using FirkinsInterface = pex::interface::Value<void, Firkins>;
+using FirkinsControl = pex::control::Value<void, Firkins>;
 
 using Units = pex::model::Value<std::string>;
-using UnitsInterface = pex::interface::Value<void, Units>;
+using UnitsControl = pex::control::Value<void, Units>;
 
 
 class ExampleApp: public wxApp
@@ -86,9 +86,9 @@ class ExampleFrame: public wxFrame
 {
 public:
     ExampleFrame(
-        ChooserInterface chooserInterface,
-        FirkinsInterface firkinsInterface,
-        UnitsInterface unitsInterface);
+        ChooserControl chooserControl,
+        FirkinsControl firkinsControl,
+        UnitsControl unitsControl);
 };
 
 
@@ -100,9 +100,9 @@ bool ExampleApp::OnInit()
 {
     ExampleFrame *exampleFrame =
         new ExampleFrame(
-            ChooserInterface(&this->unitsChooser_),
-            FirkinsInterface(&this->firkins_),
-            UnitsInterface(&this->units_));
+            ChooserControl(this->unitsChooser_),
+            FirkinsControl(this->firkins_),
+            UnitsControl(this->units_));
 
     exampleFrame->Show();
     return true;
@@ -111,22 +111,22 @@ bool ExampleApp::OnInit()
 
 
 ExampleFrame::ExampleFrame(
-    ChooserInterface chooserInterface,
-    FirkinsInterface firkinsInterface,
-    UnitsInterface unitsInterface)
+    ChooserControl chooserControl,
+    FirkinsControl firkinsControl,
+    UnitsControl unitsControl)
     :
     wxFrame(nullptr, wxID_ANY, "pex::wx::ComboBox Demo")
 {
     auto firkinsCheckbox =
-        new pex::wx::CheckBox<FirkinsInterface>(
+        new pex::wx::CheckBox<FirkinsControl>(
             this,
             "Show FFF",
-            firkinsInterface);
+            firkinsControl);
 
     auto comboBox =
-        new pex::wx::ComboBox<std::string>(this, chooserInterface);
+        new pex::wx::ComboBox<std::string>(this, chooserControl);
 
-    auto view = new pex::wx::View<UnitsInterface>(this, unitsInterface);
+    auto view = new pex::wx::View<UnitsControl>(this, unitsControl);
     auto topSizer = std::make_unique<wxBoxSizer>(wxVERTICAL);
 
     topSizer->Add(firkinsCheckbox, 0, wxALL, 10);

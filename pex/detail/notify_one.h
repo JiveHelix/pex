@@ -1,6 +1,8 @@
 #pragma once
 
 #include <optional>
+#include "pex/access_tag.h"
+#include "pex/detail/argument.h"
 
 
 namespace pex
@@ -9,7 +11,7 @@ namespace pex
 namespace detail
 {
 
-template<typename Notify>
+template<typename Notify, typename Access>
 class NotifyOne_
 {
 public:
@@ -17,6 +19,10 @@ public:
         typename Notify::Observer * const observer,
         typename Notify::Callable callable)
     {
+        static_assert(
+            HasAccess<GetTag, Access>,
+            "Cannot connect observer without read access.");
+
         this->notify_ = Notify(observer, callable);
     }
 
@@ -30,8 +36,8 @@ public:
 };
 
 
-template<typename Notify, typename = std::void_t<>>
-class NotifyOne : public NotifyOne_<Notify>
+template<typename Notify, typename Access, typename = std::void_t<>>
+class NotifyOne : public NotifyOne_<Notify, Access>
 {
 protected:
     void Notify_()
@@ -46,12 +52,12 @@ protected:
 
 // Selected if Notify has the member 'Type'.
 // This Notify_ method takes an argument.
-template<typename Notify>
-class NotifyOne<Notify, std::void_t<typename Notify::Type>>
-    : public NotifyOne_<Notify>
+template<typename Notify, typename Access>
+class NotifyOne<Notify, Access, std::void_t<typename Notify::Type>>
+    : public NotifyOne_<Notify, Access>
 {
 protected:
-    void Notify_(typename Notify::argumentType value)
+    void Notify_(ArgumentT<typename Notify::Type> value)
     {
         if (this->notify_)
         {

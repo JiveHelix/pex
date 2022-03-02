@@ -51,11 +51,11 @@ private:
 using WibbleSpinControl = pex::wx::SpinControlDouble<Wibble>;
 using WobbleSpinControl = pex::wx::SpinControlDouble<Wobble>;
 
-using WibbleRange = pex::interface::Range<void, Wibble>;
-using WobbleRange = pex::interface::Range<void, Wobble>;
+using WibbleRange = pex::control::Range<void, Wibble>;
+using WobbleRange = pex::control::Range<void, Wobble>;
 
-using WibbleValue = pex::interface::Value<void, typename Wibble::Value>;
-using WobbleValue = pex::interface::Value<void, typename Wobble::Value>;
+using WibbleValue = pex::control::Value<void, typename Wibble::Value>;
+using WobbleValue = pex::control::Value<void, typename Wobble::Value>;
 
 
 class ExampleFrame: public wxFrame
@@ -77,10 +77,10 @@ bool ExampleApp::OnInit()
 {
     ExampleFrame *exampleFrame =
         new ExampleFrame(
-            WibbleRange(&this->wibble_),
-            WibbleValue(this->wibble_.GetValueInterface()),
-            WobbleRange(&this->wobble_),
-            WobbleValue(this->wobble_.GetValueInterface()));
+            WibbleRange(this->wibble_),
+            WibbleValue(this->wibble_.GetValueControl()),
+            WobbleRange(this->wobble_),
+            WobbleValue(this->wobble_.GetValueControl()));
 
     exampleFrame->Show();
     return true;

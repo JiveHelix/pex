@@ -15,20 +15,20 @@ template<typename T, typename Model>
 class Observer
 {
 public:
-    using Interface =
-        pex::interface::Value<Observer<T, Model>, Model>;
+    using Control =
+        pex::control::Value<Observer<T, Model>, Model>;
 
     Observer(Model &model)
         :
-        interface_(&model),
-        observedValue{this->interface_.Get()}
+        control_(model),
+        observedValue{this->control_.Get()}
     {
-        this->interface_.Connect(this, &Observer::Observe_);
+        this->control_.Connect(this, &Observer::Observe_);
     }
 
     void Set(pex::ArgumentT<T> value)
     {
-        this->interface_.Set(value);
+        this->control_.Set(value);
     }
 
 private:
@@ -37,7 +37,7 @@ private:
         this->observedValue = value;
     }
 
-    Interface interface_;
+    Control control_;
 
 public:
     T observedValue;
@@ -167,7 +167,7 @@ TEMPLATE_TEST_CASE(
         REQUIRE(observer4.observedValue == Approx(original));
     }
 
-    // Interface values echo back to us, and fan out to all other observers.
+    // Control values echo back to us, and fan out to all other observers.
     observer1.Set(propagated);
 
     if constexpr (std::is_floating_point_v<TestType>)

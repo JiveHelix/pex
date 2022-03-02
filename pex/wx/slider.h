@@ -36,27 +36,27 @@ namespace wx
 
 template
 <
-    typename RangeInterface
+    typename RangeControl
 >
 class Slider : public wxSlider
 {
 public:
     using Base = wxSlider;
-    using This = Slider<RangeInterface>;
+    using This = Slider<RangeControl>;
 
     // Value and Bound are observed by This
     using Value = typename
-        pex::interface::ObservedValue
+        pex::control::ObservedValue
         <
             This,
-            typename RangeInterface::Value
+            typename RangeControl::Value
         >::Type;
 
     using Bound = typename
-        pex::interface::ObservedValue
+        pex::control::ObservedValue
         <
             This,
-            typename RangeInterface::Bound
+            typename RangeControl::Bound
         >::Type;
     
     static_assert(std::is_same_v<int, typename Value::Type>);
@@ -149,13 +149,13 @@ struct ViewTraits
 
 template
 <
-    typename RangeInterface,
-    typename ValueInterface,
+    typename RangeControl,
+    typename ValueControl,
     int viewPrecision = 6,
     typename Convert =
         pex::Converter
         <
-            typename ValueInterface::Type,
+            typename ValueControl::Type,
             ViewTraits<10, viewPrecision + 2, viewPrecision>
         >
 >
@@ -177,8 +177,8 @@ public:
     {
         // Create slider and view as children of the this wxWindow.
         // They are memory managed by the the wxWindow from their creation.
-        auto slider = new Slider<RangeInterface>(this, range, style);
-        auto view = new View<ValueInterface, Convert>(this, value);
+        auto slider = new Slider<RangeControl>(this, range, style);
+        auto view = new View<ValueControl, Convert>(this, value);
 
         // Use a mono-spaced font for display so that the width of the view
         // remains constant as the value changes.

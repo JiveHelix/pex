@@ -112,7 +112,7 @@ class Shortcut
 {
 public:
     // We are not observing this signal, so the Observer can be void.
-    using SignalType = pex::interface::Signal<void>;
+    using SignalType = pex::control::Signal<void>;
 
     Shortcut(
         SignalType signal,

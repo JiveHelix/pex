@@ -1,7 +1,7 @@
 /**
   * @file value.h
   *
-  * @brief Implements model and interface Value nodes.
+  * @brief Implements model and control Value nodes.
   *
   * @author Jive Helix (jivehelix@gmail.com)
   * @date 22 Jul 2020
@@ -13,4 +13,4 @@
 
 
 #include "pex/model_value.h"
-#include "pex/interface_value.h"
+#include "pex/control_value.h"

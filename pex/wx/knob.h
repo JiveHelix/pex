@@ -13,26 +13,26 @@ namespace wx
 {
 
 
-template<typename RangeInterface>
+template<typename RangeControl>
 class Knob: public wxPanel
 {
 public:
     using Base = wxPanel;
-    using This = Knob<RangeInterface>;
+    using This = Knob<RangeControl>;
 
     // Value and Bound are observed by This
     using Value = typename
-        pex::interface::ObservedValue
+        pex::control::ObservedValue
         <
             This,
-            typename RangeInterface::Value
+            typename RangeControl::Value
         >::Type;
 
     using Bound = typename
-        pex::interface::ObservedValue
+        pex::control::ObservedValue
         <
             This,
-            typename RangeInterface::Bound
+            typename RangeControl::Bound
         >::Type;
 
     Knob(wxWindow *parent)

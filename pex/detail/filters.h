@@ -30,7 +30,7 @@ template<typename T, typename Filter, typename = void>
 struct GetterIsStatic: std::false_type {};
 
 template<typename T>
-struct GetterIsStatic<T, void, void>: std::false_type {};
+struct GetterIsStatic<T, NoFilter, void>: std::false_type {};
 
 template<typename T, typename Filter>
 struct GetterIsStatic
@@ -45,7 +45,7 @@ template<typename T, typename Filter, typename = void>
 struct GetterIsMember: std::false_type {};
 
 template<typename T>
-struct GetterIsMember<T, void, void>: std::false_type {};
+struct GetterIsMember<T, NoFilter, void>: std::false_type {};
 
 template<typename T, typename Filter>
 struct GetterIsMember
@@ -71,7 +71,7 @@ struct FilteredType
 };
 
 template<typename T>
-struct FilteredType<T, void, void>
+struct FilteredType<T, NoFilter, void>
 {
     using Type = T;
 };
@@ -106,7 +106,7 @@ template<typename T, typename Filter, typename = void>
 struct SetterIsStatic: std::false_type {};
 
 template<typename T>
-struct SetterIsStatic<T, void, void>: std::false_type {};
+struct SetterIsStatic<T, NoFilter, void>: std::false_type {};
 
 template<typename T, typename Filter>
 struct SetterIsStatic
@@ -129,7 +129,7 @@ template<typename T, typename Filter, typename = void>
 struct SetterIsMember: std::false_type {};
 
 template<typename T>
-struct SetterIsMember<T, void, void>: std::false_type {};
+struct SetterIsMember<T, NoFilter, void>: std::false_type {};
 
 template<typename T, typename Filter>
 struct SetterIsMember
@@ -156,7 +156,7 @@ template<typename T, typename Filter, typename = void>
 struct GetterIsValid : std::false_type {};
 
 template<typename T>
-struct GetterIsValid<T, void, void> : std::false_type {};
+struct GetterIsValid<T, NoFilter, void> : std::false_type {};
 
 template<typename T, typename Filter>
 struct GetterIsValid
@@ -178,7 +178,7 @@ template<typename T, typename Filter, typename = void>
 struct SetterIsValid : std::false_type {};
 
 template<typename T>
-struct SetterIsValid<T, void, void> : std::false_type {};
+struct SetterIsValid<T, NoFilter, void> : std::false_type {};
 
 template<typename T, typename Filter>
 struct SetterIsValid
@@ -272,14 +272,14 @@ template
     typename Access,
     typename = void
 >
-struct FilterIsVoidOrStatic : std::false_type {};
+struct FilterIsNoneOrStatic : std::false_type {};
 
 /** Filter can be void **/
 template<typename T, typename Access>
-struct FilterIsVoidOrStatic<T, void, Access, void> : std::true_type {};
+struct FilterIsNoneOrStatic<T, NoFilter, Access, void> : std::true_type {};
 
 template<typename T, typename Filter, typename Access>
-struct FilterIsVoidOrStatic
+struct FilterIsNoneOrStatic
 <
     T,
     Filter,
@@ -346,14 +346,14 @@ template
     typename Access,
     typename = void
 >
-struct FilterIsVoidOrValid : std::false_type {};
+struct FilterIsNoneOrValid : std::false_type {};
 
 /** Filter can be void **/
 template<typename T, typename Access>
-struct FilterIsVoidOrValid<T, void, Access, void> : std::true_type {};
+struct FilterIsNoneOrValid<T, NoFilter, Access, void> : std::true_type {};
 
 template<typename T, typename Filter, typename Access>
-struct FilterIsVoidOrValid
+struct FilterIsNoneOrValid
 <
     T,
     Filter,

@@ -24,7 +24,7 @@ namespace detail
 {
 
 template<typename Observer_, typename Callable_>
-class Notify_: jive::Compare<Notify_<Observer_, Callable_>>
+class Connection: jive::Compare<Connection<Observer_, Callable_>>
 {
 public:
     using Observer = Observer_;
@@ -33,7 +33,8 @@ public:
     static constexpr auto IsMemberFunction =
         std::is_member_function_pointer_v<Callable>;
 
-    Notify_(Observer * const observer, Callable callable)
+
+    Connection(Observer * const observer, Callable callable)
         :
         observer_(observer),
         callable_(callable)
@@ -42,7 +43,7 @@ public:
     }
 
     /** Conversion from observer pointer for comparisons. **/
-    explicit Notify_(Observer * const observer)
+    explicit Connection(Observer * const observer)
         :
         observer_(observer),
         callable_{}
@@ -50,7 +51,7 @@ public:
 
     }
 
-    Notify_(const Notify_ &other)
+    Connection(const Connection &other)
         :
         observer_(other.observer_),
         callable_(other.callable_)
@@ -58,7 +59,7 @@ public:
 
     }
 
-    Notify_ & operator=(const Notify_ &other)
+    Connection & operator=(const Connection &other)
     {
         this->observer_ = other.observer_;
         this->callable_ = other.callable_;
@@ -68,7 +69,7 @@ public:
 
     /** Compare using the memory address of observer_ **/
     template<typename Operator>
-    bool Compare(const Notify_ &other) const
+    bool Compare(const Connection &other) const
     {
         return Operator::Call(this->observer_, other.observer_);
     }

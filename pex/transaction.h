@@ -16,7 +16,7 @@
 #pragma once
 
 
-#include "pex/detail/not_null.h"
+#include "pex/detail/require_has_value.h"
 
 
 namespace pex
@@ -61,22 +61,22 @@ public:
     Type & operator * ()
     {
         static_assert(
-            std::is_same_v<void, typename Model::Filter>,
+            std::is_same_v<NoFilter, typename Model::Filter>,
             "Direct access to underlying value is incompatible with filters.");
 
-        NOT_NULL(this->model_);
+        REQUIRE_HAS_VALUE(this->model_);
         return this->model_->value_;
     }
 
     Type Get() const
     {
-        NOT_NULL(this->model_);
+        REQUIRE_HAS_VALUE(this->model_);
         return this->model_->Get();
     }
 
     void Set(ArgumentT<Type> value)
     {
-        NOT_NULL(this->model_);
+        REQUIRE_HAS_VALUE(this->model_);
         this->model_->SetWithoutNotify_(value);
     }
 

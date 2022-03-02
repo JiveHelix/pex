@@ -1,7 +1,7 @@
 /**
   * @file check_box.h
   *
-  * @brief A CheckBox backed by a pex::interface::Value.
+  * @brief A CheckBox backed by a pex::control::Value.
   *
   * @author Jive Helix (jivehelix@gmail.com)
   * @date 07 Aug 2020
@@ -65,7 +65,7 @@ public:
 
 private:
     using Observer = CheckBox<Value>;
-    typename pex::interface::ObservedValue<Observer, Value>::Type value_;
+    typename pex::control::ObservedValue<Observer, Value>::Type value_;
     size_t id_;
 };
 

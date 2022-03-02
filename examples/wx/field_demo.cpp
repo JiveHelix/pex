@@ -31,9 +31,9 @@ struct AngleFilter
 };
 
 using AngleRadians = pex::model::FilteredValue<double, AngleFilter>;
-using RadiansInterface = pex::interface::Value<void, AngleRadians>;
+using RadiansControl = pex::control::Value<void, AngleRadians>;
 
-/** Allow an interface to use degrees, while the model uses radians. **/
+/** Allow a control to use degrees, while the model uses radians. **/
 struct DegreesFilter
 {
     /** Convert to degrees on retrieval **/
@@ -49,8 +49,8 @@ struct DegreesFilter
     }
 };
 
-using DegreesInterface =
-    pex::interface::FilteredValue<void, AngleRadians, DegreesFilter>;
+using DegreesControl =
+    pex::control::FilteredValue<void, AngleRadians, DegreesFilter>;
 
 
 class ExampleApp: public wxApp
@@ -79,7 +79,7 @@ private:
 class ExampleFrame: public wxFrame
 {
 public:
-    ExampleFrame(RadiansInterface value);
+    ExampleFrame(RadiansControl value);
 };
 
 
@@ -90,50 +90,50 @@ wxshimIMPLEMENT_APP(ExampleApp)
 bool ExampleApp::OnInit()
 {
     ExampleFrame *exampleFrame =
-        new ExampleFrame(RadiansInterface(&this->angle_));
+        new ExampleFrame(RadiansControl(this->angle_));
 
     exampleFrame->Show();
     return true;
 }
 
 
-ExampleFrame::ExampleFrame(RadiansInterface interface)
+ExampleFrame::ExampleFrame(RadiansControl control)
     :
     wxFrame(nullptr, wxID_ANY, "pex::wx::Field Demo")
 {
     using namespace pex::wx;
 
     auto radiansView =
-        new LabeledWidget(
+        LabeledWidget(
             this,
-            MakeWidget<View, RadiansInterface>(interface),
+            MakeWidget<View, RadiansControl>(control),
             "Radians:");
 
     auto degreesView =
-        new LabeledWidget(
+        LabeledWidget(
             this,
-            MakeWidget<View, DegreesInterface>(interface),
+            MakeWidget<View, DegreesControl>(control),
             "Degrees:");
 
     auto radiansEntry =
-        new LabeledWidget(
+        LabeledWidget(
             this,
-            MakeWidget<Field, RadiansInterface>(interface),
+            MakeWidget<Field, RadiansControl>(control),
             "Radians:");
 
     auto degreesEntry =
-        new LabeledWidget(
+        LabeledWidget(
             this,
-            MakeWidget<Field, DegreesInterface>(interface),
+            MakeWidget<Field, DegreesControl>(control),
             "Degrees:");
 
     auto topSizer = std::make_unique<wxBoxSizer>(wxVERTICAL);
     auto flags = wxLEFT | wxBOTTOM | wxRIGHT | wxEXPAND;
 
-    topSizer->Add(radiansView->Layout().release(), 0, wxALL, 10);
-    topSizer->Add(degreesView->Layout().release(), 0, flags, 10);
-    topSizer->Add(radiansEntry->Layout().release(), 0, flags, 10);
-    topSizer->Add(degreesEntry->Layout().release(), 0, flags, 10);
+    topSizer->Add(radiansView.Layout().release(), 0, wxALL, 10);
+    topSizer->Add(degreesView.Layout().release(), 0, flags, 10);
+    topSizer->Add(radiansEntry.Layout().release(), 0, flags, 10);
+    topSizer->Add(degreesEntry.Layout().release(), 0, flags, 10);
 
     this->SetSizerAndFit(topSizer.release());
 }

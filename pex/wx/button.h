@@ -1,7 +1,7 @@
 /**
   * @file button.h
   *
-  * @brief A Button backed by a pex::interface::Value<bool>.
+  * @brief A Button backed by a pex::control::Value<bool>.
   *
   * @author Jive Helix (jivehelix@gmail.com)
   * @date 07 Aug 2020
@@ -33,7 +33,7 @@ public:
     Button(
         wxWindow *parent,
         const std::string &label,
-        pex::interface::Signal<void> signal)
+        pex::control::Signal<void> signal)
         :
         Base(parent, wxID_ANY, label),
         signal_(signal)
@@ -47,7 +47,7 @@ public:
     }
 
 private:
-    pex::interface::Signal<Button> signal_;
+    pex::control::Signal<Button> signal_;
 };
 
 

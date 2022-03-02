@@ -15,9 +15,9 @@
 #include "pex/wx/view.h"
 
 using IsChecked = pex::model::Value<bool>;
-using IsCheckedInterface = pex::interface::Value<void, IsChecked>;
+using IsCheckedControl = pex::control::Value<void, IsChecked>;
 using Message = pex::model::Value<std::string>;
-using MessageInterface = pex::interface::Value<void, Message>;
+using MessageControl = pex::control::Value<void, Message>;
 
 class ExampleApp: public wxApp
 {
@@ -26,9 +26,9 @@ public:
         :
         isChecked_{false},
         message_{"Not checked"},
-        isCheckedInterface_{&this->isChecked_}
+        isCheckedControl_{this->isChecked_}
     {
-        this->isCheckedInterface_.Connect(this, &ExampleApp::OnIsChecked_);
+        this->isCheckedControl_.Connect(this, &ExampleApp::OnIsChecked_);
     }
 
     bool OnInit() override;
@@ -49,14 +49,14 @@ private:
     IsChecked isChecked_;
     Message message_;
 
-    pex::interface::Value<ExampleApp, IsChecked> isCheckedInterface_;
+    pex::control::Value<ExampleApp, IsChecked> isCheckedControl_;
 };
 
 
 class ExampleFrame: public wxFrame
 {
 public:
-    ExampleFrame(IsCheckedInterface isChecked, MessageInterface message);
+    ExampleFrame(IsCheckedControl isChecked, MessageControl message);
 };
 
 
@@ -68,8 +68,8 @@ bool ExampleApp::OnInit()
 {
     ExampleFrame *exampleFrame =
         new ExampleFrame(
-            IsCheckedInterface(&this->isChecked_),
-            MessageInterface(&this->message_));
+            IsCheckedControl(this->isChecked_),
+            MessageControl(this->message_));
 
     exampleFrame->Show();
     return true;
@@ -77,15 +77,15 @@ bool ExampleApp::OnInit()
 
 
 ExampleFrame::ExampleFrame(
-    IsCheckedInterface isChecked,
-    MessageInterface message)
+    IsCheckedControl isChecked,
+    MessageControl message)
     :
     wxFrame(nullptr, wxID_ANY, "pex::wx::CheckBox Demo")
 {
     auto checkBox =
-        new pex::wx::CheckBox<IsCheckedInterface>(this, "Check me", isChecked);
+        new pex::wx::CheckBox<IsCheckedControl>(this, "Check me", isChecked);
 
-    auto view = new pex::wx::View<MessageInterface>(this, message);
+    auto view = new pex::wx::View<MessageControl>(this, message);
 
     auto topSizer = std::make_unique<wxBoxSizer>(wxVERTICAL);
 

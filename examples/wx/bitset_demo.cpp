@@ -23,7 +23,7 @@ constexpr auto bitCount = 5;
 using Bitset = std::bitset<bitCount>;
 
 using BitsetModel = pex::model::Value<Bitset>;
-using BitsetInterface = pex::interface::Value<void, BitsetModel>;
+using BitsetControl = pex::control::Value<void, BitsetModel>;
 
 
 struct Model
@@ -39,15 +39,15 @@ struct Model
 };
 
 
-struct Interface
+struct Control
 {
-    BitsetInterface bitset;
-    pex::wx::BitsetFlagsInterface<bitCount> flags;
+    BitsetControl bitset;
+    pex::wx::BitsetFlagsControl<bitCount> flags;
 
-    Interface(Model &model)
+    Control(Model &model)
         :
-        bitset(&model.bitset),
-        flags(&model.bitset)
+        bitset(model.bitset),
+        flags(model.bitset)
     {
 
     }
@@ -60,7 +60,7 @@ public:
     ExampleApp()
         :
         model_{},
-        interface_(this->model_)
+        control_(this->model_)
     {
 
     }
@@ -69,14 +69,14 @@ public:
 
 private:
     Model model_;
-    Interface interface_;
+    Control control_;
 };
 
 
 class ExampleFrame: public wxFrame
 {
 public:
-    ExampleFrame(Interface interface);
+    ExampleFrame(Control control);
 };
 
 
@@ -86,14 +86,14 @@ wxshimIMPLEMENT_APP(ExampleApp)
 
 bool ExampleApp::OnInit()
 {
-    ExampleFrame *exampleFrame = new ExampleFrame(this->interface_);
+    ExampleFrame *exampleFrame = new ExampleFrame(this->control_);
 
     exampleFrame->Show();
     return true;
 }
 
 
-ExampleFrame::ExampleFrame(Interface interface)
+ExampleFrame::ExampleFrame(Control control)
     :
     wxFrame(nullptr, wxID_ANY, "Bitset Demo")
 {
@@ -102,13 +102,13 @@ ExampleFrame::ExampleFrame(Interface interface)
     auto bitsetView =
         LabeledWidget(
             this,
-            MakeWidget<View, BitsetInterface>(interface.bitset),
+            MakeWidget<View, BitsetControl>(control.bitset),
             "Bitset (view):");
 
     auto bitsetField =
         LabeledWidget(
             this,
-            MakeWidget<Field, BitsetInterface>(interface.bitset),
+            MakeWidget<Field, BitsetControl>(control.bitset),
             "Bitset (field):");
 
     auto pointSize = bitsetView.GetLabel()->GetFont().GetPointSize();
@@ -121,7 +121,7 @@ ExampleFrame::ExampleFrame(Interface interface)
             this,
             MakeBitsetCheckBoxes<bitCount>
             {
-                interface.flags,
+                control.flags,
             },
             "Bitset (default names):");
 
@@ -130,7 +130,7 @@ ExampleFrame::ExampleFrame(Interface interface)
             this,
             MakeBitsetCheckBoxes<bitCount>
             {
-                interface.flags,
+                control.flags,
                 {"Enable", "Filter", "Fast", "Slow", "?"}
             },
             "Bitset (customized names):");

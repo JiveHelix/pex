@@ -69,29 +69,30 @@ private:
 };
 
 
-template<template<typename...> typename Widget, typename Interface>
+/** Stores the control and style arguments to defer creation of the widget. **/
+template<template<typename...> typename Widget, typename Control>
 struct MakeWidget
 {
-    using Type = Widget<Interface>;
+    using Type = Widget<Control>;
 
-    Interface interface;
-    long style = 0;
+    Control control_;
+    long style_ = 0;
 
     template<typename Compatible>
-    MakeWidget(Compatible interface_, long style_ = 0)
+    MakeWidget(Compatible control, long style = 0)
         :
-        interface(interface_),
-        style(style_)
+        control_(control),
+        style_(style)
     {
-        static_assert(pex::IsCompatibleV<Interface, Compatible>);
+        static_assert(pex::IsCompatibleV<Control, Compatible>);
     }
 
     Type * operator()(wxWindow *parent) const
     {
         return new Type(
             parent,
-            this->interface,
-            this->style);
+            this->control_,
+            this->style_);
     }
 };
 

@@ -2,7 +2,7 @@
   * @file field.h
   *
   * @brief A field for textual or numeric entry, connected to
-  * a pex::interface::Value.
+  * a pex::control::Value.
   *
   * @author Jive Helix (jivehelix@gmail.com)
   * @date 08 Aug 2020
@@ -34,8 +34,6 @@ class Field: public wxControl
 public:
     using Base = wxControl;
     using Type = typename Value::Type;
-    using Model = typename Value::Model;
-
     using Convert = Converter<Type, ConverterTraits>;
 
     template<typename CompatibleValue>
@@ -112,7 +110,7 @@ public:
     }
 
     using Observer = Field<Value, ConverterTraits>;
-    typename pex::interface::ObservedValue<Observer, Value>::Type value_;
+    typename pex::control::ObservedValue<Observer, Value>::Type value_;
 
     std::string displayedString_;
     wxTextCtrl *textControl_;

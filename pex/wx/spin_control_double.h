@@ -33,7 +33,7 @@ class SpinControlDouble : public wxSpinCtrlDouble
 public:
     using Base = wxSpinCtrlDouble;
     using This = SpinControlDouble<RangeModel>;
-    using Range = ::pex::interface::Range<This, RangeModel>;
+    using Range = ::pex::control::Range<This, RangeModel>;
     using Value = typename Range::Value;
     using Bound = typename Range::Bound;
     using Type = typename Value::Type;

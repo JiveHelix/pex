@@ -50,10 +50,10 @@ private:
 
 
 // Do not filter the position.
-using PositionInterface = pex::interface::Range<void, Position>;
+using PositionControl = pex::control::Range<void, Position>;
 
-// This is the interface node used to display position's value.
-using PositionValue = pex::interface::Value<void, Position::Value>;
+// This is the control node used to display position's value.
+using PositionValue = pex::control::Value<void, Position::Value>;
 
 
 /**
@@ -80,33 +80,33 @@ struct PlaybackSpeedFilter
 };
 
 
-using PlaybackSpeedInterface = ::pex::interface::Range<
+using PlaybackSpeedControl = ::pex::control::Range<
     void,
     PlaybackSpeed,
     PlaybackSpeedFilter<float>>;
 
 // The unfiltered value used to display playback speed
 using PlaybackSpeedValue =
-    pex::interface::Value<void, typename PlaybackSpeed::Value>;
+    pex::control::Value<void, typename PlaybackSpeed::Value>;
 
 
 const int precision = 3;
 
 using PositionSlider =
-    pex::wx::SliderAndValue<PositionInterface, PositionValue, precision>;
+    pex::wx::SliderAndValue<PositionControl, PositionValue, precision>;
 
 
 using PlaybackSpeedSlider =
-    pex::wx::SliderAndValue<PlaybackSpeedInterface, PlaybackSpeedValue>;
+    pex::wx::SliderAndValue<PlaybackSpeedControl, PlaybackSpeedValue>;
 
 
 class ExampleFrame: public wxFrame
 {
 public:
     ExampleFrame(
-        PositionInterface positionRange,
+        PositionControl positionRange,
         PositionValue positionValue,
-        PlaybackSpeedInterface playbackSpeedRange,
+        PlaybackSpeedControl playbackSpeedRange,
         PlaybackSpeedValue playbackSpeedValue);
 };
 
@@ -119,10 +119,10 @@ bool ExampleApp::OnInit()
 {
     ExampleFrame *exampleFrame =
         new ExampleFrame(
-            PositionInterface(&this->position_),
-            PositionValue(this->position_.GetValueInterface()),
-            PlaybackSpeedInterface(&this->playbackSpeed_),
-            PlaybackSpeedValue(this->playbackSpeed_.GetValueInterface()));
+            PositionControl(this->position_),
+            PositionValue(this->position_.GetValueControl()),
+            PlaybackSpeedControl(this->playbackSpeed_),
+            PlaybackSpeedValue(this->playbackSpeed_.GetValueControl()));
 
     exampleFrame->Show();
     return true;
@@ -131,9 +131,9 @@ bool ExampleApp::OnInit()
 
 
 ExampleFrame::ExampleFrame(
-    PositionInterface positionRange,
+    PositionControl positionRange,
     PositionValue positionValue,
-    PlaybackSpeedInterface playbackSpeedRange,
+    PlaybackSpeedControl playbackSpeedRange,
     PlaybackSpeedValue playbackSpeedValue)
     :
     wxFrame(nullptr, wxID_ANY, "pex::wx::Slider Demo")

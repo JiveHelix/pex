@@ -3,6 +3,8 @@
 #include <algorithm>
 #include <type_traits>
 #include <vector>
+#include "pex/access_tag.h"
+#include "pex/detail/argument.h"
 
 
 namespace pex
@@ -11,22 +13,25 @@ namespace pex
 namespace detail
 {
 
-template<typename Notify>
+template<typename Notify, typename Access>
 class NotifyMany_
 {
 public:
-
     void Connect(
         typename Notify::Observer * const observer,
         typename Notify::Callable callable)
     {
+        static_assert(
+            HasAccess<GetTag, Access>,
+            "Cannot connect observer without read access.");
+
         auto callback = Notify(observer, callable);
 
         // sorted insert
-        this->notifiers_.insert(
+        this->connections_.insert(
             std::upper_bound(
-                this->notifiers_.begin(),
-                this->notifiers_.end(),
+                this->connections_.begin(),
+                this->connections_.end(),
                 callback),
             callback);
     }
@@ -35,47 +40,49 @@ public:
     void Disconnect(typename Notify::Observer * const observer)
     {
         auto [first, last] = std::equal_range(
-            this->notifiers_.begin(),
-            this->notifiers_.end(),
+            this->connections_.begin(),
+            this->connections_.end(),
             Notify(observer));
 
-        this->notifiers_.erase(first, last);
+        this->connections_.erase(first, last);
     }
 
     size_t GetNotifierCount() const
     {
-        return this->notifiers_.size();
+        return this->connections_.size();
     }
 
 protected:
-    std::vector<Notify> notifiers_;
+    std::vector<Notify> connections_;
 };
 
 
-template<typename Notify, typename = std::void_t<>>
-class NotifyMany : public NotifyMany_<Notify>
+/* Specialized for notify callbacks that do not accept an argument */
+template<typename Notify, typename Access, typename = std::void_t<>>
+class NotifyMany : public NotifyMany_<Notify, Access>
 {
 protected:
     void Notify_()
     {
-        for (auto &notifier: this->notifiers_)
+        for (auto &connection: this->connections_)
         {
-            notifier();
+            connection();
         }
     }
 };
 
 
-template<typename Notify>
-class NotifyMany<Notify, std::void_t<typename Notify::Type>>
-    : public NotifyMany_<Notify>
+/* Specialized for notify callbacks that accept an argument. */
+template<typename Notify, typename Access>
+class NotifyMany<Notify, Access, std::void_t<typename Notify::Type>>
+    : public NotifyMany_<Notify, Access>
 {
 protected:
-    void Notify_(typename Notify::argumentType value)
+    void Notify_(ArgumentT<typename Notify::Type> value)
     {
-        for (auto &notifier: this->notifiers_)
+        for (auto &connection: this->connections_)
         {
-            notifier(value);
+            connection(value);
         }
     }
 };

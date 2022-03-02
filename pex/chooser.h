@@ -33,16 +33,16 @@ public:
     using Selection = ::pex::model::Value<size_t>;
     using Choices = ::pex::model::Value<std::vector<T>>;
 
-    using SelectionInterface =
-        ::pex::interface::Value
+    using SelectionControl =
+        ::pex::control::Value
         <
             void,
             Selection,
             ::pex::GetAndSetTag
         >;
 
-    using ChoicesInterface =
-        ::pex::interface::Value
+    using ChoicesControl =
+        ::pex::control::Value
         <
             void,
             Choices,
@@ -134,19 +134,19 @@ public:
         return this->choices_.Get();
     }
 
-    SelectionInterface GetSelectionInterface()
+    SelectionControl GetSelectionControl()
     {
-        return SelectionInterface(&this->selectedIndex_);
+        return SelectionControl(this->selectedIndex_);
     }
 
-    ChoicesInterface GetChoicesInterface()
+    ChoicesControl GetChoicesControl()
     {
-        return ChoicesInterface(&this->choices_);
+        return ChoicesControl(this->choices_);
     }
 
     void Connect(
         void * context,
-        typename Selection::Notify::Callable callable)
+        typename Selection::Callable callable)
     {
         this->selectedIndex_.Connect(context, callable);
     }
@@ -160,7 +160,7 @@ private:
 } // namespace model
 
 
-namespace interface
+namespace control
 {
 
 template<typename Observer, typename T>
@@ -170,20 +170,20 @@ struct Chooser
         typename ObservedValue
         <
             Observer,
-            typename ::pex::model::Chooser<T>::SelectionInterface
+            typename ::pex::model::Chooser<T>::SelectionControl
         >::Type;
 
     using Choices =
         typename ObservedValue
         <
             Observer,
-            typename ::pex::model::Chooser<T>::ChoicesInterface
+            typename ::pex::model::Chooser<T>::ChoicesControl
         >::Type;
 
-    Chooser(::pex::model::Chooser<T> * model)
+    Chooser(::pex::model::Chooser<T> & model)
         :
-        selection(model->GetSelectionInterface()),
-        choices(model->GetChoicesInterface())
+        selection(model.GetSelectionControl()),
+        choices(model.GetChoicesControl())
     {
 
     }
@@ -192,6 +192,6 @@ struct Chooser
     Choices choices;
 };
 
-} // namespace interface
+} // namespace control
 
 } // namespace pex

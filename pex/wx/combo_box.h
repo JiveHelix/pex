@@ -30,29 +30,29 @@ class ComboBox : public wxComboBox
 {
 public:
     using Base = wxComboBox;
-    using Interface = typename ::pex::interface::Chooser<ComboBox, T>;
-    using Selection = typename Interface::Selection;
-    using Choices = typename Interface::Choices;
+    using Control = typename ::pex::control::Chooser<ComboBox, T>;
+    using Selection = typename Control::Selection;
+    using Choices = typename Control::Choices;
     using ChoicesVector = typename Choices::Type;
     using WxAdapter = WxChooser<T, Convert>;
 
     ComboBox(
         wxWindow *parent,
-        ::pex::interface::Chooser<void, T> interface,
+        ::pex::control::Chooser<void, T> control,
         long style = 0)
         :
         Base(
             parent,
             wxID_ANY,
             WxAdapter::GetSelectionAsString(
-                interface.selection.Get(),
-                interface.choices.Get()),
+                control.selection.Get(),
+                control.choices.Get()),
             wxDefaultPosition,
             wxDefaultSize,
-            WxAdapter::GetChoicesAsStrings(interface.choices.Get()),
+            WxAdapter::GetChoicesAsStrings(control.choices.Get()),
             style | wxCB_READONLY),
-        selection_(interface.selection),
-        choices_(interface.choices)
+        selection_(control.selection),
+        choices_(control.choices)
     {
         this->selection_.Connect(this, &ComboBox::OnSelectionChanged_);
         this->choices_.Connect(this, &ComboBox::OnChoicesChanged_);

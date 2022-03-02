@@ -12,24 +12,26 @@
 #pragma once
 
 #include <type_traits>
+#include <optional>
 
+#include "pex/no_filter.h"
 #include "pex/detail/notify_one.h"
 #include "pex/detail/notify_many.h"
-#include "pex/detail/value_notify.h"
+#include "pex/detail/value_connection.h"
 #include "pex/detail/filters.h"
 #include "pex/detail/value_detail.h"
 #include "pex/access_tag.h"
 #include "pex/reference.h"
 #include "pex/transaction.h"
-#include "pex/detail/not_null.h"
+#include "pex/detail/require_has_value.h"
 
 
 namespace pex
 {
 
 template<typename Observer, typename T, typename Filter>
-using Notification =
-    detail::ValueNotify
+using ValueConnection =
+    detail::ValueConnection
     <
         Observer,
         typename detail::FilteredType<T, Filter>::Type
@@ -44,16 +46,16 @@ namespace model
 template<typename T, typename Filter_>
 class Value_
     :
-    // Callback values will be the type returned by the Filter, or T if
+    //Callback values will be the type returned by the Filter, or T if
     // the filter is void.
-    public detail::NotifyMany<Notification<void, T, Filter_>>
+    public detail::NotifyMany<ValueConnection<void, T, Filter_>, GetAndSetTag>
 {
-    static_assert(detail::FilterIsVoidOrValid<T, Filter_, SetTag>::value);
+    static_assert(detail::FilterIsNoneOrValid<T, Filter_, SetTag>::value);
 
 public:
     using Type = T;
     using Filter = Filter_;
-    using Notify = Notification<void, T, Filter>;
+    using Callable = typename ValueConnection<void, T, Filter>::Callable;
 
     // All model nodes have writable access.
     using Access = GetAndSetTag;
@@ -81,11 +83,11 @@ public:
         value_{this->FilterOnSet_(value)}
     {
         static_assert(
-            detail::FilterIsVoidOrStatic<T, Filter, SetTag>::value,
+            detail::FilterIsNoneOrStatic<T, Filter, SetTag>::value,
             "A filter with member functions requires a pointer.");
     }
 
-    Value_(T value, Filter *filter)
+    Value_(T value, Filter filter)
         :
         filter_{filter},
         value_{this->FilterOnSet_(value)}
@@ -95,7 +97,7 @@ public:
             "Static or void Filter does not require a filter instance.");
     }
 
-    Value_(Filter *filter)
+    Value_(Filter filter)
         :
         filter_{filter},
         value_{}
@@ -120,37 +122,30 @@ public:
         return this->value_;
     }
 
-    void SetFilter(Filter *filter)
+    explicit operator T () const
+    {
+        return this->value_;
+    }
+
+    Value_ & operator=(ArgumentT<T> value)
+    {
+        this->Set(value);
+        return *this;
+    }
+
+    void SetFilter(Filter filter)
     {
         static_assert(
             detail::FilterIsMember<T, Filter>::value,
             "Static or void Filter does not require a filter instance.");
 
-        NOT_NULL(filter);
         this->filter_ = filter;
-    }
-
-    /** If Filter requires a Filter instance, and it has been set, then bool
-     ** conversion returns true.
-     **
-     ** If the Filter is void or static, it always returns true.
-     **/
-    explicit operator bool () const
-    {
-        if constexpr (detail::FilterIsMember<T, Filter>::value)
-        {
-            return this->filter_ != nullptr;
-        }
-        else
-        {
-            return true;
-        }
     }
 
 private:
     void SetWithoutNotify_(ArgumentT<T> value)
     {
-        if constexpr (std::is_void_v<Filter>)
+        if constexpr (std::is_same_v<NoFilter, Filter>)
         {
             this->value_ = value;
         }
@@ -167,13 +162,13 @@ private:
 
     T FilterOnSet_(ArgumentT<T> value) const
     {
-        if constexpr (std::is_same_v<void, Filter>)
+        if constexpr (std::is_same_v<NoFilter, Filter>)
         {
             return value;
         }
         else if constexpr (detail::SetterIsMember<T, Filter>::value)
         {
-            NOT_NULL(this->filter_);
+            REQUIRE_HAS_VALUE(this->filter_);
             return this->filter_->Set(value);
         }
         else
@@ -183,16 +178,15 @@ private:
         }
     }
 
-    T FilterOnGet_(
-        ArgumentT<T> value) const
+    T FilterOnGet_(ArgumentT<T> value) const
     {
-        if constexpr (std::is_same_v<void, Filter>)
+        if constexpr (std::is_same_v<NoFilter, Filter>)
         {
             return value;
         }
         else if constexpr (detail::GetterIsMember<T, Filter>::value)
         {
-            NOT_NULL(this->filter_);
+            REQUIRE_HAS_VALUE(this->filter_);
             return this->filter_->Get(value);
         }
         else
@@ -202,19 +196,26 @@ private:
         }
     }
 
-    Filter * filter_;
+    std::optional<Filter> filter_;
     T value_;
 };
 
 
 template<typename T>
-using Value = Value_<T, void>;
+using Value = Value_<T, NoFilter>;
 
 template<typename T, typename Filter>
 using FilteredValue = Value_<T, Filter>;
 
 
 } // namespace model
+
+
+template<typename ...T>
+struct IsModel: std::false_type {};
+
+template<typename ...T>
+struct IsModel<pex::model::Value_<T...>>: std::true_type {};
 
 
 } // namespace pex

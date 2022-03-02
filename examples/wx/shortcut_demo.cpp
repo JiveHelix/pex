@@ -15,10 +15,10 @@
 #include "pex/wx/wxshim.h"
 #include "pex/signal.h"
 #include "pex/value.h"
-#include "pex/initialize.h"
 #include "pex/wx/shortcut.h"
 #include "pex/wx/view.h"
 #include "fields/fields.h"
+#include "fields/assign.h"
 
 
 template<typename T>
@@ -86,19 +86,19 @@ struct ApplicationModel
 };
 
 
-struct ApplicationInterface
+struct ApplicationControl
 {
-    pex::interface::Signal<void> sayWhatsUp;
-    pex::interface::Signal<void> sayHello;
-    pex::interface::Signal<void> sayFortyTwo;
-    pex::interface::Signal<void> frobnicate;
-    pex::interface::Value<void, pex::model::Value<std::string>> message;
+    pex::control::Signal<void> sayWhatsUp;
+    pex::control::Signal<void> sayHello;
+    pex::control::Signal<void> sayFortyTwo;
+    pex::control::Signal<void> frobnicate;
+    pex::control::Value<void, pex::model::Value<std::string>> message;
 
-    ApplicationInterface() = default;
+    ApplicationControl() = default;
 
-    ApplicationInterface(ApplicationModel &model)
+    ApplicationControl(ApplicationModel &model)
     {
-        pex::Initialize<ApplicationFields>(model, *this);
+        fields::Assign<ApplicationFields>(*this, model);
     }
 };
 
@@ -146,7 +146,7 @@ class ExampleFrame: public wxFrame
 
 public:
     ExampleFrame(
-        ApplicationInterface applicationInterface,
+        ApplicationControl applicationControl,
         const ShortcutsByMenu &shortcuts)
         :
         wxFrame(nullptr, wxID_ANY, "pex::wx::Shortcut Demo"),
@@ -161,7 +161,7 @@ public:
             "Use the shortcut keys and the menu items.");
 
         auto view =
-            pex::wx::MakeView(this, applicationInterface.message);
+            pex::wx::MakeView(this, applicationControl.message);
 
         auto topSizer = std::make_unique<wxBoxSizer>(wxVERTICAL);
         topSizer->Add(message, 0, wxALL, 10);
@@ -179,7 +179,7 @@ wxshimIMPLEMENT_APP(ExampleApp)
 
 bool ExampleApp::OnInit()
 {
-    auto applicationInterface = ApplicationInterface(this->applicationModel_);
+    auto applicationControl = ApplicationControl(this->applicationModel_);
 
     using namespace std::literals;
 
@@ -188,14 +188,14 @@ bool ExampleApp::OnInit()
             "File",        
             std::make_tuple(
                 pex::wx::Shortcut(
-                    applicationInterface.sayFortyTwo,
+                    applicationControl.sayFortyTwo,
                     wxACCEL_CMD,
                     'Z',
                     "42",
                     "Say '42'"),
 
                 pex::wx::Shortcut(
-                    applicationInterface.frobnicate,
+                    applicationControl.frobnicate,
                     wxACCEL_CMD,
                     'F',
                     "Frobnicate",
@@ -205,21 +205,21 @@ bool ExampleApp::OnInit()
             "Other",        
             std::make_tuple(
                 pex::wx::Shortcut(
-                    applicationInterface.sayWhatsUp,
+                    applicationControl.sayWhatsUp,
                     wxACCEL_CMD,
                     'W',
                     "What's up?",
                     "Say 'What's up?'"),
 
                 pex::wx::Shortcut(
-                    applicationInterface.sayHello,
+                    applicationControl.sayHello,
                     wxACCEL_ALT | wxACCEL_SHIFT,
                     'H',
                     "Hello",
                     "Say 'Hello'"))));
     
     auto exampleFrame = new ExampleFrame(
-        applicationInterface,
+        applicationControl,
         shortcutsByMenu);
 
     auto anotherFrame = new AnotherFrame();
