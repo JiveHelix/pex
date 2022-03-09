@@ -24,15 +24,15 @@ namespace wx
 /**
  ** Combines a label and a pex widget.
  **/
-template<typename MakeWidget>
+template<typename WidgetMaker>
 class LabeledWidget
 {
 public:
-    using Widget = typename MakeWidget::Type;
+    using Widget = typename WidgetMaker::Type;
 
     LabeledWidget(
         wxWindow *parent,
-        const MakeWidget &makeWidget,
+        const WidgetMaker &makeWidget,
         const std::string &label)
     {
         this->label_ = new wxStaticText(parent, wxID_ANY, label);
@@ -71,7 +71,7 @@ private:
 
 /** Stores the control and style arguments to defer creation of the widget. **/
 template<template<typename...> typename Widget, typename Control>
-struct MakeWidget
+struct WidgetMaker
 {
     using Type = Widget<Control>;
 
@@ -79,12 +79,12 @@ struct MakeWidget
     long style_ = 0;
 
     template<typename Compatible>
-    MakeWidget(Compatible control, long style = 0)
+    WidgetMaker(Compatible control, long style = 0)
         :
         control_(control),
         style_(style)
     {
-        static_assert(pex::IsCompatibleV<Control, Compatible>);
+
     }
 
     Type * operator()(wxWindow *parent) const
@@ -95,6 +95,19 @@ struct MakeWidget
             this->style_);
     }
 };
+
+
+template
+<
+    template<typename...> typename Widget,
+    typename Control
+>
+auto MakeWidgetMaker(
+    Control control,
+    long style = 0)
+{
+    return WidgetMaker<Widget, Control>(control, style);
+}
 
 
 struct LayoutOptions

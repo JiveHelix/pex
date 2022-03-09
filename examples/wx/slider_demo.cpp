@@ -13,48 +13,22 @@
 #include "pex/wx/slider.h"
 
 
-using Position = pex::model::Range<int>;
+using Position = pex::model::Value<int>;
+using PositionRange = pex::model::Range<Position>;
+
+// Do not filter the position.
+using PositionRangeControl = pex::control::Range<void, PositionRange>;
+
+// This is the control node used to display position's value.
+using PositionValue = pex::control::Value<void, Position>;
 
 inline constexpr size_t defaultPosition = 0;
 inline constexpr size_t minimumPosition = 0;
 inline constexpr size_t maximumPosition = 1000;
 
 
-using PlaybackSpeed = pex::model::Range<float>;
-
-inline constexpr float minimumPlaybackSpeed = 0.125f;
-inline constexpr float maximumPlaybackSpeed = 2.0f;
-inline constexpr float defaultPlaybackSpeed = 1.0f;
-
-
-class ExampleApp : public wxApp
-{
-public:
-    ExampleApp()
-        :
-        position_(defaultPosition, minimumPosition, maximumPosition),
-        playbackSpeed_(
-            defaultPlaybackSpeed,
-            minimumPlaybackSpeed,
-            maximumPlaybackSpeed)
-    {
-
-    }
-
-    bool OnInit() override;
-
-private:
-    Position position_;
-    PlaybackSpeed playbackSpeed_;
-};
-
-
-// Do not filter the position.
-using PositionControl = pex::control::Range<void, Position>;
-
-// This is the control node used to display position's value.
-using PositionValue = pex::control::Value<void, Position::Value>;
-
+using PlaybackSpeed = pex::model::Value<float>;
+using PlaybackSpeedRange = pex::model::Range<PlaybackSpeed>;
 
 /**
  ** Create a filter that converts between a logarithmic value and a linear one.
@@ -80,33 +54,65 @@ struct PlaybackSpeedFilter
 };
 
 
-using PlaybackSpeedControl = ::pex::control::Range<
+using PlaybackSpeedRangeControl = ::pex::control::Range<
     void,
-    PlaybackSpeed,
+    PlaybackSpeedRange,
     PlaybackSpeedFilter<float>>;
 
 // The unfiltered value used to display playback speed
-using PlaybackSpeedValue =
-    pex::control::Value<void, typename PlaybackSpeed::Value>;
+using PlaybackSpeedValue = pex::control::Value<void, PlaybackSpeed>;
+
+inline constexpr float minimumPlaybackSpeed = 0.125f;
+inline constexpr float maximumPlaybackSpeed = 2.0f;
+inline constexpr float defaultPlaybackSpeed = 1.0f;
+
+
+class ExampleApp : public wxApp
+{
+public:
+    ExampleApp()
+        :
+        position_(defaultPosition),
+        positionRange_(this->position_),
+        playbackSpeed_(defaultPlaybackSpeed),
+        playbackSpeedRange_(this->playbackSpeed_)
+    {
+        this->positionRange_.SetLimits(
+            minimumPosition,
+            maximumPosition);
+
+        this->playbackSpeedRange_.SetLimits(
+            minimumPlaybackSpeed,
+            maximumPlaybackSpeed);
+    }
+
+    bool OnInit() override;
+
+private:
+    Position position_;
+    PositionRange positionRange_;
+    PlaybackSpeed playbackSpeed_;
+    PlaybackSpeedRange playbackSpeedRange_;
+};
 
 
 const int precision = 3;
 
 using PositionSlider =
-    pex::wx::SliderAndValue<PositionControl, PositionValue, precision>;
+    pex::wx::SliderAndValue<PositionRangeControl, PositionValue, precision>;
 
 
 using PlaybackSpeedSlider =
-    pex::wx::SliderAndValue<PlaybackSpeedControl, PlaybackSpeedValue>;
+    pex::wx::SliderAndValue<PlaybackSpeedRangeControl, PlaybackSpeedValue>;
 
 
 class ExampleFrame: public wxFrame
 {
 public:
     ExampleFrame(
-        PositionControl positionRange,
+        PositionRangeControl positionRange,
         PositionValue positionValue,
-        PlaybackSpeedControl playbackSpeedRange,
+        PlaybackSpeedRangeControl playbackSpeedRange,
         PlaybackSpeedValue playbackSpeedValue);
 };
 
@@ -119,10 +125,10 @@ bool ExampleApp::OnInit()
 {
     ExampleFrame *exampleFrame =
         new ExampleFrame(
-            PositionControl(this->position_),
-            PositionValue(this->position_.GetValueControl()),
-            PlaybackSpeedControl(this->playbackSpeed_),
-            PlaybackSpeedValue(this->playbackSpeed_.GetValueControl()));
+            PositionRangeControl(this->positionRange_),
+            PositionValue(this->position_),
+            PlaybackSpeedRangeControl(this->playbackSpeedRange_),
+            PlaybackSpeedValue(this->playbackSpeed_));
 
     exampleFrame->Show();
     return true;
@@ -131,9 +137,9 @@ bool ExampleApp::OnInit()
 
 
 ExampleFrame::ExampleFrame(
-    PositionControl positionRange,
+    PositionRangeControl positionRange,
     PositionValue positionValue,
-    PlaybackSpeedControl playbackSpeedRange,
+    PlaybackSpeedRangeControl playbackSpeedRange,
     PlaybackSpeedValue playbackSpeedValue)
     :
     wxFrame(nullptr, wxID_ANY, "pex::wx::Slider Demo")

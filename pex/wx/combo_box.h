@@ -23,22 +23,26 @@ namespace wx
 
 template
 <
-    typename T,
-    typename Convert = Converter<T>
+    typename Control_,
+    typename Convert = Converter<typename Control_::Type>
 >
 class ComboBox : public wxComboBox
 {
 public:
     using Base = wxComboBox;
-    using Control = typename ::pex::control::Chooser<ComboBox, T>;
+    using This = ComboBox<Control_, Convert>;
+
+    using Control = typename control::ChangeObserver<This, Control_>::Type;
+
     using Selection = typename Control::Selection;
     using Choices = typename Control::Choices;
     using ChoicesVector = typename Choices::Type;
-    using WxAdapter = WxChooser<T, Convert>;
+    using WxAdapter = WxChooser<typename Control::Type, Convert>;
 
+    template<typename Compatible>
     ComboBox(
         wxWindow *parent,
-        ::pex::control::Chooser<void, T> control,
+        Compatible control,
         long style = 0)
         :
         Base(

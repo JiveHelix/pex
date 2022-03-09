@@ -68,7 +68,7 @@ private:
     }
 
     using Observer = View<Value, Convert>;
-    typename pex::control::ObservedValue<Observer, Value>::Type value_;
+    typename pex::control::ChangeObserver<Observer, Value>::Type value_;
 };
 
 

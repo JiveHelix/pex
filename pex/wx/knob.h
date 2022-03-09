@@ -22,14 +22,14 @@ public:
 
     // Value and Bound are observed by This
     using Value = typename
-        pex::control::ObservedValue
+        pex::control::ChangeObserver
         <
             This,
             typename RangeControl::Value
         >::Type;
 
     using Bound = typename
-        pex::control::ObservedValue
+        pex::control::ChangeObserver
         <
             This,
             typename RangeControl::Bound

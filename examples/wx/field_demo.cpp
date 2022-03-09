@@ -106,25 +106,25 @@ ExampleFrame::ExampleFrame(RadiansControl control)
     auto radiansView =
         LabeledWidget(
             this,
-            MakeWidget<View, RadiansControl>(control),
+            WidgetMaker<View, RadiansControl>(control),
             "Radians:");
 
     auto degreesView =
         LabeledWidget(
             this,
-            MakeWidget<View, DegreesControl>(control),
+            WidgetMaker<View, DegreesControl>(control),
             "Degrees:");
 
     auto radiansEntry =
         LabeledWidget(
             this,
-            MakeWidget<Field, RadiansControl>(control),
+            WidgetMaker<Field, RadiansControl>(control),
             "Radians:");
 
     auto degreesEntry =
         LabeledWidget(
             this,
-            MakeWidget<Field, DegreesControl>(control),
+            WidgetMaker<Field, DegreesControl>(control),
             "Degrees:");
 
     auto topSizer = std::make_unique<wxBoxSizer>(wxVERTICAL);

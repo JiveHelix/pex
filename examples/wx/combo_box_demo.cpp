@@ -28,7 +28,7 @@ static inline const std::vector<std::string> unitsList
 std::string fffUnits = "furlong-firkin-fortnight";
 
 using Chooser = pex::model::Chooser<std::string>;
-using ChooserControl = pex::control::Chooser<void, std::string>;
+using ChooserControl = pex::control::Chooser<void, Chooser>;
 
 using Firkins = pex::model::Value<bool>;
 
@@ -124,7 +124,7 @@ ExampleFrame::ExampleFrame(
             firkinsControl);
 
     auto comboBox =
-        new pex::wx::ComboBox<std::string>(this, chooserControl);
+        new pex::wx::ComboBox<ChooserControl>(this, chooserControl);
 
     auto view = new pex::wx::View<UnitsControl>(this, unitsControl);
     auto topSizer = std::make_unique<wxBoxSizer>(wxVERTICAL);

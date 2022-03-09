@@ -12,8 +12,9 @@
 **/
 #pragma once
 
-#include "pex/no_filter.h"
-#include "pex/detail/argument.h"
+
+#include "pex/model_value.h"
+
 
 namespace pex
 {
@@ -28,15 +29,15 @@ namespace pex
  **
  ** The new value will be published in the destructor.
  **/
-template<typename Model>
+template<typename Pex>
 class Reference
 {
 public:
-    using Type = typename Model::Type;
+    using Type = typename Pex::Type;
 
-    Reference(Model &model)
+    Reference(Pex &model)
         :
-        model_(model)
+        pex_(model)
     {
 
     }
@@ -47,30 +48,63 @@ public:
     Type & operator * ()
     {
         static_assert(
-            std::is_same_v<NoFilter, typename Model::Filter>,
+            std::is_same_v<NoFilter, typename Pex::Filter>,
             "Direct access to underlying value is incompatible with filters.");
 
-        return this->model_.value_;
+        return this->pex_.value_;
     }
 
     Type Get() const
     {
-        return this->model_.Get();
+        return this->pex_.Get();
     }
 
     void Set(ArgumentT<Type> value)
     {
-        this->model_.SetWithoutNotify_(value);
+        this->pex_.Set(value);
     }
 
-    ~Reference()
+protected:
+    void SetWithoutNotify_(ArgumentT<Type> value)
     {
-        // Notify on destruction
-        this->model_.DoNotify_();
+        this->pex_.SetWithoutNotify_(value);
+    }
+
+    void DoNotify_()
+    {
+        this->pex_.DoNotify_();
     }
 
 private:
-    Model &model_;
+    Pex &pex_;
+};
+
+
+/**
+ ** While the Defer exists, the model's value has been changed, but not
+ ** published.
+ **
+ ** The new value will be published in the destructor.
+ **/
+template<typename Pex>
+class Defer: public Reference<Pex>
+{
+public:
+    using Base = Reference<Pex>;
+    using Type = typename Base::Type;
+
+    using Base::Base;
+
+    void Set(ArgumentT<Type> value)
+    {
+        this->SetWithoutNotify_(value);
+    }
+
+    ~Defer()
+    {
+        // Notify on destruction
+        this->DoNotify_();
+    }
 };
 
 
@@ -83,6 +117,10 @@ private:
 template<typename Model>
 class ConstReference
 {
+    static_assert(
+        IsModel<Model>::value,
+        "Access to the value by reference is only possible for model values.");
+
     static_assert(
         std::is_same_v<NoFilter, typename Model::Filter>,
         "Direct access to underlying value is incompatible with filters.");

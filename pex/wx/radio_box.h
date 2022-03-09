@@ -101,7 +101,7 @@ private:
     }
 
     using Observer = RadioBox<Value, Convert>;
-    typename pex::control::ObservedValue<Observer, Value>::Type value_;
+    typename pex::control::ChangeObserver<Observer, Value>::Type value_;
 
     std::vector<Type> choices_;
 };

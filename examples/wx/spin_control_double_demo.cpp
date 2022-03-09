@@ -13,7 +13,12 @@
 #include "pex/wx/view.h"
 #include "pex/wx/spin_control_double.h"
 
-using Wibble = pex::model::Range<double>;
+using Wibble = pex::model::Value<double>;
+using WibbleRange = pex::model::Range<Wibble>;
+using WibbleRangeControl = pex::control::Range<void, WibbleRange>;
+
+using WibbleValue = typename WibbleRangeControl::Value;
+
 
 inline constexpr double defaultWibble = 10;
 inline constexpr double minimumWibble = 0;
@@ -21,7 +26,13 @@ inline constexpr double maximumWibble = 20;
 inline constexpr double wibbleIncrement = 1;
 
 
-using Wobble = pex::model::Range<float>;
+using Wobble = pex::model::Value<float>;
+using WobbleRange = pex::model::Range<Wobble>;
+
+using WobbleRangeControl = pex::control::Range<void, WobbleRange>;
+
+using WobbleValue = typename WobbleRangeControl::Value;
+
 
 inline constexpr float defaultWobble = 0;
 inline constexpr float minimumWobble = -100.0;
@@ -34,37 +45,34 @@ class ExampleApp : public wxApp
 public:
     ExampleApp()
         :
-        wibble_(defaultWibble, minimumWibble, maximumWibble),
-        wobble_(defaultWobble, minimumWobble, maximumWobble)
+        wibble_(defaultWibble),
+        wibbleRange_(this->wibble_),
+        wobble_(defaultWobble),
+        wobbleRange_(this->wobble_)
     {
-
+        this->wibbleRange_.SetLimits(minimumWibble, maximumWibble);
+        this->wobbleRange_.SetLimits(minimumWobble, maximumWobble);
     }
 
     bool OnInit() override;
 
 private:
     Wibble wibble_;
+    WibbleRange wibbleRange_;
     Wobble wobble_;
+    WobbleRange wobbleRange_;
 };
 
 
-using WibbleSpinControl = pex::wx::SpinControlDouble<Wibble>;
-using WobbleSpinControl = pex::wx::SpinControlDouble<Wobble>;
-
-using WibbleRange = pex::control::Range<void, Wibble>;
-using WobbleRange = pex::control::Range<void, Wobble>;
-
-using WibbleValue = pex::control::Value<void, typename Wibble::Value>;
-using WobbleValue = pex::control::Value<void, typename Wobble::Value>;
 
 
 class ExampleFrame: public wxFrame
 {
 public:
     ExampleFrame(
-        WibbleRange wibbleRange,
+        WibbleRangeControl wibbleRange,
         WibbleValue wibbleValue,
-        WobbleRange wobbleRange,
+        WobbleRangeControl wobbleRange,
         WobbleValue wobbleValue);
 };
 
@@ -75,23 +83,29 @@ wxshimIMPLEMENT_APP(ExampleApp)
 
 bool ExampleApp::OnInit()
 {
+    auto wibble = WibbleRangeControl(this->wibbleRange_);
+    auto wobble = WobbleRangeControl(this->wobbleRange_);
+
     ExampleFrame *exampleFrame =
         new ExampleFrame(
-            WibbleRange(this->wibble_),
-            WibbleValue(this->wibble_.GetValueControl()),
-            WobbleRange(this->wobble_),
-            WobbleValue(this->wobble_.GetValueControl()));
+            wibble,
+            wibble.value,
+            wobble,
+            wobble.value);
 
     exampleFrame->Show();
     return true;
 }
 
 
+using WibbleSpinControl = pex::wx::SpinControlDouble<WibbleRangeControl>;
+using WobbleSpinControl = pex::wx::SpinControlDouble<WobbleRangeControl>;
+
 
 ExampleFrame::ExampleFrame(
-        WibbleRange wibbleRange,
+        WibbleRangeControl wibbleRange,
         WibbleValue wibbleValue,
-        WobbleRange wobbleRange,
+        WobbleRangeControl wobbleRange,
         WobbleValue wobbleValue)
     :
     wxFrame(nullptr, wxID_ANY, "pex::wx::SpinControlDouble Demo")

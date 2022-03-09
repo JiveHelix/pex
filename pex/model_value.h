@@ -21,13 +21,20 @@
 #include "pex/detail/filters.h"
 #include "pex/detail/value_detail.h"
 #include "pex/access_tag.h"
-#include "pex/reference.h"
 #include "pex/transaction.h"
 #include "pex/detail/require_has_value.h"
 
 
 namespace pex
 {
+
+
+template<typename>
+class Reference;
+
+template<typename>
+class ConstReference;
+
 
 template<typename Observer, typename T, typename Filter>
 using ValueConnection =
@@ -60,14 +67,17 @@ public:
     // All model nodes have writable access.
     using Access = GetAndSetTag;
 
-    template<typename Pex>
+    template<typename>
     friend class ::pex::Transaction;
 
-    template<typename Pex>
+    template<typename>
     friend class ::pex::Reference;
 
-    template<typename Pex>
+    template<typename>
     friend class ::pex::ConstReference;
+
+    template<typename>
+    friend class Direct;
 
     Value_()
         :
@@ -77,23 +87,23 @@ public:
 
     }
 
-    explicit Value_(T value)
+    explicit Value_(Type value)
         :
         filter_{},
         value_{this->FilterOnSet_(value)}
     {
         static_assert(
-            detail::FilterIsNoneOrStatic<T, Filter, SetTag>::value,
+            detail::FilterIsNoneOrStatic<Type, Filter, SetTag>::value,
             "A filter with member functions requires a pointer.");
     }
 
-    Value_(T value, Filter filter)
+    Value_(Type value, Filter filter)
         :
         filter_{filter},
         value_{this->FilterOnSet_(value)}
     {
         static_assert(
-            detail::FilterIsMember<T, Filter>::value,
+            detail::FilterIsMember<Type, Filter>::value,
             "Static or void Filter does not require a filter instance.");
     }
 
@@ -103,31 +113,31 @@ public:
         value_{}
     {
         static_assert(
-            detail::FilterIsMember<T, Filter>::value,
+            detail::FilterIsMember<Type, Filter>::value,
             "Static or void Filter does not require a filter instance.");
     }
 
-    Value_(const Value_<T, Filter> &) = delete;
-    Value_(Value_<T, Filter> &&) = delete;
+    Value_(const Value_<Type, Filter> &) = delete;
+    Value_(Value_<Type, Filter> &&) = delete;
 
     /** Set the value and notify interfaces **/
-    void Set(ArgumentT<T> value)
+    void Set(ArgumentT<Type> value)
     {
         this->SetWithoutNotify_(value);
         this->DoNotify_();
     }
 
-    T Get() const
+    Type Get() const
     {
         return this->value_;
     }
 
-    explicit operator T () const
+    explicit operator Type () const
     {
         return this->value_;
     }
 
-    Value_ & operator=(ArgumentT<T> value)
+    Value_ & operator=(ArgumentT<Type> value)
     {
         this->Set(value);
         return *this;
@@ -136,14 +146,14 @@ public:
     void SetFilter(Filter filter)
     {
         static_assert(
-            detail::FilterIsMember<T, Filter>::value,
+            detail::FilterIsMember<Type, Filter>::value,
             "Static or void Filter does not require a filter instance.");
 
         this->filter_ = filter;
     }
 
 private:
-    void SetWithoutNotify_(ArgumentT<T> value)
+    void SetWithoutNotify_(ArgumentT<Type> value)
     {
         if constexpr (std::is_same_v<NoFilter, Filter>)
         {
@@ -160,13 +170,13 @@ private:
         this->Notify_(this->value_);
     }
 
-    T FilterOnSet_(ArgumentT<T> value) const
+    Type FilterOnSet_(ArgumentT<Type> value) const
     {
         if constexpr (std::is_same_v<NoFilter, Filter>)
         {
             return value;
         }
-        else if constexpr (detail::SetterIsMember<T, Filter>::value)
+        else if constexpr (detail::SetterIsMember<Type, Filter>::value)
         {
             REQUIRE_HAS_VALUE(this->filter_);
             return this->filter_->Set(value);
@@ -178,13 +188,13 @@ private:
         }
     }
 
-    T FilterOnGet_(ArgumentT<T> value) const
+    Type FilterOnGet_(ArgumentT<Type> value) const
     {
         if constexpr (std::is_same_v<NoFilter, Filter>)
         {
             return value;
         }
-        else if constexpr (detail::GetterIsMember<T, Filter>::value)
+        else if constexpr (detail::GetterIsMember<Type, Filter>::value)
         {
             REQUIRE_HAS_VALUE(this->filter_);
             return this->filter_->Get(value);
@@ -197,7 +207,7 @@ private:
     }
 
     std::optional<Filter> filter_;
-    T value_;
+    Type value_;
 };
 
 
@@ -216,6 +226,99 @@ struct IsModel: std::false_type {};
 
 template<typename ...T>
 struct IsModel<pex::model::Value_<T...>>: std::true_type {};
+
+
+namespace control
+{
+
+
+template<typename, typename, typename, typename> class Value_;
+
+
+} // end namespace control
+
+
+namespace model
+{
+
+
+template<typename Model>
+class Direct
+{
+public:
+    using Type = typename Model::Type;
+
+    Direct()
+        :
+        model_(nullptr)
+    {
+
+    }
+
+    Direct(Model &model)
+        :
+        model_(&model)
+    {
+
+    }
+
+    Type Get() const
+    {
+        REQUIRE_HAS_VALUE(this->model_);
+        return this->model_->Get(); 
+    }
+
+    void Set(ArgumentT<Type> value)
+    {
+        REQUIRE_HAS_VALUE(this->model_);
+        this->model_->Set(value);
+    }
+
+    void Connect(
+        void * const observer,
+        typename Model::Callable callable)
+    {
+        if (this->model_)
+        {
+            this->model_->Connect(observer, callable);
+        }
+    }
+
+    void Disconnect(void * const observer)
+    {
+        // TODO: Calling Disconnect on a model that has not been connected
+        // should not be a problem. Test it!
+        if (this->model_)
+        {
+            this->model_->Disconnect(observer);
+        }
+    }
+
+    bool HasModel()
+    {
+        return (this->model_ != nullptr);
+    }
+    
+    template<typename, typename, typename, typename>
+    friend class ::pex::control::Value_;
+
+private:
+    void SetWithoutNotify_(ArgumentT<Type> value)
+    {
+        this->model_->SetWithoutNotify_(value);
+    }
+
+    void DoNotify_()
+    {
+        this->model_->DoNotify_();
+    }
+
+private:
+    Model *model_;
+};
+
+
+} // end namespace model
 
 
 } // namespace pex

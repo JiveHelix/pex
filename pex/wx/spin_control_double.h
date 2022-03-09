@@ -27,15 +27,18 @@ namespace wx
 {
 
 
-template<typename RangeModel>
+template<typename RangeControl>
 class SpinControlDouble : public wxSpinCtrlDouble
 {
 public:
     using Base = wxSpinCtrlDouble;
-    using This = SpinControlDouble<RangeModel>;
-    using Range = ::pex::control::Range<This, RangeModel>;
+    using This = SpinControlDouble<RangeControl>;
+
+    using Range =
+        typename pex::control::ChangeObserver<This, RangeControl>::Type;
+
     using Value = typename Range::Value;
-    using Bound = typename Range::Bound;
+    using Limit = typename Range::Limit;
     using Type = typename Value::Type;
     
     template<typename CompatibleRange>
@@ -97,8 +100,8 @@ public:
 
 private:
     Value value_;
-    Bound minimum_;
-    Bound maximum_;
+    Limit minimum_;
+    Limit maximum_;
 };
 
 

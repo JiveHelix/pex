@@ -17,50 +17,95 @@
 #include <limits>
 #include "pex/value.h"
 #include "pex/detail/filters.h"
+#include "pex/reference.h"
 
 namespace pex
 {
+
+
+// Forward declare the control::Range
+// Necessary for the friend declaration in model::Range
+namespace control
+{
+
+template<typename, typename, typename, typename>
+class Range;
+
+
+} // end namespace control
 
 
 namespace model
 {
 
 
-template<typename T>
+template<typename Upstream>
 class Range
 {
     static_assert(
-        std::is_arithmetic_v<T>,
+        std::is_arithmetic_v<typename Upstream::Type>,
         "Designed only for arithmetic types.");
 
 public:
-    using Type = T;
-    using Value = typename ::pex::model::Value<T>;
-    using Bound = typename ::pex::model::Value<T>;
-    using ValueControl = typename ::pex::control::Value<void, Value>;
+    // The Range value is a control to a model somewhere else.
+    using Value = pex::control::Value<void, Upstream>;
+    using Type = typename Value::Type;
 
-    template<typename Access>
-    using BoundControl =
-        typename ::pex::control::Value<void, Bound, Access>;
+    // The Range limits are stored here in the model::Range.
+    using Limit = typename ::pex::model::Value<Type>;
 
 public:
-    Range(T value, T minimum, T maximum)
+    Range(Upstream &upstream)
         :
-        value_(value),
-        minimum_(minimum),
-        maximum_(maximum)
+        value_(upstream),
+        minimum_(std::numeric_limits<Type>::lowest()),
+        maximum_(std::numeric_limits<Type>::max())
     {
-
+        this->value_.Connect(this, &Range::OnValue_);
     }
 
-    void SetMinimum(T minimum)
+    ~Range()
+    {
+        this->value_.Disconnect(this);
+    }
+
+    void SetLimits(Type minimum, Type maximum)
+    {
+        if (maximum < minimum)
+        {
+            // maximum may be equal to minimum, even though it doesn't seem
+            // very useful.
+            throw std::invalid_argument("requires maximum >= minimum");
+        }
+
+        // All model values will be changed, so any request to Get() will
+        // return the new value, but notifications will not be sent until we
+        // exit this scope.
+        auto changeMinimum = ::pex::Defer<Limit>(this->minimum_);
+        auto changeMaximum = ::pex::Defer<Limit>(this->maximum_);
+        auto changeValue = ::pex::Defer<Value>(this->value_);
+
+        changeMinimum.Set(minimum);
+        changeMaximum.Set(maximum);
+
+        if (this->value_.Get() < minimum)
+        {
+            changeValue.Set(minimum);
+        }
+        else if (this->value_.Get() > maximum)
+        {
+            changeValue.Set(maximum);
+        }
+    }
+
+    void SetMinimum(Type minimum)
     {
         minimum = std::min(minimum, this->maximum_.Get());
 
-        // Use a pex::Reference to delay notifying of the bounds change until
+        // Use a pex::Defer to delay notifying of the bounds change until
         // the value has been (maybe) adjusted.
-        auto changeMinimum = ::pex::Reference<Bound>(this->minimum_);
-        *changeMinimum = minimum;
+        auto changeMinimum = ::pex::Defer<Limit>(this->minimum_);
+        changeMinimum.Set(minimum);
 
         if (this->value_.Get() < minimum)
         {
@@ -70,11 +115,11 @@ public:
         }
     }
 
-    void SetMaximum(T maximum)
+    void SetMaximum(Type maximum)
     {
         maximum = std::max(maximum, this->minimum_.Get());
-        auto changeMaximum = ::pex::Reference<Bound>(this->maximum_);
-        *changeMaximum = maximum;
+        auto changeMaximum = ::pex::Defer<Limit>(this->maximum_);
+        changeMaximum.Set(maximum);
 
         if (this->value_.Get() > maximum)
         {
@@ -82,7 +127,7 @@ public:
         }
     }
 
-    void SetValue(T value)
+    void SetValue(Type value)
     {
         value = std::max(
             this->minimum_.Get(),
@@ -91,35 +136,41 @@ public:
         this->value_.Set(value);
     }
 
-    void Connect(void * context, typename Value::Callable callable)
-    {
-        this->value_.Connect(context, callable);
-    }
+    template
+    <
+        typename,
+        typename,
+        typename,
+        typename 
+    >
+    friend class ::pex::control::Range;
 
-    ValueControl GetValueControl()
+private:
+    static void OnValue_(void *context, Type value)
     {
-        return ValueControl(this->value_);
-    }
+        auto self = static_cast<Range *>(context);
 
-    template<typename Access = GetTag>
-    BoundControl<Access> GetMinimumControl()
-    {
-        return BoundControl<Access>(this->minimum_);
-    }
-
-    template<typename Access = GetTag>
-    BoundControl<Access> GetMaximumControl()
-    {
-        return BoundControl<Access>(this->maximum_);
+        if (value < self->minimum_.Get() || value > self->maximum_.Get())
+        {
+            // Limit the value to the allowable range.
+            self->SetValue(value);
+        }
     }
 
 private:
     Value value_;
-    Bound minimum_;
-    Bound maximum_;
+    Limit minimum_;
+    Limit maximum_;
 };
 
 } // namespace model
+
+
+template<typename T>
+struct IsModelRange: std::false_type {};
+
+template<typename T>
+struct IsModelRange<model::Range<T>>: std::true_type {};
 
 
 namespace control
@@ -128,50 +179,63 @@ namespace control
 template
 <
     typename Observer,
-    typename RangeModel,
-    typename Filter_ = NoFilter
+    typename Upstream,
+    typename Filter_ = NoFilter,
+    typename Access = pex::GetAndSetTag
 >
 class Range
 {
 public:
     using Filter = Filter_;
-    using ModelType = typename RangeModel::Type;
+    using Type = typename Upstream::Value::Type;
+
+    static_assert(
+        pex::detail::FilterIsNoneOrStatic<Type, Filter, Access>::value,
+        "This class is designed for free function filters.");
 
     using Value =
-        ::pex::control::FilteredValue
+        pex::control::FilteredValue
         <
             Observer,
-            typename RangeModel::Value,
+            typename Upstream::Value,
             Filter,
-            pex::GetAndSetTag
+            Access
         >;
 
-    // Read-only Bound type for accessing range bounds.
-    using Bound =
-        ::pex::control::FilteredValue
+    // Read-only Limit type for accessing range bounds.
+    using Limit =
+        pex::control::FilteredValue
         <
             Observer,
-            typename RangeModel::Bound,
+            typename Upstream::Limit,
             Filter,
             pex::GetTag
         >;
 
-    Range(RangeModel &model)
-        :
-        value(model.GetValueControl()),
-        minimum(model.GetMinimumControl()),
-        maximum(model.GetMaximumControl())
+    Range(Upstream &upstream)
     {
+        if constexpr (IsModelRange<Upstream>::value)
+        {
+            this->value = Value(upstream.value_);
+            this->minimum = Limit(upstream.minimum_);
+            this->maximum = Limit(upstream.maximum_);
+        }
+        else
+        {
+            this->value = Value(upstream.value);
+            this->minimum = Limit(upstream.minimum);
+            this->maximum = Limit(upstream.maximum);
+        }
 
     }
 
     Value value;
-    Bound minimum;
-    Bound maximum;
+    Limit minimum;
+    Limit maximum;
 };
 
-
 } // namespace control
+
 
 } // namespace pex
 

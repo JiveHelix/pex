@@ -11,6 +11,7 @@
 
 #pragma once
 
+
 #include "pex/model_value.h"
 
 
@@ -20,68 +21,6 @@ namespace pex
 
 namespace control
 {
-
-
-template<typename Model>
-class Direct
-{
-public:
-    using Type = typename Model::Type;
-
-    Direct()
-        :
-        model_(nullptr)
-    {
-
-    }
-
-    Direct(Model &model)
-        :
-        model_(&model)
-    {
-
-    }
-
-    Type Get() const
-    {
-        REQUIRE_HAS_VALUE(this->model_);
-        return this->model_->Get(); 
-    }
-
-    void Set(ArgumentT<Type> value)
-    {
-        REQUIRE_HAS_VALUE(this->model_);
-        this->model_->Set(value);
-    }
-
-    void Connect(
-        void * const observer,
-        typename Model::Callable callable)
-    {
-        if (this->model_)
-        {
-            this->model_->Connect(observer, callable);
-        }
-    }
-
-    void Disconnect(void * const observer)
-    {
-        // TODO: Calling Disconnect on a model that has not been connected
-        // should not be a problem. Test it!
-        if (this->model_)
-        {
-            this->model_->Disconnect(observer);
-        }
-    }
-
-    bool HasModel()
-    {
-        return (this->model_ != nullptr);
-    }
-
-private:
-    Model *model_;
-};
 
 
 template<typename Pex, typename Enable = void>
@@ -98,7 +37,7 @@ struct Upstream_
     std::enable_if_t<IsModel<Pex>::value>
 >
 {
-    using Type = Direct<Pex>;
+    using Type = ::pex::model::Direct<Pex>;
 };
 
 
@@ -124,6 +63,9 @@ class Value_
 public:
     using Observer = Observer_;
     using Pex = Pex_;
+
+    // If Pex_ is a already a control::Value_, then Upstream is that
+    // control::Value_, else it is Direct<Pex>
     using Upstream = typename Upstream_<Pex_>::Type;
     using Filter = Filter_;
     using Access = Access_;
@@ -132,14 +74,11 @@ public:
     using Type = typename detail::FilteredType<UpstreamType, Filter>::Type;
 
     // Make any template specialization of Value_ a 'friend' class.
-    template
-    <
-        typename AnyObserver,
-        typename AnyPex,
-        typename AnyFilter,
-        typename AnyAccess
-    >
-    friend class Value_;
+    template <typename, typename, typename, typename>
+    friend class ::pex::control::Value_;
+
+    template<typename>
+    friend class ::pex::Reference;
 
     static_assert(
         detail::FilterIsNoneOrValid<UpstreamType, Filter, Access>::value);
@@ -271,6 +210,27 @@ public:
     }
 
 private:
+    void SetWithoutNotify_(ArgumentT<Type> value)
+    {
+        static_assert(
+            HasAccess<SetTag, Access>,
+            "Cannot Set a read-only value.");
+
+        if constexpr (std::is_same_v<NoFilter, Filter>)
+        {
+            this->upstream_.SetWithoutNotify_(value);
+        }
+        else
+        {
+            this->upstream_.SetWithoutNotify_(this->FilterOnSet_(value));
+        }
+    }
+
+    void DoNotify_()
+    {
+        this->upstream_.DoNotify_();
+    }
+    
     UpstreamType FilterOnSet_(ArgumentT<Type> value) const
     {
         if constexpr (std::is_same_v<NoFilter, Filter>)
@@ -345,7 +305,7 @@ using FilteredValue = Value_<Observer, Pex, Filter, Access>;
 
 
 template<typename Observer, typename Value>
-struct ObservedValue;
+struct ChangeObserver;
 
 template
 <
@@ -354,7 +314,7 @@ template
     typename OtherObserver,
     typename... Others
 >
-struct ObservedValue<Observer, Value<OtherObserver, Others...>>
+struct ChangeObserver<Observer, Value<OtherObserver, Others...>>
 {
     using Type = Value<Observer, Others...>;
 };

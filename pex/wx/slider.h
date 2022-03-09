@@ -44,23 +44,20 @@ public:
     using Base = wxSlider;
     using This = Slider<RangeControl>;
 
-    // Value and Bound are observed by This
-    using Value = typename
-        pex::control::ObservedValue
-        <
-            This,
-            typename RangeControl::Value
-        >::Type;
+    // Value and Limit are observed by This
+    using Range =
+        typename pex::control::ChangeObserver<This, RangeControl>::Type;
 
-    using Bound = typename
-        pex::control::ObservedValue
-        <
-            This,
-            typename RangeControl::Bound
-        >::Type;
+    using Value = typename Range::Value;
+    using Limit = typename Range::Limit;
     
-    static_assert(std::is_same_v<int, typename Value::Type>);
-    static_assert(std::is_same_v<int, typename Bound::Type>);
+    static_assert(
+        std::is_same_v<int, typename Value::Type>,
+        "Slider control uses int");
+
+    static_assert(
+        std::is_same_v<int, typename Limit::Type>,
+        "Slider control uses int");
 
     template<typename CompatibleRange>
     Slider(
@@ -91,6 +88,7 @@ public:
         
         // wxSlider appears to underreport its minimum size, which causes the
         // thumb to be clipped.
+        // TODO: Determine whether this affects platforms other than wxMac.
         auto bestSize = this->GetBestSize();
         auto bestHeight = bestSize.GetHeight();
         bestSize.SetHeight(static_cast<int>(bestHeight * 1.25));
@@ -132,8 +130,8 @@ public:
 
 private:
     Value value_;
-    Bound minimum_;
-    Bound maximum_;
+    Limit minimum_;
+    Limit maximum_;
     int defaultValue_;
 };
 

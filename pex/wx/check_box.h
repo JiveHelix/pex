@@ -65,7 +65,7 @@ public:
 
 private:
     using Observer = CheckBox<Value>;
-    typename pex::control::ObservedValue<Observer, Value>::Type value_;
+    typename pex::control::ChangeObserver<Observer, Value>::Type value_;
     size_t id_;
 };
 

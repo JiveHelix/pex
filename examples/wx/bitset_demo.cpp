@@ -102,13 +102,13 @@ ExampleFrame::ExampleFrame(Control control)
     auto bitsetView =
         LabeledWidget(
             this,
-            MakeWidget<View, BitsetControl>(control.bitset),
+            MakeWidgetMaker<View>(control.bitset),
             "Bitset (view):");
 
     auto bitsetField =
         LabeledWidget(
             this,
-            MakeWidget<Field, BitsetControl>(control.bitset),
+            MakeWidgetMaker<Field>(control.bitset),
             "Bitset (field):");
 
     auto pointSize = bitsetView.GetLabel()->GetFont().GetPointSize();

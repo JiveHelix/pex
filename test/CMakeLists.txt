@@ -7,7 +7,8 @@ add_executable(
     value_tests.cpp
     signal_tests.cpp
     filter_tests.cpp
-    expand_tests.cpp)
+    expand_tests.cpp
+    range_tests.cpp)
 
 target_link_libraries(
     pex_tests
