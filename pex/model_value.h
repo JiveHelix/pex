@@ -286,8 +286,6 @@ public:
 
     void Disconnect(void * const observer)
     {
-        // TODO: Calling Disconnect on a model that has not been connected
-        // should not be a problem. Test it!
         if (this->model_)
         {
             this->model_->Disconnect(observer);

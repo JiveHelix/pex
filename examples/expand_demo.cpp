@@ -38,6 +38,7 @@ struct Player: public PlayerTemplate<SameType>
     */
 };
 
+
 using PlayerModel = pex::model::Value<Player>;
 using PlayerControl = pex::control::Value<void, PlayerModel>;
 

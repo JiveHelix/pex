@@ -65,3 +65,66 @@ TEST_CASE("Chaining ranges together to add a filter.", "[range]")
     filtered.value.Set(1.0f);
     REQUIRE(filtered.value.Get() == Approx(0.2f));
 }
+
+
+template<typename Control>
+struct Observer
+{
+    Observer(Control control)
+        :
+        control_(control)
+    {
+        this->control_.Connect(this, &Observer::OnValue_);
+    }
+
+    void OnValue_(int value)
+    {
+        this->observed = value;
+    }
+
+    typename pex::control::ChangeObserver<Observer, Control>::Type control_;
+
+    std::optional<int> observed;
+};
+
+
+TEST_CASE("Range value is echoed to observers.", "[range]")
+{
+    Value value(18);
+    Range range(value);
+    range.SetLimits(0, 20);
+
+    Control control(range);
+    Observer observer(control.value);
+    control.value.Set(13);
+    REQUIRE(!!observer.observed);
+    REQUIRE(*observer.observed == 13);
+}
+
+
+TEST_CASE("Model value is echoed to observers.", "[range]")
+{
+    Value value(18);
+    Range range(value);
+    range.SetLimits(0, 20);
+
+    Control control(range);
+    Observer observer(control.value);
+    value.Set(20);
+    REQUIRE(!!observer.observed);
+    REQUIRE(*observer.observed == 20);
+}
+
+
+TEST_CASE("Limited value is echoed to observers.", "[range]")
+{
+    Value value(18);
+    Range range(value);
+    range.SetLimits(0, 20);
+
+    Control control(range);
+    Observer observer(control.value);
+    control.value.Set(24);
+    REQUIRE(!!observer.observed);
+    REQUIRE(*observer.observed == 20);
+}

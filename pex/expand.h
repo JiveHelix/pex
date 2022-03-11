@@ -85,7 +85,6 @@ void InitializeExpanded(Expanded &expanded, Source source)
         initializer,
         Fields<Expanded>::fields,
         Fields<typename Source::Type>::fields);
-
 }
 
 

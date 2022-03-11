@@ -12,7 +12,6 @@
 #pragma once
 
 #include <type_traits>
-#include "pex/detail/implements_connect.h"
 
 
 namespace pex

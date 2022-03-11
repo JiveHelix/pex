@@ -19,6 +19,8 @@ WXSHIM_PUSH_IGNORES
 WXSHIM_POP_IGNORES
 
 #include "pex/range.h"
+#include <jive/to_float.h>
+
 
 namespace pex
 {
@@ -47,7 +49,7 @@ public:
         CompatibleRange range,
         typename Value::Type increment,
         unsigned int digits = 4,
-        long style = wxSP_ARROW_KEYS)
+        long style = wxSP_ARROW_KEYS | wxTE_PROCESS_ENTER)
         :
         Base(
             parent,
@@ -74,11 +76,23 @@ public:
             wxEVT_SPINCTRLDOUBLE,
             &SpinControlDouble::OnSpinCtrlDouble_,
             this);
+
+        this->Bind(
+            wxEVT_TEXT_ENTER,
+            &SpinControlDouble::OnEnter_,
+            this);
     }
 
     void OnValue_(Type value)
     {
-        this->SetValue(static_cast<double>(value));
+        if (static_cast<double>(value) != this->GetValue())
+        {
+            this->SetValue(static_cast<double>(value));
+        }
+        else
+        {
+            std::cout << "OnValue_ notified: " << value << std::endl;
+        }
     }
 
     void OnMinimum_(Type minimum)
@@ -96,6 +110,24 @@ public:
     void OnSpinCtrlDouble_(wxSpinDoubleEvent &event)
     {
         this->value_.Set(static_cast<Type>(event.GetValue()));
+        event.Skip();
+    }
+
+    void OnEnter_(wxCommandEvent &event)
+    {
+        // The documentation promises that wxEVT_SPINCTRLDOUBLE will be
+        // generated when enter is pressed.
+        // It is not.
+        // Unfortunately the value of the spin ctrl is still the old value when
+        // we intercept this wxCommandEvent from wTE_PROCESS_ENTER.
+        // The comamnd event has the current value as a string, not
+        // a double.
+        this->value_.Set(
+            static_cast<Type>(
+                jive::ToFloat<double>(
+                    static_cast<std::string>(event.GetString()))));
+
+        event.Skip();
     }
 
 private:

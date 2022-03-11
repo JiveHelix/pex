@@ -19,6 +19,7 @@
 #include "pex/detail/filters.h"
 #include "pex/reference.h"
 
+
 namespace pex
 {
 
@@ -39,6 +40,35 @@ namespace model
 {
 
 
+template<typename T>
+struct RangeFilter
+{
+    RangeFilter(T minimum, T maximum)
+        :
+        minimum_(minimum),
+        maximum_(maximum)
+    {
+
+    }
+
+    T Get(T value) const
+    {
+        return value;
+    }
+
+    T Set(T value) const
+    {
+        return std::max(
+            this->minimum_,
+            std::min(value, this->maximum_));
+    }
+
+private:
+    T minimum_;
+    T maximum_;
+};
+
+
 template<typename Upstream>
 class Range
 {
@@ -48,20 +78,31 @@ class Range
 
 public:
     // The Range value is a control to a model somewhere else.
-    using Value = pex::control::Value<void, Upstream>;
+    using Value =
+        pex::control::FilteredValue
+        <
+            void,
+            Upstream,
+            RangeFilter<typename Upstream::Type>
+        >;
+
     using Type = typename Value::Type;
 
     // The Range limits are stored here in the model::Range.
     using Limit = typename ::pex::model::Value<Type>;
 
 public:
+    Range() = default;
+
     Range(Upstream &upstream)
         :
         value_(upstream),
         minimum_(std::numeric_limits<Type>::lowest()),
         maximum_(std::numeric_limits<Type>::max())
     {
-        this->value_.Connect(this, &Range::OnValue_);
+        this->value_.SetFilter(RangeFilter<Type>(
+            this->minimum_.Get(),
+            this->maximum_.Get()));
     }
 
     ~Range()
@@ -88,6 +129,10 @@ public:
         changeMinimum.Set(minimum);
         changeMaximum.Set(maximum);
 
+        this->value_.SetFilter(RangeFilter<Type>(
+            this->minimum_.Get(),
+            this->maximum_.Get()));
+
         if (this->value_.Get() < minimum)
         {
             changeValue.Set(minimum);
@@ -107,6 +152,10 @@ public:
         auto changeMinimum = ::pex::Defer<Limit>(this->minimum_);
         changeMinimum.Set(minimum);
 
+        this->value_.SetFilter(RangeFilter<Type>(
+            this->minimum_.Get(),
+            this->maximum_.Get()));
+
         if (this->value_.Get() < minimum)
         {
             // The current value is less than the new minimum.
@@ -121,6 +170,10 @@ public:
         auto changeMaximum = ::pex::Defer<Limit>(this->maximum_);
         changeMaximum.Set(maximum);
 
+        this->value_.SetFilter(RangeFilter<Type>(
+            this->minimum_.Get(),
+            this->maximum_.Get()));
+
         if (this->value_.Get() > maximum)
         {
             this->value_.Set(maximum);
@@ -129,10 +182,6 @@ public:
 
     void SetValue(Type value)
     {
-        value = std::max(
-            this->minimum_.Get(),
-            std::min(value, this->maximum_.Get()));
-
         this->value_.Set(value);
     }
 
@@ -144,18 +193,6 @@ public:
         typename 
     >
     friend class ::pex::control::Range;
-
-private:
-    static void OnValue_(void *context, Type value)
-    {
-        auto self = static_cast<Range *>(context);
-
-        if (value < self->minimum_.Get() || value > self->maximum_.Get())
-        {
-            // Limit the value to the allowable range.
-            self->SetValue(value);
-        }
-    }
 
 private:
     Value value_;

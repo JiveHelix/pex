@@ -17,6 +17,7 @@
 #include "jive/compare.h"
 #include <optional>
 
+
 namespace pex
 {
 
@@ -32,7 +33,6 @@ public:
 
     static constexpr auto IsMemberFunction =
         std::is_member_function_pointer_v<Callable>;
-
 
     Connection(Observer * const observer, Callable callable)
         :

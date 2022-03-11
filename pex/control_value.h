@@ -44,7 +44,7 @@ struct Upstream_
 template<
     typename Observer_,
     typename Pex_,
-    typename Filter_ = void,
+    typename Filter_ = NoFilter,
     typename Access_ = GetAndSetTag
 >
 class Value_
@@ -85,9 +85,9 @@ public:
 
     Value_(): upstream_(), filter_() {}
 
-    explicit Value_(Pex &model)
+    explicit Value_(Pex &pex)
         :
-        upstream_(model),
+        upstream_(pex),
         filter_()
     {
         if constexpr (HasAccess<GetTag, Access>)
@@ -96,9 +96,9 @@ public:
         }
     }
 
-    explicit Value_(Pex &model, Filter filter)
+    explicit Value_(Pex &pex, Filter filter)
         :
-        upstream_(model),
+        upstream_(pex),
         filter_(filter)
     {
         static_assert(
@@ -139,16 +139,11 @@ public:
         }
     }
 
-    template
-    <
-        typename OtherObserver,
-        typename OtherFilter
-    >
-    Value_<Observer, Upstream, Filter, Access> & operator=(
+    template<typename OtherObserver, typename OtherFilter>
+    Value_ & operator=(
         const Value_<OtherObserver, Pex, OtherFilter, Access> &other)
     {
         this->upstream_.Disconnect(this);
-
         this->upstream_ = other.upstream_;
 
         if constexpr (std::is_same_v<OtherFilter, Filter>)
@@ -160,9 +155,34 @@ public:
 
         if constexpr (HasAccess<GetTag, Access>)
         {
+            this->upstream_.Connect(this, &Value_::OnUpstreamChanged_);
+        }
+
+        return *this;
+    }
+
+    Value_(const Value_ &other)
+        :
+        upstream_(other.upstream_),
+        filter_(other.filter_)
+    {
+        if constexpr (HasAccess<GetTag, Access>)
+        {
+            this->upstream_.Connect(this, &Value_::OnUpstreamChanged_);
+        }
+    }
+
+    Value_ & operator=(const Value_ &other)
+    {
+        this->upstream_.Disconnect(this);
+        this->upstream_ = other.upstream_;
+        this->filter_ = other.filter_;
+
+        if constexpr (HasAccess<GetTag, Access>)
+        {
             this->upstream_.Connect(
                 this,
-                &Value_<Observer, Upstream, Filter>::OnUpstreamChanged_);
+                &Value_::OnUpstreamChanged_);
         }
 
         return *this;
