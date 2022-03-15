@@ -33,10 +33,9 @@ public:
     using Base = wxRadioBox;
     using Type = typename Value::Type;
 
-    template<typename CompatibleValue>
     RadioBox(
         wxWindow *parent,
-        CompatibleValue value,
+        Value value,
         const std::vector<Type> &choices,
         const std::string &label = "",
         long style = wxRA_SPECIFY_ROWS)
@@ -100,8 +99,7 @@ private:
         return (index != -1);
     }
 
-    using Observer = RadioBox<Value, Convert>;
-    typename pex::control::ChangeObserver<Observer, Value>::Type value_;
+    typename pex::control::ChangeObserver<RadioBox, Value>::Type value_;
 
     std::vector<Type> choices_;
 };

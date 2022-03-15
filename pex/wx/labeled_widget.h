@@ -13,7 +13,7 @@
 
 #include "pex/wx/wxshim.h"
 #include "pex/value.h"
-#include "pex/is_compatible.h"
+
 
 namespace pex
 {
@@ -24,19 +24,19 @@ namespace wx
 /**
  ** Combines a label and a pex widget.
  **/
-template<typename WidgetMaker>
+template<typename Widget>
 class LabeledWidget
 {
 public:
-    using Widget = typename WidgetMaker::Type;
-
     LabeledWidget(
         wxWindow *parent,
-        const WidgetMaker &makeWidget,
-        const std::string &label)
+        const std::string &label,
+        Widget *widget)
+        :
+        label_(new wxStaticText(parent, wxID_ANY, label)),
+        widget_(widget)
     {
-        this->label_ = new wxStaticText(parent, wxID_ANY, label);
-        this->widget_ = makeWidget(parent);
+
     }
 
     wxStaticText * GetLabel()
@@ -67,47 +67,6 @@ private:
     wxStaticText *label_;
     Widget *widget_;
 };
-
-
-/** Stores the control and style arguments to defer creation of the widget. **/
-template<template<typename...> typename Widget, typename Control>
-struct WidgetMaker
-{
-    using Type = Widget<Control>;
-
-    Control control_;
-    long style_ = 0;
-
-    template<typename Compatible>
-    WidgetMaker(Compatible control, long style = 0)
-        :
-        control_(control),
-        style_(style)
-    {
-
-    }
-
-    Type * operator()(wxWindow *parent) const
-    {
-        return new Type(
-            parent,
-            this->control_,
-            this->style_);
-    }
-};
-
-
-template
-<
-    template<typename...> typename Widget,
-    typename Control
->
-auto MakeWidgetMaker(
-    Control control,
-    long style = 0)
-{
-    return WidgetMaker<Widget, Control>(control, style);
-}
 
 
 struct LayoutOptions

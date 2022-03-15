@@ -16,6 +16,7 @@
 #include "pex/detail/argument.h"
 #include "pex/value.h"
 #include "pex/reference.h"
+#include "pex/find_index.h"
 
 
 namespace pex
@@ -38,12 +39,52 @@ namespace model
 {
 
 
+/** 
+ ** Get and Set will pass through the selected index unless it is not a valid
+ ** choice. In that case, the index of the last valid choice will be returned.
+ **
+ **/
+template<typename T>
+struct ChooserFilter
+{
+    using Choices = std::vector<T>;
+
+    ChooserFilter(const Choices &choices)
+        :
+        choices_(choices)
+    {
+        if (choices.empty())
+        {
+            throw std::invalid_argument("Choices must not be empty");
+        }
+    }
+
+    size_t Get(size_t selectedIndex) const
+    {
+        if (selectedIndex >= this->choices_.size())
+        {
+            return this->choices_.size() - 1;
+        }
+
+        return selectedIndex;
+    }
+
+    size_t Set(size_t selectedIndex) const
+    {
+        return this->Get(selectedIndex);
+    }
+
+private:
+    Choices choices_;
+};
+
+
 template<typename T>
 class Chooser
 {
 public:
     using Type = T;
-    using Selection = ::pex::model::Value<size_t>;
+    using Selection = ::pex::model::FilteredValue<size_t, ChooserFilter<Type>>;
     using Choices = ::pex::model::Value<std::vector<Type>>;
 
 private:
@@ -51,10 +92,22 @@ private:
     using Defer = ::pex::Defer<Choices>;
 
 public:
+    Chooser()
+        :
+        choices_(std::vector<Type>{Type{}}),
+        selection_(
+            static_cast<size_t>(0),
+            ChooserFilter(this->choices_.Get()))
+    {
+
+    }
+
     Chooser(ArgumentT<Type> initialValue)
         :
-        selection_(static_cast<size_t>(0)),
-        choices_(std::vector<Type>{initialValue})
+        choices_(std::vector<Type>{initialValue}),
+        selection_(
+            static_cast<size_t>(0),
+            ChooserFilter(this->choices_.Get()))
     {
 
     }
@@ -63,16 +116,20 @@ public:
         ArgumentT<Type> initialValue,
         const std::vector<Type> &choices)
         :
-        selection_(RequireIndex(initialValue, choices)),
-        choices_(choices)
+        choices_(choices),
+        selection_(
+            RequireIndex(initialValue, choices),
+            ChooserFilter(this->choices_.Get()))
     {
 
     }
 
     Chooser(const std::vector<Type> &choices)
         :
-        selection_(static_cast<size_t>(0)),
-        choices_(choices)
+        choices_(choices),
+        selection_(
+            static_cast<size_t>(0),
+            ChooserFilter(this->choices_.Get()))
     {
         if (choices.empty())
         {
@@ -95,15 +152,12 @@ public:
             // of choices instead of the old one.
             this->selection_.Set(0);
         }
+
+        this->selection_.SetFilter(ChooserFilter(this->choices_.Get()));
     }
 
     void SetSelectedIndex(size_t index)
     {
-        if (index >= ConstReference(this->choices_).Get().size())
-        {
-            throw std::out_of_range("Selection not in choices.");
-        }
-
         this->selection_.Set(index);
     }
 
@@ -118,7 +172,7 @@ public:
         this->selection_.Set(
             RequireIndex(
                 value,
-                ConstReference(this->choices).Get()));
+                ConstReference(this->choices_).Get()));
     }
 
     size_t GetSelectedIndex() const
@@ -142,8 +196,8 @@ public:
     friend class ::pex::control::Chooser;
 
 private:
-    Selection selection_;
     Choices choices_;
+    Selection selection_;
 };
 
 
@@ -183,22 +237,24 @@ public:
             ::pex::GetTag
         >;
 
+    Chooser() = default;
+
     Chooser(Upstream &upstream)
     {
         if constexpr (IsModelChooser<Upstream>::value)
         {
-            this->selection = Selection(upstream.selection_);
             this->choices = Choices(upstream.choices_);
+            this->selection = Selection(upstream.selection_);
         }
         else
         {
-            this->selection = Selection(upstream.selection);
             this->choices = Choices(upstream.choices);
+            this->selection = Selection(upstream.selection);
         }
     }
 
-    Selection selection;
     Choices choices;
+    Selection selection;
 };
 
 } // namespace control

@@ -99,6 +99,63 @@ TEMPLATE_TEST_CASE(
 }
 
 
+TEMPLATE_TEST_CASE(
+    "Numeric value propagation using assignment operator",
+    "[value]",
+    int8_t,
+    uint8_t,
+    int16_t,
+    uint16_t,
+    int32_t,
+    uint32_t,
+    int64_t,
+    uint64_t,
+    float,
+    double,
+    long double)
+{
+    auto original = GENERATE(
+        take(
+            3,
+            random(
+                CastLimits<TestType>::Min(),
+                CastLimits<TestType>::Max())));
+
+    auto propagated = GENERATE(
+        take(
+            10,
+            random(
+                CastLimits<TestType>::Min(),
+                CastLimits<TestType>::Max())));
+
+    using Model = pex::model::Value<TestType>;
+    Model model{original};
+    Observer<TestType, Model> observer(model);
+
+    if constexpr (std::is_floating_point_v<TestType>)
+    {
+        REQUIRE(observer.observedValue == original);
+    }
+    else
+    {
+        REQUIRE(observer.observedValue == Approx(original));
+    }
+
+    model = propagated;
+
+    if constexpr (std::is_floating_point_v<TestType>)
+    {
+        REQUIRE(observer.observedValue == propagated);
+    }
+    else
+    {
+        REQUIRE(observer.observedValue == Approx(propagated));
+    }
+}
+
+
+
+
 TEST_CASE("std::string propagation", "[value]")
 {
     auto wordCount = GENERATE(take(10, random(1u, 10u)));

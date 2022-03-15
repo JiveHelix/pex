@@ -263,7 +263,27 @@ public:
             this->minimum = Limit(upstream.minimum);
             this->maximum = Limit(upstream.maximum);
         }
+    }
+    
+    template<typename OtherObserver, typename OtherFilter, typename OtherAccess>
+    Range(const Range<OtherObserver, Upstream, OtherFilter, OtherAccess> &other)
+        :
+        value(other.value),
+        minimum(other.minimum),
+        maximum(other.maximum)
+    {
 
+    }
+
+    template<typename OtherObserver, typename OtherFilter, typename OtherAccess>
+    Range & operator=(
+        const Range<OtherObserver, Upstream, OtherFilter, OtherAccess> &other)
+    {
+        this->value = other.value;
+        this->minimum = other.minimum;
+        this->maximum = other.maximum;
+
+        return *this;
     }
 
     Value value;

@@ -43,10 +43,9 @@ public:
     using Limit = typename Range::Limit;
     using Type = typename Value::Type;
     
-    template<typename CompatibleRange>
     SpinControlDouble(
         wxWindow *parent,
-        CompatibleRange range,
+        RangeControl range,
         typename Value::Type increment,
         unsigned int digits = 4,
         long style = wxSP_ARROW_KEYS | wxTE_PROCESS_ENTER)

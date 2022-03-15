@@ -26,20 +26,19 @@ namespace wx
 
 template
 <
-    typename Value,
+    typename Control,
     typename ConverterTraits = DefaultConverterTraits
 >
 class Field: public wxControl
 {
 public:
     using Base = wxControl;
-    using Type = typename Value::Type;
+    using Type = typename Control::Type;
     using Convert = Converter<Type, ConverterTraits>;
 
-    template<typename CompatibleValue>
     Field(
         wxWindow *parent,
-        CompatibleValue value,
+        Control value,
         long style = 0)
         :
         Base(parent, wxID_ANY),
@@ -109,8 +108,10 @@ public:
         this->textControl_->ChangeValue(this->displayedString_);
     }
 
-    using Observer = Field<Value, ConverterTraits>;
-    typename pex::control::ChangeObserver<Observer, Value>::Type value_;
+    using Value_ =
+        typename pex::control::ChangeObserver<Field, Control>::Type;
+
+    Value_ value_;
 
     std::string displayedString_;
     wxTextCtrl *textControl_;

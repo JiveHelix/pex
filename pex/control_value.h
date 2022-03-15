@@ -80,6 +80,8 @@ public:
     template<typename>
     friend class ::pex::Reference;
 
+    static_assert(!std::is_same_v<Filter, void>, "Filter must not be void.");
+
     static_assert(
         detail::FilterIsNoneOrValid<UpstreamType, Filter, Access>::value);
 
@@ -116,16 +118,22 @@ public:
         this->upstream_.Disconnect(this);
     }
 
-    /** Allow copy and assignment from another Value that may have different
+    /** 
+     ** Allow copy and assignment from another Value that may have different
      ** observers and filters, but tracks the same model.
      **/
-    template<typename OtherObserver, typename OtherFilter>
-    explicit Value_(
-        const Value_<OtherObserver, Pex, OtherFilter, Access> &other)
+    template<typename OtherObserver, typename OtherFilter, typename OtherAccess>
+    Value_(
+        const Value_<OtherObserver, Pex, OtherFilter, OtherAccess> &other)
         :
         upstream_(other.upstream_),
         filter_()
     {
+        // Allow the copy if the other has access at or above ours.
+        static_assert(
+            HasAccess<Access, OtherAccess>,
+            "Cannot copy from another value without equal or greater access.");
+
         if constexpr (HasAccess<GetTag, Access>)
         {
             this->upstream_.Connect(this, &Value_::OnUpstreamChanged_);
@@ -139,9 +147,15 @@ public:
         }
     }
 
-    template<typename OtherObserver, typename OtherFilter>
-    Value_ & operator=(
-        const Value_<OtherObserver, Pex, OtherFilter, Access> &other)
+    // Enable the assignment operator if the other has access at or above ours.
+    template<typename OtherObserver, typename OtherFilter, typename OtherAccess>
+    std::enable_if_t
+    <
+        HasAccess<Access, OtherAccess>, 
+        Value_ &
+    >
+    operator=(
+        const Value_<OtherObserver, Pex, OtherFilter, OtherAccess> &other)
     {
         this->upstream_.Disconnect(this);
         this->upstream_ = other.upstream_;
@@ -229,6 +243,12 @@ public:
         }
     }
 
+    Value_ & operator=(ArgumentT<Type> value)
+    {
+        this->Set(value);
+        return *this;
+    }
+
 private:
     void SetWithoutNotify_(ArgumentT<Type> value)
     {
@@ -264,7 +284,7 @@ private:
         }
         else
         {
-            // The filter is not a member method.
+            // The filter is not a member function.
             return Filter::Set(value);
         }
     }
@@ -282,7 +302,7 @@ private:
         }
         else
         {
-            // The filter doesn't accept a Filter * argument.
+            // The filter is not a member function.
             return Filter::Get(value);
         }
     }
@@ -357,13 +377,23 @@ struct BoundValue
 
 
 template<typename ControlValue, typename Filter>
-using FilteredLike = Value_
-<
-    typename ControlValue::Observer,
-    typename ControlValue::Pex,
-    Filter,
-    typename ControlValue::Access
->;
+struct FilteredLike_
+{
+    static_assert(
+        std::is_same_v<typename ControlValue::Filter, NoFilter>,
+        "ControlValue has a filter that must not be replaced.");
+
+    using Type = Value_
+        <
+            typename ControlValue::Observer,
+            typename ControlValue::Pex,
+            Filter,
+            typename ControlValue::Access
+        >;
+};
+
+template<typename ControlValue, typename Filter>
+using FilteredLike = typename FilteredLike_<ControlValue, Filter>::Type;
 
 
 } // namespace control

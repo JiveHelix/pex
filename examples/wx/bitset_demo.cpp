@@ -20,10 +20,9 @@
 
 
 constexpr auto bitCount = 5;
-using Bitset = std::bitset<bitCount>;
 
-using BitsetModel = pex::model::Value<Bitset>;
-using BitsetControl = pex::control::Value<void, BitsetModel>;
+using BitsetModel = pex::BitsetModel<bitCount>;
+using BitsetControl = pex::BitsetControl<bitCount>;
 
 
 struct Model
@@ -42,12 +41,12 @@ struct Model
 struct Control
 {
     BitsetControl bitset;
-    pex::wx::BitsetFlagsControl<bitCount> flags;
+    pex::BitsetFlagsControl<bitCount> flags;
 
     Control(Model &model)
         :
         bitset(model.bitset),
-        flags(model.bitset)
+        flags(this->bitset)
     {
 
     }
@@ -102,14 +101,14 @@ ExampleFrame::ExampleFrame(Control control)
     auto bitsetView =
         LabeledWidget(
             this,
-            MakeWidgetMaker<View>(control.bitset),
-            "Bitset (view):");
+            "Bitset (view):",
+            new View(this, control.bitset));
 
     auto bitsetField =
         LabeledWidget(
             this,
-            MakeWidgetMaker<Field>(control.bitset),
-            "Bitset (field):");
+            "Bitset (field):",
+            new Field(this, control.bitset));
 
     auto pointSize = bitsetView.GetLabel()->GetFont().GetPointSize();
     wxFont font(wxFontInfo(pointSize).Family(wxFONTFAMILY_TELETYPE));
@@ -119,21 +118,17 @@ ExampleFrame::ExampleFrame(Control control)
     auto bitsetFlags =
         LabeledWidget(
             this,
-            MakeBitsetCheckBoxes<bitCount>
-            {
-                control.flags,
-            },
-            "Bitset (default names):");
+            "Bitset (default names):",
+            new BitsetCheckBoxes<bitCount>(this, control.flags));
 
     auto bitsetFlagsCustomized =
         LabeledWidget(
             this,
-            MakeBitsetCheckBoxes<bitCount>
-            {
+            "Bitset (default names):",
+            new BitsetCheckBoxes<bitCount>(
+                this,
                 control.flags,
-                {"Enable", "Filter", "Fast", "Slow", "?"}
-            },
-            "Bitset (customized names):");
+                {"Enable", "Filter", "Fast", "Slow", "?"}));
 
     auto topSizer = std::make_unique<wxBoxSizer>(wxVERTICAL);
 

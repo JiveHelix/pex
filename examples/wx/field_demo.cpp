@@ -79,7 +79,9 @@ private:
 class ExampleFrame: public wxFrame
 {
 public:
-    ExampleFrame(RadiansControl value);
+    ExampleFrame(
+        RadiansControl radians,
+        DegreesControl degrees);
 };
 
 
@@ -90,14 +92,18 @@ wxshimIMPLEMENT_APP(ExampleApp)
 bool ExampleApp::OnInit()
 {
     ExampleFrame *exampleFrame =
-        new ExampleFrame(RadiansControl(this->angle_));
+        new ExampleFrame(
+            RadiansControl(this->angle_),
+            DegreesControl(this->angle_));
 
     exampleFrame->Show();
     return true;
 }
 
 
-ExampleFrame::ExampleFrame(RadiansControl control)
+ExampleFrame::ExampleFrame(
+    RadiansControl radians,
+    DegreesControl degrees)
     :
     wxFrame(nullptr, wxID_ANY, "pex::wx::Field Demo")
 {
@@ -106,26 +112,26 @@ ExampleFrame::ExampleFrame(RadiansControl control)
     auto radiansView =
         LabeledWidget(
             this,
-            WidgetMaker<View, RadiansControl>(control),
-            "Radians:");
+            "Radians:",
+            new View(this, radians));
 
     auto degreesView =
         LabeledWidget(
             this,
-            WidgetMaker<View, DegreesControl>(control),
-            "Degrees:");
+            "Degrees:",
+            new View(this, degrees));
 
     auto radiansEntry =
         LabeledWidget(
             this,
-            WidgetMaker<Field, RadiansControl>(control),
-            "Radians:");
+            "Radians:",
+            new Field(this, radians));
 
     auto degreesEntry =
         LabeledWidget(
             this,
-            WidgetMaker<Field, DegreesControl>(control),
-            "Degrees:");
+            "Degrees:",
+            new Field(this, degrees));
 
     auto topSizer = std::make_unique<wxBoxSizer>(wxVERTICAL);
     auto flags = wxLEFT | wxBOTTOM | wxRIGHT | wxEXPAND;

@@ -24,14 +24,14 @@
 using Angle = pex::model::Value<double>;
 
 // Create the control value without an observer.
-using Control = pex::control::Value<void, Angle>;
+using DegreesControl = pex::control::Value<void, Angle>;
 
 using Signal = pex::model::Signal;
 using ControlSignal = pex::control::Signal<void>;
 
 
 /** Allow an control to use radians, while the model uses degrees. **/
-struct DegreesFilter
+struct RadiansFilter
 {
     /** Convert to degrees on retrieval **/
     static double Get(double value)
@@ -48,7 +48,7 @@ struct DegreesFilter
 
 
 using RadiansControl =
-    pex::control::FilteredValue<void, Angle, DegreesFilter>;
+    pex::control::FilteredValue<void, Angle, RadiansFilter>;
 
 
 class ExampleApp: public wxApp
@@ -80,7 +80,7 @@ private:
 class ExampleFrame: public wxFrame
 {
 public:
-    ExampleFrame(Control value, ControlSignal signal);
+    ExampleFrame(DegreesControl value, ControlSignal signal);
 };
 
 
@@ -92,7 +92,7 @@ bool ExampleApp::OnInit()
 {
     ExampleFrame *exampleFrame =
         new ExampleFrame(
-            Control(this->angle_),
+            DegreesControl(this->angle_),
             ControlSignal(this->signal_));
 
     this->signalControl_.Connect(this, &ExampleApp::OnSignal_);
@@ -121,23 +121,23 @@ using FifteenDigits = pex::Converter<T, FifteenDigitsTraits>;
 
 
 ExampleFrame::ExampleFrame(
-    Control control,
+    DegreesControl control,
     ControlSignal interfaceSignal)
     :
     wxFrame(nullptr, wxID_ANY, "pex::wx::View Demo")
 {
-    using Type = typename Control::Type;
+    using Type = typename DegreesControl::Type;
 
     auto view =
-        new pex::wx::View<Control>(this, control);
+        new pex::wx::View(this, control);
 
     auto three =
-        new pex::wx::View<Control, ThreeDigits<Type>>(this, control);
+        new pex::wx::View<DegreesControl, ThreeDigits<Type>>(this, control);
 
     auto fifteen =
         new pex::wx::View<RadiansControl, FifteenDigits<Type>>(
             this,
-            control);
+            RadiansControl(control));
 
     auto button =
         new pex::wx::Button(this, "Press Me", interfaceSignal);

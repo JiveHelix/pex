@@ -13,7 +13,6 @@
 
 #include "pex/wx/wxshim.h"
 #include "pex/value.h"
-#include "pex/is_compatible.h"
 
 
 namespace pex
@@ -30,11 +29,10 @@ public:
     using Base = wxCheckBox;
     using Type = typename Value::Type;
 
-    template<typename Compatible>
     CheckBox(
         wxWindow *parent,
         const std::string &label,
-        Compatible value,
+        Value value,
         long style = 0)
         :
         Base(
@@ -46,8 +44,6 @@ public:
             style),
         value_(value)
     {
-        static_assert(pex::IsCompatibleV<Value, Compatible>);
-
         this->SetValue(this->value_.Get());
         this->value_.Connect(this, &CheckBox::OnValueChanged_);
         this->Bind(wxEVT_CHECKBOX, &CheckBox::OnCheckBox_, this);
@@ -64,8 +60,7 @@ public:
     }
 
 private:
-    using Observer = CheckBox<Value>;
-    typename pex::control::ChangeObserver<Observer, Value>::Type value_;
+    typename pex::control::ChangeObserver<CheckBox, Value>::Type value_;
     size_t id_;
 };
 

@@ -16,8 +16,8 @@
 #include "pex/wx/wxshim.h"
 #include "pex/value.h"
 #include "pex/converter.h"
-#include "pex/is_compatible.h"
 #include "pex/detail/argument.h"
+
 
 namespace pex
 {
@@ -28,35 +28,29 @@ namespace wx
 
 template
 <
-    typename Value,
-    typename Convert = Converter<typename Value::Type>
+    typename Control,
+    typename Convert = Converter<typename Control::Type>
 >
 class View: public wxStaticText
 {
 public:
     using Base = wxStaticText;
-    using Type = typename Value::Type;
+    using Type = typename Control::Type;
 
-    /** @tparam Compatible A deduced value that has the same Model and Access
-     ** as Value.
-     **/
-    template<typename Compatible>
     View(
         wxWindow *parent,
-        Compatible value,
+        Control value,
         long style = 0)
         :
         Base(
             parent,
             wxID_ANY,
-            Convert::ToString(Value(value).Get()),
+            Convert::ToString(value.Get()),
             wxDefaultPosition,
             wxDefaultSize,
             style),
         value_(value)
     {
-        static_assert(pex::IsCompatibleV<Value, Compatible>);
-
         this->value_.Connect(this, &View::OnValueChanged_);
     }
 
@@ -67,8 +61,8 @@ private:
         this->GetParent()->Layout();
     }
 
-    using Observer = View<Value, Convert>;
-    typename pex::control::ChangeObserver<Observer, Value>::Type value_;
+    using Value_ = typename pex::control::ChangeObserver<View, Control>::Type;
+    Value_ value_;
 };
 
 

@@ -98,7 +98,7 @@ struct ApplicationControl
 
     ApplicationControl(ApplicationModel &model)
     {
-        fields::Assign<ApplicationFields>(*this, model);
+        fields::AssignConvert<ApplicationFields>(*this, model);
     }
 };
 
@@ -161,7 +161,7 @@ public:
             "Use the shortcut keys and the menu items.");
 
         auto view =
-            pex::wx::MakeView(this, applicationControl.message);
+            new pex::wx::View(this, applicationControl.message);
 
         auto topSizer = std::make_unique<wxBoxSizer>(wxVERTICAL);
         topSizer->Add(message, 0, wxALL, 10);

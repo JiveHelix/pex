@@ -39,10 +39,9 @@ public:
     using ChoicesVector = typename Choices::Type;
     using WxAdapter = WxChooser<typename Control::Type, Convert>;
 
-    template<typename Compatible>
     ComboBox(
         wxWindow *parent,
-        Compatible control,
+        Control_ control,
         long style = 0)
         :
         Base(

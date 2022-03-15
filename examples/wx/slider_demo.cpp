@@ -151,7 +151,7 @@ ExampleFrame::ExampleFrame(
         new PlaybackSpeedSlider(this, playbackSpeedRange, playbackSpeedValue);
 
     auto speedView =
-        new pex::wx::View<PlaybackSpeedValue>(this, playbackSpeedValue);
+        new pex::wx::View(this, playbackSpeedValue);
 
     auto topSizer = std::make_unique<wxBoxSizer>(wxVERTICAL);
 

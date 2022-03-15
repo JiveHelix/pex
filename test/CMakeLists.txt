@@ -8,7 +8,8 @@ add_executable(
     signal_tests.cpp
     filter_tests.cpp
     expand_tests.cpp
-    range_tests.cpp)
+    range_tests.cpp
+    assign_tests.cpp)
 
 target_link_libraries(
     pex_tests
@@ -17,4 +18,5 @@ target_link_libraries(
     project_options
     pex_catch_main
     pex
+    CONAN_PKG::fields
     CONAN_PKG::tau)

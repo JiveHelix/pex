@@ -59,10 +59,9 @@ public:
         std::is_same_v<int, typename Limit::Type>,
         "Slider control uses int");
 
-    template<typename CompatibleRange>
     Slider(
         wxWindow *parent,
-        CompatibleRange range,
+        RangeControl range,
         long style = wxSL_HORIZONTAL)
         :
         Base(
@@ -164,11 +163,10 @@ public:
 
     // range is filtered to an int for direct use in the wx.Slider.
     // value is the value from the model for display in the view.
-    template<typename CompatibleRange, typename CompatibleValue>
     SliderAndValue(
         wxWindow *parent,
-        CompatibleRange range,
-        CompatibleValue value,
+        RangeControl range,
+        ValueControl value,
         long style = wxSL_HORIZONTAL)
         :
         Base(parent, wxID_ANY)

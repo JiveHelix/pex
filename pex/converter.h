@@ -11,12 +11,12 @@
 
 #pragma once
 
-#include <bitset>
 #include <string>
 #include "jive/auto_format.h"
 #include "jive/formatter.h"
 #include "jive/to_integer.h"
 #include "jive/to_float.h"
+#include "jive/type_traits.h"
 
 
 namespace pex
@@ -79,12 +79,6 @@ struct ValueToString
 };
 
 
-template<typename T>
-struct IsBitset : std::false_type {};
-
-template<size_t N>
-struct IsBitset<std::bitset<N>> : std::true_type {};
-
 /** Specialization for std::bitset **/
 template<typename T, int base, int width, int precision>
 struct ValueToString
@@ -93,7 +87,7 @@ struct ValueToString
     base,
     width,
     precision,
-    std::enable_if_t<IsBitset<T>::value>
+    std::enable_if_t<jive::IsBitset<T>::value>
 >
 {
     template<typename U>
@@ -140,7 +134,7 @@ struct StringToValue<T, base, std::enable_if_t<std::is_floating_point_v<T>>>
 };
 
 template<typename T, int base>
-struct StringToValue<T, base, std::enable_if_t<IsBitset<T>::value>>
+struct StringToValue<T, base, std::enable_if_t<jive::IsBitset<T>::value>>
 {
     static T Call(const std::string_view &asString)
     {

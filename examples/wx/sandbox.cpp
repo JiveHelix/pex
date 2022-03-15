@@ -67,8 +67,8 @@ ExampleFrame::ExampleFrame(Control control)
 {
     // Any instance constructed with a parent automatically becomes owned by
     // the parent, so there is no need to protect it with unique_ptr.
-    auto view = new pex::wx::View<Control>(this, control);
-    auto knob = new pex::wx::Knob<Control>(this, control);
+    auto view = new pex::wx::View(this, control);
+    auto knob = new pex::wx::Knob(this, control);
 
     // Sizers are not owned until a call to SetSizer.
     // unique_ptr will manage it until then.

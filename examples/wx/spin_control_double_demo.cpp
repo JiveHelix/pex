@@ -111,13 +111,13 @@ ExampleFrame::ExampleFrame(
     wxFrame(nullptr, wxID_ANY, "pex::wx::SpinControlDouble Demo")
 {
     auto wibbleView =
-        new pex::wx::View<WibbleValue>(this, wibbleValue);
+        new pex::wx::View(this, wibbleValue);
 
     auto wibbleSpinControl =
         new WibbleSpinControl(this, wibbleRange, wibbleIncrement, 0);
 
     auto wobbleView =
-        new pex::wx::View<WobbleValue>(this, wobbleValue);
+        new pex::wx::View(this, wobbleValue);
 
     auto wobbleSpinControl =
         new WobbleSpinControl(this, wobbleRange, wobbleIncrement);

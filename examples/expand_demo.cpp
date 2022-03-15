@@ -3,6 +3,7 @@
 
 #include "pex/value.h"
 #include "pex/expand.h"
+#include "pex/interface.h"
 
 
 template<typename T>
@@ -24,10 +25,8 @@ struct PlayerTemplate
     static constexpr auto fields = PlayerFields<PlayerTemplate<T>>::fields;
 };
 
-template<typename T>
-using SameType = T;
 
-struct Player: public PlayerTemplate<SameType>
+struct Player: public PlayerTemplate<pex::Identity>
 {
     /*
 

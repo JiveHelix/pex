@@ -120,15 +120,15 @@ ExampleFrame::ExampleFrame(
     wxFrame(nullptr, wxID_ANY, "pex::wx::ComboBox Demo")
 {
     auto firkinsCheckbox =
-        new pex::wx::CheckBox<FirkinsControl>(
+        new pex::wx::CheckBox(
             this,
             "Show FFF",
             firkinsControl);
 
     auto comboBox =
-        new pex::wx::ComboBox<ChooserControl>(this, chooserControl);
+        new pex::wx::ComboBox(this, chooserControl);
 
-    auto view = new pex::wx::View<UnitsControl>(this, unitsControl);
+    auto view = new pex::wx::View(this, unitsControl);
     auto topSizer = std::make_unique<wxBoxSizer>(wxVERTICAL);
 
     topSizer->Add(firkinsCheckbox, 0, wxALL, 10);

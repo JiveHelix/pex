@@ -4,7 +4,7 @@
 #include <array>
 
 #include "jive/formatter.h"
-#include "pex/value.h"
+#include "pex/bitset.h"
 #include "pex/wx/check_box.h"
 
 
@@ -14,74 +14,6 @@ namespace pex
 
 namespace wx
 {
-
-
-template<size_t bitCount>
-using BitsetModel = pex::model::Value<std::bitset<bitCount>>;
-
-
-template<size_t bitCount>
-struct FlagFilter
-{
-public:
-    using Bitset = std::bitset<bitCount>;
-
-    FlagFilter() = default;
-
-    FlagFilter(const BitsetModel<bitCount> &model, size_t index)
-        :
-        model_(&model),
-        index_(index)
-    {
-
-    }
-
-    bool Get(const Bitset &bitset) const
-    {
-        return bitset[this->index_];
-    }
-
-    Bitset Set(bool value) const
-    {
-        Bitset result = this->model_->Get();
-        result[this->index_] = value;
-        return result;
-    }
-
-private:
-    const BitsetModel<bitCount> *model_;
-    size_t index_;
-};
-
-
-template<size_t bitCount>
-using FlagControl =
-    pex::control::FilteredValue<
-        void,
-        BitsetModel<bitCount>,
-        FlagFilter<bitCount>>;
-
-
-template<size_t bitCount>
-class BitsetFlagsControl
-{
-public:
-    using Filter = FlagFilter<bitCount>;
-    using Flag = FlagControl<bitCount>;
-
-    BitsetFlagsControl(BitsetModel<bitCount> &bitset)
-        :
-        flags{}
-    {
-        for (size_t i = 0; i < bitCount; ++i)
-        {
-            this->flags[i] = Flag(bitset, Filter(bitset, i));
-        }
-    }
-
-public:
-    std::array<Flag, bitCount> flags;
-};
 
 
 template<size_t bitCount>

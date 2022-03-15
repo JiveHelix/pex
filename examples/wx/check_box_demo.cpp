@@ -83,9 +83,9 @@ ExampleFrame::ExampleFrame(
     wxFrame(nullptr, wxID_ANY, "pex::wx::CheckBox Demo")
 {
     auto checkBox =
-        new pex::wx::CheckBox<IsCheckedControl>(this, "Check me", isChecked);
+        new pex::wx::CheckBox(this, "Check me", isChecked);
 
-    auto view = new pex::wx::View<MessageControl>(this, message);
+    auto view = new pex::wx::View(this, message);
 
     auto topSizer = std::make_unique<wxBoxSizer>(wxVERTICAL);
 
