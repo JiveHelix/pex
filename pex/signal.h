@@ -85,7 +85,7 @@ public:
     {
         if (this->model_)
         {
-            this->model_->Disconnect();
+            this->model_->Disconnect(this);
         }
 
         this->model_ = other.model_;

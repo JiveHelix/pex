@@ -4,7 +4,7 @@ from conans import ConanFile, CMake, tools
 
 class PexConan(ConanFile):
     name = "pex"
-    version = "0.2.0"
+    version = "0.2.1"
 
     scm = {
         "type": "git",
@@ -43,5 +43,5 @@ class PexConan(ConanFile):
         self.requires("jive/[~1.0]")
         self.requires("fields/[~1.1]")
         self.requires("tau/[~1.1]")
-        self.requires("wxwidgets/[~3.1.3]@bincrafters/stable")
+        self.requires("wxwidgets/3.1.5@jivehelix/stable")
 
