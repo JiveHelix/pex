@@ -1,7 +1,17 @@
+/**
+  * @file tile.h
+  * 
+  * @brief Tile windows to fill the screen.
+  * 
+  * @author Jive Helix (jivehelix@gmail.com)
+  * @date 28 Mar 2022
+  * @copyright Jive Helix
+  * Licensed under the MIT license. See LICENSE file.
+**/
+
 #pragma once
 
 #include <vector>
-#include <iostream>
 #include "pex/wx/wxshim.h"
 
 WXSHIM_PUSH_IGNORES
@@ -53,32 +63,6 @@ inline void ScaleWindow(wxWindow *window, int size, int orient)
 }
 
 
-inline std::ostream & operator<<(
-    std::ostream &outputStream,
-    const wxPoint &point)
-{
-    return outputStream << "wxPoint(" << point.x << ", " << point.y << ")";
-}
-
-
-inline std::ostream & operator<<(
-    std::ostream &outputStream,
-    const wxSize &size)
-{
-    return outputStream << "wxSize(" << size.GetWidth() << ", "
-        << size.GetHeight() << ")";
-}
-
-
-inline std::ostream & operator<<(
-    std::ostream &outputStream,
-    const wxRect &rect)
-{
-    return outputStream << "wxRect(" << rect.GetTopLeft() << ", "
-        << rect.GetSize() << ")";
-}
-
-
 inline void Tile(const std::vector<wxWindow *> windows, int orient)
 {
     if (windows.empty())
@@ -98,9 +82,6 @@ inline void Tile(const std::vector<wxWindow *> windows, int orient)
 
     auto screen = display.GetClientArea();
 
-    std::cout << "display: " << display.GetName() << std::endl;
-    std::cout << screen << std::endl;
-
     int windowSize;
 
     if (orient == wxHORIZONTAL)
@@ -112,18 +93,12 @@ inline void Tile(const std::vector<wxWindow *> windows, int orient)
         windowSize = screen.GetHeight() / windows.size();
     }
 
-    std::cout << "windowSize: " << windowSize << std::endl;
-
     auto nextPosition = screen.GetTopLeft();
 
     for (auto window: windows)
     {
-        std::cout << "nextPosition: " << nextPosition << std::endl;
-
         ScaleWindow(window, windowSize, orient);
         window->SetPosition(nextPosition);
-
-        std::cout << "Reported: " << window->GetRect() << std::endl;
 
         if (orient == wxHORIZONTAL)
         {
