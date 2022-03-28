@@ -147,6 +147,13 @@ ExampleFrame::ExampleFrame(
     auto positionSlider =
         new PositionSlider(this, positionRange, positionValue);
 
+    auto verticalSlider =
+        new PositionSlider(
+            this,
+            positionRange,
+            positionValue,
+            wxSL_VERTICAL);
+
     auto playbackSpeedSlider =
         new PlaybackSpeedSlider(this, playbackSpeedRange, playbackSpeedValue);
 
@@ -156,6 +163,7 @@ ExampleFrame::ExampleFrame(
     auto topSizer = std::make_unique<wxBoxSizer>(wxVERTICAL);
 
     topSizer->Add(positionSlider, 0, wxALL | wxEXPAND, 10);
+    topSizer->Add(verticalSlider, 1, wxALL | wxEXPAND, 10);
     topSizer->Add(playbackSpeedSlider, 0, wxALL | wxEXPAND, 10);
     topSizer->Add(speedView, 0, wxALL | wxEXPAND, 10);
 

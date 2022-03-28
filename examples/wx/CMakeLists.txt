@@ -33,6 +33,18 @@ target_link_libraries(
     CONAN_PKG::wxwidgets)
 
 
+add_executable(async_demo async_demo.cpp)
+
+target_link_libraries(
+    async_demo
+    PRIVATE
+    project_warnings
+    project_options
+    pex
+    CONAN_PKG::tau
+    CONAN_PKG::wxwidgets)
+
+
 add_executable(bitset_demo bitset_demo.cpp)
 
 target_link_libraries(

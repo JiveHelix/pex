@@ -29,10 +29,47 @@ namespace wx
 {
 
 
+namespace detail
+{
+
+struct StyleFilter
+{
+public:
+    StyleFilter(long style, int maximum)
+        :
+        isVertical_(style & wxSL_VERTICAL),
+        maximum_(maximum)
+    {
+
+    }
+
+    int operator()(int value)
+    {
+        if (!this->isVertical_)
+        {
+            return value;
+        }
+        
+        return this->maximum_ - value;
+    }
+
+    void SetMaximum(int maximum)
+    {
+        this->maximum_ = maximum;
+    }
+
+private:
+    bool isVertical_;
+    int maximum_;
+};
+
+
+} // end namespace detail
+
+
 /** wxSlider uses `int`, so the default filter will attempt to convert T to
  ** `int`.
  **/
-
 
 template
 <
@@ -67,7 +104,9 @@ public:
         Base(
             parent,
             wxID_ANY,
-            range.value.Get(),
+            detail::StyleFilter(
+                style,
+                range.maximum.Get())(range.value.Get()),
             range.minimum.Get(),
             range.maximum.Get(),
             wxDefaultPosition,
@@ -76,7 +115,8 @@ public:
         value_(range.value),
         minimum_(range.minimum),
         maximum_(range.maximum),
-        defaultValue_(this->value_.Get())
+        defaultValue_(this->value_.Get()),
+        styleFilter_(style, range.maximum.Get())
     {
         this->value_.Connect(this, &Slider::OnValue_);
         this->minimum_.Connect(this, &Slider::OnMinimum_);
@@ -96,7 +136,7 @@ public:
 
     void OnValue_(int value)
     {
-        this->SetValue(value);
+        this->SetValue(this->styleFilter_(value));
     }
 
     void OnMinimum_(int minimum)
@@ -107,11 +147,12 @@ public:
     void OnMaximum_(int maximum)
     {
         this->SetMax(maximum);
+        this->styleFilter_.SetMaximum(maximum);
     }
 
     void OnSlider_(wxCommandEvent &event)
     {
-        this->value_.Set(event.GetInt());
+        this->value_.Set(this->styleFilter_(event.GetInt()));
     }
 
     void OnSliderLeftDown_(wxMouseEvent &event)
@@ -132,6 +173,7 @@ private:
     Limit minimum_;
     Limit maximum_;
     int defaultValue_;
+    detail::StyleFilter styleFilter_;
 };
 
 
@@ -186,8 +228,8 @@ public:
         auto sizer = std::make_unique<wxBoxSizer>(sizerStyle);
 
         auto flag = (wxSL_HORIZONTAL == style)
-            ? wxRIGHT | wxALIGN_CENTER_VERTICAL | wxEXPAND
-            : wxBOTTOM | wxALIGN_CENTER | wxEXPAND;
+            ? wxRIGHT | wxEXPAND
+            : wxBOTTOM | wxEXPAND;
 
         auto spacing = 5;
 
@@ -197,8 +239,8 @@ public:
             view,
             0,
             (wxSL_HORIZONTAL == wxHORIZONTAL)
-                ? wxALIGN_CENTER_VERTICAL
-                : wxALIGN_CENTER);
+                ? wxALIGN_CENTER
+                : wxALIGN_CENTER_VERTICAL);
 
         this->SetSizerAndFit(sizer.release());
     }

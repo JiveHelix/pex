@@ -40,7 +40,8 @@ public:
         :
         mutex_(),
         workerControl_(),
-        threadSafe_()
+        threadSafe_(),
+        value_()
     {
         this->Bind(wxEVT_THREAD, &Async::OnWxEventLoop_, this);
     }
@@ -63,12 +64,6 @@ public:
     {
         {
             std::lock_guard<std::mutex> lock(this->mutex_);
-
-            if (value == this->value_)
-            {
-                return;
-            }
-
             this->value_ = value;
         }
 
