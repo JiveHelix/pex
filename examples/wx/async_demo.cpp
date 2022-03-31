@@ -73,17 +73,15 @@ public:
         :
         mutex_{},
         startingAngle_{0.0},
-        currentAngle_{this->startingAngle_.Get()},
+        currentAngle_{},
         start_{},
         stop_{},
         isRunning_{},
-        worker_{},
-        async_{}
+        worker_{}
     {
         this->startingAngle_.Connect(this, &ExampleApp::OnUpdate_);
         this->start_.Connect(this, &ExampleApp::OnStart_);
         this->stop_.Connect(this, &ExampleApp::OnStop_);
-        this->async_.SetWorkerControl(MakeRadiansControl(this->currentAngle_));
     }
 
     bool OnInit() override;
@@ -92,9 +90,8 @@ private:
     static void OnUpdate_(void *context, double value)
     {
         auto self = reinterpret_cast<ExampleApp *>(context);
-
-        std::lock_guard<std::mutex> lock(self->mutex_);
-        self->currentAngle_.Set(value);
+        auto control = self->currentAngle_.GetWxControl();
+        control.Set(value);
     }
 
     static void OnStart_(void *context)
@@ -127,14 +124,14 @@ private:
 
     void WorkerThread_()
     {
+        auto workerControl = this->currentAngle_.GetWorkerControl();
+
         while (this->isRunning_)
         {
-            {
-                std::lock_guard<std::mutex> lock(this->mutex_);
+            auto next =
+                this->currentAngle_.Get() + tau::Angles<double>::pi / 4.0;
 
-                this->currentAngle_.Set(
-                    this->currentAngle_.Get() + tau::Angles<double>::pi / 4.0);
-            }
+            workerControl.Set(next);
 
             using namespace std::chrono_literals;
             std::this_thread::sleep_for(1s);
@@ -144,12 +141,11 @@ private:
 private:
     std::mutex mutex_;
     AngleRadians startingAngle_;
-    AngleRadians currentAngle_;
+    pex::wx::Async<double> currentAngle_;
     pex::model::Signal start_;
     pex::model::Signal stop_;
     std::atomic_bool isRunning_;
     std::thread worker_;
-    pex::wx::Async<RadiansControl<AngleRadians>> async_;
 };
 
 
@@ -173,7 +169,7 @@ wxshimIMPLEMENT_APP(ExampleApp)
 
 bool ExampleApp::OnInit()
 {
-    auto asyncControl = this->async_.GetControl();
+    auto asyncControl = this->currentAngle_.GetWxControl();
 
     auto exampleFrame =
         new ExampleFrame(

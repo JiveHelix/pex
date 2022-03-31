@@ -25,42 +25,49 @@ namespace wx
 {
 
 
-template<typename WorkerControl>
+template<typename T>
 class Async: public wxEvtHandler
 {
 public:
-    using Type = typename WorkerControl::Type;
+    using Type = T;
     using ThreadSafe = model::Value<Type>;
 
-    // Read-only control.
-    // These values only propagate from a worker to the wxWidgets event loop.
-    using WxControl = control::Value_<void, ThreadSafe, NoFilter, GetTag>;
+    template<typename Observer>
+    using Control = control::Value<Observer, ThreadSafe>;
 
-    Async()
+    Async(ArgumentT<Type> initialValue = Type{})
         :
         mutex_(),
-        workerControl_(),
-        threadSafe_(),
-        value_()
+        wxModel_(),
+        wxInternal_(this->wxModel_),
+        ignoreWxEcho_(false),
+        workerModel_(),
+        workerInternal_(this->workerModel_),
+        value_(initialValue)
     {
         this->Bind(wxEVT_THREAD, &Async::OnWxEventLoop_, this);
+        this->wxInternal_.Connect(this, &Async::OnWxChanged_);
+        this->workerInternal_.Connect(this, &Async::OnWorkerChanged_);
     }
 
-    void SetWorkerControl(WorkerControl workerControl)
+    Control<void> GetWorkerControl()
     {
-        this->workerControl_ = workerControl;
-
-        static_assert(HasAccess<GetTag, typename WorkerControl::Access>);
-
-        this->workerControl_.Connect(this, &Async::OnWorker_);
+        return Control<void>(this->workerModel_);
     }
 
-    WxControl GetControl()
+    Control<void> GetWxControl()
     {
-        return WxControl(this->threadSafe_);
+        return Control<void>(this->wxModel_);
     }
 
-    void OnWorker_(ArgumentT<Type> value)
+    Type Get() const
+    {
+        std::lock_guard<std::mutex> lock(this->mutex_);
+        return this->value_;
+    }
+
+private:
+    void OnWorkerChanged_(ArgumentT<Type> value)
     {
         {
             std::lock_guard<std::mutex> lock(this->mutex_);
@@ -73,19 +80,41 @@ public:
 
     void OnWxEventLoop_(wxThreadEvent &)
     {
+        Type value;
+
         {
             std::lock_guard<std::mutex> lock(this->mutex_);
-            this->threadSafe_.Set(this->value_);
+            value = this->value_;
         }
+        
+        this->ignoreWxEcho_ = true;
+
+        this->wxModel_.Set(value);
+    }
+
+    void OnWxChanged_(ArgumentT<Type> value)
+    {
+        if (this->ignoreWxEcho_)
+        {
+            this->ignoreWxEcho_ = false;
+            return;
+        }
+
+        {
+            std::lock_guard<std::mutex> lock(this->mutex_);
+            this->value_ = value;
+        }
+
+        this->workerModel_.Set(value);
     }
     
 private:
-    using Observed =
-        typename control::ChangeObserver<Async, WorkerControl>::Type;
-
-    std::mutex mutex_;
-    Observed workerControl_;
-    ThreadSafe threadSafe_;
+    mutable std::mutex mutex_;
+    ThreadSafe wxModel_;
+    Control<Async> wxInternal_;
+    std::atomic_bool ignoreWxEcho_;
+    ThreadSafe workerModel_;
+    Control<Async> workerInternal_;
     Type value_;
 };
 

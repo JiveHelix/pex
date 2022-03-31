@@ -15,6 +15,7 @@
 #include <type_traits>
 #include <stdexcept>
 #include <limits>
+#include <jive/overflow.h>
 #include "pex/value.h"
 #include "pex/detail/filters.h"
 #include "pex/reference.h"
@@ -94,11 +95,12 @@ public:
 public:
     Range() = default;
 
-    Range(Upstream &upstream)
+    template<typename U>
+    Range(U &&upstream)
         :
-        value_(upstream),
-        minimum_(std::numeric_limits<Type>::lowest()),
-        maximum_(std::numeric_limits<Type>::max())
+        value_(std::forward<U>(upstream)),
+        minimum_(),
+        maximum_()
     {
         this->value_.SetFilter(RangeFilter<Type>(
             this->minimum_.Get(),
@@ -213,6 +215,7 @@ struct IsModelRange<model::Range<T>>: std::true_type {};
 namespace control
 {
 
+
 template
 <
     typename Observer,
@@ -291,45 +294,59 @@ public:
     Limit maximum;
 };
 
-} // namespace control
 
-
-} // namespace pex
-
-
-#include "jive/overflow.h"
-
-template<typename Target, typename T>
-void RequireConvertible(T value)
+template<typename Target, typename Source>
+void RequireConvertible(Source value)
 {
     if (!jive::CheckConvertible<Target>(value))
     {
-        throw std::range_error("value is not convertible to Target.");
+        throw std::range_error("value is not convertible to target");
     }
 }
 
 
 #ifndef NDEBUG
-#define CHECK_TO_INT_RANGE(value) RequireConvertible<int>(value)
-#define CHECK_FROM_INT_RANGE(T, value) RequireConvertible<T, int>(value)
+#define CHECK_RANGE(Target, value) RequireConvertible<Target>(value)
 #else
-#define CHECK_TO_INT_RANGE(value)
-#define CHECK_FROM_INT_RANGE(T, value)
+// Release mode. No safety checks!
+#define CHECK_RANGE(Target, value)
 #endif
 
 
-template<typename T>
-struct ExampleRangeFilter
+template<typename SetType, typename GetType>
+struct ConvertingFilter
 {
-    static int Get(T value)
+    static GetType Get(SetType value)
     {
-        CHECK_TO_INT_RANGE(value);
-        return static_cast<int>(value);
+        CHECK_RANGE(GetType, value);
+        return static_cast<GetType>(value);
     }
 
-    static T Set(int value)
+    static SetType Set(GetType value)
     {
-        CHECK_FROM_INT_RANGE(T, value);
-        return static_cast<T>(value);
+        CHECK_RANGE(SetType, value);
+        return static_cast<SetType>(value);
     }
 };
+
+
+template
+<
+    typename Observer,
+    typename Upstream,
+    typename Converted,
+    typename Access = pex::GetAndSetTag
+>
+using ConvertingRange = Range
+    <
+        Observer,
+        Upstream,
+        ConvertingFilter<typename Upstream::Value::Type, Converted>,
+        Access
+    >;
+
+
+} // namespace control
+
+
+} // namespace pex
