@@ -22,7 +22,7 @@ public:
     template<typename T>
     Key(T keyCode)
         :
-        asciiCode_(static_cast<char>(keyCode))
+        code_(static_cast<int>(keyCode))
     {
         static_assert(
             std::is_same_v<T, char>
@@ -32,22 +32,25 @@ public:
 
     std::string GetString() const
     {
-        if (this->keyStringByKeyCode_.count(this->asciiCode_))
+        if (this->keyStringByKeyCode_.count(this->code_))
         {
-            return this->keyStringByKeyCode_.at(this->asciiCode_);
+            return this->keyStringByKeyCode_.at(this->code_);
+        }
+        
+        if (this->code_ > 127)
+        {
+            throw std::runtime_error("Unsupported key code.");
         }
 
-        return std::string(1, this->asciiCode_);
+        return std::string(1, static_cast<char>(this->code_));
     }
 
-    int GetInt() const { return static_cast<int>(this->asciiCode_); }
-
-    int GetChar() const { return static_cast<char>(this->asciiCode_); }
+    int GetInt() const { return this->code_; }
 
 private:
-    char asciiCode_;
+    int code_;
 
-    static inline const std::map<char, std::string>
+    static inline const std::map<int, std::string>
     keyStringByKeyCode_
     {
         {WXK_DELETE, "DELETE"},
@@ -114,10 +117,11 @@ public:
     // We are not observing this signal, so the Observer can be void.
     using SignalType = pex::control::Signal<void>;
 
+    template<typename KeyCode>
     Shortcut(
         SignalType signal,
         int modifier,
-        char keyCode,
+        KeyCode keyCode,
         std::string_view description,
         std::string_view longDescription)
         :
