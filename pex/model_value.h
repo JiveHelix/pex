@@ -41,7 +41,7 @@ using ValueConnection =
     detail::ValueConnection
     <
         Observer,
-        typename detail::FilteredType<T, Filter>::Type
+        detail::FilteredType<T, Filter>
     >;
 
 namespace model
@@ -57,7 +57,7 @@ class Value_
     // the filter is void.
     public detail::NotifyMany<ValueConnection<void, T, Filter_>, GetAndSetTag>
 {
-    static_assert(detail::FilterIsNoneOrValid<T, Filter_, SetTag>::value);
+    static_assert(detail::FilterIsNoneOrValid<T, Filter_, SetTag>);
 
 public:
     using Type = T;
@@ -93,7 +93,7 @@ public:
         value_{this->FilterOnSet_(value)}
     {
         static_assert(
-            detail::FilterIsNoneOrStatic<Type, Filter, SetTag>::value,
+            detail::FilterIsNoneOrStatic<Type, Filter, SetTag>,
             "A filter with member functions requires a pointer.");
     }
 
@@ -103,7 +103,7 @@ public:
         value_{this->FilterOnSet_(value)}
     {
         static_assert(
-            detail::FilterIsMember<Type, Filter>::value,
+            detail::FilterIsMember<Type, Filter>,
             "Static or void Filter does not require a filter instance.");
     }
 
@@ -113,7 +113,7 @@ public:
         value_{}
     {
         static_assert(
-            detail::FilterIsMember<Type, Filter>::value,
+            detail::FilterIsMember<Type, Filter>,
             "Static or void Filter does not require a filter instance.");
     }
 
@@ -146,7 +146,7 @@ public:
     void SetFilter(Filter filter)
     {
         static_assert(
-            detail::FilterIsMember<Type, Filter>::value,
+            detail::FilterIsMember<Type, Filter>,
             "Static or void Filter does not require a filter instance.");
 
         this->filter_ = filter;
@@ -176,7 +176,7 @@ private:
         {
             return value;
         }
-        else if constexpr (detail::SetterIsMember<Type, Filter>::value)
+        else if constexpr (detail::SetterIsMember<Type, Filter>)
         {
             REQUIRE_HAS_VALUE(this->filter_);
             return this->filter_->Set(value);
@@ -194,7 +194,7 @@ private:
         {
             return value;
         }
-        else if constexpr (detail::GetterIsMember<Type, Filter>::value)
+        else if constexpr (detail::GetterIsMember<Type, Filter>)
         {
             REQUIRE_HAS_VALUE(this->filter_);
             return this->filter_->Get(value);
@@ -222,10 +222,43 @@ using FilteredValue = Value_<T, Filter>;
 
 
 template<typename ...T>
-struct IsModel: std::false_type {};
+struct IsModel_: std::false_type {};
 
 template<typename ...T>
-struct IsModel<pex::model::Value_<T...>>: std::true_type {};
+struct IsModel_<pex::model::Value_<T...>>: std::true_type {};
+
+template<typename ...T>
+inline constexpr bool IsModel = IsModel_<T...>::value;
+
+
+/** If Pex is a pex::model::Value, it cannot be copied. Also, if it
+ ** has a Filter with member functions, then allowing it to be copied
+ ** breaks the ability to change the Filter instance. These Pex values must not
+ ** be copied.
+ **/
+template<typename Pex, typename = void>
+struct IsCopyable_: std::false_type {};
+
+
+template<typename Pex>
+struct IsCopyable_
+<
+    Pex,
+    std::enable_if_t
+    <
+        !IsModel<Pex>
+        && 
+        !detail::FilterIsMember
+        <
+            typename Pex::UpstreamType,
+            typename Pex::Filter
+        >
+    >
+>: std::true_type {};
+
+
+template<typename Pex>
+inline constexpr bool IsCopyable = IsCopyable_<Pex>::value;
 
 
 namespace control
@@ -336,6 +369,16 @@ private:
 private:
     Model *model_;
 };
+
+
+template<typename Pex>
+struct IsDirect_: std::false_type {};
+
+template<typename Pex>
+struct IsDirect_<pex::model::Direct<Pex>>: std::true_type {};
+
+template<typename Pex>
+inline constexpr bool IsDirect = IsDirect_<Pex>::value;
 
 
 } // end namespace model

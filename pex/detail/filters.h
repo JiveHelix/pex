@@ -27,28 +27,31 @@ namespace detail
  ** differ from the argument type.
  **/
 template<typename T, typename Filter, typename = void>
-struct GetterIsStatic: std::false_type {};
+struct GetterIsStatic_: std::false_type {};
 
 template<typename T>
-struct GetterIsStatic<T, NoFilter, void>: std::false_type {};
+struct GetterIsStatic_<T, NoFilter, void>: std::false_type {};
 
 template<typename T, typename Filter>
-struct GetterIsStatic
+struct GetterIsStatic_
 <
     T,
     Filter,
     std::enable_if_t<std::is_invocable_v<decltype(&Filter::Get), T>>
 > : std::true_type {};
 
+template<typename T, typename Filter>
+inline constexpr bool GetterIsStatic = GetterIsStatic_<T, Filter>::value;
+
 
 template<typename T, typename Filter, typename = void>
-struct GetterIsMember: std::false_type {};
+struct GetterIsMember_: std::false_type {};
 
 template<typename T>
-struct GetterIsMember<T, NoFilter, void>: std::false_type {};
+struct GetterIsMember_<T, NoFilter, void>: std::false_type {};
 
 template<typename T, typename Filter>
-struct GetterIsMember
+struct GetterIsMember_
 <
     T,
     Filter,
@@ -58,6 +61,9 @@ struct GetterIsMember
     >
 > : std::true_type {};
 
+template<typename T, typename Filter>
+inline constexpr bool GetterIsMember = GetterIsMember_<T, Filter>::value;
+
 
 /** Filter can change the type of the value.
  ** I use the return value of the Get() method to deduce the converted type
@@ -65,35 +71,38 @@ struct GetterIsMember
  ** The default is the unmodified type T.
  **/
 template<typename T, typename Filter, typename = void>
-struct FilteredType
+struct FilteredType_
 {
     using Type = T;
 };
 
 template<typename T>
-struct FilteredType<T, NoFilter, void>
+struct FilteredType_<T, NoFilter, void>
 {
     using Type = T;
 };
 
 template<typename T, typename Filter>
-struct FilteredType
+struct FilteredType_
 <
     T,
     Filter,
-    std::enable_if_t<GetterIsMember<T, Filter>::value>>
+    std::enable_if_t<GetterIsMember<T, Filter>>>
 {
     using Type = std::invoke_result_t<decltype(&Filter::Get), Filter, T>;
 };
 
 template<typename T, typename Filter>
-struct FilteredType<
+struct FilteredType_<
     T,
     Filter,
-    std::enable_if_t<GetterIsStatic<T, Filter>::value>>
+    std::enable_if_t<GetterIsStatic<T, Filter>>>
 {
     using Type = std::invoke_result_t<decltype(&Filter::Get), T>;
 };
+
+template<typename T, typename Filter>
+using FilteredType = typename FilteredType_<T, Filter>::Type;
 
 
 /** Setter Checks
@@ -103,13 +112,13 @@ struct FilteredType<
  ** Set function.
  **/
 template<typename T, typename Filter, typename = void>
-struct SetterIsStatic: std::false_type {};
+struct SetterIsStatic_: std::false_type {};
 
 template<typename T>
-struct SetterIsStatic<T, NoFilter, void>: std::false_type {};
+struct SetterIsStatic_<T, NoFilter, void>: std::false_type {};
 
 template<typename T, typename Filter>
-struct SetterIsStatic
+struct SetterIsStatic_
 <
     T,
     Filter,
@@ -119,20 +128,23 @@ struct SetterIsStatic
         <
             T,
             decltype(&Filter::Set),
-            typename FilteredType<T, Filter>::Type
+            FilteredType<T, Filter>
         >
     >
 > : std::true_type {};
 
+template<typename T, typename Filter>
+inline constexpr bool SetterIsStatic = SetterIsStatic_<T, Filter>::value;
+
 
 template<typename T, typename Filter, typename = void>
-struct SetterIsMember: std::false_type {};
+struct SetterIsMember_: std::false_type {};
 
 template<typename T>
-struct SetterIsMember<T, NoFilter, void>: std::false_type {};
+struct SetterIsMember_<T, NoFilter, void>: std::false_type {};
 
 template<typename T, typename Filter>
-struct SetterIsMember
+struct SetterIsMember_
 <
     T,
     Filter,
@@ -143,53 +155,62 @@ struct SetterIsMember
             T,
             decltype(&Filter::Set),
             Filter,
-            typename FilteredType<T, Filter>::Type
+            FilteredType<T, Filter>
         >
     >
 > : std::true_type {};
+
+template<typename T, typename Filter>
+inline constexpr bool SetterIsMember = SetterIsMember_<T, Filter>::value;
 
 
 /**
  ** Filter::Get can be a static method or a member method.
  **/
 template<typename T, typename Filter, typename = void>
-struct GetterIsValid : std::false_type {};
+struct GetterIsValid_ : std::false_type {};
 
 template<typename T>
-struct GetterIsValid<T, NoFilter, void> : std::false_type {};
+struct GetterIsValid_<T, NoFilter, void> : std::false_type {};
 
 template<typename T, typename Filter>
-struct GetterIsValid
+struct GetterIsValid_
 <
     T,
     Filter,
     std::enable_if_t
     <
-        (GetterIsStatic<T, Filter>::value || GetterIsMember<T, Filter>::value)
-        && !std::is_same_v<typename FilteredType<T, Filter>::Type, void>
+        (GetterIsStatic<T, Filter> || GetterIsMember<T, Filter>)
+        && !std::is_same_v<FilteredType<T, Filter>, void>
     >
 > : std::true_type {};
+
+template<typename T, typename Filter>
+inline constexpr bool GetterIsValid = GetterIsValid_<T, Filter>::value;
 
 
 /**
  ** Filter::Set can be a static method or a member method.
  **/
 template<typename T, typename Filter, typename = void>
-struct SetterIsValid : std::false_type {};
+struct SetterIsValid_ : std::false_type {};
 
 template<typename T>
-struct SetterIsValid<T, NoFilter, void> : std::false_type {};
+struct SetterIsValid_<T, NoFilter, void> : std::false_type {};
 
 template<typename T, typename Filter>
-struct SetterIsValid
+struct SetterIsValid_
 <
     T,
     Filter,
     std::enable_if_t
     <
-        SetterIsStatic<T, Filter>::value || SetterIsMember<T, Filter>::value
+        SetterIsStatic<T, Filter> || SetterIsMember<T, Filter>
     >
 > : std::true_type {};
+
+template<typename T, typename Filter>
+inline constexpr bool SetterIsValid = SetterIsValid_<T, Filter>::value;
 
 
 /**
@@ -202,46 +223,50 @@ template
     typename Access,
     typename = void
 >
-struct FilterIsStatic : std::false_type {};
+struct FilterIsStatic_ : std::false_type {};
 
 /** For read-only interfaces, only the getter is checked. **/
 template<typename T, typename Filter>
-struct FilterIsStatic
+struct FilterIsStatic_
 <
     T,
     Filter,
     GetTag,
     std::enable_if_t
     <
-        GetterIsStatic<T, Filter>::value
+        GetterIsStatic<T, Filter>
     >
 > : std::true_type {};
 
 template<typename T, typename Filter>
-struct FilterIsStatic
+struct FilterIsStatic_
 <
     T,
     Filter,
     SetTag,
     std::enable_if_t
     <
-        SetterIsStatic<T, Filter>::value
+        SetterIsStatic<T, Filter>
     >
 > : std::true_type {};
 
 /** Check both the getter and setter for settable interfaces. **/
 template<typename T, typename Filter>
-struct FilterIsStatic
+struct FilterIsStatic_
 <
     T,
     Filter,
     GetAndSetTag,
     std::enable_if_t
     <
-        GetterIsStatic<T, Filter>::value
-        && SetterIsStatic<T, Filter>::value
+        GetterIsStatic<T, Filter>
+        && SetterIsStatic<T, Filter>
     >
 > : std::true_type {};
+
+template<typename T, typename Filter, typename Access>
+inline constexpr bool FilterIsStatic =
+    FilterIsStatic_<T, Filter, Access>::value;
 
 
 /**
@@ -251,18 +276,31 @@ struct FilterIsStatic
  ** required.
  **/
 template<typename T, typename Filter, typename = void>
-struct FilterIsMember: std::false_type {};
+struct FilterIsMember_: std::false_type {};
 
 template<typename T, typename Filter>
-struct FilterIsMember
+struct FilterIsMember_
 <
     T,
     Filter,
     std::enable_if_t
     <
-        GetterIsMember<T, Filter>::value || SetterIsMember<T, Filter>::value
+        GetterIsMember<T, Filter> || SetterIsMember<T, Filter>
     >
 > : std::true_type {};
+
+template<typename T, typename Filter>
+inline constexpr bool FilterIsMember = FilterIsMember_<T, Filter>::value;
+
+
+template<typename Filter>
+struct FilterIsNone_: std::false_type {};
+
+template<>
+struct FilterIsNone_<NoFilter>: std::true_type {};
+
+template<typename Filter>
+inline constexpr bool FilterIsNone = FilterIsNone_<Filter>::value;
 
 
 template
@@ -272,20 +310,24 @@ template
     typename Access,
     typename = void
 >
-struct FilterIsNoneOrStatic : std::false_type {};
+struct FilterIsNoneOrStatic_ : std::false_type {};
 
 /** Filter can be void **/
 template<typename T, typename Access>
-struct FilterIsNoneOrStatic<T, NoFilter, Access, void> : std::true_type {};
+struct FilterIsNoneOrStatic_<T, NoFilter, Access, void> : std::true_type {};
 
 template<typename T, typename Filter, typename Access>
-struct FilterIsNoneOrStatic
+struct FilterIsNoneOrStatic_
 <
     T,
     Filter,
     Access,
-    std::enable_if_t<FilterIsStatic<T, Filter, Access>::value>
+    std::enable_if_t<FilterIsStatic<T, Filter, Access>>
 > : std::true_type {};
+
+template<typename T, typename Filter, typename Access>
+inline constexpr bool FilterIsNoneOrStatic =
+    FilterIsNoneOrStatic_<T, Filter, Access>::value;
 
 
 
@@ -305,38 +347,41 @@ template
     typename Access,
     typename = void
 >
-struct FilterIsValid : std::false_type {};
+struct FilterIsValid_ : std::false_type {};
 
 template<typename T, typename Filter>
-struct FilterIsValid
+struct FilterIsValid_
 <
     T,
     Filter,
     GetTag,
-    std::enable_if_t<GetterIsValid<T, Filter>::value>
+    std::enable_if_t<GetterIsValid<T, Filter>>
 > : std::true_type {};
 
 template<typename T, typename Filter>
-struct FilterIsValid
+struct FilterIsValid_
 <
     T,
     Filter,
     SetTag,
-    std::enable_if_t<SetterIsValid<T, Filter>::value>
+    std::enable_if_t<SetterIsValid<T, Filter>>
 > : std::true_type {};
 
 template<typename T, typename Filter>
-struct FilterIsValid
+struct FilterIsValid_
 <
     T,
     Filter,
     GetAndSetTag,
     std::enable_if_t
     <
-        GetterIsValid<T, Filter>::value
-        && SetterIsValid<T, Filter>::value
+        GetterIsValid<T, Filter>
+        && SetterIsValid<T, Filter>
     >
 > : std::true_type {};
+
+template<typename T, typename Filter, typename Access>
+inline constexpr bool FilterIsValid = FilterIsValid_<T, Filter, Access>::value;
 
 
 template
@@ -346,20 +391,24 @@ template
     typename Access,
     typename = void
 >
-struct FilterIsNoneOrValid : std::false_type {};
+struct FilterIsNoneOrValid_ : std::false_type {};
 
 /** Filter can be void **/
 template<typename T, typename Access>
-struct FilterIsNoneOrValid<T, NoFilter, Access, void> : std::true_type {};
+struct FilterIsNoneOrValid_<T, NoFilter, Access, void> : std::true_type {};
 
 template<typename T, typename Filter, typename Access>
-struct FilterIsNoneOrValid
+struct FilterIsNoneOrValid_
 <
     T,
     Filter,
     Access,
-    std::enable_if_t<FilterIsValid<T, Filter, Access>::value>
+    std::enable_if_t<FilterIsValid<T, Filter, Access>>
 > : std::true_type {};
+
+template<typename T, typename Filter, typename Access>
+inline constexpr bool FilterIsNoneOrValid =
+    FilterIsNoneOrValid_<T, Filter, Access>::value;
 
 
 } // namespace detail

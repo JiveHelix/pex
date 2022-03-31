@@ -205,10 +205,13 @@ private:
 
 
 template<typename T>
-struct IsModelChooser: std::false_type {};
+struct IsModelChooser_: std::false_type {};
 
 template<typename T>
-struct IsModelChooser<model::Chooser<T>>: std::true_type {};
+struct IsModelChooser_<model::Chooser<T>>: std::true_type {};
+
+template<typename T>
+inline constexpr bool IsModelChooser = IsModelChooser_<T>::value;
 
 
 namespace control
@@ -241,7 +244,7 @@ public:
 
     Chooser(Upstream &upstream)
     {
-        if constexpr (IsModelChooser<Upstream>::value)
+        if constexpr (IsModelChooser<Upstream>)
         {
             this->choices = Choices(upstream.choices_);
             this->selection = Selection(upstream.selection_);

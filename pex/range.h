@@ -12,6 +12,7 @@
 
 #pragma once
 
+#include <iostream>
 #include <type_traits>
 #include <stdexcept>
 #include <limits>
@@ -52,6 +53,22 @@ struct RangeFilter
 
     }
 
+    RangeFilter(const RangeFilter &other)
+        :
+        minimum_(other.minimum_),
+        maximum_(other.maximum_)
+    {
+
+    }
+
+    RangeFilter & operator=(const RangeFilter &other)
+    {
+        this->minimum_ = other.minimum_;
+        this->maximum_ = other.maximum_;
+
+        return *this;
+    }
+
     T Get(T value) const
     {
         return value;
@@ -68,6 +85,24 @@ private:
     T minimum_;
     T maximum_;
 };
+
+
+template<typename T, typename = void>
+struct UpstreamArg_
+{
+    using Type = T;
+};
+
+template<typename T>
+struct UpstreamArg_<T, std::enable_if_t<IsModel<T>>>
+{
+    using Type = T &;
+};
+
+
+template<typename T>
+using UpstreamArgT = typename UpstreamArg_<T>::Type;
+
 
 
 template<typename Upstream>
@@ -87,6 +122,9 @@ public:
             RangeFilter<typename Upstream::Type>
         >;
 
+    static_assert(!IsCopyable<Value>);
+    static_assert(::pex::model::IsDirect<::pex::control::UpstreamT<Value>>);
+
     using Type = typename Value::Type;
 
     // The Range limits are stored here in the model::Range.
@@ -95,10 +133,9 @@ public:
 public:
     Range() = default;
 
-    template<typename U>
-    Range(U &&upstream)
+    Range(UpstreamArgT<Upstream> upstream)
         :
-        value_(std::forward<U>(upstream)),
+        value_(upstream),
         minimum_(),
         maximum_()
     {
@@ -206,10 +243,13 @@ private:
 
 
 template<typename T>
-struct IsModelRange: std::false_type {};
+struct IsModelRange_: std::false_type {};
 
 template<typename T>
-struct IsModelRange<model::Range<T>>: std::true_type {};
+struct IsModelRange_<model::Range<T>>: std::true_type {};
+
+template<typename T>
+inline constexpr bool IsModelRange = IsModelRange_<T>::value;
 
 
 namespace control
@@ -230,7 +270,7 @@ public:
     using Type = typename Upstream::Value::Type;
 
     static_assert(
-        pex::detail::FilterIsNoneOrStatic<Type, Filter, Access>::value,
+        pex::detail::FilterIsNoneOrStatic<Type, Filter, Access>,
         "This class is designed for free function filters.");
 
     using Value =
@@ -254,7 +294,7 @@ public:
 
     Range(Upstream &upstream)
     {
-        if constexpr (IsModelRange<Upstream>::value)
+        if constexpr (IsModelRange<Upstream>)
         {
             this->value = Value(upstream.value_);
             this->minimum = Limit(upstream.minimum_);

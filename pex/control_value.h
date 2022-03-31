@@ -12,6 +12,7 @@
 #pragma once
 
 
+#include <iostream>
 #include "pex/model_value.h"
 
 
@@ -23,6 +24,9 @@ namespace control
 {
 
 
+/** 
+ ** Copyable Upstream may be stored directly, else use Direct.
+ **/
 template<typename Pex, typename Enable = void>
 struct Upstream_
 {
@@ -34,11 +38,15 @@ template<typename Pex>
 struct Upstream_
 <
     Pex,
-    std::enable_if_t<IsModel<Pex>::value>
+    std::enable_if_t<!IsCopyable<Pex>>
 >
 {
     using Type = ::pex::model::Direct<Pex>;
 };
+
+
+template<typename Pex>
+using UpstreamT = typename Upstream_<Pex>::Type;
 
 
 template<
@@ -54,7 +62,7 @@ class Value_
         ValueConnection
         <
             Observer_,
-            typename Upstream_<Pex_>::Type::Type,
+            typename UpstreamT<Pex_>::Type,
             Filter_
         >,
         Access_
@@ -66,12 +74,20 @@ public:
 
     // If Pex_ is a already a control::Value_, then Upstream is that
     // control::Value_, else it is Direct<Pex>
-    using Upstream = typename Upstream_<Pex_>::Type;
+    using Upstream = UpstreamT<Pex_>;
     using Filter = Filter_;
     using Access = Access_;
 
     using UpstreamType = typename Upstream::Type;
-    using Type = typename detail::FilteredType<UpstreamType, Filter>::Type;
+    using Type = detail::FilteredType<UpstreamType, Filter>;
+
+    using Callable =
+        typename ValueConnection
+        <
+            Observer_,
+            typename Upstream::Type,
+            Filter
+        >::Callable;
 
     // Make any template specialization of Value_ a 'friend' class.
     template <typename, typename, typename, typename>
@@ -83,7 +99,7 @@ public:
     static_assert(!std::is_same_v<Filter, void>, "Filter must not be void.");
 
     static_assert(
-        detail::FilterIsNoneOrValid<UpstreamType, Filter, Access>::value);
+        detail::FilterIsNoneOrValid<UpstreamType, Filter, Access>);
 
     Value_(): upstream_(), filter_() {}
 
@@ -104,7 +120,7 @@ public:
         filter_(filter)
     {
         static_assert(
-            detail::FilterIsMember<UpstreamType, Filter>::value,
+            detail::FilterIsMember<UpstreamType, Filter>,
             "A void or static filter cannot be set.");
 
         if constexpr (HasAccess<GetTag, Access>)
@@ -134,16 +150,13 @@ public:
             HasAccess<Access, OtherAccess>,
             "Cannot copy from another value without equal or greater access.");
 
+        static_assert(
+            IsCopyable<Value_<OtherObserver, Pex, OtherFilter, OtherAccess>>,
+            "Value is not copyable.");
+
         if constexpr (HasAccess<GetTag, Access>)
         {
             this->upstream_.Connect(this, &Value_::OnUpstreamChanged_);
-        }
-
-        if constexpr (std::is_same_v<OtherFilter, Filter>)
-        {
-            // The filter type matches.
-            // Copy the filter, too.
-            this->filter_ = other.filter_;
         }
     }
 
@@ -151,7 +164,8 @@ public:
     template<typename OtherObserver, typename OtherFilter, typename OtherAccess>
     std::enable_if_t
     <
-        HasAccess<Access, OtherAccess>, 
+        HasAccess<Access, OtherAccess>
+        && IsCopyable<Value_<OtherObserver, Pex, OtherFilter, OtherAccess>>,
         Value_ &
     >
     operator=(
@@ -159,13 +173,6 @@ public:
     {
         this->upstream_.Disconnect(this);
         this->upstream_ = other.upstream_;
-
-        if constexpr (std::is_same_v<OtherFilter, Filter>)
-        {
-            // The filter type matches.
-            // Copy the filter, too.
-            this->filter_ = other.filter_;
-        }
 
         if constexpr (HasAccess<GetTag, Access>)
         {
@@ -178,7 +185,22 @@ public:
     Value_(const Value_ &other)
         :
         upstream_(other.upstream_),
-        filter_(other.filter_)
+        filter_()
+    {
+        static_assert(
+            IsCopyable<Value_>,
+            "This value is not copyable.");
+
+        if constexpr (HasAccess<GetTag, Access>)
+        {
+            this->upstream_.Connect(this, &Value_::OnUpstreamChanged_);
+        }
+    }
+
+    Value_(Value_ &&other)
+        :
+        upstream_(std::move(other.upstream_)),
+        filter_(std::move(other.filter_))
     {
         if constexpr (HasAccess<GetTag, Access>)
         {
@@ -188,10 +210,29 @@ public:
 
     Value_ & operator=(const Value_ &other)
     {
+        // TODO: Use SFINAE to disable copy constructor
+        static_assert(
+            IsCopyable<Value_>,
+            "This value is not copyable.");
+
         this->upstream_.Disconnect(this);
         this->upstream_ = other.upstream_;
-        this->filter_ = other.filter_;
+        
+        if constexpr (HasAccess<GetTag, Access>)
+        {
+            this->upstream_.Connect(
+                this,
+                &Value_::OnUpstreamChanged_);
+        }
 
+        return *this;
+    }
+
+    Value_ & operator=(Value_ &&other)
+    {
+        this->upstream_.Disconnect(this);
+        this->upstream_ = std::move(other.upstream_);
+        
         if constexpr (HasAccess<GetTag, Access>)
         {
             this->upstream_.Connect(
@@ -205,7 +246,7 @@ public:
     void SetFilter(Filter filter)
     {
         static_assert(
-            detail::FilterIsMember<UpstreamType, Filter>::value,
+            detail::FilterIsMember<UpstreamType, Filter>,
             "Static or void Filter does not require a filter instance.");
 
         this->filter_ = filter;
@@ -277,7 +318,7 @@ private:
         {
             return value;
         }
-        else if constexpr (detail::SetterIsMember<UpstreamType, Filter>::value)
+        else if constexpr (detail::SetterIsMember<UpstreamType, Filter>)
         {
             REQUIRE_HAS_VALUE(this->filter_);
             return this->filter_->Set(value);
@@ -295,7 +336,7 @@ private:
         {
             return value;
         }
-        else if constexpr (detail::GetterIsMember<UpstreamType, Filter>::value)
+        else if constexpr (detail::GetterIsMember<UpstreamType, Filter>)
         {
             REQUIRE_HAS_VALUE(this->filter_);
             return this->filter_->Get(value);

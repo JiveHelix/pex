@@ -32,6 +32,31 @@ TEST_CASE("Limits keep value within range.", "[range]")
 }
 
 
+TEST_CASE("Limits filter propagates to controls.", "[range]")
+{
+    Value value(18);
+    Range range(value);
+    range.SetLimits(0, 20);
+
+    Control control(range);
+
+    REQUIRE(value.Get() == 18);
+
+    range.SetLimits(0, 30);
+    REQUIRE(control.minimum.Get() == 0);
+    REQUIRE(control.maximum.Get() == 30);
+
+    control.value.Set(23);
+    REQUIRE(value.Get() == 23);
+
+    control.value.Set(-3);
+    REQUIRE(value.Get() == 0);
+     
+    range.SetMinimum(5); 
+    REQUIRE(value.Get() == 5);
+}
+
+
 struct Filter
 {
     static float Get(int value)

@@ -2,6 +2,7 @@
 
 #include <bitset>
 #include <array>
+#include <memory>
 #include "pex/value.h"
 
 
@@ -65,7 +66,9 @@ class BitsetFlagsControl
 {
 public:
     using Filter = FlagFilter<bitCount>;
-    using Flag = FlagControl<bitCount>;
+    using FilteredFlag = FlagControl<bitCount>;
+
+    using Flag = pex::control::Value<void, FilteredFlag>;
 
     BitsetFlagsControl(BitsetControl<bitCount> bitset)
         :
@@ -73,15 +76,19 @@ public:
     {
         for (size_t i = 0; i < bitCount; ++i)
         {
-            this->flags[i] =
-                Flag(
-                    bitset,
-                    Filter(bitset, i));
+            this->filteredFlags_[i] = std::make_shared<FilteredFlag>(
+                bitset,
+                Filter(bitset, i));
+
+            this->flags[i] = Flag(*this->filteredFlags_[i]);
         }
     }
 
 public:
     std::array<Flag, bitCount> flags;
+
+private:
+    std::array<std::shared_ptr<FilteredFlag>, bitCount> filteredFlags_;
 };
 
 

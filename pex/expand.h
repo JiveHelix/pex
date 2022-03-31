@@ -70,15 +70,13 @@ void InitializeExpanded(Expanded &expanded, Source source)
         using ExpandedControl = std::remove_reference_t<
             decltype(expanded.*(expandedField.member))>;
 
-        // Copy the source control.
-        ExpandedControl expandedControl(source);
-
         using Filter = typename ExpandedControl::Filter;
 
-        // Set the filter on the expanded control.
-        expandedControl.SetFilter(Filter(source, subField.member));
+        // Copy the source control and add the filter.
+        auto & expandedMember = expanded.*(expandedField.member);
 
-        expanded.*(expandedField.member) = expandedControl;
+        expandedMember = ExpandedControl(source);
+        expandedMember.SetFilter(Filter(source, subField.member));
     };
 
     jive::ZipApply(

@@ -43,6 +43,7 @@ public:
         ignoreWxEcho_(false),
         workerModel_(),
         workerInternal_(this->workerModel_),
+        ignoreWorkerEcho_(false),
         value_(initialValue)
     {
         this->Bind(wxEVT_THREAD, &Async::OnWxEventLoop_, this);
@@ -69,6 +70,12 @@ public:
 private:
     void OnWorkerChanged_(ArgumentT<Type> value)
     {
+        if (this->ignoreWorkerEcho_)
+        {
+            this->ignoreWorkerEcho_ = false;
+            return;
+        }
+
         {
             std::lock_guard<std::mutex> lock(this->mutex_);
             this->value_ = value;
@@ -105,6 +112,8 @@ private:
             this->value_ = value;
         }
 
+        this->ignoreWorkerEcho_ = true;
+
         this->workerModel_.Set(value);
     }
     
@@ -115,6 +124,7 @@ private:
     std::atomic_bool ignoreWxEcho_;
     ThreadSafe workerModel_;
     Control<Async> workerInternal_;
+    std::atomic_bool ignoreWorkerEcho_;
     Type value_;
 };
 

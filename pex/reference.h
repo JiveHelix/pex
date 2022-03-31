@@ -118,7 +118,7 @@ template<typename Model>
 class ConstReference
 {
     static_assert(
-        IsModel<Model>::value,
+        IsModel<Model>,
         "Access to the value by reference is only possible for model values.");
 
     static_assert(
