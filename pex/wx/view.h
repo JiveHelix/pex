@@ -51,7 +51,13 @@ public:
             style),
         value_(value)
     {
+        PEX_LOG("Connect");
         this->value_.Connect(this, &View::OnValueChanged_);
+    }
+
+    ~View()
+    {
+        PEX_LOG("Should call Disconnect: ", this);
     }
 
 private:

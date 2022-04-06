@@ -3,6 +3,7 @@
 #include <optional>
 #include "pex/access_tag.h"
 #include "pex/detail/argument.h"
+#include "pex/detail/log.h"
 
 
 namespace pex
@@ -19,6 +20,8 @@ public:
         typename Notify::Observer * const observer,
         typename Notify::Callable callable)
     {
+        PEX_LOG(observer);
+
         static_assert(
             HasAccess<GetTag, Access>,
             "Cannot connect observer without read access.");
@@ -29,6 +32,14 @@ public:
     /** Remove all registered callbacks for the observer. **/
     void Disconnect()
     {
+
+#ifdef ENABLE_PEX_LOG
+        if (this->notify_)
+        {
+            PEX_LOG(this->notify_.GetObserver());
+        }
+#endif
+
         this->notify_.reset();
     }
 

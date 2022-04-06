@@ -47,10 +47,15 @@ public:
         :
         unitsChooser_(unitsList),
         firkins_(false),
-        units_(this->unitsChooser_.GetSelection())
+        units_(this->unitsChooser_.GetSelection()),
+        link_(pex::MakeLink(this->unitsChooser_, this->units_))
     {
         this->firkins_.Connect(this, &ExampleApp::OnFirkins_);
-        this->unitsChooser_.Connect(this, &ExampleApp::OnSelection_);
+    }
+    
+    ~ExampleApp()
+    {
+        this->firkins_.Disconnect(this);
     }
 
     bool OnInit() override;
@@ -72,15 +77,10 @@ private:
         }
     }
 
-    static void OnSelection_(void *context, size_t)
-    {
-        auto self = static_cast<ExampleApp *>(context);
-        self->units_.Set(self->unitsChooser_.GetSelection());
-    }
-
     Chooser unitsChooser_;
     Firkins firkins_;
     Units units_;
+    std::unique_ptr<pex::Link> link_;
 };
 
 

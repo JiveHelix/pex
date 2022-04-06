@@ -21,6 +21,7 @@ public:
         :
         control_(control)
     {
+        PEX_LOG("Connect");
         this->control_.Connect(this, &Observer::Observe_);
     }
 

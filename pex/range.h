@@ -146,6 +146,7 @@ public:
 
     ~Range()
     {
+        PEX_LOG("Disconnect");
         this->value_.Disconnect(this);
     }
 

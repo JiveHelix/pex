@@ -4,7 +4,7 @@ from conans import ConanFile, CMake, tools
 
 class PexConan(ConanFile):
     name = "pex"
-    version = "0.4.1"
+    version = "0.4.2"
 
     scm = {
         "type": "git",
@@ -22,10 +22,15 @@ class PexConan(ConanFile):
 
     generators = "cmake"
 
+    options = {"ENABLE_PEX_LOG": [True, False]}
+
+    default_options = {"ENABLE_PEX_LOG": False}
+
     no_copy_source = True
 
     def build(self):
         cmake = CMake(self)
+        cmake.definitions["ENABLE_PEX_LOG"] = self.options.ENABLE_PEX_LOG
         cmake.configure()
         cmake.build()
 
@@ -42,6 +47,6 @@ class PexConan(ConanFile):
     def requirements(self):
         self.requires("jive/[~1.0]")
         self.requires("fields/[~1.1]")
-        self.requires("tau/[~1.1]")
+        self.requires("tau/[1.3.2]")
         self.requires("wxwidgets/3.1.5@jivehelix/stable")
 

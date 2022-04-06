@@ -19,6 +19,7 @@ public:
     {
         if constexpr (pex::HasAccess<pex::GetTag, Access>)
         {
+            PEX_LOG("Connect");
             this->control_.Connect(this, &Observer::Observe_);
         }
     }

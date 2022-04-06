@@ -23,6 +23,7 @@ public:
         control_(model),
         observedValue{this->control_.Get()}
     {
+        PEX_LOG("Connect");
         this->control_.Connect(this, &Observer::Observe_);
     }
 

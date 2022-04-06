@@ -43,21 +43,40 @@ struct ApplicationModel
 
     ApplicationModel()
     {
+        PEX_LOG("Connect");
         this->sayHello.Connect(
             this,
             &ApplicationModel::OnSayHello_);
 
+        PEX_LOG("Connect");
         this->sayWhatsUp.Connect(
             this,
             &ApplicationModel::OnSayWhatsUp_);
 
+        PEX_LOG("Connect");
         this->sayFortyTwo.Connect(
             this,
             &ApplicationModel::OnSayFortyTwo_);
 
+        PEX_LOG("Connect");
         this->frobnicate.Connect(
             this,
             &ApplicationModel::OnFrobnicate_);
+    }
+
+    ~ApplicationModel()
+    {
+        PEX_LOG("Disconnect");
+        this->sayHello.Disconnect(this);
+
+        PEX_LOG("Disconnect");
+        this->sayWhatsUp.Disconnect(this);
+
+        PEX_LOG("Disconnect");
+        this->sayFortyTwo.Disconnect(this);
+
+        PEX_LOG("Disconnect");
+        this->frobnicate.Disconnect(this);
     }
 
     static void OnSayHello_(void * context)
@@ -110,6 +129,7 @@ public:
         :
         applicationModel_{}
     {
+
     }
 
     bool OnInit() override;
@@ -150,10 +170,9 @@ public:
         const ShortcutsByMenu &shortcuts)
         :
         wxFrame(nullptr, wxID_ANY, "pex::wx::Shortcut Demo"),
-        shortcuts_(shortcuts)
+        menuShortcuts_(this, shortcuts)
     {
-        auto menuBar = pex::wx::InitializeMenus(this, this->shortcuts_);
-        this->SetMenuBar(menuBar.release());
+        this->SetMenuBar(this->menuShortcuts_.GetMenuBar());
 
         auto message = new wxStaticText(
             this,
@@ -170,7 +189,7 @@ public:
     }
 
 private:
-    ShortcutsByMenu shortcuts_;
+    pex::wx::MenuShortcuts<ExampleFrame, ShortcutsByMenu> menuShortcuts_;
 };
 
 

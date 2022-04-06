@@ -66,6 +66,7 @@ template<typename Value, typename Container>
 size_t RequireIndex(const Value &value, const Container &container)
 {
     auto index = FindIndex(value, container);
+
     if (index < 0)
     {
         throw std::out_of_range("Item not found in container.");

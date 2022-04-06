@@ -110,6 +110,7 @@ public:
     {
         if constexpr (HasAccess<GetTag, Access>)
         {
+            PEX_LOG("Connect");
             this->upstream_.Connect(this, &Value_::OnUpstreamChanged_);
         }
     }
@@ -125,12 +126,14 @@ public:
 
         if constexpr (HasAccess<GetTag, Access>)
         {
+            PEX_LOG("Connect");
             this->upstream_.Connect(this, &Value_::OnUpstreamChanged_);
         }
     }
 
     ~Value_()
     {
+        PEX_LOG("control::Value_::~Value_::Disconnect: ", this);
         this->upstream_.Disconnect(this);
     }
 
@@ -156,6 +159,7 @@ public:
 
         if constexpr (HasAccess<GetTag, Access>)
         {
+            PEX_LOG("Connect");
             this->upstream_.Connect(this, &Value_::OnUpstreamChanged_);
         }
     }
@@ -171,11 +175,13 @@ public:
     operator=(
         const Value_<OtherObserver, Pex, OtherFilter, OtherAccess> &other)
     {
+        PEX_LOG("Disconnect");
         this->upstream_.Disconnect(this);
         this->upstream_ = other.upstream_;
 
         if constexpr (HasAccess<GetTag, Access>)
         {
+            PEX_LOG("Connect");
             this->upstream_.Connect(this, &Value_::OnUpstreamChanged_);
         }
 
@@ -193,6 +199,7 @@ public:
 
         if constexpr (HasAccess<GetTag, Access>)
         {
+            PEX_LOG("Connect");
             this->upstream_.Connect(this, &Value_::OnUpstreamChanged_);
         }
     }
@@ -204,6 +211,7 @@ public:
     {
         if constexpr (HasAccess<GetTag, Access>)
         {
+            PEX_LOG("Connect");
             this->upstream_.Connect(this, &Value_::OnUpstreamChanged_);
         }
     }
@@ -215,11 +223,13 @@ public:
             IsCopyable<Value_>,
             "This value is not copyable.");
 
+        PEX_LOG("Disconnect");
         this->upstream_.Disconnect(this);
         this->upstream_ = other.upstream_;
         
         if constexpr (HasAccess<GetTag, Access>)
         {
+            PEX_LOG("Connect");
             this->upstream_.Connect(
                 this,
                 &Value_::OnUpstreamChanged_);
@@ -230,11 +240,13 @@ public:
 
     Value_ & operator=(Value_ &&other)
     {
+        PEX_LOG("Disconnect");
         this->upstream_.Disconnect(this);
         this->upstream_ = std::move(other.upstream_);
         
         if constexpr (HasAccess<GetTag, Access>)
         {
+            PEX_LOG("Connect");
             this->upstream_.Connect(
                 this,
                 &Value_::OnUpstreamChanged_);
@@ -266,6 +278,11 @@ public:
         {
             return this->FilterOnGet_(this->upstream_.Get());
         }
+    }
+
+    explicit operator Type () const
+    {
+        return this->Get();
     }
 
     void Set(ArgumentT<Type> value)

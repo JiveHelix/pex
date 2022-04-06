@@ -118,8 +118,13 @@ public:
         defaultValue_(this->value_.Get()),
         styleFilter_(style, range.maximum.Get())
     {
+        PEX_LOG("Connect");
         this->value_.Connect(this, &Slider::OnValue_);
+
+        PEX_LOG("Connect");
         this->minimum_.Connect(this, &Slider::OnMinimum_);
+
+        PEX_LOG("Connect");
         this->maximum_.Connect(this, &Slider::OnMaximum_);
 
         this->Bind(wxEVT_SLIDER, &Slider::OnSlider_, this);

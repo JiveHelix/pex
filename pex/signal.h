@@ -16,6 +16,7 @@
 #include "pex/detail/notify_many.h"
 #include "pex/detail/signal_connection.h"
 #include "pex/detail/require_has_value.h"
+#include "pex/detail/log.h"
 
 namespace pex
 {
@@ -51,6 +52,7 @@ public:
     Signal(model::Signal &model)
         : model_(&model)
     {
+        PEX_LOG("Connect");
         this->model_->Connect(this, &Signal::OnModelSignaled_);
     }
 
@@ -58,6 +60,7 @@ public:
     {
         if (this->model_)
         {
+            PEX_LOG("Disconnect");
             this->model_->Disconnect(this);
         }
     }
@@ -71,27 +74,73 @@ public:
         this->model_->Trigger();
     }
 
+    Signal(const Signal &other)
+        :
+        model_(other.model_)
+    {
+        if (!other.model_)
+        {
+            throw std::logic_error("other.model_ must be set!");
+        }
+
+        PEX_LOG("Connect");
+        this->model_->Connect(this, &Signal::OnModelSignaled_);
+    }
+
     template<typename OtherObserver>
     explicit Signal(const Signal<OtherObserver> &other)
         :
         model_(other.model_)
     {
-        REQUIRE_HAS_VALUE(this->model_);
+        if (!other.model_)
+        {
+            throw std::logic_error("other.model_ must be set!");
+        }
+
+        PEX_LOG("Connect");
         this->model_->Connect(this, &Signal::OnModelSignaled_);
     }
 
-    template<typename OtherObserver>
-    Signal<Observer> & operator=(const Signal<OtherObserver> &other)
+    Signal & operator=(const Signal &other)
     {
+        if (!other.model_)
+        {
+            throw std::logic_error("other.model_ must be set!");
+        }
+
         if (this->model_)
         {
+            PEX_LOG("Disconnect");
             this->model_->Disconnect(this);
         }
 
         this->model_ = other.model_;
 
-        REQUIRE_HAS_VALUE(this->model_);
+        PEX_LOG("Connect");
         this->model_->Connect(this, &Signal::OnModelSignaled_);
+
+        return *this;
+    }
+
+    template<typename OtherObserver>
+    Signal<Observer> & operator=(const Signal<OtherObserver> &other)
+    {
+        if (!other.model_)
+        {
+            throw std::logic_error("other.model_ must be set!");
+        }
+
+        if (this->model_)
+        {
+            PEX_LOG("Disconnect");
+            this->model_->Disconnect(this);
+        }
+
+        this->model_ = other.model_;
+
+        PEX_LOG("Connect");
+        this->model_->Connect(this, &Signal::OnModelSignaled_);
+
         return *this;
     }
 

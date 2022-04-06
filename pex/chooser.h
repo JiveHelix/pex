@@ -90,6 +90,7 @@ public:
 private:
     using ConstReference = ::pex::ConstReference<Choices>;
     using Defer = ::pex::Defer<Choices>;
+    using Value = ::pex::model::Value<Type>;
 
 public:
     Chooser()
@@ -97,9 +98,11 @@ public:
         choices_(std::vector<Type>{Type{}}),
         selection_(
             static_cast<size_t>(0),
-            ChooserFilter(this->choices_.Get()))
+            ChooserFilter(this->choices_.Get())),
+        value_(this->GetSelection())
     {
-
+        PEX_LOG(this, " calling connect on ", &this->selection_);
+        this->selection_.Connect(this, &Chooser::OnSelection_);
     }
 
     Chooser(ArgumentT<Type> initialValue)
@@ -107,9 +110,11 @@ public:
         choices_(std::vector<Type>{initialValue}),
         selection_(
             static_cast<size_t>(0),
-            ChooserFilter(this->choices_.Get()))
+            ChooserFilter(this->choices_.Get())),
+        value_(this->GetSelection())
     {
-
+        PEX_LOG(this, " calling connect on ", &this->selection_);
+        this->selection_.Connect(this, &Chooser::OnSelection_);
     }
 
     Chooser(
@@ -119,9 +124,11 @@ public:
         choices_(choices),
         selection_(
             RequireIndex(initialValue, choices),
-            ChooserFilter(this->choices_.Get()))
+            ChooserFilter(this->choices_.Get())),
+        value_(this->GetSelection())
     {
-
+        PEX_LOG(this, " calling connect on ", &this->selection_);
+        this->selection_.Connect(this, &Chooser::OnSelection_);
     }
 
     Chooser(const std::vector<Type> &choices)
@@ -129,12 +136,22 @@ public:
         choices_(choices),
         selection_(
             static_cast<size_t>(0),
-            ChooserFilter(this->choices_.Get()))
+            ChooserFilter(this->choices_.Get())),
+        value_(this->GetSelection())
     {
         if (choices.empty())
         {
             throw std::invalid_argument("choices must not be empty");
         }
+
+        PEX_LOG(this, " calling connect on ", &this->selection_);
+        this->selection_.Connect(this, &Chooser::OnSelection_);
+    }
+    
+    ~Chooser()
+    {
+        PEX_LOG(this, " calling Disconect on ", &this->selection_);
+        this->selection_.Disconnect(this);
     }
 
     void SetChoices(const std::vector<Type> &choices)
@@ -185,23 +202,109 @@ public:
         return this->choices_.Get();
     }
 
+    // Receive notifications by type T when the selection changes.
     void Connect(
         void * context,
-        typename Selection::Callable callable)
+        typename Value::Callable callable)
     {
-        this->selection_.Connect(context, callable);
+        PEX_LOG(
+            this,
+            " calling connect on ",
+            &this->value_,
+            " with ",
+            context);
+
+        this->value_.Connect(context, callable);
+    }
+
+    void Disconnect(void * context)
+    {
+        PEX_LOG(
+            this,
+            " calling Disconect on ",
+            &this->value_,
+            " with ",
+            context);
+
+        this->value_.Disconnect(context);
     }
 
     template <typename, typename>
     friend class ::pex::control::Chooser;
 
 private:
+    static void OnSelection_(void *context, size_t index)
+    {
+        auto self = static_cast<Chooser *>(context);
+
+        self->value_.Set(
+            ConstReference(self->choices_).Get()[index]);
+    }
+
+private:
     Choices choices_;
     Selection selection_;
+    Value value_;
 };
 
 
 } // namespace model
+
+
+class Link
+{
+public:
+    virtual ~Link()
+    {
+
+    }
+};
+
+
+template<typename T, typename Filter>
+class LinkMaker: public Link
+{
+public:
+    using Chooser = model::Chooser<T>;
+    using Value = model::Value_<T, Filter>;
+
+    LinkMaker(Chooser &chooser, Value &value)
+        :
+        chooser_(chooser),
+        value_(value)
+    {
+        this->chooser_.SetSelection(value.Get());
+
+        PEX_LOG(this, " calling connect on ", &this->chooser_);
+        this->chooser_.Connect(this, &LinkMaker::OnChooser_);
+    }
+
+    virtual ~LinkMaker()
+    {
+        PEX_LOG(this, " calling Disconect on ", &this->chooser_);
+        this->chooser_.Disconnect(this);
+    }
+
+private:
+    static void OnChooser_(void *context, ArgumentT<T> value)
+    {
+        auto self = static_cast<LinkMaker *>(context);
+        self->value_.Set(value);
+    }
+
+private:
+    Chooser &chooser_;
+    Value &value_;
+};
+
+
+template<typename T, typename Filter>
+std::unique_ptr<Link> MakeLink(
+    model::Chooser<T> &chooser,
+    model::Value_<T, Filter> &value)
+{
+    return std::make_unique<LinkMaker<T, Filter>>(chooser, value);
+}
 
 
 template<typename T>
@@ -240,6 +343,14 @@ public:
             ::pex::GetTag
         >;
 
+    using Value =
+        ::pex::control::Value
+        <
+            Observer,
+            typename Upstream::Value,
+            ::pex::GetTag
+        >;
+
     Chooser() = default;
 
     Chooser(Upstream &upstream)
@@ -248,18 +359,23 @@ public:
         {
             this->choices = Choices(upstream.choices_);
             this->selection = Selection(upstream.selection_);
+            this->value = Value(upstream.value_);
         }
         else
         {
             this->choices = Choices(upstream.choices);
             this->selection = Selection(upstream.selection);
+            this->value = Value(upstream.value);
         }
     }
 
     Choices choices;
     Selection selection;
+    Value value;
+
 };
 
 } // namespace control
+
 
 } // namespace pex

@@ -56,6 +56,8 @@ public:
     {
         this->textControl_->Bind(wxEVT_TEXT_ENTER, &Field::OnEnter_, this);
         this->textControl_->Bind(wxEVT_KILL_FOCUS, &Field::OnKillFocus_, this);
+
+        PEX_LOG("Connect");
         this->value_.Connect(this, &Field::OnValueChanged_);
     }
 

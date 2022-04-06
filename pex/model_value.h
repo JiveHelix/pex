@@ -120,6 +120,23 @@ public:
     Value_(const Value_<Type, Filter> &) = delete;
     Value_(Value_<Type, Filter> &&) = delete;
 
+    ~Value_()
+    {
+#if ENABLE_PEX_LOG
+        if (!this->connections_.empty())
+        {
+            for (auto &connection: this->connections_)
+            {
+                PEX_LOG(
+                    "Warning: ",
+                    connection.GetObserver(),
+                    " is still connected to ",
+                    this);
+            }
+        }
+#endif
+    }
+
     /** Set the value and notify interfaces **/
     void Set(ArgumentT<Type> value)
     {
@@ -317,6 +334,11 @@ public:
         return *this;
     }
 
+    ~Direct()
+    {
+        PEX_LOG("~Direct()");
+    }
+
     Type Get() const
     {
         REQUIRE_HAS_VALUE(this->model_);
@@ -335,6 +357,7 @@ public:
     {
         if (this->model_)
         {
+            PEX_LOG("Connect");
             this->model_->Connect(observer, callable);
         }
     }
@@ -343,6 +366,7 @@ public:
     {
         if (this->model_)
         {
+            PEX_LOG("Disconnect");
             this->model_->Disconnect(observer);
         }
     }

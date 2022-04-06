@@ -74,6 +74,11 @@ public:
         return Operator::Call(this->observer_, other.observer_);
     }
 
+    const Observer * GetObserver() const
+    {
+        return this->observer_;
+    }
+
 protected:
     Observer * observer_;
     Callable callable_;

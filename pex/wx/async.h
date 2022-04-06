@@ -47,7 +47,11 @@ public:
         value_(initialValue)
     {
         this->Bind(wxEVT_THREAD, &Async::OnWxEventLoop_, this);
+
+        PEX_LOG("Connect");
         this->wxInternal_.Connect(this, &Async::OnWxChanged_);
+
+        PEX_LOG("Connect");
         this->workerInternal_.Connect(this, &Async::OnWorkerChanged_);
     }
 

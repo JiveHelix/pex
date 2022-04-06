@@ -67,8 +67,14 @@ public:
 
     {
         this->SetDigits(digits);
+
+        PEX_LOG("Connect");
         this->value_.Connect(this, &SpinControlDouble::OnValue_);
+
+        PEX_LOG("Connect");
         this->minimum_.Connect(this, &SpinControlDouble::OnMinimum_);
+
+        PEX_LOG("Connect");
         this->maximum_.Connect(this, &SpinControlDouble::OnMaximum_);
 
         this->Bind(

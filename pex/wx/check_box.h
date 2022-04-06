@@ -45,7 +45,10 @@ public:
         value_(value)
     {
         this->SetValue(this->value_.Get());
+
+        PEX_LOG("Connect");
         this->value_.Connect(this, &CheckBox::OnValueChanged_);
+
         this->Bind(wxEVT_CHECKBOX, &CheckBox::OnCheckBox_, this);
     }
 

@@ -54,7 +54,10 @@ public:
     {
         assert(this->ValueInChoices_(value));
         this->SetSelection(this->GetIndex_(value.Get()));
+
+        PEX_LOG("Connect");
         this->value_.Connect(this, &RadioBox::OnValueChanged_);
+
         this->Bind(wxEVT_RADIOBOX, &RadioBox::OnRadioBox_, this);
     }
 

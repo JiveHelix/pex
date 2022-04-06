@@ -99,6 +99,7 @@ struct Observer
         :
         control_(control)
     {
+        PEX_LOG("Connect");
         this->control_.Connect(this, &Observer::OnValue_);
     }
 

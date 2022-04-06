@@ -57,7 +57,10 @@ public:
         selection_(control.selection),
         choices_(control.choices)
     {
+        PEX_LOG("Connect");
         this->selection_.Connect(this, &ComboBox::OnSelectionChanged_);
+
+        PEX_LOG("Connect");
         this->choices_.Connect(this, &ComboBox::OnChoicesChanged_);
         this->Bind(wxEVT_COMBOBOX, &ComboBox::OnComboBox_, this);
     }
@@ -66,10 +69,6 @@ public:
     {
         this->SetValue(
             WxAdapter::GetSelectionAsString(index, this->choices_.Get()));
-
-        // Uncomment this line to see how the compiler enforces that choices_
-        // is read-only.
-        // this->choices_.Set(std::vector<std::string>{"foo", "bar"});
     }
 
     void OnChoicesChanged_(const ChoicesVector &choices)

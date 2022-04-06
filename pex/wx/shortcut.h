@@ -7,6 +7,7 @@
 #include "jive/formatter.h"
 #include "jive/for_each.h"
 #include "pex/wx/wxshim.h"
+#include "pex/detail/log.h"
 
 
 namespace pex
@@ -135,6 +136,11 @@ public:
 
     }
 
+    ~Shortcut()
+    {
+        PEX_LOG(this);
+    }
+
     void AddToMenu(wxMenu *menu) const
     {
         menu->Append(
@@ -226,6 +232,25 @@ void BindShortcuts(Window *window, ShortcutsTuple &shortcutsTuple)
 }
 
 
+template
+<
+    typename Window,
+    typename ShortcutsTuple
+>
+void UnbindShortcuts(Window *window, ShortcutsTuple &shortcutsTuple)
+{
+    jive::ForEach(
+        shortcutsTuple,
+        [window](auto &shortcut) -> void
+        {
+            window->Unbind(
+                wxEVT_MENU,
+                ShortcutFunctor(shortcut),
+                shortcut.GetId());
+        });
+}
+
+
 template<typename ShortcutsTuple>
 void AddToMenu(wxMenu *menu, const ShortcutsTuple &shortcutsTuple)
 {
@@ -238,31 +263,59 @@ void AddToMenu(wxMenu *menu, const ShortcutsTuple &shortcutsTuple)
 }
 
 
+
 template<typename Window, typename ShortcutsByMenu>
-std::unique_ptr<wxMenuBar> InitializeMenus(
-    Window *window,
-    ShortcutsByMenu &shortcutsByMenu)
+class MenuShortcuts
 {
-    auto menuBar = std::make_unique<wxMenuBar>();
+public:
+    MenuShortcuts(
+        Window *window,
+        const ShortcutsByMenu &shortcutsByMenu)
+        :
+        window_(window),
+        shortcutsByMenu_(shortcutsByMenu)
+    {
+        this->menuBar_ = std::make_unique<wxMenuBar>();
 
-    jive::ForEach(
-        shortcutsByMenu,
-        [window, &menuBar](auto &nameShortcutsPair)
-        {
-            auto & [menuName, shortcuts] = nameShortcutsPair;
-            auto menu = std::make_unique<wxMenu>();
-            AddToMenu(menu.get(), shortcuts);
+        jive::ForEach(
+            this->shortcutsByMenu_,
+            [this](auto &nameShortcutsPair)
+            {
+                auto & [menuName, shortcuts] = nameShortcutsPair;
+                auto menu = std::make_unique<wxMenu>();
+                AddToMenu(menu.get(), shortcuts);
 
-            menuBar->Append(
-                menu.release(),
-                wxString(std::forward<decltype(menuName)>(menuName)));
+                this->menuBar_->Append(
+                    menu.release(),
+                    wxString(std::forward<decltype(menuName)>(menuName)));
 
-            BindShortcuts(window, shortcuts);
-        });
+                BindShortcuts(this->window_, shortcuts);
+            });
+    }
 
-    return menuBar;
-}
-    
+    ~MenuShortcuts()
+    {
+        PEX_LOG("Unbind shortcuts");
+
+        jive::ForEach(
+            this->shortcutsByMenu_,
+            [this](auto &nameShortcutsPair)
+            {
+                auto & [menuName, shortcuts] = nameShortcutsPair;
+                UnbindShortcuts(this->window_, shortcuts);
+            });
+    }
+
+    wxMenuBar *GetMenuBar()
+    {
+        return this->menuBar_.release();
+    }
+
+private:
+    Window *window_;
+    ShortcutsByMenu shortcutsByMenu_;
+    std::unique_ptr<wxMenuBar> menuBar_;
+};
 
 
 } // namespace wx
