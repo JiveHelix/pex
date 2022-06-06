@@ -10,79 +10,29 @@
 **/
 
 #include "pex/wx/view.h"
-#include "pex/value.h"
 #include "pex/wx/radio_box.h"
 #include "pex/wx/view.h"
+#include "pex/chooser.h"
+#include "units.h"
 
 
-enum class UnitSystem: uint8_t
-{
-    MKS,
-    CGS,
-    FPS,
-    FFF
-};
+using Chooser = pex::model::Chooser<UnitsModel, pex::GetTag>;
+using ChooserControl = pex::control::Chooser<void, Chooser>;
 
-
-struct ShortConverter
-{
-    static std::string ToString(UnitSystem unitSystem)
-    {
-        switch (unitSystem)
-        {
-            case (UnitSystem::MKS):
-                return "MKS";
-
-            case (UnitSystem::CGS):
-                return "CGS";
-
-            case (UnitSystem::FPS):
-                return "FPS";
-
-            case (UnitSystem::FFF):
-                return "FFF";
-
-            default:
-                throw std::logic_error("Unknown unit system");
-        }
-    }
-};
-
-
-struct LongConverter
-{
-    static std::string ToString(UnitSystem unitSystem)
-    {
-        switch (unitSystem)
-        {
-            case (UnitSystem::MKS):
-                return "meter-kilogram-second";
-
-            case (UnitSystem::CGS):
-                return "centimeter-gram-second";
-
-            case (UnitSystem::FPS):
-                return "foot-pound-second";
-
-            case (UnitSystem::FFF):
-                return "furlong-firkin-fortnight";
-
-            default:
-                throw std::logic_error("Unknown unit system");
-        }
-    }
-};
-
-
-using UnitsModel = pex::model::Value<UnitSystem>;
-using UnitsControl = pex::control::Value<void, UnitsModel>;
 
 class ExampleApp: public wxApp
 {
 public:
     ExampleApp()
         :
-        units_{UnitSystem::MKS}
+        units_{UnitSystem::MKS},
+        chooser_{
+            this->units_,
+            {
+                UnitSystem::MKS,
+                UnitSystem::CGS,
+                UnitSystem::FPS,
+                UnitSystem::FFF}}
     {
 
     }
@@ -91,13 +41,14 @@ public:
 
 private:
     UnitsModel units_;
+    Chooser chooser_;
 };
 
 
 class ExampleFrame: public wxFrame
 {
 public:
-    ExampleFrame(UnitsControl units);
+    ExampleFrame(ChooserControl chooser);
 };
 
 
@@ -108,37 +59,27 @@ wxshimIMPLEMENT_APP(ExampleApp)
 bool ExampleApp::OnInit()
 {
     ExampleFrame *exampleFrame =
-        new ExampleFrame(UnitsControl(this->units_));
+        new ExampleFrame(ChooserControl(this->chooser_));
 
     exampleFrame->Show();
     return true;
 }
 
 
-auto choices = std::vector<UnitSystem>
-{
-    UnitSystem::MKS,
-    UnitSystem::CGS,
-    UnitSystem::FPS,
-    UnitSystem::FFF
-};
-
-
-ExampleFrame::ExampleFrame(UnitsControl unitsControl)
+ExampleFrame::ExampleFrame(ChooserControl chooserControl)
     :
     wxFrame(nullptr, wxID_ANY, "pex::wx::RadioBox Demo")
 {
     auto radioBox =
-        new pex::wx::RadioBox<UnitsControl, ShortConverter>(
+        new pex::wx::RadioBox<ChooserControl, ShortConverter>(
             this,
-            unitsControl,
-            choices,
+            chooserControl,
             "Choose Units");
 
     auto view =
-        new pex::wx::View<UnitsControl, LongConverter>(
+        new pex::wx::View<ChooserControl::Value, LongConverter>(
             this,
-            unitsControl);
+            chooserControl.value);
 
     auto topSizer = std::make_unique<wxBoxSizer>(wxVERTICAL);
 

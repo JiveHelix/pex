@@ -61,13 +61,13 @@ public:
     }
 
 private:
-    void OnValueChanged_(ArgumentT<Type> value)
+    void OnValueChanged_(Argument<Type> value)
     {
         this->SetLabel(Convert::ToString(value));
         this->GetParent()->Layout();
     }
 
-    using Value_ = typename pex::control::ChangeObserver<View, Control>::Type;
+    using Value_ = pex::control::ChangeObserver<View, Control>;
     Value_ value_;
 };
 

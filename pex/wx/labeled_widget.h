@@ -72,8 +72,8 @@ private:
 struct LayoutOptions
 {
     int orient = wxVERTICAL;
-    int labelAlign = wxALIGN_LEFT | wxALIGN_CENTER_VERTICAL;
-    int widgetAlign = wxALIGN_LEFT | wxALIGN_CENTER_VERTICAL;
+    int labelFlags = wxALIGN_LEFT | wxALIGN_CENTER_VERTICAL;
+    int widgetFlags = wxALIGN_LEFT | wxALIGN_CENTER_VERTICAL | wxEXPAND;
     int verticalGap = 3;
     int horizontalGap = 3;
 };
@@ -100,8 +100,8 @@ void AddLabelAndWidget(
     Label &&label,
     Widget &&widget)
 {
-    sizer->Add(std::forward<Label>(label), 0, options.labelAlign);
-    sizer->Add(std::forward<Widget>(widget), 0, options.widgetAlign);
+    sizer->Add(std::forward<Label>(label), 0, options.labelFlags);
+    sizer->Add(std::forward<Widget>(widget), 1, options.widgetFlags);
 }
 
 
@@ -147,21 +147,28 @@ std::unique_ptr<wxSizer> LayoutLabeled(
         options.verticalGap,
         options.horizontalGap);
 
+    groupSizer->SetFlexibleDirection(wxBOTH);
+
     auto labels = GetLabels(std::forward<Labeled>(labeled)...);
     auto widgets = GetWidgets(std::forward<Labeled>(labeled)...);
 
     if (options.orient == wxHORIZONTAL)
     {
+        for (size_t i = 0; i < sizeof...(Labeled); ++i)
+        {
+            groupSizer->AddGrowableCol(i);
+        }
+
         // Layout in a row with labels above their respective widgets.
         AddRow(
             groupSizer.get(),
-            options.labelAlign,
+            options.labelFlags,
             labels,
             std::make_index_sequence<sizeof...(Labeled)>{});
 
         AddRow(
             groupSizer.get(),
-            options.widgetAlign,
+            options.widgetFlags,
             widgets,
             std::make_index_sequence<sizeof...(Labeled)>{});
     }
@@ -169,6 +176,16 @@ std::unique_ptr<wxSizer> LayoutLabeled(
     {
         // Layout in a stack with labels on the left.
         assert(options.orient == wxVERTICAL);
+
+#if 0
+        for (size_t i = 0; i < sizeof...(Labeled); ++i)
+        {
+            groupSizer->AddGrowableRow(i);
+        }
+#endif
+
+        // groupSizer->AddGrowableCol(0, 0);
+        groupSizer->AddGrowableCol(1, 1);
 
         AddVertical(
             groupSizer.get(),
@@ -179,6 +196,19 @@ std::unique_ptr<wxSizer> LayoutLabeled(
     }
 
     return groupSizer;
+}
+
+
+template<typename ...Items>
+std::unique_ptr<wxSizer> LayoutItems(
+    int orient,
+    int flags,
+    int spacing,
+    Items &&...items)
+{
+    auto sizer = std::make_unique<wxBoxSizer>(orient);
+    (sizer->Add(items, 0, flags, spacing), ...);
+    return sizer;
 }
 
 

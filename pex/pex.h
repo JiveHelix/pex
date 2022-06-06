@@ -11,6 +11,7 @@
 #pragma once
 
 
+#include <fields/fields.h>
 #include "pex/value.h"
 #include "pex/signal.h"
 #include "pex/range.h"
@@ -18,3 +19,4 @@
 #include "pex/reference.h"
 #include "pex/transaction.h"
 #include "pex/interface.h"
+#include "pex/group.h"

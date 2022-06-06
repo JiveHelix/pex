@@ -17,27 +17,33 @@
 #include "pex/wx/combo_box.h"
 #include "pex/wx/check_box.h"
 #include "pex/wx/view.h"
+#include "units.h"
 
 
-static inline const std::vector<std::string> unitsList
+static inline const std::vector<UnitSystem> withoutFirkins
 {
-    "meter-kilogram-second",
-    "centimeter-gram-second",
-    "foot-pound-second"
+    UnitSystem::MKS,
+    UnitSystem::CGS,
+    UnitSystem::FPS
+};
+
+
+static inline const std::vector<UnitSystem> withFirkins
+{
+    UnitSystem::MKS,
+    UnitSystem::CGS,
+    UnitSystem::FPS,
+    UnitSystem::FFF
 };
 
 
 std::string fffUnits = "furlong-firkin-fortnight";
 
-using Chooser = pex::model::Chooser<std::string>;
+using Chooser = pex::model::Chooser<UnitsModel>;
 using ChooserControl = pex::control::Chooser<void, Chooser>;
 
-using Firkins = pex::model::Value<bool>;
-
-using FirkinsControl = pex::control::Value<void, Firkins>;
-
-using Units = pex::model::Value<std::string>;
-using UnitsControl = pex::control::Value<void, Units>;
+using EnableFirkins = pex::model::Value<bool>;
+using EnableFirkinsControl = pex::control::Value<void, EnableFirkins>;
 
 
 class ExampleApp: public wxApp
@@ -45,17 +51,18 @@ class ExampleApp: public wxApp
 public:
     ExampleApp()
         :
-        unitsChooser_(unitsList),
-        firkins_(false),
-        units_(this->unitsChooser_.GetSelection()),
-        link_(pex::MakeLink(this->unitsChooser_, this->units_))
+        units_{UnitSystem::MKS},
+        chooser_{
+            this->units_,
+            withoutFirkins},
+        enableFirkins_(false)
     {
-        this->firkins_.Connect(this, &ExampleApp::OnFirkins_);
+        this->enableFirkins_.Connect(this, &ExampleApp::OnFirkins_);
     }
     
     ~ExampleApp()
     {
-        this->firkins_.Disconnect(this);
+        this->enableFirkins_.Disconnect(this);
     }
 
     bool OnInit() override;
@@ -67,20 +74,17 @@ private:
 
         if (firkins)
         {
-            auto firkinsList = unitsList;
-            firkinsList.push_back(fffUnits);
-            self->unitsChooser_.SetChoices(firkinsList);
+            self->chooser_.SetChoices(withFirkins);
         }
         else
         {
-            self->unitsChooser_.SetChoices(unitsList);
+            self->chooser_.SetChoices(withoutFirkins);
         }
     }
 
-    Chooser unitsChooser_;
-    Firkins firkins_;
-    Units units_;
-    std::unique_ptr<pex::Link> link_;
+    UnitsModel units_;
+    Chooser chooser_;
+    EnableFirkins enableFirkins_;
 };
 
 
@@ -89,8 +93,7 @@ class ExampleFrame: public wxFrame
 public:
     ExampleFrame(
         ChooserControl chooserControl,
-        FirkinsControl firkinsControl,
-        UnitsControl unitsControl);
+        EnableFirkinsControl enableFirkinsControl);
 };
 
 
@@ -102,20 +105,17 @@ bool ExampleApp::OnInit()
 {
     ExampleFrame *exampleFrame =
         new ExampleFrame(
-            ChooserControl(this->unitsChooser_),
-            FirkinsControl(this->firkins_),
-            UnitsControl(this->units_));
+            ChooserControl(this->chooser_),
+            EnableFirkinsControl(this->enableFirkins_));
 
     exampleFrame->Show();
     return true;
 }
 
 
-
 ExampleFrame::ExampleFrame(
     ChooserControl chooserControl,
-    FirkinsControl firkinsControl,
-    UnitsControl unitsControl)
+    EnableFirkinsControl enableFirkinsControl)
     :
     wxFrame(nullptr, wxID_ANY, "pex::wx::ComboBox Demo")
 {
@@ -123,17 +123,35 @@ ExampleFrame::ExampleFrame(
         new pex::wx::CheckBox(
             this,
             "Show FFF",
-            firkinsControl);
+            enableFirkinsControl);
 
-    auto comboBox =
-        new pex::wx::ComboBox(this, chooserControl);
+    auto shortComboBox =
+        new pex::wx::ComboBox<ChooserControl, ShortConverter>(
+            this,
+            chooserControl);
 
-    auto view = new pex::wx::View(this, unitsControl);
+    auto longComboBox =
+        new pex::wx::ComboBox<ChooserControl, LongConverter>(
+            this,
+            chooserControl);
+
+    auto shortView =
+        new pex::wx::View<ChooserControl::Value, ShortConverter>(
+            this,
+            chooserControl.value);
+
+    auto longView =
+        new pex::wx::View<ChooserControl::Value, LongConverter>(
+            this,
+            chooserControl.value);
+
     auto topSizer = std::make_unique<wxBoxSizer>(wxVERTICAL);
 
     topSizer->Add(firkinsCheckbox, 0, wxALL, 10);
-    topSizer->Add(comboBox, 0, wxLEFT | wxBOTTOM | wxRIGHT, 10);
-    topSizer->Add(view, 0, wxLEFT | wxBOTTOM | wxRIGHT, 10);
+    topSizer->Add(shortComboBox, 0, wxLEFT | wxBOTTOM | wxRIGHT, 10);
+    topSizer->Add(longComboBox, 0, wxLEFT | wxBOTTOM | wxRIGHT, 10);
+    topSizer->Add(shortView, 0, wxLEFT | wxBOTTOM | wxRIGHT, 10);
+    topSizer->Add(longView, 0, wxLEFT | wxBOTTOM | wxRIGHT, 10);
 
     this->SetSizerAndFit(topSizer.release());
 }

@@ -109,9 +109,10 @@ struct ValueToString
 template<typename T, int base, typename = void>
 struct StringToValue
 {
-    static T Call(T &&asString)
+    template<typename U>
+    static T Call(U &&asString)
     {
-        return std::forward<T>(asString);
+        return std::forward<U>(asString);
     }
 };
 
@@ -172,6 +173,30 @@ struct Converter
         return ConvertToValue::Call(std::forward<U>(asString));
     }
 };
+
+
+template<typename Converter, typename T, typename = void>
+struct HasToString_: std::false_type {};
+
+template<typename Converter, typename T>
+struct HasToString_
+<
+    Converter,
+    T,
+    std::enable_if_t
+    <
+        std::is_invocable_r_v
+        <
+            std::string,
+            decltype(&Converter::template ToString<T>),
+            T
+        >
+    >
+>: std::true_type {};
+
+
+template<typename Converter, typename T>
+static constexpr bool HasToString = HasToString_<Converter, T>::value;
 
 
 } // namespace pex

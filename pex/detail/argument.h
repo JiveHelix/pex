@@ -24,18 +24,18 @@ namespace detail
 // floating-point type. Other types, like std::string will be passed by const
 // reference to avoid unnecessary copying.
 template<typename T, typename = void>
-struct Argument;
+struct Argument_;
 
 
 template<>
-struct Argument<void, void>
+struct Argument_<void, void>
 {
 
 };
 
 
 template<typename T>
-struct Argument
+struct Argument_
 <
     T,
     std::enable_if_t
@@ -48,7 +48,7 @@ struct Argument
 };
 
 template<typename T>
-struct Argument<T, std::enable_if_t<!std::is_arithmetic_v<T>>>
+struct Argument_<T, std::enable_if_t<!std::is_arithmetic_v<T>>>
 {
     using Type = const T &;
 };
@@ -57,7 +57,7 @@ struct Argument<T, std::enable_if_t<!std::is_arithmetic_v<T>>>
 
 
 template<typename T>
-using ArgumentT = typename detail::Argument<T>::Type;
+using Argument = typename detail::Argument_<T>::Type;
 
 
 } // namespace pex

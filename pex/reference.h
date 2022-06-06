@@ -59,13 +59,13 @@ public:
         return this->pex_.Get();
     }
 
-    void Set(ArgumentT<Type> value)
+    void Set(Argument<Type> value)
     {
         this->pex_.Set(value);
     }
 
 protected:
-    void SetWithoutNotify_(ArgumentT<Type> value)
+    void SetWithoutNotify_(Argument<Type> value)
     {
         this->pex_.SetWithoutNotify_(value);
     }
@@ -95,7 +95,7 @@ public:
 
     using Base::Base;
 
-    void Set(ArgumentT<Type> value)
+    void Set(Argument<Type> value)
     {
         this->SetWithoutNotify_(value);
     }

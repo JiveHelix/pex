@@ -135,7 +135,7 @@ ExampleFrame::ExampleFrame(Control control)
     LayoutOptions options{};
 
     options.orient = wxVERTICAL;
-    options.labelAlign = wxALIGN_RIGHT | wxALIGN_CENTER_VERTICAL;
+    options.labelFlags = wxALIGN_RIGHT | wxALIGN_CENTER_VERTICAL;
 
     auto layoutSizer = LayoutLabeled(
         options,

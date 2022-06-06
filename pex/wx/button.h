@@ -22,8 +22,19 @@ WXSHIM_POP_IGNORES
 namespace pex
 {
 
+
 namespace wx
 {
+
+
+struct ButtonOptions
+{
+    wxWindowID id = wxID_ANY;
+    wxPoint position = wxDefaultPosition;
+    wxSize size = wxDefaultSize;
+    long style = 0;
+};
+
 
 class Button: public wxButton
 {
@@ -33,9 +44,28 @@ public:
     Button(
         wxWindow *parent,
         const std::string &label,
-        pex::control::Signal<void> signal)
+        pex::control::Signal<void> signal,
+        const ButtonOptions &options = ButtonOptions{})
         :
-        Base(parent, wxID_ANY, label),
+        Base(
+            parent,
+            options.id,
+            label,
+            options.position,
+            options.size,
+            options.style),
+        signal_(signal)
+    {
+        this->Bind(wxEVT_BUTTON, &Button::OnButton_, this);
+    }
+
+    Button(
+        wxWindow *parent,
+        const std::string &label,
+        pex::control::Signal<void> signal,
+        long style)
+        :
+        Base(parent, wxID_ANY, label, wxDefaultPosition, wxDefaultSize, style),
         signal_(signal)
     {
         this->Bind(wxEVT_BUTTON, &Button::OnButton_, this);

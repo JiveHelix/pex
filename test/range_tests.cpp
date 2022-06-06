@@ -108,7 +108,7 @@ struct Observer
         this->observed = value;
     }
 
-    typename pex::control::ChangeObserver<Observer, Control>::Type control_;
+    pex::control::ChangeObserver<Observer, Control> control_;
 
     std::optional<int> observed;
 };

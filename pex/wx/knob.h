@@ -21,19 +21,11 @@ public:
     using This = Knob<RangeControl>;
 
     // Value and Bound are observed by This
-    using Value = typename
-        pex::control::ChangeObserver
-        <
-            This,
-            typename RangeControl::Value
-        >::Type;
+    using Value =
+        pex::control::ChangeObserver<This, typename RangeControl::Value>;
 
-    using Bound = typename
-        pex::control::ChangeObserver
-        <
-            This,
-            typename RangeControl::Bound
-        >::Type;
+    using Bound =
+        pex::control::ChangeObserver<This, typename RangeControl::Bound>;
 
     Knob(wxWindow *parent)
         :

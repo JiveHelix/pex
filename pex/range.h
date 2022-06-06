@@ -16,10 +16,12 @@
 #include <type_traits>
 #include <stdexcept>
 #include <limits>
-#include <jive/overflow.h>
 #include "pex/value.h"
 #include "pex/detail/filters.h"
 #include "pex/reference.h"
+#include "pex/converting_filter.h"
+#include "pex/traits.h"
+#include "pex/group.h"
 
 
 namespace pex
@@ -87,24 +89,6 @@ private:
 };
 
 
-template<typename T, typename = void>
-struct UpstreamArg_
-{
-    using Type = T;
-};
-
-template<typename T>
-struct UpstreamArg_<T, std::enable_if_t<IsModel<T>>>
-{
-    using Type = T &;
-};
-
-
-template<typename T>
-using UpstreamArgT = typename UpstreamArg_<T>::Type;
-
-
-
 template<typename Upstream>
 class Range
 {
@@ -119,25 +103,30 @@ public:
         <
             void,
             Upstream,
-            RangeFilter<typename Upstream::Type>
-        >;
-
+            RangeFilter<typename Upstream::Type> >;
     static_assert(!IsCopyable<Value>);
-    static_assert(::pex::model::IsDirect<::pex::control::UpstreamT<Value>>);
+    static_assert(::pex::model::IsDirect<::pex::UpstreamT<Value>>);
 
     using Type = typename Value::Type;
 
-    // The Range limits are stored here in the model::Range.
+    // The Range limits are stored here in the model.
     using Limit = typename ::pex::model::Value<Type>;
 
 public:
-    Range() = default;
+    Range()
+        :
+        value_(),
+        minimum_(std::numeric_limits<Type>::lowest()),
+        maximum_(std::numeric_limits<Type>::max())
+    {
 
-    Range(UpstreamArgT<Upstream> upstream)
+    }
+
+    Range(PexArgument<Upstream> upstream)
         :
         value_(upstream),
-        minimum_(),
-        maximum_()
+        minimum_(std::numeric_limits<Type>::lowest()),
+        maximum_(std::numeric_limits<Type>::max())
     {
         this->value_.SetFilter(RangeFilter<Type>(
             this->minimum_.Get(),
@@ -148,6 +137,15 @@ public:
     {
         PEX_LOG("Disconnect");
         this->value_.Disconnect(this);
+    }
+
+    void SetUpstream(PexArgument<Upstream> upstream)
+    {
+        this->value_ = Value(upstream);
+
+        this->value_.SetFilter(RangeFilter<Type>(
+            this->minimum_.Get(),
+            this->maximum_.Get()));
     }
 
     void SetLimits(Type minimum, Type maximum)
@@ -225,6 +223,16 @@ public:
         this->value_.Set(value);
     }
 
+    Type GetMaximum() const
+    {
+        return this->maximum_.Get();
+    }
+
+    Type GetMinimum() const
+    {
+        return this->minimum_.Get();
+    }
+
     template
     <
         typename,
@@ -239,6 +247,7 @@ private:
     Limit minimum_;
     Limit maximum_;
 };
+
 
 } // namespace model
 
@@ -293,6 +302,8 @@ public:
             pex::GetTag
         >;
 
+    Range() = default;
+
     Range(Upstream &upstream)
     {
         if constexpr (IsModelRange<Upstream>)
@@ -336,41 +347,6 @@ public:
 };
 
 
-template<typename Target, typename Source>
-void RequireConvertible(Source value)
-{
-    if (!jive::CheckConvertible<Target>(value))
-    {
-        throw std::range_error("value is not convertible to target");
-    }
-}
-
-
-#ifndef NDEBUG
-#define CHECK_RANGE(Target, value) RequireConvertible<Target>(value)
-#else
-// Release mode. No safety checks!
-#define CHECK_RANGE(Target, value)
-#endif
-
-
-template<typename SetType, typename GetType>
-struct ConvertingFilter
-{
-    static GetType Get(SetType value)
-    {
-        CHECK_RANGE(GetType, value);
-        return static_cast<GetType>(value);
-    }
-
-    static SetType Set(GetType value)
-    {
-        CHECK_RANGE(SetType, value);
-        return static_cast<SetType>(value);
-    }
-};
-
-
 template
 <
     typename Observer,
@@ -387,7 +363,114 @@ using ConvertingRange = Range
     >;
 
 
+template
+<
+    typename Observer,
+    typename Upstream,
+    typename Converted,
+    ssize_t slope,
+    ssize_t offset,
+    typename Access = pex::GetAndSetTag
+>
+using LinearRange = Range
+    <
+        Observer,
+        Upstream,
+        LinearFilter<typename Upstream::Value::Type, Converted, slope, offset>,
+        Access
+    >;
+
+
 } // namespace control
+
+
+template
+<
+    template<typename> typename Fields,
+    template<template<typename> typename> typename Template,
+    typename Upstream_ = void
+>
+struct RangeGroup
+{
+    template<typename P, typename = void>
+    struct UpstreamHelper
+    {
+        using Type = P;
+    };
+
+    template<typename P>
+    struct UpstreamHelper
+    <
+        P,
+        std::enable_if_t<std::is_same_v<P, void>>
+    >
+    {
+        using Type = typename pex::Group<Fields, Template>::Model;
+    };
+    
+    using Upstream = typename UpstreamHelper<Upstream_>::Type;
+    using Plain = typename Upstream::Plain;
+
+    template<typename T>
+    using UpstreamPex = typename Upstream::template Pex<T>;
+
+#if 0
+    template<typename T>
+    using ModelPex = pex::model::Range<pex::Model<T>>;
+#else
+    template<typename T>
+    using ModelPex = pex::model::Range<UpstreamPex<T>>;
+#endif
+
+    template<typename T>
+    using ControlPex = pex::control::Range<void, ModelPex<T>>;
+
+
+    struct Models: public Template<ModelPex>
+    {
+        Models() = default;
+
+        Models(Upstream &upstream)
+        {
+            auto setUpstream = [this, &upstream](
+                const auto &modelField,
+                const auto &upstreamField) -> void
+            {
+                using ModelUpstreamType = std::remove_reference_t<
+                    decltype(this->*(modelField.member))>;
+
+                using UpstreamMemberType = std::remove_reference_t<
+                    decltype(upstream.*(upstreamField.member))>;
+
+                static_assert(
+                    std::is_convertible_v
+                    <
+                        UpstreamMemberType,
+                        ModelUpstreamType
+                    >, 
+                    "Upstream must be convertible to model's upstream type.");
+
+                (this->*(modelField.member)).SetUpstream(
+                    upstream.*(upstreamField.member));
+            };
+
+            jive::ZipApply(
+                setUpstream,
+                Fields<Models>::fields,
+                Fields<Upstream>::fields);
+        }
+    };
+
+    struct Controls: public Template<ControlPex>
+    {
+        Controls() = default;
+
+        Controls(Models &model)
+        {
+            fields::AssignConvert<Fields>(*this, model);
+        }
+    };
+};
 
 
 } // namespace pex

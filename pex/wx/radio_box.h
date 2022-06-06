@@ -9,6 +9,8 @@
   * Licensed under the MIT license. See LICENSE file.
 **/
 
+#pragma once
+
 #include <vector>
 #include <algorithm>
 
@@ -17,6 +19,8 @@
 #include "pex/converter.h"
 #include "pex/find_index.h"
 #include "pex/wx/array_string.h"
+#include "pex/wx/wx_chooser.h"
+
 
 namespace pex
 {
@@ -25,45 +29,56 @@ namespace wx
 {
 
 
-
-template<typename Value, typename Convert = Converter<typename Value::Type>>
+template
+<   typename Chooser_,
+    typename Convert = Converter<typename Chooser_::Value::Type>
+>
 class RadioBox: public wxRadioBox
 {
 public:
-    using Base = wxRadioBox;
-    using Type = typename Value::Type;
+    using Chooser = control::ChangeObserver<RadioBox, Chooser_>;
+
+    static_assert(
+        !Chooser::choicesMayChange,
+        "RadioBox choices cannot change after creation");
+
+    using Type = typename Chooser::Type;
+    using Selection = typename Chooser::Selection;
+    using Choices = typename Chooser::Choices;
+    using WxAdapter = WxChooser<typename Chooser::Type, Convert>;
 
     RadioBox(
         wxWindow *parent,
-        Value value,
-        const std::vector<Type> &choices,
+        Chooser_ chooser,
         const std::string &label = "",
         long style = wxRA_SPECIFY_ROWS)
         :
-        Base(
+        wxRadioBox(
             parent,
             wxID_ANY,
             label,
             wxDefaultPosition,
             wxDefaultSize,
-            MakeArrayString<Convert>(choices),
+            WxAdapter::GetChoicesAsStrings(chooser.choices.Get()),
             0,
             style),
-        value_(value),
-        choices_(choices)
+        chooser_(chooser)
     {
-        assert(this->ValueInChoices_(value));
-        this->SetSelection(this->GetIndex_(value.Get()));
+        assert(
+            this->chooser_.selection.Get() <= std::numeric_limits<int>::max());
+
+        this->SetSelection(static_cast<int>(this->chooser_.selection.Get()));
 
         PEX_LOG("Connect");
-        this->value_.Connect(this, &RadioBox::OnValueChanged_);
+        this->chooser_.selection.Connect(this, &RadioBox::OnSelection_);
 
         this->Bind(wxEVT_RADIOBOX, &RadioBox::OnRadioBox_, this);
     }
 
-    void OnValueChanged_(ArgumentT<Type> value)
+    void OnSelection_(size_t index)
     {
-        this->SetSelection(this->GetIndex_(value));
+        assert(index <= std::numeric_limits<int>::max());
+        this->SetSelection(static_cast<int>(index));
     }
 
     void OnRadioBox_(wxCommandEvent &event)
@@ -75,36 +90,11 @@ public:
             return;
         }
 
-        this->value_.Set(this->choices_.at(static_cast<size_t>(index)));
+        this->chooser_.selection.Set(static_cast<size_t>(index));
     }
 
 private:
-    int GetIndex_(ArgumentT<Type> value)
-    {
-        auto index = FindIndex(value, this->choices_);
-
-        if (-1 == index)
-        {
-            throw std::out_of_range("Value not found");
-        }
-
-        if (index > std::numeric_limits<int>::max())
-        {
-            throw std::out_of_range("Index is out of range");
-        }
-
-        return static_cast<int>(index);
-    }
-
-    bool ValueInChoices_(const Value &value)
-    {
-        auto index = FindIndex(value.Get(), this->choices_);
-        return (index != -1);
-    }
-
-    typename pex::control::ChangeObserver<RadioBox, Value>::Type value_;
-
-    std::vector<Type> choices_;
+    Chooser chooser_;
 };
 
 

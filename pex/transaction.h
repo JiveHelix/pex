@@ -47,7 +47,7 @@ public:
 
     }
 
-    Transaction(Model &model, ArgumentT<Type> value)
+    Transaction(Model &model, Argument<Type> value)
         :
         model_(&model),
         oldValue_(model.Get())
@@ -74,7 +74,7 @@ public:
         return this->model_->Get();
     }
 
-    void Set(ArgumentT<Type> value)
+    void Set(Argument<Type> value)
     {
         REQUIRE_HAS_VALUE(this->model_);
         this->model_->SetWithoutNotify_(value);

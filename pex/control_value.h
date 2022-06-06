@@ -14,6 +14,7 @@
 
 #include <iostream>
 #include "pex/model_value.h"
+#include "pex/traits.h"
 
 
 namespace pex
@@ -22,31 +23,6 @@ namespace pex
 
 namespace control
 {
-
-
-/** 
- ** Copyable Upstream may be stored directly, else use Direct.
- **/
-template<typename Pex, typename Enable = void>
-struct Upstream_
-{
-    using Type = Pex;
-};
-
-
-template<typename Pex>
-struct Upstream_
-<
-    Pex,
-    std::enable_if_t<!IsCopyable<Pex>>
->
-{
-    using Type = ::pex::model::Direct<Pex>;
-};
-
-
-template<typename Pex>
-using UpstreamT = typename Upstream_<Pex>::Type;
 
 
 template<
@@ -96,6 +72,11 @@ public:
     template<typename>
     friend class ::pex::Reference;
 
+    // A control::Value with a stateful filter cannot be copied, so it can be
+    // managed by Direct when needed.
+    template<typename>
+    friend class ::pex::model::Direct;
+
     static_assert(!std::is_same_v<Filter, void>, "Filter must not be void.");
 
     static_assert(
@@ -103,7 +84,7 @@ public:
 
     Value_(): upstream_(), filter_() {}
 
-    explicit Value_(Pex &pex)
+    explicit Value_(PexArgument<Pex> pex)
         :
         upstream_(pex),
         filter_()
@@ -115,7 +96,7 @@ public:
         }
     }
 
-    explicit Value_(Pex &pex, Filter filter)
+    explicit Value_(PexArgument<Pex> pex, Filter filter)
         :
         upstream_(pex),
         filter_(filter)
@@ -285,7 +266,7 @@ public:
         return this->Get();
     }
 
-    void Set(ArgumentT<Type> value)
+    void Set(Argument<Type> value)
     {
         static_assert(
             HasAccess<SetTag, Access>,
@@ -301,14 +282,14 @@ public:
         }
     }
 
-    Value_ & operator=(ArgumentT<Type> value)
+    Value_ & operator=(Argument<Type> value)
     {
         this->Set(value);
         return *this;
     }
 
 private:
-    void SetWithoutNotify_(ArgumentT<Type> value)
+    void SetWithoutNotify_(Argument<Type> value)
     {
         static_assert(
             HasAccess<SetTag, Access>,
@@ -329,7 +310,7 @@ private:
         this->upstream_.DoNotify_();
     }
     
-    UpstreamType FilterOnSet_(ArgumentT<Type> value) const
+    UpstreamType FilterOnSet_(Argument<Type> value) const
     {
         if constexpr (std::is_same_v<NoFilter, Filter>)
         {
@@ -347,7 +328,7 @@ private:
         }
     }
 
-    Type FilterOnGet_(ArgumentT<UpstreamType> value) const
+    Type FilterOnGet_(Argument<UpstreamType> value) const
     {
         if constexpr (std::is_same_v<NoFilter, Filter>)
         {
@@ -367,7 +348,7 @@ private:
 
     static void OnUpstreamChanged_(
         void * observer,
-        ArgumentT<UpstreamType> value)
+        Argument<UpstreamType> value)
     {
         // The model value has changed.
         // Update our observer.
@@ -403,7 +384,7 @@ using FilteredValue = Value_<Observer, Pex, Filter, Access>;
 
 
 template<typename Observer, typename Value>
-struct ChangeObserver;
+struct ChangeObserver_;
 
 template
 <
@@ -412,10 +393,17 @@ template
     typename OtherObserver,
     typename... Others
 >
-struct ChangeObserver<Observer, Value<OtherObserver, Others...>>
+struct ChangeObserver_<Observer, Value<OtherObserver, Others...>>
 {
     using Type = Value<Observer, Others...>;
 };
+
+template
+<
+    typename Observer,
+    typename Value
+>
+using ChangeObserver = typename ChangeObserver_<Observer, Value>::Type;
 
 
 template<typename Observer>

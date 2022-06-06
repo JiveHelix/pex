@@ -25,11 +25,11 @@ namespace detail
 
 template<typename Observer, typename T>
 using FreeFunction =
-    void (*)(Observer * const observer, ArgumentT<T> value);
+    void (*)(Observer * const observer, Argument<T> value);
 
 template<typename Observer, typename T>
 using MemberFunction =
-    void (Observer::*)(ArgumentT<T> value);
+    void (Observer::*)(Argument<T> value);
 
 
 template<typename Observer>

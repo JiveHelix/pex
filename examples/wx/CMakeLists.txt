@@ -112,6 +112,30 @@ target_link_libraries(
     CONAN_PKG::wxwidgets)
 
 
+add_executable(settings_demo settings_demo.cpp)
+
+target_link_libraries(
+    settings_demo
+    PRIVATE
+    project_warnings
+    project_options
+    pex
+    CONAN_PKG::fields
+    CONAN_PKG::wxwidgets)
+
+
+add_executable(color_demo color_demo.cpp)
+
+target_link_libraries(
+    color_demo
+    PRIVATE
+    project_warnings
+    project_options
+    pex
+    CONAN_PKG::tau
+    CONAN_PKG::wxwidgets)
+
+
 # add_executable(sandbox sandbox.cpp)
 
 # target_link_libraries(

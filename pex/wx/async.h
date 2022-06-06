@@ -35,7 +35,7 @@ public:
     template<typename Observer>
     using Control = control::Value<Observer, ThreadSafe>;
 
-    Async(ArgumentT<Type> initialValue = Type{})
+    Async(Argument<Type> initialValue = Type{})
         :
         mutex_(),
         wxModel_(),
@@ -72,7 +72,7 @@ public:
     }
 
 private:
-    void OnWorkerChanged_(ArgumentT<Type> value)
+    void OnWorkerChanged_(Argument<Type> value)
     {
         if (this->ignoreWorkerEcho_)
         {
@@ -103,7 +103,7 @@ private:
         this->wxModel_.Set(value);
     }
 
-    void OnWxChanged_(ArgumentT<Type> value)
+    void OnWxChanged_(Argument<Type> value)
     {
         if (this->ignoreWxEcho_)
         {

@@ -263,9 +263,21 @@ void AddToMenu(wxMenu *menu, const ShortcutsTuple &shortcutsTuple)
 }
 
 
+class Shortcuts
+{
+public:
+    virtual ~Shortcuts()
+    {
+
+    }
+
+    virtual wxMenuBar *GetMenuBar() = 0;
+};
+
+
 
 template<typename Window, typename ShortcutsByMenu>
-class MenuShortcuts
+class MenuShortcuts: public Shortcuts
 {
 public:
     MenuShortcuts(
@@ -293,7 +305,7 @@ public:
             });
     }
 
-    ~MenuShortcuts()
+    virtual ~MenuShortcuts()
     {
         PEX_LOG("Unbind shortcuts");
 
@@ -306,7 +318,7 @@ public:
             });
     }
 
-    wxMenuBar *GetMenuBar()
+    wxMenuBar *GetMenuBar() override
     {
         return this->menuBar_.release();
     }

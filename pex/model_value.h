@@ -138,7 +138,7 @@ public:
     }
 
     /** Set the value and notify interfaces **/
-    void Set(ArgumentT<Type> value)
+    void Set(Argument<Type> value)
     {
         this->SetWithoutNotify_(value);
         this->DoNotify_();
@@ -154,7 +154,7 @@ public:
         return this->value_;
     }
 
-    Value_ & operator=(ArgumentT<Type> value)
+    Value_ & operator=(Argument<Type> value)
     {
         this->Set(value);
         return *this;
@@ -170,7 +170,7 @@ public:
     }
 
 private:
-    void SetWithoutNotify_(ArgumentT<Type> value)
+    void SetWithoutNotify_(Argument<Type> value)
     {
         if constexpr (std::is_same_v<NoFilter, Filter>)
         {
@@ -187,7 +187,7 @@ private:
         this->Notify_(this->value_);
     }
 
-    Type FilterOnSet_(ArgumentT<Type> value) const
+    Type FilterOnSet_(Argument<Type> value) const
     {
         if constexpr (std::is_same_v<NoFilter, Filter>)
         {
@@ -205,7 +205,7 @@ private:
         }
     }
 
-    Type FilterOnGet_(ArgumentT<Type> value) const
+    Type FilterOnGet_(Argument<Type> value) const
     {
         if constexpr (std::is_same_v<NoFilter, Filter>)
         {
@@ -238,46 +238,6 @@ using FilteredValue = Value_<T, Filter>;
 } // namespace model
 
 
-template<typename ...T>
-struct IsModel_: std::false_type {};
-
-template<typename ...T>
-struct IsModel_<pex::model::Value_<T...>>: std::true_type {};
-
-template<typename ...T>
-inline constexpr bool IsModel = IsModel_<T...>::value;
-
-
-/** If Pex is a pex::model::Value, it cannot be copied. Also, if it
- ** has a Filter with member functions, then allowing it to be copied
- ** breaks the ability to change the Filter instance. These Pex values must not
- ** be copied.
- **/
-template<typename Pex, typename = void>
-struct IsCopyable_: std::false_type {};
-
-
-template<typename Pex>
-struct IsCopyable_
-<
-    Pex,
-    std::enable_if_t
-    <
-        !IsModel<Pex>
-        && 
-        !detail::FilterIsMember
-        <
-            typename Pex::UpstreamType,
-            typename Pex::Filter
-        >
-    >
->: std::true_type {};
-
-
-template<typename Pex>
-inline constexpr bool IsCopyable = IsCopyable_<Pex>::value;
-
-
 namespace control
 {
 
@@ -297,6 +257,7 @@ class Direct
 {
 public:
     using Type = typename Model::Type;
+    using Callable = typename Model::Callable;
 
     Direct()
         :
@@ -345,15 +306,13 @@ public:
         return this->model_->Get(); 
     }
 
-    void Set(ArgumentT<Type> value)
+    void Set(Argument<Type> value)
     {
         REQUIRE_HAS_VALUE(this->model_);
         this->model_->Set(value);
     }
 
-    void Connect(
-        void * const observer,
-        typename Model::Callable callable)
+    void Connect(void * const observer, Callable callable)
     {
         if (this->model_)
         {
@@ -380,7 +339,7 @@ public:
     friend class ::pex::control::Value_;
 
 private:
-    void SetWithoutNotify_(ArgumentT<Type> value)
+    void SetWithoutNotify_(Argument<Type> value)
     {
         this->model_->SetWithoutNotify_(value);
     }

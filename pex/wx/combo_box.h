@@ -9,6 +9,8 @@
   * Licensed under the MIT license. See LICENSE file.
 **/
 
+#pragma once
+
 #include "pex/wx/wxshim.h"
 #include "pex/chooser.h"
 #include "pex/wx/wx_chooser.h"
@@ -32,7 +34,7 @@ public:
     using Base = wxComboBox;
     using This = ComboBox<Control_, Convert>;
 
-    using Control = typename control::ChangeObserver<This, Control_>::Type;
+    using Control = control::ChangeObserver<This, Control_>;
 
     using Selection = typename Control::Selection;
     using Choices = typename Control::Choices;

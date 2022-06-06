@@ -68,7 +68,7 @@ class NotifyOne<Notify, Access, std::void_t<typename Notify::Type>>
     : public NotifyOne_<Notify, Access>
 {
 protected:
-    void Notify_(ArgumentT<typename Notify::Type> value)
+    void Notify_(Argument<typename Notify::Type> value)
     {
         if (this->notify_)
         {

@@ -63,7 +63,7 @@ public:
     }
 
 private:
-    typename pex::control::ChangeObserver<CheckBox, Value>::Type value_;
+    pex::control::ChangeObserver<CheckBox, Value> value_;
     size_t id_;
 };
 

@@ -33,6 +33,9 @@ struct AngleFilter
 using AngleRadians = pex::model::FilteredValue<double, AngleFilter>;
 using RadiansControl = pex::control::Value<void, AngleRadians>;
 
+using Message = pex::model::Value<std::string>;
+using MessageControl = pex::control::Value<void, Message>;
+
 /** Allow a control to use degrees, while the model uses radians. **/
 struct DegreesFilter
 {
@@ -61,18 +64,23 @@ public:
         angle_{0.0}
     {
         this->angle_.Connect(this, &ExampleApp::OnUpdate_);
+        this->message_.Set("This is the initial message");
     }
 
     bool OnInit() override;
 
 private:
-    static void OnUpdate_(void *, double value)
+    static void OnUpdate_(void * context, double value)
     {
-        std::cout << "angle updated: " << value << std::endl;
+        auto self = static_cast<ExampleApp *>(context);
+
+        self->message_.Set(
+            "The angle has been updated to: " + std::to_string(value));
     }
 
 private:
     AngleRadians angle_;
+    Message message_;
 };
 
 
@@ -81,7 +89,8 @@ class ExampleFrame: public wxFrame
 public:
     ExampleFrame(
         RadiansControl radians,
-        DegreesControl degrees);
+        DegreesControl degrees,
+        MessageControl message);
 };
 
 
@@ -94,7 +103,8 @@ bool ExampleApp::OnInit()
     ExampleFrame *exampleFrame =
         new ExampleFrame(
             RadiansControl(this->angle_),
-            DegreesControl(this->angle_));
+            DegreesControl(this->angle_),
+            MessageControl(this->message_));
 
     exampleFrame->Show();
     return true;
@@ -103,7 +113,8 @@ bool ExampleApp::OnInit()
 
 ExampleFrame::ExampleFrame(
     RadiansControl radians,
-    DegreesControl degrees)
+    DegreesControl degrees,
+    MessageControl message)
     :
     wxFrame(nullptr, wxID_ANY, "pex::wx::Field Demo")
 {
@@ -133,13 +144,34 @@ ExampleFrame::ExampleFrame(
             "Degrees:",
             new Field(this, degrees));
 
+    auto messageField =
+        LabeledWidget(
+            this,
+            "Message:",
+            new Field(this, message));
+
     auto topSizer = std::make_unique<wxBoxSizer>(wxVERTICAL);
+
+#if 1
+    auto sizer = LayoutLabeled(
+        LayoutOptions{},
+        radiansView,
+        degreesView,
+        radiansEntry,
+        degreesEntry,
+        messageField);
+
+    topSizer->Add(sizer.release(), 1, wxALL | wxEXPAND, 10);
+#else
     auto flags = wxLEFT | wxBOTTOM | wxRIGHT | wxEXPAND;
 
     topSizer->Add(radiansView.Layout().release(), 0, wxALL, 10);
     topSizer->Add(degreesView.Layout().release(), 0, flags, 10);
     topSizer->Add(radiansEntry.Layout().release(), 0, flags, 10);
     topSizer->Add(degreesEntry.Layout().release(), 0, flags, 10);
+    topSizer->Add(messageField.Layout().release(), 0, flags, 10);
+#endif
 
     this->SetSizerAndFit(topSizer.release());
+
 }

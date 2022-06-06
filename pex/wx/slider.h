@@ -82,8 +82,7 @@ public:
     using This = Slider<RangeControl>;
 
     // Value and Limit are observed by This
-    using Range =
-        typename pex::control::ChangeObserver<This, RangeControl>::Type;
+    using Range = pex::control::ChangeObserver<This, RangeControl>;
 
     using Value = typename Range::Value;
     using Limit = typename Range::Limit;
@@ -146,18 +145,35 @@ public:
 
     void OnMinimum_(int minimum)
     {
+        if (this->defaultValue_ < minimum)
+        {
+            this->defaultValue_ = minimum;
+        }
+
         this->SetMin(minimum);
     }
 
     void OnMaximum_(int maximum)
     {
+        if (this->defaultValue_ > maximum)
+        {
+            this->defaultValue_ = maximum;
+        }
+
         this->SetMax(maximum);
         this->styleFilter_.SetMaximum(maximum);
     }
 
     void OnSlider_(wxCommandEvent &event)
     {
-        this->value_.Set(this->styleFilter_(event.GetInt()));
+        // wx generates multiple wxEVT_SLIDER events with the same value.
+        // We will only send changes.
+        auto newValue = this->styleFilter_(event.GetInt());
+        
+        if (newValue != this->value_.Get())
+        {
+            this->value_.Set(newValue);
+        }
     }
 
     void OnSliderLeftDown_(wxMouseEvent &event)

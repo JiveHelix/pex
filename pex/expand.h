@@ -25,7 +25,7 @@ struct ExpandFilter
 
     }
 
-    Member Get(pex::ArgumentT<Type> value) const
+    Member Get(Argument<Type> value) const
     {
         return value.*(this->member_);
     }

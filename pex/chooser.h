@@ -17,6 +17,7 @@
 #include "pex/value.h"
 #include "pex/reference.h"
 #include "pex/find_index.h"
+#include "pex/traits.h"
 
 
 namespace pex
@@ -79,71 +80,50 @@ private:
 };
 
 
-template<typename T>
+template<typename Upstream, typename ChoicesAccess_ = GetAndSetTag>
 class Chooser
 {
 public:
-    using Type = T;
+    using Value = UpstreamT<Upstream>;
+    using Type = typename Value::Type;
+
+    using ChoicesAccess = ChoicesAccess_;
     using Selection = ::pex::model::FilteredValue<size_t, ChooserFilter<Type>>;
     using Choices = ::pex::model::Value<std::vector<Type>>;
 
 private:
     using ConstReference = ::pex::ConstReference<Choices>;
     using Defer = ::pex::Defer<Choices>;
-    using Value = ::pex::model::Value<Type>;
 
 public:
-    Chooser()
-        :
-        choices_(std::vector<Type>{Type{}}),
-        selection_(
-            static_cast<size_t>(0),
-            ChooserFilter(this->choices_.Get())),
-        value_(this->GetSelection())
-    {
-        PEX_LOG(this, " calling connect on ", &this->selection_);
-        this->selection_.Connect(this, &Chooser::OnSelection_);
-    }
+    Chooser() = default;
 
-    Chooser(ArgumentT<Type> initialValue)
+    Chooser(PexArgument<Upstream> upstream)
         :
-        choices_(std::vector<Type>{initialValue}),
+        value_(upstream),
+        choices_(std::vector<Type>{upstream.Get()}),
         selection_(
             static_cast<size_t>(0),
-            ChooserFilter(this->choices_.Get())),
-        value_(this->GetSelection())
+            ChooserFilter(this->choices_.Get()))
     {
+        static_assert(
+            HasAccess<SetTag, ChoicesAccess>,
+            "Choices must be set on construction they are read-only.");
+
         PEX_LOG(this, " calling connect on ", &this->selection_);
         this->selection_.Connect(this, &Chooser::OnSelection_);
     }
 
     Chooser(
-        ArgumentT<Type> initialValue,
+        PexArgument<Upstream> upstream,
         const std::vector<Type> &choices)
         :
+        value_(upstream),
         choices_(choices),
         selection_(
-            RequireIndex(initialValue, choices),
-            ChooserFilter(this->choices_.Get())),
-        value_(this->GetSelection())
+            RequireIndex(upstream.Get(), choices),
+            ChooserFilter(this->choices_.Get()))
     {
-        PEX_LOG(this, " calling connect on ", &this->selection_);
-        this->selection_.Connect(this, &Chooser::OnSelection_);
-    }
-
-    Chooser(const std::vector<Type> &choices)
-        :
-        choices_(choices),
-        selection_(
-            static_cast<size_t>(0),
-            ChooserFilter(this->choices_.Get())),
-        value_(this->GetSelection())
-    {
-        if (choices.empty())
-        {
-            throw std::invalid_argument("choices must not be empty");
-        }
-
         PEX_LOG(this, " calling connect on ", &this->selection_);
         this->selection_.Connect(this, &Chooser::OnSelection_);
     }
@@ -156,6 +136,10 @@ public:
 
     void SetChoices(const std::vector<Type> &choices)
     {
+        static_assert(
+            HasAccess<SetTag, ChoicesAccess>,
+            "Choices cannot be set when they are read-only.");
+
         // Don't immediately publish the change to choices.
         // The change is effective immediately, and will be published when
         // changeChoices goes out of scope.
@@ -184,7 +168,7 @@ public:
             .Get()[this->selection_.Get()];
     }
 
-    void SetSelection(ArgumentT<Type> value)
+    void SetSelection(Argument<Type> value)
     {
         this->selection_.Set(
             RequireIndex(
@@ -202,7 +186,7 @@ public:
         return this->choices_.Get();
     }
 
-    // Receive notifications by type T when the selection changes.
+    // Receive notifications by type Type when the selection changes.
     void Connect(
         void * context,
         typename Value::Callable callable)
@@ -242,76 +226,20 @@ private:
     }
 
 private:
+    Value value_;
     Choices choices_;
     Selection selection_;
-    Value value_;
 };
 
 
 } // namespace model
 
 
-class Link
-{
-public:
-    virtual ~Link()
-    {
-
-    }
-};
-
-
-template<typename T, typename Filter>
-class LinkMaker: public Link
-{
-public:
-    using Chooser = model::Chooser<T>;
-    using Value = model::Value_<T, Filter>;
-
-    LinkMaker(Chooser &chooser, Value &value)
-        :
-        chooser_(chooser),
-        value_(value)
-    {
-        this->chooser_.SetSelection(value.Get());
-
-        PEX_LOG(this, " calling connect on ", &this->chooser_);
-        this->chooser_.Connect(this, &LinkMaker::OnChooser_);
-    }
-
-    virtual ~LinkMaker()
-    {
-        PEX_LOG(this, " calling Disconect on ", &this->chooser_);
-        this->chooser_.Disconnect(this);
-    }
-
-private:
-    static void OnChooser_(void *context, ArgumentT<T> value)
-    {
-        auto self = static_cast<LinkMaker *>(context);
-        self->value_.Set(value);
-    }
-
-private:
-    Chooser &chooser_;
-    Value &value_;
-};
-
-
-template<typename T, typename Filter>
-std::unique_ptr<Link> MakeLink(
-    model::Chooser<T> &chooser,
-    model::Value_<T, Filter> &value)
-{
-    return std::make_unique<LinkMaker<T, Filter>>(chooser, value);
-}
-
-
 template<typename T>
 struct IsModelChooser_: std::false_type {};
 
-template<typename T>
-struct IsModelChooser_<model::Chooser<T>>: std::true_type {};
+template<typename T, typename Access>
+struct IsModelChooser_<pex::model::Chooser<T, Access>>: std::true_type {};
 
 template<typename T>
 inline constexpr bool IsModelChooser = IsModelChooser_<T>::value;
@@ -325,6 +253,9 @@ template<typename Observer, typename Upstream>
 class Chooser
 {
 public:
+    static constexpr bool choicesMayChange =
+        HasAccess<typename Upstream::ChoicesAccess, SetTag>;
+
     using Type = typename Upstream::Type;
 
     using Selection =
@@ -335,6 +266,7 @@ public:
             ::pex::GetAndSetTag
         >;
 
+    // Choices is read-only to users of the this Control.
     using Choices =
         ::pex::control::Value
         <
@@ -343,6 +275,7 @@ public:
             ::pex::GetTag
         >;
 
+    // Value is read-only to users of the this Control.
     using Value =
         ::pex::control::Value
         <
@@ -369,11 +302,31 @@ public:
         }
     }
 
+    template<typename OtherObserver>
+    Chooser(const Chooser<OtherObserver, Upstream> &other)
+        :
+        choices(other.choices),
+        selection(other.selection),
+        value(other.value)
+    {
+
+    }
+
+    template<typename OtherObserver>
+    Chooser & operator=(const Chooser<OtherObserver, Upstream> &other)
+    {
+        this->choices = other.choices;
+        this->selection = other.selection;
+        this->value = other.value;
+
+        return *this;
+    }
+
     Choices choices;
     Selection selection;
     Value value;
-
 };
+
 
 } // namespace control
 

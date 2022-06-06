@@ -28,15 +28,17 @@ template<typename T>
 using Model = model::Value<T>;
 
 
+#if 0
 template<typename T>
 using Control = control::Value<void, Model<T>>;
+#endif
 
 
-template<typename Observer>
-struct ObservedControl
+template<typename Observer, template<typename> typename Upstream = pex::Model>
+struct Control
 {
     template<typename T>
-    using Type = control::Value<Observer, pex::Model<T>>;
+    using Type = control::Value<Observer, Upstream<T>>;
 };
 
 

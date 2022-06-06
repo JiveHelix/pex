@@ -27,13 +27,13 @@ public:
         this->control_.Connect(this, &Observer::Observe_);
     }
 
-    void Set(pex::ArgumentT<T> value)
+    void Set(pex::Argument<T> value)
     {
         this->control_.Set(value);
     }
 
 private:
-    void Observe_(pex::ArgumentT<T> value)
+    void Observe_(pex::Argument<T> value)
     {
         this->observedValue = value;
     }

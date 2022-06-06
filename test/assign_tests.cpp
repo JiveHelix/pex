@@ -25,18 +25,18 @@ public:
         this->control_.Connect(this, &Observer::Observe_);
     }
 
-    void Set(pex::ArgumentT<Type> value)
+    void Set(pex::Argument<Type> value)
     {
         this->control_.Set(value);
     }
 
 private:
-    void Observe_(pex::ArgumentT<Type> value)
+    void Observe_(pex::Argument<Type> value)
     {
         this->observedValue = value;
     }
 
-    typename pex::control::ChangeObserver<Observer, Control>::Type control_;
+    pex::control::ChangeObserver<Observer, Control> control_;
 
 public:
     std::optional<Type> observedValue;
@@ -86,7 +86,8 @@ struct TestModel: public TestTemplate<pex::Model>
 };
 
 
-struct TestControl: public TestTemplate<pex::Control>
+struct TestControl:
+    public TestTemplate<pex::Control<void>::template Type>
 {
 public:
     TestControl(TestModel &model)

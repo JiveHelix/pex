@@ -33,9 +33,9 @@ public:
     using Base = Connection<Observer, ValueFunctionStyle<Observer, T>>;
     using Base::Base;
 
-    void operator()(ArgumentT<T> value)
+    void operator()(Argument<T> value)
     {
-        if constexpr(Base::IsMemberFunction)
+        if constexpr (Base::IsMemberFunction)
         {
             static_assert(
                 !std::is_same_v<Observer, void>,

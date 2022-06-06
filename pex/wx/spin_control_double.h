@@ -36,8 +36,7 @@ public:
     using Base = wxSpinCtrlDouble;
     using This = SpinControlDouble<RangeControl>;
 
-    using Range =
-        typename pex::control::ChangeObserver<This, RangeControl>::Type;
+    using Range = pex::control::ChangeObserver<This, RangeControl>;
 
     using Value = typename Range::Value;
     using Limit = typename Range::Limit;
