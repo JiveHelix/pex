@@ -143,7 +143,9 @@ std::unique_ptr<wxSizer> LayoutLabeled(
     Labeled &&...labeled)
 {
     auto groupSizer = std::make_unique<wxFlexGridSizer>(
-        (options.orient == wxVERTICAL) ? 2 : sizeof...(Labeled),
+        (options.orient == wxVERTICAL)
+	    ? 2
+            : static_cast<int>(sizeof...(Labeled)),
         options.verticalGap,
         options.horizontalGap);
 

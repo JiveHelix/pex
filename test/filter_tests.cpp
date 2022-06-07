@@ -96,12 +96,13 @@ TEMPLATE_TEST_CASE(
     int64_t,
     uint64_t)
 {
-    auto value = GENERATE(
-        take(
-            30,
-            random(
-                CastLimits<TestType>::Min(),
-                CastLimits<TestType>::Max())));
+    auto value = static_cast<TestType>(
+        GENERATE(
+            take(
+                30,
+                random(
+                    CastLimits<TestType>::Min(),
+                    CastLimits<TestType>::Max()))));
 
     TestType low;
 

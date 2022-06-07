@@ -20,7 +20,12 @@
 
 #else
 
-#define WXSHIM_PUSH_IGNORES
-#define WXSHIM_POP_IGNORES
+#define WXSHIM_PUSH_IGNORES \
+    __pragma(warning(push)) \
+    __pragma(warning(disable:4996)) \
+    __pragma(warning(disable:4242))
+
+#define WXSHIM_POP_IGNORES \
+    __pragma(warning(pop))
 
 #endif

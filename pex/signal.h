@@ -12,6 +12,7 @@
 #pragma once
 
 #include <type_traits>
+#include <stdexcept>
 #include "pex/detail/notify_one.h"
 #include "pex/detail/notify_many.h"
 #include "pex/detail/signal_connection.h"

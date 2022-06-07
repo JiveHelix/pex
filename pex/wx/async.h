@@ -13,6 +13,7 @@
 #pragma once
 
 
+#include <mutex>
 #include "pex/wx/wxshim.h"
 #include "pex/value.h"
 

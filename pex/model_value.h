@@ -13,6 +13,7 @@
 
 #include <type_traits>
 #include <optional>
+#include <stdexcept>
 
 #include "pex/no_filter.h"
 #include "pex/detail/notify_one.h"

@@ -47,15 +47,19 @@ struct ValueToString
 
     static std::string Call(T value)
     {
+#ifndef _WIN32
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wformat-nonliteral"
 #pragma GCC diagnostic ignored "-Wdouble-promotion"
+#endif
         return jive::Formatter<BufferSize<T, width, precision>::value>(
             format,
             width,
             precision,
             value);
+#ifndef _WIN32
 #pragma GCC diagnostic pop
+#endif
     }
 };
 
