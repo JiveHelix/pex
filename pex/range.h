@@ -16,7 +16,7 @@
 #include <type_traits>
 #include <stdexcept>
 #include <limits>
-#include "pex/platform.h"
+#include <jive/platform.h>
 #include "pex/value.h"
 #include "pex/detail/filters.h"
 #include "pex/reference.h"

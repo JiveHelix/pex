@@ -17,7 +17,7 @@
 
 #include <iterator>
 #include <type_traits>
-#include "pex/platform.h"
+#include <jive/platform.h>
 
 template<typename T>
 struct IteratorCategory
