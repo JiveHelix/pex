@@ -1,7 +1,7 @@
 if (MSVC)
-	set(windowed WIN32)
+    set(windowed WIN32)
 elseif (APPLE)
-	set(windowed MACOSX_BUNDLE)
+    set(windowed MACOSX_BUNDLE)
 endif ()
 
 add_executable(view_demo ${windowed} view_demo.cpp)
@@ -107,7 +107,7 @@ target_link_libraries(
     CONAN_PKG::wxwidgets)
 
 
-add_executable(shortcut_demo ${windowed} shortcut_demo.cpp)
+add_executable(shortcut_demo shortcut_demo.cpp)
 
 target_link_libraries(
     shortcut_demo

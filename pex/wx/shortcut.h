@@ -13,6 +13,7 @@
 namespace pex
 {
 
+
 namespace wx
 {
 
@@ -31,45 +32,13 @@ public:
             "A key code must be a char or a wxKeyCode enum value.");
     }
 
-    std::string GetString() const
-    {
-        if (this->keyStringByKeyCode_.count(this->code_))
-        {
-            return this->keyStringByKeyCode_.at(this->code_);
-        }
-        
-        if (this->code_ > 127)
-        {
-            throw std::runtime_error("Unsupported key code.");
-        }
+    std::string GetString() const;
 
-        return std::string(1, static_cast<char>(this->code_));
-    }
-
-    int GetInt() const { return this->code_; }
+    int GetInt() const;
 
 private:
     int code_;
-
-    static inline const std::map<int, std::string>
-    keyStringByKeyCode_
-    {
-        {WXK_DELETE, "DELETE"},
-        {WXK_BACK, "BACK"},
-        {WXK_INSERT, "INSERT"},
-        {WXK_RETURN, "RETURN"},
-        {WXK_PAGEUP, "PGUP"},
-        {WXK_PAGEDOWN, "PGDN"},
-        {WXK_LEFT, "LEFT"},
-        {WXK_RIGHT, "RIGHT"},
-        {WXK_UP, "UP"},
-        {WXK_DOWN, "DOWN"},
-        {WXK_HOME, "HOME"},
-        {WXK_END, "END"},
-        {WXK_SPACE, "SPACE"},
-        {WXK_TAB, "TAB"},
-        {WXK_ESCAPE, "ESCAPE"}
-    };
+    static const std::map<int, std::string> keyStringByKeyCode_;
 };
 
 
@@ -83,33 +52,7 @@ wxACCEL_RAW_CTRL is the modifier for the 'control' key.
 
 For other builds, wxACCEL_RAW_CTRL maps to the 'ctrl' key.
 **/
-inline std::string GetModifierString(int modifierBitfield)
-{
-    static const std::map<wxAcceleratorEntryFlags, std::string>
-    modifierStringByWxAccel
-    {
-        {wxACCEL_NORMAL, ""},
-        {wxACCEL_SHIFT, "SHIFT"},
-        {wxACCEL_CTRL, "CTRL"},
-        {wxACCEL_ALT, "ALT"},
-        {wxACCEL_RAW_CTRL, "RAWCTRL"}
-    };
-
-    static const std::vector<wxAcceleratorEntryFlags>
-    modifierOrder{wxACCEL_CTRL, wxACCEL_SHIFT, wxACCEL_ALT, wxACCEL_RAW_CTRL};
-
-    std::vector<std::string> modifiers;
-
-    for (auto modifier: modifierOrder)
-    {
-        if (modifierBitfield & modifier)
-        {
-            modifiers.push_back(modifierStringByWxAccel.at(modifier));
-        }
-    }
-
-    return jive::strings::Join(modifiers.begin(), modifiers.end(), '+');
-}
+std::string GetModifierString(int modifierBitfield);
 
 
 class Shortcut
@@ -131,63 +74,26 @@ public:
         modifier_(modifier),
         key_(keyCode),
         description_(description),
-        longDescription_(longDescription)
+        longDescription_(longDescription),
+        menuItem_(NULL)
     {
 
     }
 
-    ~Shortcut()
-    {
-        PEX_LOG(this);
-    }
+    void AddToMenu(wxMenu *menu);
 
-    void AddToMenu(wxMenu *menu) const
-    {
-        menu->Append(
-            new wxMenuItem(
-                menu,
-                this->id_,
-                this->GetMenuItemLabel_(),
-                this->longDescription_));
-    }
+    wxAcceleratorEntry GetAcceleratorEntry() const;
 
-    int GetModifier() const { return this->modifier_; }
+    int GetModifier() const;
 
-    int GetKeyAsInt() const { return this->key_.GetInt(); }
+    int GetKeyAsInt() const;
     
-    int GetId() const { return this->id_; }
+    int GetId() const;
 
-    void OnEventMenu()
-    {
-        this->signal_.Trigger();
-    }
+    void OnEventMenu();
 
 private: 
-    wxString GetMenuItemLabel_() const
-    {
-        auto modifier = GetModifierString(this->modifier_);
-        
-        std::string result(this->description_);
-
-        if (!modifier.empty())
-        {
-            jive::strings::Concatenate(
-                &result,
-                '\t',
-                modifier,
-                '+',
-                this->key_.GetString());
-        }
-        else
-        {
-            jive::strings::Concatenate(
-                &result,
-                '\t',
-                this->key_.GetString());
-        }
-        
-        return wxString(result);
-    }
+    wxString GetMenuItemLabel_() const;
 
     SignalType signal_;
     int id_;
@@ -195,6 +101,7 @@ private:
     Key key_;
     const std::string description_;
     const std::string longDescription_;
+    wxMenuItem *menuItem_;
 };
 
 
@@ -213,123 +120,63 @@ private:
 };
 
 
-template
-<
-    typename Window,
-    typename ShortcutsTuple
->
-void BindShortcuts(Window *window, ShortcutsTuple &shortcutsTuple)
-{
-    jive::ForEach(
-        shortcutsTuple,
-        [window](auto &shortcut) -> void
-        {
-            window->Bind(
-                wxEVT_MENU,
-                ShortcutFunctor(shortcut),
-                shortcut.GetId());
-        });
-}
+using Shortcuts = std::vector<Shortcut>;
+using ShortcutsByMenu = std::map<std::string, Shortcuts>;
 
 
-template
-<
-    typename Window,
-    typename ShortcutsTuple
->
-void UnbindShortcuts(Window *window, ShortcutsTuple &shortcutsTuple)
-{
-    jive::ForEach(
-        shortcutsTuple,
-        [window](auto &shortcut) -> void
-        {
-            window->Unbind(
-                wxEVT_MENU,
-                ShortcutFunctor(shortcut),
-                shortcut.GetId());
-        });
-}
-
-
-template<typename ShortcutsTuple>
-void AddToMenu(wxMenu *menu, const ShortcutsTuple &shortcutsTuple)
-{
-    jive::ForEach(
-        shortcutsTuple,
-        [menu](const auto &shortcut) -> void
-        {
-            shortcut.AddToMenu(menu);
-        });
-}
-
-
-class Shortcuts
+class ShortcutsBase
 {
 public:
-    virtual ~Shortcuts()
-    {
+    ShortcutsBase(
+        wxWindow *window,
+        const ShortcutsByMenu &shortcutsByMenu);
 
-    }
+    ~ShortcutsBase();
 
-    virtual wxMenuBar *GetMenuBar() = 0;
+    void BindShortcuts(Shortcuts &shortcuts);
+
+    void UnbindShortcuts(Shortcuts &shortcuts);
+
+protected:
+    wxWindow *window_;
+    ShortcutsByMenu shortcutsByMenu_;
 };
 
 
-
-template<typename Window, typename ShortcutsByMenu>
-class MenuShortcuts: public Shortcuts
+class MenuShortcuts: public ShortcutsBase
 {
 public:
     MenuShortcuts(
-        Window *window,
-        const ShortcutsByMenu &shortcutsByMenu)
-        :
-        window_(window),
-        shortcutsByMenu_(shortcutsByMenu)
-    {
-        this->menuBar_ = std::make_unique<wxMenuBar>();
+        wxWindow *window,
+        ShortcutsByMenu &shortcutsByMenu);
 
-        jive::ForEach(
-            this->shortcutsByMenu_,
-            [this](auto &nameShortcutsPair)
-            {
-                auto & [menuName, shortcuts] = nameShortcutsPair;
-                auto menu = std::make_unique<wxMenu>();
-                AddToMenu(menu.get(), shortcuts);
+    wxMenuBar *GetMenuBar();
 
-                this->menuBar_->Append(
-                    menu.release(),
-                    wxString(std::forward<decltype(menuName)>(menuName)));
-
-                BindShortcuts(this->window_, shortcuts);
-            });
-    }
-
-    virtual ~MenuShortcuts()
-    {
-        PEX_LOG("Unbind shortcuts");
-
-        jive::ForEach(
-            this->shortcutsByMenu_,
-            [this](auto &nameShortcutsPair)
-            {
-                auto & [menuName, shortcuts] = nameShortcutsPair;
-                UnbindShortcuts(this->window_, shortcuts);
-            });
-    }
-
-    wxMenuBar *GetMenuBar() override
-    {
-        return this->menuBar_.release();
-    }
+    static void AddToMenu(wxMenu *menu, Shortcuts &shortcuts);
 
 private:
-    Window *window_;
-    ShortcutsByMenu shortcutsByMenu_;
     std::unique_ptr<wxMenuBar> menuBar_;
 };
 
 
+class AcceleratorShortcuts: public ShortcutsBase
+{
+public:
+    AcceleratorShortcuts(
+        wxWindow *window,
+        const ShortcutsByMenu &shortcutsByMenu);
+
+    const wxAcceleratorTable & GetAcceleratorTable() const;
+
+    static std::vector<wxAcceleratorEntry>
+    CreateAcceleratorEntries(const Shortcuts &shortcuts);
+
+private:
+    wxAcceleratorTable acceleratorTable_;
+};
+
+
 } // namespace wx
+
 
 } // namespace pex

@@ -33,14 +33,36 @@ struct ApplicationFields
 };
 
 
-struct ApplicationModel
-{
-    pex::model::Signal sayWhatsUp;
-    pex::model::Signal sayHello;
-    pex::model::Signal sayFortyTwo;
-    pex::model::Signal frobnicate;
-    pex::model::Value<std::string> message;
+struct Signal;
 
+template<typename T, typename = void>
+struct ModelSelector_
+{
+    using Type = pex::model::Value<T>;
+};
+
+template<typename T>
+struct ModelSelector_<T, std::enable_if_t<std::is_same_v<T, Signal>>>
+{
+    using Type = pex::model::Signal;
+};
+
+template<typename T>
+using ModelSelector = typename ModelSelector_<T>::Type;
+
+
+template<template<typename> typename T>
+struct ApplicationTemplate
+{
+    T<Signal> sayWhatsUp;
+    T<Signal> sayHello;
+    T<Signal> sayFortyTwo;
+    T<Signal> frobnicate;
+    T<std::string> message;
+};
+
+struct ApplicationModel: ApplicationTemplate<ModelSelector>
+{
     ApplicationModel()
     {
         PEX_LOG("Connect");
@@ -143,10 +165,14 @@ private:
 class AnotherFrame: public wxFrame
 {
 public:
-    AnotherFrame()
+    AnotherFrame(const pex::wx::ShortcutsByMenu &shortcuts)
         :
-        wxFrame(nullptr, wxID_ANY, "A frame with no menus")
+        wxFrame(nullptr, wxID_ANY, "A frame with no menus"),
+        acceleratorShortcuts_(this, shortcuts)
     {
+        this->SetAcceleratorTable(
+            this->acceleratorShortcuts_.GetAcceleratorTable());
+
         new wxTextCtrl(
             this,
             wxID_ANY,
@@ -156,18 +182,18 @@ public:
             wxDefaultSize,
             wxTE_MULTILINE | wxTE_READONLY);
     }
+
+private:
+    pex::wx::AcceleratorShortcuts acceleratorShortcuts_;
 };
 
 
-template<typename ShortcutsByMenu>
 class ExampleFrame: public wxFrame
 {
-    using This = ExampleFrame<ShortcutsByMenu>;
-
 public:
     ExampleFrame(
         ApplicationControl applicationControl,
-        const ShortcutsByMenu &shortcuts)
+        pex::wx::ShortcutsByMenu &shortcuts)
         :
         wxFrame(nullptr, wxID_ANY, "pex::wx::Shortcut Demo"),
         menuShortcuts_(this, shortcuts)
@@ -189,11 +215,11 @@ public:
     }
 
 private:
-    pex::wx::MenuShortcuts<ExampleFrame, ShortcutsByMenu> menuShortcuts_;
+    pex::wx::MenuShortcuts menuShortcuts_;
 };
 
 
-wxshimIMPLEMENT_APP(ExampleApp)
+wxshimIMPLEMENT_APP_CONSOLE(ExampleApp)
 
 
 bool ExampleApp::OnInit()
@@ -202,46 +228,45 @@ bool ExampleApp::OnInit()
 
     using namespace std::literals;
 
-    auto shortcutsByMenu = std::make_tuple(
-        std::make_pair(
-            "File",        
-            std::make_tuple(
-                pex::wx::Shortcut(
-                    applicationControl.sayFortyTwo,
-                    wxACCEL_CMD,
-                    'Z',
-                    "42",
-                    "Say '42'"),
+    auto shortcutsByMenu = pex::wx::ShortcutsByMenu(
+        {{
+            "File", pex::wx::Shortcuts(        
+                {
+                    pex::wx::Shortcut(
+                        applicationControl.sayFortyTwo,
+                        wxACCEL_CMD,
+                        'Z',
+                        "42",
+                        "Say '42'"),
 
-                pex::wx::Shortcut(
-                    applicationControl.frobnicate,
-                    wxACCEL_CMD,
-                    'F',
-                    "Frobnicate",
-                    "Do some frobnicating"))),
+                    pex::wx::Shortcut(
+                        applicationControl.frobnicate,
+                        wxACCEL_CMD,
+                        'F',
+                        "Frobnicate",
+                        "Do some frobnicating")})},
+        {
+            "Other", pex::wx::Shortcuts(       
+                {
+                    pex::wx::Shortcut(
+                        applicationControl.sayWhatsUp,
+                        wxACCEL_CMD,
+                        'W',
+                        "What's up?",
+                        "Say 'What's up?'"),
 
-        std::make_pair(
-            "Other",        
-            std::make_tuple(
-                pex::wx::Shortcut(
-                    applicationControl.sayWhatsUp,
-                    wxACCEL_CMD,
-                    'W',
-                    "What's up?",
-                    "Say 'What's up?'"),
-
-                pex::wx::Shortcut(
-                    applicationControl.sayHello,
-                    wxACCEL_ALT | wxACCEL_SHIFT,
-                    'H',
-                    "Hello",
-                    "Say 'Hello'"))));
+                    pex::wx::Shortcut(
+                        applicationControl.sayHello,
+                        wxACCEL_ALT | wxACCEL_SHIFT,
+                        'H',
+                        "Hello",
+                        "Say 'Hello'")})}});
     
     auto exampleFrame = new ExampleFrame(
         applicationControl,
         shortcutsByMenu);
 
-    auto anotherFrame = new AnotherFrame();
+    auto anotherFrame = new AnotherFrame(shortcutsByMenu);
 
     exampleFrame->Show();
     anotherFrame->Show();

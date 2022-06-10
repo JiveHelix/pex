@@ -16,7 +16,6 @@ endif ()
 
 
 if (${PROJECT_IS_TOP_LEVEL})
-
     option(
         ENABLE_PEX_LOG
         "Enable the verbose debug log"
