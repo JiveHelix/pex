@@ -30,7 +30,7 @@ public:
 
 
 // Creates the main function for us, and initializes the app's run loop.
-wxshimIMPLEMENT_APP(ExampleApp)
+wxshimIMPLEMENT_APP_CONSOLE(ExampleApp)
 
 
 bool ExampleApp::OnInit()

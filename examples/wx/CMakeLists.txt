@@ -131,7 +131,7 @@ target_link_libraries(
     CONAN_PKG::wxwidgets)
 
 
-add_executable(color_demo ${windowed} color_demo.cpp)
+add_executable(color_demo color_demo.cpp)
 
 target_link_libraries(
     color_demo

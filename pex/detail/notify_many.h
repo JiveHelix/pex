@@ -70,6 +70,12 @@ public:
             this->connections_.end(),
             Notify(observer));
 
+        if (first == this->connections_.end())
+        {
+            // This observer has no connections.
+            return;
+        }
+
         this->connections_.erase(first, last);
     }
 

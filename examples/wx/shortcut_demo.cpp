@@ -32,25 +32,6 @@ struct ApplicationFields
         fields::Field(&T::message, "message"));
 };
 
-
-struct Signal;
-
-template<typename T, typename = void>
-struct ModelSelector_
-{
-    using Type = pex::model::Value<T>;
-};
-
-template<typename T>
-struct ModelSelector_<T, std::enable_if_t<std::is_same_v<T, Signal>>>
-{
-    using Type = pex::model::Signal;
-};
-
-template<typename T>
-using ModelSelector = typename ModelSelector_<T>::Type;
-
-
 template<template<typename> typename T>
 struct ApplicationTemplate
 {

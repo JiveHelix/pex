@@ -87,7 +87,7 @@ struct Group
     using ModelBase = detail::NotifyMany<ModelConnection, GetAndSetTag>;
 
     struct Model:
-        public Template<pex::Model>,
+        public Template<pex::ModelSelector>,
         public Accessors<Plain, Model, Fields>,
         public ModelBase
     {
@@ -95,7 +95,7 @@ struct Group
         using Plain = typename Group::Plain;
 
         template<typename T>
-        using Pex = pex::Model<T>;
+        using Pex = pex::ModelSelector<T>;
 
         Model()
             :
@@ -151,7 +151,6 @@ struct Group
         bool hasConnections_;
     };
 
-
     template<typename Observer>
     using ControlConnection = ValueConnection<Observer, Plain, NoFilter>;
 
@@ -161,7 +160,7 @@ struct Group
 
     template<typename Observer>
     using ControlTemplate =
-        Template<pex::Control<Observer, pex::Model>::template Type>;
+        Template<pex::ControlSelector<Observer>::template Type>;
 
     template<typename Observer>
     struct Control:
@@ -173,7 +172,7 @@ struct Group
 
         template<typename T>
         using Pex =
-            typename pex::Control<Observer, pex::Model>::template Type<T>;
+            typename pex::ControlSelector<Observer>::template Type<T>;
 
         using Callable = typename ControlConnection<Observer>::Callable;
 
