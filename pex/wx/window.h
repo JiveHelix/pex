@@ -23,9 +23,9 @@ public:
         this->BindCloseHandler_();
     }
 
-    Window(const Window &) = delete;
+    Window(const Window &other) = delete;
 
-    Window & operator=(const Window &) = delete;
+    Window & operator=(const Window &other) = delete;
 
     Window(Window &&other)
         :
@@ -76,6 +76,15 @@ public:
         return this->window_;
     }
 
+    void Clear()
+    {
+        if (this->window_)
+        {
+            this->UnbindCloseHandler_();
+            this->window_ = nullptr;
+        }
+    }
+
 private:
     void OnClose_(wxCloseEvent &event)
     {
@@ -86,7 +95,11 @@ private:
     void BindCloseHandler_()
     {
         assert(this->window_ != nullptr);
-        this->window_->Bind(wxEVT_CLOSE_WINDOW, &Window::OnClose_, this);
+        
+        if (this->window_)
+        {
+            this->window_->Bind(wxEVT_CLOSE_WINDOW, &Window::OnClose_, this);
+        }
     }
 
     void UnbindCloseHandler_()

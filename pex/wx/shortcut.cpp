@@ -142,53 +142,137 @@ wxString Shortcut::GetMenuItemLabel_() const
 
 
 ShortcutsBase::ShortcutsBase(
-    wxWindow *window,
+    Window &&window,
     const ShortcutsByMenu &shortcutsByMenu)
     :
-    window_(window),
+    window_(std::move(window)),
+    hasBindings_(false),
     shortcutsByMenu_(shortcutsByMenu)
 {
-
+    this->BindAll_();
 }
+
 
 ShortcutsBase::~ShortcutsBase()
 {
+    this->UnbindAll_();
+}
+
+
+void ShortcutsBase::BindAll_()
+{
+    auto window = this->window_.Get();
+
+    if (!window)
+    {
+        std::cout << "Warning: ShortcutBase::BindAll_() without wxWindow"
+            << std::endl;
+
+        return;
+    }
+
+    window->Bind(
+        wxEVT_CLOSE_WINDOW,
+        &ShortcutsBase::OnWindowClose_,
+        this);
+
+    for (auto & [menuName, shortcuts]: this->shortcutsByMenu_)
+    {
+        this->BindShortcuts_(window, shortcuts);
+    }
+
+    this->hasBindings_ = true;
+}
+
+
+void ShortcutsBase::UnbindAll_()
+{
+    auto window = this->window_.Get();
+
+    if (!window || !this->hasBindings_)
+    {
+        return;
+    }
+
+    window->Unbind(
+        wxEVT_CLOSE_WINDOW,
+        &ShortcutsBase::OnWindowClose_,
+        this);
+
     PEX_LOG("Unbind shortcuts");
 
     for (auto & [menuName, shortcuts]: this->shortcutsByMenu_)
     {
-        this->UnbindShortcuts(shortcuts);
+        this->UnbindShortcuts_(window, shortcuts);
     }
+
+    this->hasBindings_ = false;
 }
 
-void ShortcutsBase::BindShortcuts(Shortcuts &shortcuts)
+
+ShortcutsBase::ShortcutsBase(ShortcutsBase &&other)
+    :
+    window_(std::move(other.window_)),
+    hasBindings_(other.hasBindings_),
+    shortcutsByMenu_(other.shortcutsByMenu_)
 {
+    this->UnbindAll_();
+    this->BindAll_();
+}
+
+
+ShortcutsBase & ShortcutsBase::operator=(ShortcutsBase &&other)
+{
+    other.UnbindAll_();
+    this->UnbindAll_();
+    this->window_ = std::move(other.window_);
+    this->shortcutsByMenu_ = std::move(other.shortcutsByMenu_);
+    this->BindAll_();
+    
+    return *this;
+}
+
+
+void ShortcutsBase::BindShortcuts_(wxWindow *window, Shortcuts &shortcuts)
+{
+    assert(window != nullptr);
+
     for (auto &shortcut: shortcuts)
     {
-        this->window_->Bind(
+        window->Bind(
             wxEVT_MENU,
             ShortcutFunctor(shortcut),
             shortcut.GetId());
     }
 }
 
-void ShortcutsBase::UnbindShortcuts(Shortcuts &shortcuts)
+void ShortcutsBase::UnbindShortcuts_(wxWindow *window, Shortcuts &shortcuts)
 {
+    assert(window != nullptr);
+
     for (auto &shortcut: shortcuts)
     {
-        this->window_->Unbind(
+        window->Unbind(
             wxEVT_MENU,
             ShortcutFunctor(shortcut),
             shortcut.GetId());
     }
+}
+
+
+void ShortcutsBase::OnWindowClose_(wxCloseEvent &event)
+{
+    this->UnbindAll_();
+    this->window_.Clear();
+    event.Skip();
 }
 
 
 MenuShortcuts::MenuShortcuts(
-    wxWindow *window,
-    ShortcutsByMenu &shortcutsByMenu)
+    Window &&window,
+    const ShortcutsByMenu &shortcutsByMenu)
     :
-    ShortcutsBase(window, shortcutsByMenu),
+    ShortcutsBase(std::move(window), shortcutsByMenu),
     menuBar_(std::make_unique<wxMenuBar>())
 {
     for (auto & [menuName, shortcuts]: this->shortcutsByMenu_)
@@ -199,12 +283,10 @@ MenuShortcuts::MenuShortcuts(
         this->menuBar_->Append(
             menu.release(),
             wxString(std::forward<decltype(menuName)>(menuName)));
-
-        this->BindShortcuts(shortcuts);
     }
 }
 
-wxMenuBar *MenuShortcuts::GetMenuBar()
+wxMenuBar * MenuShortcuts::GetMenuBar()
 {
     return this->menuBar_.release();
 }
@@ -221,10 +303,10 @@ void MenuShortcuts::AddToMenu(
 
 
 AcceleratorShortcuts::AcceleratorShortcuts(
-    wxWindow *window,
+    Window &&window,
     const ShortcutsByMenu &shortcutsByMenu)
     :
-    ShortcutsBase(window, shortcutsByMenu),
+    ShortcutsBase(std::move(window), shortcutsByMenu),
     acceleratorTable_()
 {
     std::vector<std::vector<wxAcceleratorEntry>> entries;
@@ -235,7 +317,6 @@ AcceleratorShortcuts::AcceleratorShortcuts(
         auto shortcutEntries = CreateAcceleratorEntries(shortcuts); 
         entryCount += shortcutEntries.size();
         entries.push_back(shortcutEntries);
-        this->BindShortcuts(shortcuts);
     }
 
     std::vector<wxAcceleratorEntry> allEntries;
@@ -270,6 +351,21 @@ AcceleratorShortcuts::CreateAcceleratorEntries(const Shortcuts &shortcuts)
     }
 
     return entries;
+}
+
+
+ShortcutWindow::ShortcutWindow(
+    wxWindow *window,
+    const pex::wx::ShortcutsByMenu &shortcutsByMenu)
+    :
+    Window(window),
+    acceleratorShortcuts_(
+        std::make_unique<AcceleratorShortcuts>(
+            pex::wx::Window(window),
+            shortcutsByMenu))
+{
+    window->SetAcceleratorTable(
+        this->acceleratorShortcuts_->GetAcceleratorTable());
 }
 
 

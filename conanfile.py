@@ -4,7 +4,7 @@ from conans import ConanFile, CMake, tools
 
 class PexConan(ConanFile):
     name = "pex"
-    version = "0.4.6"
+    version = "0.4.7"
 
     scm = {
         "type": "git",
@@ -38,8 +38,9 @@ class PexConan(ConanFile):
         cmake = CMake(self)
         cmake.install()
 
-    def package_id(self):
-        self.info.header_only()
+    def package_info(self):
+        self.cpp_info.includes = ["include"]
+        self.cpp_info.libs = ["pex"]
 
     def build_requirements(self):
         self.test_requires("catch2/2.13.8")

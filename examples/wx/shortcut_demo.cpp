@@ -12,9 +12,10 @@
 #include <iostream>
 #include <string>
 #include <string_view>
+#include "pex/interface.h"
+#include "pex/group.h"
 #include "pex/wx/wxshim.h"
-#include "pex/signal.h"
-#include "pex/value.h"
+#include "pex/wx/window.h"
 #include "pex/wx/shortcut.h"
 #include "pex/wx/view.h"
 #include "fields/fields.h"
@@ -35,14 +36,18 @@ struct ApplicationFields
 template<template<typename> typename T>
 struct ApplicationTemplate
 {
-    T<Signal> sayWhatsUp;
-    T<Signal> sayHello;
-    T<Signal> sayFortyTwo;
-    T<Signal> frobnicate;
+    T<pex::MakeSignal> sayWhatsUp;
+    T<pex::MakeSignal> sayHello;
+    T<pex::MakeSignal> sayFortyTwo;
+    T<pex::MakeSignal> frobnicate;
     T<std::string> message;
 };
 
-struct ApplicationModel: ApplicationTemplate<ModelSelector>
+
+using ApplicationGroup = pex::Group<ApplicationFields, ApplicationTemplate>;
+
+
+struct ApplicationModel: public ApplicationGroup::Model
 {
     ApplicationModel()
     {
@@ -108,21 +113,7 @@ struct ApplicationModel: ApplicationTemplate<ModelSelector>
 };
 
 
-struct ApplicationControl
-{
-    pex::control::Signal<void> sayWhatsUp;
-    pex::control::Signal<void> sayHello;
-    pex::control::Signal<void> sayFortyTwo;
-    pex::control::Signal<void> frobnicate;
-    pex::control::Value<void, pex::model::Value<std::string>> message;
-
-    ApplicationControl() = default;
-
-    ApplicationControl(ApplicationModel &model)
-    {
-        fields::AssignConvert<ApplicationFields>(*this, model);
-    }
-};
+using ApplicationControl = typename ApplicationGroup::Control<void>;
 
 
 class ExampleApp: public wxApp
@@ -146,10 +137,10 @@ private:
 class AnotherFrame: public wxFrame
 {
 public:
-    AnotherFrame(const pex::wx::ShortcutsByMenu &shortcuts)
+    AnotherFrame(const pex::wx::ShortcutsByMenu & shortcuts)
         :
         wxFrame(nullptr, wxID_ANY, "A frame with no menus"),
-        acceleratorShortcuts_(this, shortcuts)
+        acceleratorShortcuts_(pex::wx::Window(this), shortcuts)
     {
         this->SetAcceleratorTable(
             this->acceleratorShortcuts_.GetAcceleratorTable());
@@ -174,10 +165,11 @@ class ExampleFrame: public wxFrame
 public:
     ExampleFrame(
         ApplicationControl applicationControl,
-        pex::wx::ShortcutsByMenu &shortcuts)
+        pex::wx::ShortcutsByMenu & shortcuts
+        )
         :
         wxFrame(nullptr, wxID_ANY, "pex::wx::Shortcut Demo"),
-        menuShortcuts_(this, shortcuts)
+        menuShortcuts_(pex::wx::Window(this), shortcuts)
     {
         this->SetMenuBar(this->menuShortcuts_.GetMenuBar());
 

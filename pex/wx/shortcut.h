@@ -7,6 +7,7 @@
 #include "jive/formatter.h"
 #include "jive/for_each.h"
 #include "pex/wx/wxshim.h"
+#include "pex/wx/window.h"
 #include "pex/detail/log.h"
 
 
@@ -99,8 +100,8 @@ private:
     int id_;
     int modifier_;
     Key key_;
-    const std::string description_;
-    const std::string longDescription_;
+    std::string description_;
+    std::string longDescription_;
     wxMenuItem *menuItem_;
 };
 
@@ -128,17 +129,33 @@ class ShortcutsBase
 {
 public:
     ShortcutsBase(
-        wxWindow *window,
+        Window &&window,
         const ShortcutsByMenu &shortcutsByMenu);
 
     ~ShortcutsBase();
 
-    void BindShortcuts(Shortcuts &shortcuts);
+    ShortcutsBase(const ShortcutsBase &) = delete;
+    ShortcutsBase & operator=(const ShortcutsBase &) = delete;
 
-    void UnbindShortcuts(Shortcuts &shortcuts);
+    ShortcutsBase(ShortcutsBase &&);
+    ShortcutsBase & operator=(ShortcutsBase &&);
+
+private:
+    void BindAll_();
+
+    void UnbindAll_();
+
+    void UnbindShortcuts_(wxWindow *window, Shortcuts &shortcuts);
+
+    void BindShortcuts_(wxWindow *window, Shortcuts &shortcuts);
+
+    void OnWindowClose_(wxCloseEvent &event);
+
+private:
+    Window window_;
+    bool hasBindings_;
 
 protected:
-    wxWindow *window_;
     ShortcutsByMenu shortcutsByMenu_;
 };
 
@@ -147,10 +164,10 @@ class MenuShortcuts: public ShortcutsBase
 {
 public:
     MenuShortcuts(
-        wxWindow *window,
-        ShortcutsByMenu &shortcutsByMenu);
+        Window &&window,
+        const ShortcutsByMenu &shortcutsByMenu);
 
-    wxMenuBar *GetMenuBar();
+    wxMenuBar * GetMenuBar();
 
     static void AddToMenu(wxMenu *menu, Shortcuts &shortcuts);
 
@@ -163,7 +180,7 @@ class AcceleratorShortcuts: public ShortcutsBase
 {
 public:
     AcceleratorShortcuts(
-        wxWindow *window,
+        Window &&window,
         const ShortcutsByMenu &shortcutsByMenu);
 
     const wxAcceleratorTable & GetAcceleratorTable() const;
@@ -173,6 +190,18 @@ public:
 
 private:
     wxAcceleratorTable acceleratorTable_;
+};
+
+
+class ShortcutWindow: public Window
+{
+public:
+    ShortcutWindow() = default;
+
+    ShortcutWindow(wxWindow *, const pex::wx::ShortcutsByMenu &);
+
+private:
+    std::unique_ptr<pex::wx::AcceleratorShortcuts> acceleratorShortcuts_;
 };
 
 

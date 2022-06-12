@@ -128,6 +128,6 @@ struct Identity_<T, std::enable_if_t<IsMember<T>>>
 };
 
 template<typename T>
-using Identity = Identity_<T>;
+using Identity = typename Identity_<T>::Type;
 
 } // end namespace pex
