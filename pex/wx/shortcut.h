@@ -68,10 +68,11 @@ public:
         int modifier,
         KeyCode keyCode,
         std::string_view description,
-        std::string_view longDescription)
+        std::string_view longDescription,
+        int id = wxID_NONE)
         :
         signal_(signal),
-        id_(wxWindow::NewControlId()),
+        id_((id == wxID_NONE) ? wxWindow::NewControlId(): id),
         modifier_(modifier),
         key_(keyCode),
         description_(description),
@@ -122,7 +123,14 @@ private:
 
 
 using Shortcuts = std::vector<Shortcut>;
-using ShortcutsByMenu = std::map<std::string, Shortcuts>;
+
+struct ShortcutGroup
+{
+    std::string name;
+    Shortcuts shortcuts;
+};
+
+using ShortcutGroups = std::vector<ShortcutGroup>;
 
 
 class ShortcutsBase
@@ -130,7 +138,7 @@ class ShortcutsBase
 public:
     ShortcutsBase(
         Window &&window,
-        const ShortcutsByMenu &shortcutsByMenu);
+        const ShortcutGroups &groups);
 
     ~ShortcutsBase();
 
@@ -156,7 +164,7 @@ private:
     bool hasBindings_;
 
 protected:
-    ShortcutsByMenu shortcutsByMenu_;
+    ShortcutGroups groups_;
 };
 
 
@@ -165,7 +173,7 @@ class MenuShortcuts: public ShortcutsBase
 public:
     MenuShortcuts(
         Window &&window,
-        const ShortcutsByMenu &shortcutsByMenu);
+        const ShortcutGroups &groups);
 
     wxMenuBar * GetMenuBar();
 
@@ -181,7 +189,7 @@ class AcceleratorShortcuts: public ShortcutsBase
 public:
     AcceleratorShortcuts(
         Window &&window,
-        const ShortcutsByMenu &shortcutsByMenu);
+        const ShortcutGroups &groups);
 
     const wxAcceleratorTable & GetAcceleratorTable() const;
 
@@ -198,7 +206,7 @@ class ShortcutWindow: public Window
 public:
     ShortcutWindow() = default;
 
-    ShortcutWindow(wxWindow *, const pex::wx::ShortcutsByMenu &);
+    ShortcutWindow(wxWindow *, const ShortcutGroups &);
 
 private:
     std::unique_ptr<pex::wx::AcceleratorShortcuts> acceleratorShortcuts_;

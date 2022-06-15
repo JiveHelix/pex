@@ -137,7 +137,7 @@ private:
 class AnotherFrame: public wxFrame
 {
 public:
-    AnotherFrame(const pex::wx::ShortcutsByMenu & shortcuts)
+    AnotherFrame(const pex::wx::ShortcutGroups & shortcuts)
         :
         wxFrame(nullptr, wxID_ANY, "A frame with no menus"),
         acceleratorShortcuts_(pex::wx::Window(this), shortcuts)
@@ -165,7 +165,7 @@ class ExampleFrame: public wxFrame
 public:
     ExampleFrame(
         ApplicationControl applicationControl,
-        pex::wx::ShortcutsByMenu & shortcuts
+        pex::wx::ShortcutGroups & shortcuts
         )
         :
         wxFrame(nullptr, wxID_ANY, "pex::wx::Shortcut Demo"),
@@ -201,9 +201,9 @@ bool ExampleApp::OnInit()
 
     using namespace std::literals;
 
-    auto shortcutsByMenu = pex::wx::ShortcutsByMenu(
+    auto shortcutsByMenu = pex::wx::ShortcutGroups(
         {{
-            "File", pex::wx::Shortcuts(        
+            "File", pex::wx::Shortcuts(
                 {
                     pex::wx::Shortcut(
                         applicationControl.sayFortyTwo,
