@@ -34,7 +34,7 @@ struct Control
 };
 
 
-struct MakeSignal;
+struct MakeSignal {};
 
 
 template<
