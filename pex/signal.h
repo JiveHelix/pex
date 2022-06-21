@@ -12,6 +12,7 @@
 #pragma once
 
 #include <type_traits>
+#include <ostream>
 #include <stdexcept>
 #include "pex/detail/notify_one.h"
 #include "pex/detail/notify_many.h"
@@ -21,6 +22,20 @@
 
 namespace pex
 {
+
+
+struct DescribeSignal
+{
+
+};
+
+
+inline
+std::ostream & operator<<(std::ostream &output, const DescribeSignal &)
+{
+    return output << "Signal";
+}
+
 
 namespace model
 {
@@ -33,6 +48,11 @@ public:
     void Trigger()
     {
         this->Notify_();
+    }
+
+    explicit operator DescribeSignal () const
+    {
+        return DescribeSignal{};
     }
 };
 
@@ -156,6 +176,11 @@ public:
     operator bool () const
     {
         return (this->model_ != nullptr);
+    }
+
+    explicit operator DescribeSignal () const
+    {
+        return DescribeSignal{};
     }
 
     template<typename U, typename V>

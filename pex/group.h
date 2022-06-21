@@ -76,7 +76,11 @@ struct Group
         std::enable_if_t<std::is_same_v<P, void>>
     >
     {
-        struct Plain: public Template<pex::Identity> {};
+        struct Plain: public Template<pex::Identity>
+        {
+
+        };
+
         using Type = Plain;
     };
     

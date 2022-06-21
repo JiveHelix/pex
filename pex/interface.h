@@ -37,6 +37,17 @@ struct Control
 struct MakeSignal {};
 
 
+template<typename Custom_>
+struct MakeCustom
+{
+    using Custom = Custom_;
+    using Type = typename Custom::Type;
+
+    template<typename Observer>
+    using Control = typename Custom::template Control<Observer>;
+};
+
+
 template<
     typename T,
     typename ModelFilter_ = NoFilter,
@@ -48,86 +59,31 @@ struct Member
     using ControlAccess = ControlAccess_;
 };
 
-template<typename ...T>
-struct IsMember_: std::false_type {};
 
-template<typename ...T>
-struct IsMember_<Member<T...>>: std::true_type {};
-
-template<typename ...T>
-inline constexpr bool IsMember = IsMember_<T...>::value;
+} // end namespace pex
 
 
-template<typename T, typename = void>
-struct ModelSelector_
+#include "pex/detail/interface_detail.h"
+
+
+namespace pex
 {
-    using Type = model::Value<T>;
-};
+
 
 template<typename T>
-struct ModelSelector_<T, std::enable_if_t<std::is_same_v<T, MakeSignal>>>
-{
-    using Type = model::Signal;
-};
+using ModelSelector = typename detail::ModelSelector_<T>::Type;
 
-template<typename T>
-struct ModelSelector_<T, std::enable_if_t<IsMember<T>>>
-{
-    using Type = model::Value_<typename T::Type, typename T::ModelFilter>;
-};
-
-template<typename T>
-using ModelSelector = typename ModelSelector_<T>::Type;
-
-
-template<typename T, typename = void>
-struct ControlSelector_
-{
-    template<typename Observer>
-    using Type = control::Value<Observer, ModelSelector<T>>;
-};
-
-template<typename T>
-struct ControlSelector_<T, std::enable_if_t<std::is_same_v<T, MakeSignal>>>
-{
-    template<typename Observer>
-    using Type = control::Signal<Observer>;
-};
-
-template<typename T>
-struct ControlSelector_<T, std::enable_if_t<IsMember<T>>>
-{
-    template<typename Observer>
-    using Type = control::Value_
-    <
-        Observer,
-        ModelSelector<T>,
-        NoFilter,
-        typename T::ControlAccess 
-    >;
-};
 
 template<typename Observer>
 struct ControlSelector
 {
     template<typename T>
-    using Type = typename ControlSelector_<T>::template Type<Observer>;
+    using Type = typename detail::ControlSelector_<T>::template Type<Observer>;
 };
 
-
-template<typename T, typename = void>
-struct Identity_
-{
-    using Type = T;
-};
 
 template<typename T>
-struct Identity_<T, std::enable_if_t<IsMember<T>>>
-{
-    using Type = typename T::Type;
-};
+using Identity = typename detail::Identity_<T>::Type;
 
-template<typename T>
-using Identity = typename Identity_<T>::Type;
 
 } // end namespace pex

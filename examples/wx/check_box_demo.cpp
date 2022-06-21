@@ -13,6 +13,33 @@
 #include "pex/value.h"
 #include "pex/wx/check_box.h"
 #include "pex/wx/view.h"
+#include "pex/group.h"
+
+
+template<typename T>
+struct DemoFields
+{
+    static constexpr auto fields = std::make_tuple(
+        fields::Field(&T::isChecked, "isChecked"),
+        fields::Field(&T::message, "message"));
+};
+
+
+template<template<typename> typename T>
+struct DemoTemplate
+{
+    T<bool> isChecked;
+    T<std::string> message;
+};
+
+
+using DemoGroup = pex::Group<DemoFields, DemoTemplate>;
+
+template<typename Observer>
+using DemoControl = typename DemoGroup::Control<Observer>;
+
+using DemoModel = typename DemoGroup::Model;
+
 
 using IsChecked = pex::model::Value<bool>;
 using IsCheckedControl = pex::control::Value<void, IsChecked>;
@@ -24,39 +51,37 @@ class ExampleApp: public wxApp
 public:
     ExampleApp()
         :
-        isChecked_{false},
-        message_{"Not checked"},
-        isCheckedControl_{this->isChecked_}
+        model_{{{false, "Not checked"}}},
+        isChecked{this->model_.isChecked}
     {
-        this->isCheckedControl_.Connect(this, &ExampleApp::OnIsChecked_);
+        this->isChecked.Connect(this, &ExampleApp::OnIsChecked_);
     }
 
     bool OnInit() override;
 
+private:
     void OnIsChecked_(bool value)
     {
         if (value)
         {
-            this->message_.Set("Is checked");
+            this->model_.message.Set("Is checked");
         }
         else
         {
-            this->message_.Set("Not checked");
+            this->model_.message.Set("Not checked");
         }
     }
 
 private:
-    IsChecked isChecked_;
-    Message message_;
-
-    pex::control::Value<ExampleApp, IsChecked> isCheckedControl_;
+    DemoModel model_;
+    decltype(DemoControl<ExampleApp>::isChecked) isChecked;
 };
 
 
 class ExampleFrame: public wxFrame
 {
 public:
-    ExampleFrame(IsCheckedControl isChecked, MessageControl message);
+    ExampleFrame(DemoControl<void> control);
 };
 
 
@@ -67,25 +92,21 @@ wxshimIMPLEMENT_APP(ExampleApp)
 bool ExampleApp::OnInit()
 {
     ExampleFrame *exampleFrame =
-        new ExampleFrame(
-            IsCheckedControl(this->isChecked_),
-            MessageControl(this->message_));
+        new ExampleFrame(DemoControl<void>(this->model_));
 
     exampleFrame->Show();
     return true;
 }
 
 
-ExampleFrame::ExampleFrame(
-    IsCheckedControl isChecked,
-    MessageControl message)
+ExampleFrame::ExampleFrame(DemoControl<void> control)
     :
     wxFrame(nullptr, wxID_ANY, "pex::wx::CheckBox Demo")
 {
     auto checkBox =
-        new pex::wx::CheckBox(this, "Check me", isChecked);
+        new pex::wx::CheckBox(this, "Check me", control.isChecked);
 
-    auto view = new pex::wx::View(this, message);
+    auto view = new pex::wx::View(this, control.message);
 
     auto topSizer = std::make_unique<wxBoxSizer>(wxVERTICAL);
 

@@ -15,7 +15,9 @@
 #include <chrono>
 #include <tau/angles.h>
 #include <jive/future.h>
+#include <fields/fields.h>
 
+#include "pex/group.h"
 #include "pex/value.h"
 #include "pex/signal.h"
 #include "pex/wx/wxshim.h"
@@ -26,7 +28,34 @@
 #include "pex/wx/button.h"
 
 
-using AngleRadians = pex::model::Value<double>;
+template<typename T>
+struct DemoFields
+{
+    static constexpr auto fields = std::make_tuple(
+        fields::Field(&T::startingAngle, "startingAngle"),
+        fields::Field(&T::currentAngle, "currentAngle"),
+        fields::Field(&T::start, "start"),
+        fields::Field(&T::stop, "stop"));
+};
+
+
+template<template<typename> typename T>
+struct DemoTemplate
+{
+    T<double> startingAngle;
+    T<pex::wx::MakeAsync<double>> currentAngle;
+    T<pex::MakeSignal> start;
+    T<pex::MakeSignal> stop;
+
+    static constexpr auto fields = DemoFields<DemoTemplate>::fields;
+    static constexpr auto fieldsTypeName = "Demo";
+};
+
+
+using DemoGroup = pex::Group<DemoFields, DemoTemplate>;
+using DemoControl = typename DemoGroup::Control<void>;
+using DemoModel = typename DemoGroup::Model;
+
 
 template<typename Upstream>
 using RadiansControl = pex::control::Value<void, Upstream>;
@@ -72,16 +101,13 @@ public:
     ExampleApp()
         :
         mutex_{},
-        startingAngle_{0.0},
-        currentAngle_{},
-        start_{},
-        stop_{},
+        model_{},
         isRunning_{},
         worker_{}
     {
-        this->startingAngle_.Connect(this, &ExampleApp::OnUpdate_);
-        this->start_.Connect(this, &ExampleApp::OnStart_);
-        this->stop_.Connect(this, &ExampleApp::OnStop_);
+        this->model_.startingAngle.Connect(this, &ExampleApp::OnUpdate_);
+        this->model_.start.Connect(this, &ExampleApp::OnStart_);
+        this->model_.stop.Connect(this, &ExampleApp::OnStop_);
     }
 
     bool OnInit() override;
@@ -90,7 +116,7 @@ private:
     static void OnUpdate_(void *context, double value)
     {
         auto self = reinterpret_cast<ExampleApp *>(context);
-        auto control = self->currentAngle_.GetWxControl();
+        auto control = self->model_.currentAngle.GetWxControl();
         control.Set(value);
     }
 
@@ -120,46 +146,39 @@ private:
 
         self->isRunning_ = false;
         self->worker_.join();
+
+        std::cout << "Stopped:" << std::endl;
+        std::cout << fields::DescribeColorized(self->model_.Get()) << std::endl;
     }
 
     void WorkerThread_()
     {
-        auto workerControl = this->currentAngle_.GetWorkerControl();
+        auto workerControl = this->model_.currentAngle.GetWorkerControl();
 
         while (this->isRunning_)
         {
             auto next =
-                this->currentAngle_.Get() + tau::Angles<double>::pi / 4.0;
+                this->model_.currentAngle.Get() + tau::Angles<double>::pi / 4.0;
 
             workerControl.Set(next);
 
             using namespace std::chrono_literals;
-            std::this_thread::sleep_for(1s);
+            std::this_thread::sleep_for(250ms);
         }
     }
 
 private:
     std::mutex mutex_;
-    AngleRadians startingAngle_;
-    pex::wx::Async<double> currentAngle_;
-    pex::model::Signal start_;
-    pex::model::Signal stop_;
+    DemoModel model_;
     std::atomic_bool isRunning_;
     std::thread worker_;
 };
 
 
-template<typename Radians, typename Degrees, typename Signal>
 class ExampleFrame: public wxFrame
 {
 public:
-    ExampleFrame(
-        RadiansControl<AngleRadians> radiansControl,
-        DegreesControl<AngleRadians> degreesControl,
-        Radians radians,
-        Degrees degrees,
-        Signal start,
-        Signal stop);
+    ExampleFrame(DemoControl demoControl);
 };
 
 
@@ -169,30 +188,15 @@ wxshimIMPLEMENT_APP(ExampleApp)
 
 bool ExampleApp::OnInit()
 {
-    auto asyncControl = this->currentAngle_.GetWxControl();
-
-    auto exampleFrame =
-        new ExampleFrame(
-            MakeRadiansControl(this->startingAngle_),
-            MakeDegreesControl(this->startingAngle_),
-            MakeRadiansControl(asyncControl),
-            MakeDegreesControl(asyncControl),
-            pex::control::Signal<void>(this->start_),
-            pex::control::Signal<void>(this->stop_));
+    auto exampleFrame = new ExampleFrame(DemoControl(this->model_));
 
     exampleFrame->Show();
+
     return true;
 }
 
 
-template<typename Radians, typename Degrees, typename Signal>
-ExampleFrame<Radians, Degrees, Signal>::ExampleFrame(
-    RadiansControl<AngleRadians> radiansControl,
-    DegreesControl<AngleRadians> degreesControl,
-    Radians radians,
-    Degrees degrees,
-    Signal start,
-    Signal stop)
+ExampleFrame::ExampleFrame(DemoControl demoControl)
     :
     wxFrame(nullptr, wxID_ANY, "pex::wx::Field Demo")
 {
@@ -202,30 +206,30 @@ ExampleFrame<Radians, Degrees, Signal>::ExampleFrame(
         LabeledWidget(
             this,
             "Radians:",
-            new View(this, radians));
+            new View(this, demoControl.currentAngle));
 
     auto degreesView =
         LabeledWidget(
             this,
             "Degrees:",
-            new View(this, degrees));
+            new View(this, MakeDegreesControl(demoControl.currentAngle)));
 
     auto radiansEntry =
         LabeledWidget(
             this,
             "Radians start:",
-            new Field(this, radiansControl));
+            new Field(this, demoControl.startingAngle));
 
     auto degreesEntry =
         LabeledWidget(
             this,
             "Degrees start:",
-            new Field(this, degreesControl));
+            new Field(this, MakeDegreesControl(demoControl.startingAngle)));
 
-    auto startButton = new Button(this, "Start", start);
-    auto stopButton = new Button(this, "Stop", stop);
+    auto startButton = new Button(this, "Start", demoControl.start);
+    auto stopButton = new Button(this, "Stop", demoControl.stop);
 
-    auto topSizer = std::make_unique<wxBoxSizer>(wxVERTICAL);
+    auto sizer = std::make_unique<wxBoxSizer>(wxVERTICAL);
 
     auto fieldsSizer = LayoutLabeled(
         LayoutOptions{},
@@ -234,13 +238,15 @@ ExampleFrame<Radians, Degrees, Signal>::ExampleFrame(
         radiansEntry,
         degreesEntry);
 
-    topSizer->Add(fieldsSizer.release(), 0, wxALL, 10);
+    sizer->Add(fieldsSizer.release(), 0, wxALL, 10);
 
     auto buttonSizer = std::make_unique<wxBoxSizer>(wxHORIZONTAL);
     buttonSizer->Add(startButton, 0, wxRIGHT, 5);
     buttonSizer->Add(stopButton);
 
-    topSizer->Add(buttonSizer.release());
+    sizer->Add(buttonSizer.release(), 0, wxTOP, 5);
 
+    auto topSizer = std::make_unique<wxBoxSizer>(wxVERTICAL);
+    topSizer->Add(sizer.release(), 0, wxALL, 10);
     this->SetSizerAndFit(topSizer.release());
 }

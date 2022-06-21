@@ -16,6 +16,7 @@
 #include <mutex>
 #include "pex/wx/wxshim.h"
 #include "pex/value.h"
+#include "pex/interface.h"
 
 
 namespace pex
@@ -34,7 +35,26 @@ public:
     using ThreadSafe = model::Value<Type>;
 
     template<typename Observer>
-    using Control = control::Value<Observer, ThreadSafe>;
+    friend struct Control;
+
+    template<typename Observer>
+    struct Control: public control::Value<Observer, ThreadSafe>
+    {
+        using Base = control::Value<Observer, ThreadSafe>;
+
+        using Base::Base;
+
+        // Constructed from an instance of Async, the control will always be
+        // the user-side control.
+        //
+        // To create a worker control, explicitly call `GetWorkerControl`.
+        Control(Async &async)
+            :
+            control::Value<Observer, ThreadSafe>(async.wxModel_)
+        {
+
+        }
+    };
 
     Async(Argument<Type> initialValue = Type{})
         :
@@ -67,6 +87,12 @@ public:
     }
 
     Type Get() const
+    {
+        std::lock_guard<std::mutex> lock(this->mutex_);
+        return this->value_;
+    }
+
+    explicit operator Type () const
     {
         std::lock_guard<std::mutex> lock(this->mutex_);
         return this->value_;
@@ -121,7 +147,7 @@ private:
 
         this->workerModel_.Set(value);
     }
-    
+
 private:
     mutable std::mutex mutex_;
     ThreadSafe wxModel_;
@@ -132,6 +158,10 @@ private:
     std::atomic_bool ignoreWorkerEcho_;
     Type value_;
 };
+
+
+template<typename T>
+using MakeAsync = pex::MakeCustom<Async<T>>;
 
 
 } // end namespace wx
