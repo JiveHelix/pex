@@ -21,4 +21,16 @@ target_link_libraries(
     pex)
 
 
+add_executable(group_demo group_demo.cpp)
+
+target_link_libraries(
+    group_demo
+    PUBLIC
+    project_warnings
+    project_options
+    CONAN_PKG::tau
+    CONAN_PKG::fields
+    pex)
+
+
 add_subdirectory(wx)

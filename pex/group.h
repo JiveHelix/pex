@@ -85,7 +85,7 @@ struct Group
     };
     
     using Plain = typename PlainHelper<Plain_>::Type;
-
+    
     using ModelConnection = ValueConnection<void, Plain, NoFilter>;
 
     using ModelBase = detail::NotifyMany<ModelConnection, GetAndSetTag>;
@@ -132,12 +132,12 @@ struct Group
 
             auto connector = [this](const auto &modelField) -> void
             {
-                using Type = typename std::remove_reference_t<
+                using MemberType = typename std::remove_reference_t<
                     decltype(this->*(modelField.member))>::Type;
 
                 (this->*(modelField.member)).Connect(
                     this,
-                    &Model::template OnMemberChanged_<Type>);
+                    &Model::template OnMemberChanged_<MemberType>);
             };
 
             fields::ForEachField<Model>(connector);
@@ -197,12 +197,12 @@ struct Group
         {
             auto connector = [this, observer](const auto &controlField) -> void
             {
-                using Type = typename std::remove_reference_t<
+                using MemberType = typename std::remove_reference_t<
                     decltype(this->*(controlField.member))>::Type;
 
                 (this->*(controlField.member)).Connect(
                     observer,
-                    &Observer::template OnMemberChanged<Type>);
+                    &Observer::template OnMemberChanged<MemberType>);
             };
 
             fields::ForEachField<Control>(connector);

@@ -406,6 +406,27 @@ template
 using ChangeObserver = typename ChangeObserver_<Observer, Value>::Type;
 
 
+template<typename ControlValue, typename NewAccess>
+struct ChangeAccess_
+{
+    static_assert(
+        pex::HasAccess<NewAccess, typename ControlValue::Access>,
+        "ChangeAccess can only remove existing access.");
+
+    using Type = Value_
+        <
+            typename ControlValue::Observer,
+            typename ControlValue::Pex,
+            typename ControlValue::Filter,
+            NewAccess
+        >;
+};
+
+template<typename ControlValue, typename NewAccess>
+using ChangeAccess = typename ChangeAccess_<ControlValue, NewAccess>::Type;
+
+
+
 template<typename Observer>
 struct BoundFilteredValue
 {

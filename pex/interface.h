@@ -48,6 +48,14 @@ struct MakeCustom
 };
 
 
+template<typename Group_>
+struct MakeGroup
+{
+    using Group = Group_;
+    using Type = typename Group_::Plain;
+};
+
+
 template<
     typename T,
     typename ModelFilter_ = NoFilter,

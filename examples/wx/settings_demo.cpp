@@ -12,9 +12,9 @@ template<typename T>
 struct WeaponsFields
 {
     static constexpr auto fields = std::make_tuple(
-        fields::Field(&T::firstFruit, "passionFruit"),
-        fields::Field(&T::secondFruit, "banana"),
-        fields::Field(&T::notFruit, "pointedStick"));
+        fields::Field(&T::firstFruit, "firstFruit"),
+        fields::Field(&T::secondFruit, "secondFruit"),
+        fields::Field(&T::notFruit, "notFruit"));
 };
 
 
