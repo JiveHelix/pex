@@ -64,6 +64,7 @@ namespace detail
 {
 
 
+/***** ModelSelector *****/
 template<typename T, typename = void>
 struct ModelSelector_
 {
@@ -82,7 +83,6 @@ struct ModelSelector_<T, std::enable_if_t<IsMember<T>>>
     using Type = model::Value_<typename T::Type, typename T::ModelFilter>;
 };
 
-
 template<typename T>
 struct ModelSelector_<T, std::enable_if_t<IsMakeCustom<T>>>
 {
@@ -96,6 +96,7 @@ struct ModelSelector_<T, std::enable_if_t<IsMakeGroup<T>>>
 };
 
 
+/***** ControlSelector *****/
 template<typename T, typename = void>
 struct ControlSelector_
 {
@@ -138,6 +139,7 @@ struct ControlSelector_<T, std::enable_if_t<IsMakeGroup<T>>>
 };
 
 
+/***** Identity *****/
 template<typename T, typename = void>
 struct Identity_
 {

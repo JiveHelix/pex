@@ -42,12 +42,12 @@ public:
             wxDefaultPosition,
             wxDefaultSize,
             style),
-        value_(value)
+        value_(this, value)
     {
         this->SetValue(this->value_.Get());
 
         PEX_LOG("Connect");
-        this->value_.Connect(this, &CheckBox::OnValueChanged_);
+        this->value_.Connect(&CheckBox::OnValueChanged_);
 
         this->Bind(wxEVT_CHECKBOX, &CheckBox::OnCheckBox_, this);
     }
@@ -63,7 +63,7 @@ public:
     }
 
 private:
-    pex::control::ChangeObserver<CheckBox, Value> value_;
+    pex::Terminus<CheckBox, Value> value_;
     size_t id_;
 };
 

@@ -53,6 +53,7 @@ public:
     using Upstream = UpstreamT<Pex_>;
     using Filter = Filter_;
     using Access = Access_;
+    using This = Value_<Observer, Pex, Filter, Access>;
 
     using UpstreamType = typename Upstream::Type;
     using Type = detail::FilteredType<UpstreamType, Filter>;
@@ -234,6 +235,21 @@ public:
         }
 
         return *this;
+    }
+
+    template<typename OtherObserver>
+    using Downstream = Value_
+        <
+            OtherObserver,
+            This,
+            NoFilter,
+            Access
+        >;
+
+    template<typename OtherObserver>
+    Downstream<OtherObserver> GetDownstream()
+    {
+        return Downstream<OtherObserver>(*this);
     }
 
     void SetFilter(Filter filter)

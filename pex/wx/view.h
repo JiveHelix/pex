@@ -49,15 +49,10 @@ public:
             wxDefaultPosition,
             wxDefaultSize,
             style),
-        value_(value)
+        value_(this, value)
     {
         PEX_LOG("Connect");
-        this->value_.Connect(this, &View::OnValueChanged_);
-    }
-
-    ~View()
-    {
-        PEX_LOG("Should call Disconnect: ", this);
+        this->value_.Connect(&View::OnValueChanged_);
     }
 
 private:
@@ -67,7 +62,7 @@ private:
         this->GetParent()->Layout();
     }
 
-    using Value_ = pex::control::ChangeObserver<View, Control>;
+    using Value_ = pex::Terminus<View, Control>;
     Value_ value_;
 };
 

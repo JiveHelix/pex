@@ -85,7 +85,7 @@ struct Group
     };
     
     using Plain = typename PlainHelper<Plain_>::Type;
-    
+
     using ModelConnection = ValueConnection<void, Plain, NoFilter>;
 
     using ModelBase = detail::NotifyMany<ModelConnection, GetAndSetTag>;
@@ -119,11 +119,12 @@ struct Group
 
         void Connect(void * context, Callable callable)
         {
-            this->MakeConnections();
+            this->MakeConnections_();
             ModelBase::Connect(context, callable);
         }
 
-        void MakeConnections()
+    private:
+        void MakeConnections_()
         {
             if (this->hasConnections_)
             {
@@ -150,7 +151,7 @@ struct Group
             auto self = static_cast<Model *>(context);
             self->Notify_(self->Get());
         }
-        
+
     private:
         bool hasConnections_;
     };

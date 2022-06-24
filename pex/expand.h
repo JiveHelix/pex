@@ -2,6 +2,7 @@
 
 #include <jive/zip_apply.h>
 #include <fields/core.h>
+#include "pex/interface.h"
 
 
 namespace pex
@@ -47,12 +48,20 @@ private:
 
 
 template<typename Control, typename T>
-using Expand = 
+using ExpandFiltered = 
     pex::control::FilteredLike
     <
         Control,
         ExpandFilter<Control, T>
     >;
+
+
+template<typename Control>
+struct Expander
+{
+    template<typename T>
+    using Type = ExpandFiltered<Control, T>;
+};
 
 
 template
@@ -84,6 +93,30 @@ void InitializeExpanded(Expanded &expanded, Source source)
         Fields<Expanded>::fields,
         Fields<typename Source::Type>::fields);
 }
+
+
+template
+<
+    typename Aggregate,
+    template<typename> typename Fields,
+    template<template<typename> typename> typename Template
+>
+struct Expand
+{
+    template<typename Observer>
+    using AggregateControl =
+        typename ControlSelector<Observer>::template Type<Aggregate>;
+    
+    template<typename Observer>
+    struct Control:
+        public Template<Expander<AggregateControl<Observer>>::template Type>
+    {
+        Control(AggregateControl<Observer> aggregateControl)
+        {
+            pex::InitializeExpanded<Fields>(*this, aggregateControl);
+        }
+    };
+};
 
 
 } // end namespace pex

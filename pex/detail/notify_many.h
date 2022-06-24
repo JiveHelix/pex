@@ -6,6 +6,7 @@
 #include "pex/access_tag.h"
 #include "pex/detail/argument.h"
 #include "pex/detail/log.h"
+#include <iostream>
 
 
 namespace pex
@@ -18,9 +19,20 @@ template<typename Notify, typename Access>
 class NotifyMany_
 {
 public:
-    ~NotifyMany_()
+    NotifyMany_()
     {
 
+    }
+
+    ~NotifyMany_()
+    {
+        if (!this->connections_.empty())
+        {
+            std::cout << "ERROR: Active connections destroyed: "
+                << this << std::endl;
+        }
+
+        assert(this->connections_.empty());
     }
 
     void Connect(
@@ -64,6 +76,16 @@ public:
     void Disconnect(typename Notify::Observer * const observer)
     {
         PEX_LOG(observer, " disconnecting from ", this);
+        
+        if (this->connections_.empty())
+        {
+            PEX_LOG(
+                "Disconnect called for ",
+                observer,
+                " without any connections!");
+
+            return;
+        }
 
         auto [first, last] = std::equal_range(
             this->connections_.begin(),
@@ -86,6 +108,7 @@ public:
 
 protected:
     std::vector<Notify> connections_;
+    void * observer_;
 };
 
 

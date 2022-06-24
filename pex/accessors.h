@@ -7,6 +7,28 @@
 namespace pex
 {
 
+template
+<
+    template<typename> typename Fields,
+    typename Target,
+    typename Source
+>
+void Assign(Target &target, Source &source)
+{
+    auto initializer = [&target, &source](
+        const auto &targetField,
+        const auto &sourceField) -> void
+    {
+        // Target member must have a Set function.
+        (target.*(targetField.member)).Set(source.*(sourceField.member));
+    };
+
+    jive::ZipApply(
+        initializer,
+        Fields<Target>::fields,
+        Fields<Source>::fields);
+}
+
 
 template
 <
@@ -29,7 +51,7 @@ public:
 
     void Set(const Plain &plain)
     {
-        fields::Assign<Fields>(static_cast<Derived &>(*this), plain);
+        pex::Assign<Fields>(static_cast<Derived &>(*this), plain);
     }
 
     explicit operator Plain () const
@@ -37,29 +59,6 @@ public:
         return this->Get();
     }
 };
-
-
-template
-<
-    template<typename> typename Fields,
-    typename Target,
-    typename Source
->
-void Assign(Target &target, Source &source)
-{
-    auto initializer = [&target, &source](
-        const auto &targetField,
-        const auto &sourceField) -> void
-    {
-        // Target member must have a Set function.
-        (target.*(targetField.member)).Set(source.*(sourceField.member));
-    };
-
-    jive::ZipApply(
-        initializer,
-        Fields<Target>::fields,
-        Fields<Source>::fields);
-}
 
 
 } // end namespace pex

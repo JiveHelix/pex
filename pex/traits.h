@@ -3,6 +3,7 @@
 
 #include <type_traits>
 #include "pex/model_value.h"
+#include "pex/signal.h"
 
 
 namespace pex
@@ -17,6 +18,50 @@ struct IsModel_<pex::model::Value_<T...>>: std::true_type {};
 
 template<typename ...T>
 inline constexpr bool IsModel = IsModel_<T...>::value;
+
+
+template<typename T, typename enable = void>
+struct IsModelSignal_: std::false_type {};
+
+template<typename T>
+struct IsModelSignal_
+<
+    T,
+    std::enable_if_t
+    <
+        std::is_same_v<T, pex::model::Signal>
+    >
+>: std::true_type {};
+
+template<typename T>
+inline constexpr bool IsModelSignal = IsModelSignal_<T>::value;
+
+
+template<typename ...T>
+struct IsControlSignal_: std::false_type {};
+
+template<typename ...T>
+struct IsControlSignal_<pex::control::Signal<T...>>: std::true_type {};
+
+template<typename ...T>
+inline constexpr bool IsControlSignal = IsControlSignal_<T...>::value;
+
+
+template<typename T, typename enable = void>
+struct IsSignal_: std::false_type {};
+
+template<typename T>
+struct IsSignal_
+<
+    T,
+    std::enable_if_t
+    <
+        IsModelSignal<T> || IsControlSignal<T>
+    >
+>: std::true_type {};
+
+template<typename T>
+inline constexpr bool IsSignal = IsSignal_<T>::value;
 
 
 /** If Pex is a pex::model::Value, it cannot be copied. Also, if it
@@ -36,6 +81,8 @@ struct IsCopyable_
     <
         !IsModel<Pex>
         && 
+        !IsModelSignal<Pex>
+        &&
         !detail::FilterIsMember
         <
             typename Pex::UpstreamType,

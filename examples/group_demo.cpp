@@ -119,5 +119,9 @@ int main()
     control.gps.longitude = -111.63928609736942;
     control.gps.elevation = 3322.0;
     
+    auto plain = model.Get();
+    plain.weapons.secondFruit = "cherry";
+    model.Set(plain);
+
     std::cout << fields::DescribeColorized(model.Get(), 0) << std::endl;
 }

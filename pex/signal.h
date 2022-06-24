@@ -62,12 +62,17 @@ public:
 namespace control
 {
 
-template<typename Observer, typename Access = GetAndSetTag>
+template<typename Observer_, typename Access = GetAndSetTag>
 class Signal
     :
-    public detail::NotifyOne<detail::SignalConnection<Observer>, Access>
+    public detail::NotifyOne<detail::SignalConnection<Observer_>, Access>
 {
 public:
+    using Observer = Observer_;
+
+    using Callable =
+        typename detail::SignalConnection<Observer_>::Callable;
+
     Signal(): model_(nullptr) {}
 
     Signal(model::Signal &model)

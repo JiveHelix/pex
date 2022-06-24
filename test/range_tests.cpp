@@ -97,10 +97,10 @@ struct Observer
 {
     Observer(Control control)
         :
-        control_(control)
+        control_(this, control)
     {
         PEX_LOG("Connect");
-        this->control_.Connect(this, &Observer::OnValue_);
+        this->control_.Connect(&Observer::OnValue_);
     }
 
     void OnValue_(int value)
@@ -108,7 +108,7 @@ struct Observer
         this->observed = value;
     }
 
-    pex::control::ChangeObserver<Observer, Control> control_;
+    pex::Terminus<Observer, Control> control_;
 
     std::optional<int> observed;
 };

@@ -19,11 +19,11 @@ public:
 
     Observer(Model &model)
         :
-        control_(model),
+        control_(this, model),
         observedValue{this->control_.Get()}
     {
         PEX_LOG("Connect");
-        this->control_.Connect(this, &Observer::Observe_);
+        this->control_.Connect(&Observer::Observe_);
     }
 
 private:
@@ -32,7 +32,7 @@ private:
         this->observedValue = value;
     }
 
-    Control control_;
+    pex::Terminus<Observer, Control> control_;
 
 public:
     T observedValue;

@@ -105,6 +105,7 @@ public:
             void,
             Upstream,
             RangeFilter<typename Upstream::Type> >;
+
     static_assert(!IsCopyable<Value>);
     static_assert(::pex::model::IsDirect<::pex::UpstreamT<Value>>);
 

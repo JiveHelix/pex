@@ -6,21 +6,24 @@
 
 #include <catch2/catch.hpp>
 #include "pex/signal.h"
+#include "pex/terminus.h"
 
 
 template<typename Access = pex::GetAndSetTag>
 class Observer
 {
 public:
+    using Control = pex::control::Signal<Observer, Access>;
+
     Observer(pex::model::Signal &model)
         :
-        control_(model),
+        control_(this, model),
         observedCount{0}
     {
         if constexpr (pex::HasAccess<pex::GetTag, Access>)
         {
             PEX_LOG("Connect");
-            this->control_.Connect(this, &Observer::Observe_);
+            this->control_.Connect(&Observer::Observe_);
         }
     }
 
@@ -35,7 +38,7 @@ private:
         ++this->observedCount;
     }
 
-    pex::control::Signal<Observer, Access> control_;
+    pex::Terminus<Observer, Control> control_;
 
 public:
     int observedCount;

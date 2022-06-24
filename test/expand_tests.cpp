@@ -31,10 +31,8 @@ struct Player: public PlayerTemplate<pex::Identity> {};
 using PlayerModel = pex::model::Value<Player>;
 using PlayerControl = pex::control::Value<void, PlayerModel>;
 
-template<typename T>
-using PlayerExpand = pex::Expand<PlayerControl, T>;
-
-struct PlayerExpanded: public PlayerTemplate<PlayerExpand> {};
+using PlayerExpanded =
+    typename pex::Expand<Player, PlayerFields, PlayerTemplate>::Control<void>;
 
 
 TEST_CASE("Fan out controls for struct.", "[expand]")
@@ -43,8 +41,7 @@ TEST_CASE("Fan out controls for struct.", "[expand]")
     PlayerModel model{};
 
     // Instantiate and initialize the expanded controls.
-    PlayerExpanded expanded;
-    pex::InitializeExpanded<PlayerFields>(expanded, PlayerControl(model));
+    PlayerExpanded expanded((PlayerControl(model)));
 
     expanded.name.Set("Matthew Stafford");
     expanded.age.Set(34);
