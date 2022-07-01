@@ -12,7 +12,7 @@
 #include "pex/range.h"
 #include "pex/wx/wxshim.h"
 #include "pex/wx/view.h"
-#include "pex/wx/spin_control_double.h"
+#include "pex/wx/spin_control.h"
 
 using Wibble = pex::model::Value<double>;
 using WibbleRange = pex::model::Range<Wibble>;
@@ -99,8 +99,8 @@ bool ExampleApp::OnInit()
 }
 
 
-using WibbleSpinControl = pex::wx::SpinControlDouble<WibbleRangeControl>;
-using WobbleSpinControl = pex::wx::SpinControlDouble<WobbleRangeControl>;
+using WibbleSpinControl = pex::wx::SpinControl<WibbleRangeControl>;
+using WobbleSpinControl = pex::wx::SpinControl<WobbleRangeControl>;
 
 
 ExampleFrame::ExampleFrame(
@@ -109,7 +109,7 @@ ExampleFrame::ExampleFrame(
         WobbleRangeControl wobbleRange,
         WobbleValue wobbleValue)
     :
-    wxFrame(nullptr, wxID_ANY, "pex::wx::SpinControlDouble Demo")
+    wxFrame(nullptr, wxID_ANY, "pex::wx::SpinControl Demo")
 {
     auto wibbleView =
         new pex::wx::View(this, wibbleValue);

@@ -11,9 +11,7 @@ target_link_libraries(
     PRIVATE
     project_warnings
     project_options
-    pex
-    CONAN_PKG::tau
-    CONAN_PKG::wxwidgets)
+    pex)
 
 
 add_executable(check_box_demo ${windowed} check_box_demo.cpp)
@@ -23,8 +21,7 @@ target_link_libraries(
     PRIVATE
     project_warnings
     project_options
-    pex
-    CONAN_PKG::wxwidgets)
+    pex)
 
 
 add_executable(field_demo ${windowed} field_demo.cpp)
@@ -34,9 +31,7 @@ target_link_libraries(
     PRIVATE
     project_warnings
     project_options
-    pex
-    CONAN_PKG::tau
-    CONAN_PKG::wxwidgets)
+    pex)
 
 
 add_executable(async_demo ${windowed} async_demo.cpp)
@@ -46,9 +41,7 @@ target_link_libraries(
     PRIVATE
     project_warnings
     project_options
-    pex
-    CONAN_PKG::tau
-    CONAN_PKG::wxwidgets)
+    pex)
 
 
 add_executable(bitset_demo ${windowed} bitset_demo.cpp)
@@ -58,8 +51,7 @@ target_link_libraries(
     PRIVATE
     project_warnings
     project_options
-    pex
-    CONAN_PKG::wxwidgets)
+    pex)
 
 
 add_executable(radio_box_demo ${windowed} radio_box_demo.cpp)
@@ -69,8 +61,7 @@ target_link_libraries(
     PRIVATE
     project_warnings
     project_options
-    pex
-    CONAN_PKG::wxwidgets)
+    pex)
 
 
 add_executable(combo_box_demo ${windowed} combo_box_demo.cpp)
@@ -80,8 +71,7 @@ target_link_libraries(
     PRIVATE
     project_warnings
     project_options
-    pex
-    CONAN_PKG::wxwidgets)
+    pex)
 
 
 add_executable(slider_demo ${windowed} slider_demo.cpp)
@@ -91,20 +81,18 @@ target_link_libraries(
     PRIVATE
     project_warnings
     project_options
-    pex
-    CONAN_PKG::wxwidgets)
+    pex)
 
 
 # Left as a console app for demonstration.
-add_executable(spin_control_double_demo spin_control_double_demo.cpp)
+add_executable(spin_control_demo spin_control_demo.cpp)
 
 target_link_libraries(
-    spin_control_double_demo
+    spin_control_demo
     PRIVATE
     project_warnings
     project_options
-    pex
-    CONAN_PKG::wxwidgets)
+    pex)
 
 
 add_executable(shortcut_demo shortcut_demo.cpp)
@@ -114,9 +102,7 @@ target_link_libraries(
     PRIVATE
     project_warnings
     project_options
-    pex
-    CONAN_PKG::fields
-    CONAN_PKG::wxwidgets)
+    pex)
 
 
 add_executable(settings_demo ${windowed} settings_demo.cpp)
@@ -126,9 +112,7 @@ target_link_libraries(
     PRIVATE
     project_warnings
     project_options
-    pex
-    CONAN_PKG::fields
-    CONAN_PKG::wxwidgets)
+    pex)
 
 
 add_executable(color_demo color_demo.cpp)
@@ -138,6 +122,4 @@ target_link_libraries(
     PRIVATE
     project_warnings
     project_options
-    pex
-    CONAN_PKG::tau
-    CONAN_PKG::wxwidgets)
+    pex)

@@ -139,6 +139,37 @@ struct ControlSelector_<T, std::enable_if_t<IsMakeGroup<T>>>
 };
 
 
+/***** TerminusSelector *****/
+template<typename T, typename = void>
+struct TerminusSelector_
+{
+    template<typename Observer>
+    using Type = Terminus
+    <
+        Observer,
+        typename ControlSelector_<T>::template Type<Observer>
+    >;
+};
+
+template<typename T>
+struct TerminusSelector_<T, std::enable_if_t<IsMakeCustom<T>>>
+{
+    template<typename Observer>
+    using Type = Terminus
+    <
+        Observer,
+        typename T::template Control<Observer>
+    >;
+};
+
+template<typename T>
+struct TerminusSelector_<T, std::enable_if_t<IsMakeGroup<T>>>
+{
+    template<typename Observer>
+    using Type = typename T::Group::template Terminus<Observer>;
+};
+
+
 /***** Identity *****/
 template<typename T, typename = void>
 struct Identity_

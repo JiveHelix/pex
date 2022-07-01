@@ -60,20 +60,20 @@ public:
         :
         mutex_(),
         wxModel_(),
-        wxInternal_(this->wxModel_),
+        wxInternal_(this, this->wxModel_),
         ignoreWxEcho_(false),
         workerModel_(),
-        workerInternal_(this->workerModel_),
+        workerInternal_(this, this->workerModel_),
         ignoreWorkerEcho_(false),
         value_(initialValue)
     {
         this->Bind(wxEVT_THREAD, &Async::OnWxEventLoop_, this);
 
         PEX_LOG("Connect");
-        this->wxInternal_.Connect(this, &Async::OnWxChanged_);
+        this->wxInternal_.Connect(&Async::OnWxChanged_);
 
         PEX_LOG("Connect");
-        this->workerInternal_.Connect(this, &Async::OnWorkerChanged_);
+        this->workerInternal_.Connect(&Async::OnWorkerChanged_);
     }
 
     Control<void> GetWorkerControl()
@@ -96,6 +96,16 @@ public:
     {
         std::lock_guard<std::mutex> lock(this->mutex_);
         return this->value_;
+    }
+
+    void Connect(void * observer, typename ThreadSafe::Callable callable)
+    {
+        this->wxModel_.Connect(observer, callable);
+    }
+
+    void Disconnect(void * observer)
+    {
+        this->wxModel_.Disconnect(observer);
     }
 
 private:
@@ -149,12 +159,14 @@ private:
     }
 
 private:
+    using Internal = pex::Terminus<Async, Control<Async>>;
+
     mutable std::mutex mutex_;
     ThreadSafe wxModel_;
-    Control<Async> wxInternal_;
+    Internal wxInternal_;
     std::atomic_bool ignoreWxEcho_;
     ThreadSafe workerModel_;
-    Control<Async> workerInternal_;
+    Internal workerInternal_;
     std::atomic_bool ignoreWorkerEcho_;
     Type value_;
 };

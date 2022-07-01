@@ -87,6 +87,11 @@ public:
         this->SetSizerAndFit(flagsSizer.release());
     }
 
+    ~BitsetCheckBoxes()
+    {
+        this->DestroyChildren();
+    }
+
 private:
     Control control_; 
 };

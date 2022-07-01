@@ -41,7 +41,7 @@ struct GpsTemplate
     static constexpr auto fields = GpsFields<MovieTemplate>::fields;
 };
 
-// Create the POD, Model, and Control types
+// Create the Plain-old-data structure, Model, and Control types
 using GpsGroup = Group<GpsFields, GpsTemplate>
 
 using Gps = typename GpsGroup::Plain;
@@ -83,97 +83,81 @@ struct Group
 
         using Type = Plain;
     };
-    
+
     using Plain = typename PlainHelper<Plain_>::Type;
-
+    
     using ModelConnection = ValueConnection<void, Plain, NoFilter>;
-
-    using ModelBase = detail::NotifyMany<ModelConnection, GetAndSetTag>;
 
     struct Model:
         public Template<pex::ModelSelector>,
-        public Accessors<Plain, Model, Fields>,
-        public ModelBase
+        public Accessors
+        <
+            Plain,
+            Fields,
+            Template,
+            ModelSelector,
+            Model,
+            detail::NotifyMany<ModelConnection, GetAndSetTag>
+        >
     {
     public:
         using Plain = typename Group::Plain;
+        using Type = Plain;
 
         template<typename T>
         using Pex = pex::ModelSelector<T>;
 
         Model()
-            :
-            hasConnections_(false)
         {
 
         }
 
         Model(const Plain &plain)
-            :
-            hasConnections_(false)
         {
             this->Set(plain);
         }
 
+        Model(const Model &) = delete;
+        Model(Model &&) = delete;
+        Model & operator=(const Model &) = delete;
+        Model & operator=(Model &&) = delete;
+
         using Callable = typename ModelConnection::Callable;
 
-        void Connect(void * context, Callable callable)
+        void Connect(void * observer, Callable callable)
         {
-            this->MakeConnections_();
-            ModelBase::Connect(context, callable);
+            this->Connect_(observer, callable);
         }
-
-    private:
-        void MakeConnections_()
-        {
-            if (this->hasConnections_)
-            {
-                return;
-            }
-
-            auto connector = [this](const auto &modelField) -> void
-            {
-                using MemberType = typename std::remove_reference_t<
-                    decltype(this->*(modelField.member))>::Type;
-
-                (this->*(modelField.member)).Connect(
-                    this,
-                    &Model::template OnMemberChanged_<MemberType>);
-            };
-
-            fields::ForEachField<Model>(connector);
-            this->hasConnections_ = true;
-        }
-
-        template<typename T>
-        static void OnMemberChanged_(void * context, Argument<T>)
-        {
-            auto self = static_cast<Model *>(context);
-            self->Notify_(self->Get());
-        }
-
-    private:
-        bool hasConnections_;
     };
+
 
     template<typename Observer>
     using ControlConnection = ValueConnection<Observer, Plain, NoFilter>;
 
     template<typename Observer>
-    using ControlBase =
-        detail::NotifyMany<ControlConnection<Observer>, GetAndSetTag>;
-
-    template<typename Observer>
     using ControlTemplate =
         Template<pex::ControlSelector<Observer>::template Type>;
+
+    template<typename Observer, typename Derived>
+    using ControlBase = Accessors
+        <
+            Plain,
+            Fields,
+            Template,
+            ControlSelector<Observer>::template Type,
+            Derived,
+            detail::NotifyMany<ControlConnection<Observer>, GetAndSetTag>
+        >;
 
     template<typename Observer>
     struct Control:
         public ControlTemplate<Observer>,
-        public Accessors<Plain, Control<Observer>, Fields>,
-        public ControlBase<Observer>
+        public ControlBase<Observer, Control<Observer>>
     {
+        using Base = ControlBase<Observer, Control<Observer>>;
+
         using Plain = typename Group::Plain;
+        using Type = Plain;
 
         template<typename T>
         using Pex =
@@ -181,33 +165,238 @@ struct Group
 
         using Callable = typename ControlConnection<Observer>::Callable;
 
-        Control() = default;
+        Control()
+        {
+
+        }
 
         Control(Model &model)
         {
             fields::AssignConvert<Fields>(*this, model);
         }
 
+        Control(const Control &other)
+            :
+            Base(other)
+        {
+            fields::Assign<Fields>(*this, other);
+        }
+
+        Control & operator=(const Control &other)
+        {
+            this->Base::operator=(other);
+            fields::Assign<Fields>(*this, other);
+
+            return *this;
+        }
+
         template<typename Other>
         Control(const Control<Other> &other)
+            :
+            Base(other)
         {
             fields::AssignConvert<Fields>(*this, other);
         }
 
-        void Connect(Observer * observer)
+        template<typename Other>
+        Control & operator=(const Control<Other> &other)
         {
-            auto connector = [this, observer](const auto &controlField) -> void
-            {
-                using MemberType = typename std::remove_reference_t<
-                    decltype(this->*(controlField.member))>::Type;
+            this->Base::operator=(other);
+            fields::AssignConvert<Fields>(*this, other);
+            return *this;
+        }
 
-                (this->*(controlField.member)).Connect(
-                    observer,
-                    &Observer::template OnMemberChanged<MemberType>);
+        ~Control()
+        {
+#if ENABLE_PEX_LOG
+            if (!this->connections_.empty())
+            {
+                for (auto &connection: this->connections_)
+                {
+                    PEX_LOG(
+                        "Warning: ",
+                        connection.GetObserver(),
+                        " is still connected to Control group ",
+                        this);
+                }
+            }
+#endif
+        }
+
+        void Connect(Observer *observer, Callable callable)
+        {
+            this->Connect_(observer, callable);
+        }
+
+        bool HasModel() const
+        {
+            bool result = true;
+
+            auto modelChecker = [this, &result](auto field)
+            {
+                if (result)
+                {
+                    result = (this->*(field.member)).HasModel();
+                }
             };
 
-            fields::ForEachField<Control>(connector);
+            jive::ForEach(Fields<Control>::fields, modelChecker);
+
+            return result;
         }
+    };
+
+    template<typename Observer>
+    using TerminusConnection = ValueConnection<Observer, Plain, NoFilter>;
+
+    template<typename Observer>
+    using TerminusTemplate =
+        Template<pex::TerminusSelector<Observer>::template Type>;
+
+    template<typename Observer, typename Derived>
+    using TerminusBase = Accessors
+        <
+            Plain,
+            Fields,
+            Template,
+            TerminusSelector<Observer>::template Type,
+            Derived,
+            detail::NotifyMany<TerminusConnection<Observer>, GetAndSetTag>
+        >;
+
+    template<typename Observer>
+    struct Terminus:
+        public TerminusTemplate<Observer>,
+        public TerminusBase<Observer, Terminus<Observer>>
+    {
+        using Plain = typename Group::Plain;
+        using Base = TerminusBase<Observer, Terminus<Observer>>;
+
+        template<typename T>
+        using Pex =
+            typename pex::TerminusSelector<Observer>::template Type<T>;
+
+        using Callable = typename TerminusConnection<Observer>::Callable;
+
+        Terminus()
+        {
+
+        }
+
+        Terminus(Observer *observer, const Control<void> &control)
+            :
+            observer_(observer)
+        {
+            PEX_LOG("Terminus ctor");
+
+            assert(control.HasModel());
+
+            auto initializer = [this, observer, &control](
+                auto terminusField,
+                auto controlField)
+            {
+                using MemberType = typename std::remove_reference_t
+                    <
+                        decltype(this->*(terminusField.member))
+                    >;
+
+                this->*(terminusField.member) =
+                    MemberType(observer, control.*(controlField.member));
+            };
+
+            jive::ZipApply(
+                initializer,
+                Fields<Terminus>::fields,
+                Fields<Control<void>>::fields);
+
+            auto logger = [this](const auto &terminusField) -> void
+            {
+                PEX_LOG(
+                    "Terminus.",
+                    terminusField.name,
+                    ": ",
+                    &(this->*(terminusField.member)));
+            };
+
+            jive::ForEach(Fields<Terminus>::fields, logger);
+        }
+
+        Terminus(Observer *observer, Model &model)
+        {
+            *this = Terminus(observer, Control<void>(model));
+        }
+
+        Terminus(const Terminus &) = delete;
+
+        Terminus(Terminus &&other)
+            :
+            Base(std::move(other)),
+            observer_(std::move(other.observer_))
+        {
+            auto initializer = [this, &other](auto field)
+            {
+                this->*(field.member) = std::move(other.*(field.member));
+            };
+
+            jive::ForEach(
+                Fields<Terminus>::fields,
+                initializer);
+        }
+
+        Terminus & operator=(const Terminus &) = delete;
+
+        Terminus & operator=(Terminus &&other)
+        {
+            this->Base::operator=(std::move(other));
+            this->observer_ = std::move(other.observer_);
+
+            auto initializer = [this, &other](auto field)
+            {
+                this->*(field.member) = std::move(other.*(field.member));
+            };
+
+            jive::ForEach(
+                Fields<Terminus>::fields,
+                initializer);
+
+            return *this;
+        }
+
+        void Connect(Callable callable)
+        {
+            this->Connect_(this->observer_, callable);
+        }
+
+        ~Terminus()
+        {
+            PEX_LOG(this);
+            this->Disconnect();
+        }
+
+        void Disconnect()
+        {
+            this->ClearConnections_();
+        }
+
+        bool HasModel() const
+        {
+            bool result = true;
+
+            auto modelChecker = [this, &result](auto field)
+            {
+                if (result)
+                {
+                    result = (this->*(field.member)).HasModel();
+                }
+            };
+
+            jive::ForEach(Fields<Terminus>::fields, modelChecker);
+
+            return result;
+        }
+    
+    private:
+        Observer * observer_;
     };
 };
 

@@ -5,9 +5,9 @@
   */
 
 #include <catch2/catch.hpp>
+#include <jive/testing/cast_limits.h>
+#include <tau/angles.h>
 #include "pex/value.h"
-#include "jive/testing/cast_limits.h"
-#include "tau/angles.h"
 
 
 template<typename T, typename Model>

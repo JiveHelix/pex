@@ -111,20 +111,20 @@ public:
             wxDefaultPosition,
             wxDefaultSize,
             style),
-        value_(range.value),
-        minimum_(range.minimum),
-        maximum_(range.maximum),
+        value_(this, range.value),
+        minimum_(this, range.minimum),
+        maximum_(this, range.maximum),
         defaultValue_(this->value_.Get()),
         styleFilter_(style, range.maximum.Get())
     {
-        PEX_LOG("Connect");
-        this->value_.Connect(this, &Slider::OnValue_);
+        PEX_LOG(this);
+        PEX_LOG("\nvalue_: ", &this->value_);
+        PEX_LOG("\nminimum_: ", &this->minimum_);
+        PEX_LOG("\nmaximum_: ", &this->maximum_);
 
-        PEX_LOG("Connect");
-        this->minimum_.Connect(this, &Slider::OnMinimum_);
-
-        PEX_LOG("Connect");
-        this->maximum_.Connect(this, &Slider::OnMaximum_);
+        this->value_.Connect(&Slider::OnValue_);
+        this->minimum_.Connect(&Slider::OnMinimum_);
+        this->maximum_.Connect(&Slider::OnMaximum_);
 
         this->Bind(wxEVT_SLIDER, &Slider::OnSlider_, this);
         this->Bind(wxEVT_LEFT_DOWN, &Slider::OnSliderLeftDown_, this);
@@ -136,6 +136,11 @@ public:
         auto bestHeight = bestSize.GetHeight();
         bestSize.SetHeight(static_cast<int>(bestHeight * 1.25));
         this->SetMinSize(bestSize);
+    }
+
+    ~Slider()
+    {
+        PEX_LOG(this);
     }
 
     void OnValue_(int value)
@@ -190,9 +195,9 @@ public:
     }
 
 private:
-    Value value_;
-    Limit minimum_;
-    Limit maximum_;
+    pex::Terminus<Slider, Value> value_;
+    pex::Terminus<Slider, Limit> minimum_;
+    pex::Terminus<Slider, Limit> maximum_;
     int defaultValue_;
     detail::StyleFilter styleFilter_;
 };

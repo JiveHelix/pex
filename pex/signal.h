@@ -45,6 +45,9 @@ class Signal
     public detail::NotifyMany<detail::SignalConnection<void>, GetAndSetTag>
 {
 public:
+    using Callable =
+        typename detail::SignalConnection<void>::Callable;
+
     void Trigger()
     {
         this->Notify_();
@@ -179,6 +182,11 @@ public:
     }
 
     operator bool () const
+    {
+        return this->HasModel();
+    }
+
+    bool HasModel() const
     {
         return (this->model_ != nullptr);
     }

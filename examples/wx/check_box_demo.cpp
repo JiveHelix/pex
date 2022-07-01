@@ -41,10 +41,8 @@ using DemoControl = typename DemoGroup::Control<Observer>;
 using DemoModel = typename DemoGroup::Model;
 
 
-using IsChecked = pex::model::Value<bool>;
-using IsCheckedControl = pex::control::Value<void, IsChecked>;
-using Message = pex::model::Value<std::string>;
-using MessageControl = pex::control::Value<void, Message>;
+using IsCheckedControl = decltype(DemoControl<void>::isChecked);
+
 
 class ExampleApp: public wxApp
 {
@@ -52,9 +50,9 @@ public:
     ExampleApp()
         :
         model_{{{false, "Not checked"}}},
-        isChecked{this->model_.isChecked}
+        isChecked{this, this->model_.isChecked}
     {
-        this->isChecked.Connect(this, &ExampleApp::OnIsChecked_);
+        this->isChecked.Connect(&ExampleApp::OnIsChecked_);
     }
 
     bool OnInit() override;
@@ -74,7 +72,7 @@ private:
 
 private:
     DemoModel model_;
-    decltype(DemoControl<ExampleApp>::isChecked) isChecked;
+    pex::Terminus<ExampleApp, IsCheckedControl> isChecked;
 };
 
 

@@ -56,6 +56,9 @@ using DemoGroup = pex::Group<DemoFields, DemoTemplate>;
 using DemoControl = typename DemoGroup::Control<void>;
 using DemoModel = typename DemoGroup::Model;
 
+template<typename Observer>
+using DemoTerminus = typename DemoGroup::template Terminus<Observer>;
+
 
 template<typename Upstream>
 using RadiansControl = pex::control::Value<void, Upstream>;
@@ -102,53 +105,49 @@ public:
         :
         mutex_{},
         model_{},
+        terminus_(this, this->model_),
         isRunning_{},
         worker_{}
     {
-        this->model_.startingAngle.Connect(this, &ExampleApp::OnUpdate_);
-        this->model_.start.Connect(this, &ExampleApp::OnStart_);
-        this->model_.stop.Connect(this, &ExampleApp::OnStop_);
+        this->terminus_.startingAngle.Connect(&ExampleApp::OnUpdate_);
+        this->terminus_.start.Connect(&ExampleApp::OnStart_);
+        this->terminus_.stop.Connect(&ExampleApp::OnStop_);
     }
 
     bool OnInit() override;
 
 private:
-    static void OnUpdate_(void *context, double value)
+    void OnUpdate_(double value)
     {
-        auto self = reinterpret_cast<ExampleApp *>(context);
-        auto control = self->model_.currentAngle.GetWxControl();
+        auto control = this->model_.currentAngle.GetWxControl();
         control.Set(value);
     }
 
-    static void OnStart_(void *context)
+    void OnStart_()
     {
-        auto self = reinterpret_cast<ExampleApp *>(context);
-
-        if (self->isRunning_)
+        if (this->isRunning_)
         {
             return;
         }
 
-        self->isRunning_ = true;
+        this->isRunning_ = true;
 
-        self->worker_ = std::thread(
-            std::bind(&ExampleApp::WorkerThread_, self));
+        this->worker_ = std::thread(
+            std::bind(&ExampleApp::WorkerThread_, this));
     }
 
-    static void OnStop_(void *context)
+    void OnStop_()
     {
-        auto self = reinterpret_cast<ExampleApp *>(context);
-
-        if (!self->isRunning_)
+        if (!this->isRunning_)
         {
             return;
         }
 
-        self->isRunning_ = false;
-        self->worker_.join();
+        this->isRunning_ = false;
+        this->worker_.join();
 
         std::cout << "Stopped:" << std::endl;
-        std::cout << fields::DescribeColorized(self->model_.Get()) << std::endl;
+        std::cout << fields::DescribeColorized(this->model_.Get()) << std::endl;
     }
 
     void WorkerThread_()
@@ -170,6 +169,8 @@ private:
 private:
     std::mutex mutex_;
     DemoModel model_;
+    DemoTerminus<ExampleApp> terminus_;
+
     std::atomic_bool isRunning_;
     std::thread worker_;
 };

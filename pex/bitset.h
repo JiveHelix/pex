@@ -84,11 +84,11 @@ public:
         }
     }
 
-public:
-    std::array<Flag, bitCount> flags;
-
 private:
     std::array<std::shared_ptr<FilteredFlag>, bitCount> filteredFlags_;
+
+public:
+    std::array<Flag, bitCount> flags;
 };
 
 

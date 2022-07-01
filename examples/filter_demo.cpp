@@ -10,8 +10,8 @@
 **/
 
 #include <iostream>
+#include <tau/angles.h>
 #include "pex/value.h"
-#include "tau/angles.h"
 
 /**
  ** Limit the range of angles to [-pi, pi]

@@ -13,7 +13,10 @@
 #pragma once
 
 
+#include <jive/zip_apply.h>
 #include "pex/model_value.h"
+#include "pex/traits.h"
+
 
 
 namespace pex
@@ -33,17 +36,36 @@ template<typename Pex>
 class Reference
 {
 public:
-    using Type = typename Pex::Type;
+    Reference(): pex_(nullptr) {}
 
-    Reference(Pex &model)
+    Reference(const Reference &) = delete;
+
+    Reference(Reference &&other)
         :
-        pex_(model)
+        pex_(other.pex_)
+    {
+        other.pex_ = nullptr;
+    }
+
+    Reference & operator=(const Reference &) = delete;
+
+    Reference & operator=(Reference &&other)
+    {
+        this->pex_ = other.pex_;
+        other.pex_ = nullptr;
+
+        return *this;
+    }
+
+    Reference(Pex &pex)
+        :
+        pex_(&pex)
     {
 
     }
 
-    Reference(const Reference &) = delete;
-    Reference & operator=(const Reference &) = delete;
+public:
+    using Type = typename Pex::Type;
 
     Type & operator * ()
     {
@@ -51,32 +73,32 @@ public:
             std::is_same_v<NoFilter, typename Pex::Filter>,
             "Direct access to underlying value is incompatible with filters.");
 
-        return this->pex_.value_;
+        return this->pex_->value_;
     }
 
     Type Get() const
     {
-        return this->pex_.Get();
+        return this->pex_->Get();
     }
 
     void Set(Argument<Type> value)
     {
-        this->pex_.Set(value);
+        this->pex_->Set(value);
     }
 
 protected:
     void SetWithoutNotify_(Argument<Type> value)
     {
-        this->pex_.SetWithoutNotify_(value);
+        this->pex_->SetWithoutNotify_(value);
     }
 
     void DoNotify_()
     {
-        this->pex_.DoNotify_();
+        this->pex_->DoNotify_();
     }
 
-private:
-    Pex &pex_;
+protected:
+    Pex *pex_;
 };
 
 
@@ -95,6 +117,25 @@ public:
 
     using Base::Base;
 
+    Defer(Defer &&other)
+        :
+        Base(std::move(other))
+    {
+
+    }
+
+    Defer & operator=(Defer &&other)
+    {
+        if (this->pex_)
+        {
+            this->DoNotify_();
+        }
+
+        Base::operator=(std::move(other));
+
+        return *this;
+    }
+
     void Set(Argument<Type> value)
     {
         this->SetWithoutNotify_(value);
@@ -103,7 +144,65 @@ public:
     ~Defer()
     {
         // Notify on destruction
-        this->DoNotify_();
+        if (this->pex_)
+        {
+            this->DoNotify_();
+        }
+    }
+};
+
+
+template<template<typename> typename Selector>
+struct DeferSelector
+{
+    template<typename T>
+    using Type = Defer<Selector<T>>;
+};
+
+
+template
+<
+    typename Plain,
+    template<typename> typename Fields,
+    template<template<typename> typename> typename Template,
+    template<typename> typename Selector
+>
+class DeferGroup:
+    public Template<DeferSelector<Selector>::template Type>
+{
+public:
+    using This = DeferGroup<Plain, Fields, Template, Selector>;
+    using Upstream = Template<Selector>;
+
+    DeferGroup(Upstream &upstream)
+    {
+        auto initialize = [this, &upstream]
+            (auto deferField, auto upstreamField)
+        {
+            using MemberType = typename std::remove_reference_t<
+                decltype(this->*(deferField.member))>;
+
+            this->*(deferField.member) = MemberType(
+                (upstream.*(upstreamField.member)));
+        };
+
+        jive::ZipApply(
+            initialize,
+            Fields<This>::fields,
+            Fields<Upstream>::fields);
+    }
+
+    void Set(const Plain &plain)
+    {
+        auto assign = [this, &plain](auto deferField, auto plainField)
+        {
+            (this->*(deferField.member)).Set(plain.*(plainField.member));
+        };
+
+        jive::ZipApply(
+            assign,
+            Fields<This>::fields,
+            Fields<Plain>::fields);
     }
 };
 

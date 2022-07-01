@@ -1,5 +1,5 @@
 /**
-  * @file spin_control_double.h
+  * @file spin_control.h
   * 
   * @brief A wxSpinCtrlDouble backed by a pex::Range for the value, minimum,
   * and maximum.
@@ -30,19 +30,19 @@ namespace wx
 
 
 template<typename RangeControl>
-class SpinControlDouble : public wxSpinCtrlDouble
+class SpinControl: public wxSpinCtrlDouble
 {
 public:
     using Base = wxSpinCtrlDouble;
-    using This = SpinControlDouble<RangeControl>;
+    using This = SpinControl<RangeControl>;
 
     using Range = pex::control::ChangeObserver<This, RangeControl>;
 
-    using Value = typename Range::Value;
-    using Limit = typename Range::Limit;
+    using Value = pex::Terminus<SpinControl, typename Range::Value>;
+    using Limit = pex::Terminus<SpinControl, typename Range::Limit>;
     using Type = typename Value::Type;
     
-    SpinControlDouble(
+    SpinControl(
         wxWindow *parent,
         RangeControl range,
         typename Value::Type increment,
@@ -60,30 +60,25 @@ public:
             static_cast<double>(range.maximum.Get()),
             static_cast<double>(range.value.Get()),
             static_cast<double>(increment)),
-        value_(range.value),
-        minimum_(range.minimum),
-        maximum_(range.maximum)
+        value_(this, range.value),
+        minimum_(this, range.minimum),
+        maximum_(this, range.maximum)
 
     {
         this->SetDigits(digits);
 
-        PEX_LOG("Connect");
-        this->value_.Connect(this, &SpinControlDouble::OnValue_);
-
-        PEX_LOG("Connect");
-        this->minimum_.Connect(this, &SpinControlDouble::OnMinimum_);
-
-        PEX_LOG("Connect");
-        this->maximum_.Connect(this, &SpinControlDouble::OnMaximum_);
+        this->value_.Connect(&SpinControl::OnValue_);
+        this->minimum_.Connect(&SpinControl::OnMinimum_);
+        this->maximum_.Connect(&SpinControl::OnMaximum_);
 
         this->Bind(
             wxEVT_SPINCTRLDOUBLE,
-            &SpinControlDouble::OnSpinCtrlDouble_,
+            &SpinControl::OnSpinCtrlDouble_,
             this);
 
         this->Bind(
             wxEVT_TEXT_ENTER,
-            &SpinControlDouble::OnEnter_,
+            &SpinControl::OnEnter_,
             this);
     }
 
@@ -92,10 +87,6 @@ public:
         if (static_cast<double>(value) != this->GetValue())
         {
             this->SetValue(static_cast<double>(value));
-        }
-        else
-        {
-            std::cout << "OnValue_ notified: " << value << std::endl;
         }
     }
 

@@ -14,6 +14,7 @@
 #include "pex/wx/wxshim.h"
 #include "pex/chooser.h"
 #include "pex/wx/wx_chooser.h"
+#include "pex/terminus.h"
 
 
 namespace pex
@@ -25,25 +26,23 @@ namespace wx
 
 template
 <
-    typename Control_,
-    typename Convert = Converter<typename Control_::Type>
+    typename Control,
+    typename Convert = Converter<typename Control::Type>
 >
 class ComboBox : public wxComboBox
 {
 public:
     using Base = wxComboBox;
-    using This = ComboBox<Control_, Convert>;
+    using This = ComboBox<Control, Convert>;
 
-    using Control = control::ChangeObserver<This, Control_>;
-
-    using Selection = typename Control::Selection;
-    using Choices = typename Control::Choices;
+    using Selection = pex::Terminus<ComboBox, typename Control::Selection>;
+    using Choices = pex::Terminus<ComboBox, typename Control::Choices>;
     using ChoicesVector = typename Choices::Type;
     using WxAdapter = WxChooser<typename Control::Type, Convert>;
 
     ComboBox(
         wxWindow *parent,
-        Control_ control,
+        Control control,
         long style = 0)
         :
         Base(
@@ -56,14 +55,14 @@ public:
             wxDefaultSize,
             WxAdapter::GetChoicesAsStrings(control.choices.Get()),
             style | wxCB_READONLY),
-        selection_(control.selection),
-        choices_(control.choices)
+        selection_(this, control.selection),
+        choices_(this, control.choices)
     {
         PEX_LOG("Connect");
-        this->selection_.Connect(this, &ComboBox::OnSelectionChanged_);
+        this->selection_.Connect(&ComboBox::OnSelectionChanged_);
 
         PEX_LOG("Connect");
-        this->choices_.Connect(this, &ComboBox::OnChoicesChanged_);
+        this->choices_.Connect(&ComboBox::OnChoicesChanged_);
         this->Bind(wxEVT_COMBOBOX, &ComboBox::OnComboBox_, this);
     }
 

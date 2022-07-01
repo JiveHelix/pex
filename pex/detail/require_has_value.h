@@ -7,7 +7,7 @@
 #define REQUIRE_HAS_VALUE(required)                        \
     if (!required)                                         \
     {                                                      \
-        throw std::logic_error(#required " must not set"); \
+        throw std::logic_error(#required " must be set");  \
     }
 #else
 

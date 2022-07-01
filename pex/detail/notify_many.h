@@ -15,16 +15,20 @@ namespace pex
 namespace detail
 {
 
+
 template<typename Notify, typename Access>
-class NotifyMany_
+class NotifyConnector_
 {
 public:
-    NotifyMany_()
+    using Observer = typename Notify::Observer;
+    using Callable = typename Notify::Callable;
+
+    NotifyConnector_()
     {
 
     }
 
-    ~NotifyMany_()
+    ~NotifyConnector_()
     {
         if (!this->connections_.empty())
         {
@@ -35,9 +39,7 @@ public:
         assert(this->connections_.empty());
     }
 
-    void Connect(
-        typename Notify::Observer * const observer,
-        typename Notify::Callable callable)
+    void Connect(Observer * const observer, Callable callable)
     {
         static_assert(
             HasAccess<GetTag, Access>,
@@ -61,29 +63,34 @@ public:
 #endif
         
         this->connections_.insert(insertion, callback);
-
-#ifdef ENABLE_PEX_LOG
-        for (const auto &connection: this->connections_)
-        {
-            std::cout << connection.GetObserver() << " is observing " << this
-                << std::endl;
-        }
-#endif
-
     }
 
+    size_t GetNotifierCount() const
+    {
+        return this->connections_.size();
+    }
+
+protected:
+    void ClearConnections_()
+    {
+        this->connections_.clear();
+    }
+
+protected:
+    std::vector<Notify> connections_;
+    void * observer_;
+};
+
+
+template<typename Notify, typename Access>
+class NotifyMany_: public NotifyConnector_<Notify, Access>
+{
+public:
     /** Remove all registered callbacks for the observer. **/
     void Disconnect(typename Notify::Observer * const observer)
     {
-        PEX_LOG(observer, " disconnecting from ", this);
-        
         if (this->connections_.empty())
         {
-            PEX_LOG(
-                "Disconnect called for ",
-                observer,
-                " without any connections!");
-
             return;
         }
 
@@ -98,21 +105,27 @@ public:
             return;
         }
 
+        PEX_LOG(observer, " disconnecting from ", this);
+
         this->connections_.erase(first, last);
     }
-
-    size_t GetNotifierCount() const
-    {
-        return this->connections_.size();
-    }
-
-protected:
-    std::vector<Notify> connections_;
-    void * observer_;
 };
 
 
 /* Specialized for notify callbacks that do not accept an argument */
+template<typename Notify, typename Access, typename = std::void_t<>>
+class NotifyConnector : public NotifyConnector_<Notify, Access>
+{
+protected:
+    void Notify_()
+    {
+        for (auto &connection: this->connections_)
+        {
+            connection();
+        }
+    }
+};
+
 template<typename Notify, typename Access, typename = std::void_t<>>
 class NotifyMany : public NotifyMany_<Notify, Access>
 {
@@ -128,6 +141,20 @@ protected:
 
 
 /* Specialized for notify callbacks that accept an argument. */
+template<typename Notify, typename Access>
+class NotifyConnector<Notify, Access, std::void_t<typename Notify::Type>>
+    : public NotifyConnector_<Notify, Access>
+{
+protected:
+    void Notify_(Argument<typename Notify::Type> value)
+    {
+        for (auto &connection: this->connections_)
+        {
+            connection(value);
+        }
+    }
+};
+
 template<typename Notify, typename Access>
 class NotifyMany<Notify, Access, std::void_t<typename Notify::Type>>
     : public NotifyMany_<Notify, Access>

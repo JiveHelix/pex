@@ -49,7 +49,7 @@ public:
             wxDefaultSize,
             style | wxTE_PROCESS_ENTER,
             wxDefaultValidator),
-        value_{value},
+        value_{this, value},
         displayedString_{Convert::ToString(this->value_.Get())}
     {
         this->ChangeValue(this->displayedString_);
@@ -57,7 +57,7 @@ public:
         this->Bind(wxEVT_KILL_FOCUS, &Field::OnKillFocus_, this);
 
         PEX_LOG("Connect");
-        this->value_.Connect(this, &Field::OnValueChanged_);
+        this->value_.Connect(&Field::OnValueChanged_);
     }
 
 private:
@@ -103,9 +103,9 @@ private:
         this->ChangeValue(this->displayedString_);
     }
 
-    using Value_ = pex::control::ChangeObserver<Field, Control>;
+    using Value = pex::Terminus<Field, Control>;
 
-    Value_ value_;
+    Value value_;
     std::string displayedString_;
 };
 

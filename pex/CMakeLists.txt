@@ -12,6 +12,7 @@ target_link_libraries(
     PUBLIC
     CONAN_PKG::jive
     CONAN_PKG::fields
+    CONAN_PKG::tau
     CONAN_PKG::wxwidgets)
 
 target_sources(

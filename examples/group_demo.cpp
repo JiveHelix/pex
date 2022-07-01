@@ -103,25 +103,72 @@ struct AggregateTemplate
 using AggregateGroup = pex::Group<AggregateFields, AggregateTemplate>;
 using AggregateModel = typename AggregateGroup::Model;
 using AggregateControl = typename AggregateGroup::Control<void>;
+using AggregateTerminus = typename AggregateGroup::Terminus<void>;
+
+
+void OnWeapons_(void *, const WeaponsPlain &weapons)
+{
+    std::cout << "OnWeapons_: " << fields::DescribeColorized(weapons, 1)
+              << std::endl;
+}
 
 
 int main()
 {
     AggregateModel model;
+
+    std::cout << "model.weapons.firstFruit: "
+        << &model.weapons.firstFruit << std::endl;
+
+    std::cout << "model.weapons.firstFruit.size(): "
+        << model.weapons.firstFruit.Get().size() << std::endl;
+
     AggregateControl control(model);
 
+    std::cout << "control.weapons.firstFruit.size(): "
+        << control.weapons.firstFruit.Get().size() << std::endl;
+
+    std::cout << "Creating terminus" << std::endl;
+
+    AggregateTerminus terminus(nullptr, model);
+
+    std::cout << "terminus created" << std::endl;
+
+    std::cout << "terminus.weapons.firstFruit.size(): "
+        << terminus.weapons.firstFruit.Get().size() << std::endl;
+
+    terminus.weapons.Connect(&OnWeapons_);
+
+    std::cout << "terminus connected" << std::endl;
+
     control.airspeedVelocity = 42.0;
+    std::cout << "setting passion fruit" << std::endl;
     control.weapons.firstFruit = "passion fruit";
+    std::cout << "setting banana" << std::endl;
     control.weapons.secondFruit = "banana";
+    std::cout << "setting pointed stick" << std::endl;
     control.weapons.notFruit = "pointed stick";
+    std::cout << "setting gps" << std::endl;
     control.gps.time = 1334706453;
     control.gps.latitude = 40.56923581063791;
     control.gps.longitude = -111.63928609736942;
     control.gps.elevation = 3322.0;
     
     auto plain = model.Get();
+
+    std::cout << "changing firstFruit to apple" << std::endl;
+    plain.weapons.firstFruit = "apple";
+
+    std::cout << "changing secondFruit to cherry" << std::endl;
     plain.weapons.secondFruit = "cherry";
+
+    std::cout << "changing notFruit to rock" << std::endl;
+    plain.weapons.notFruit = "rock";
+
+    std::cout << "setting change on model" << std::endl;
     model.Set(plain);
 
     std::cout << fields::DescribeColorized(model.Get(), 0) << std::endl;
+
+    std::cout << "end of program" << std::endl;
 }

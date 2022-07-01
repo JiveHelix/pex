@@ -13,12 +13,11 @@
 #include <string>
 #include <fields/fields.h>
 #include <tau/angles.h>
+#include "pex/group.h"
 #include "pex/wx/wxshim.h"
 #include "pex/wx/view.h"
 #include "pex/wx/field.h"
 #include "pex/wx/labeled_widget.h"
-#include "pex/interface.h"
-#include "pex/group.h"
 
 
 struct AngleFilter
@@ -89,25 +88,25 @@ class ExampleApp: public wxApp
 public:
     ExampleApp()
         :
-        model_{}
+        model_{},
+        angle_(this, this->model_.angle)
     {
-        this->model_.angle.Connect(this, &ExampleApp::OnUpdate_);
+        this->angle_.Connect(&ExampleApp::OnUpdate_);
         this->model_.message.Set("This is the initial message");
     }
 
     bool OnInit() override;
 
 private:
-    static void OnUpdate_(void * context, double value)
+    void OnUpdate_(double value)
     {
-        auto self = static_cast<ExampleApp *>(context);
-
-        self->model_.message.Set(
+        this->model_.message.Set(
             "The angle has been updated to: " + std::to_string(value));
     }
 
 private:
     Model model_;
+    pex::Terminus<ExampleApp, decltype(Model::angle)> angle_;
 };
 
 

@@ -19,6 +19,35 @@ struct IsModel_<pex::model::Value_<T...>>: std::true_type {};
 template<typename ...T>
 inline constexpr bool IsModel = IsModel_<T...>::value;
 
+template<typename ...T>
+struct IsControlBase_: std::false_type {};
+
+template<typename ...T>
+struct IsControlBase_<pex::control::Value_<T...>>: std::true_type {};
+
+template<typename ...T>
+inline constexpr bool IsControlBase = IsControlBase_<T...>::value;
+
+
+template<template<typename...> typename Base, typename Derived>
+struct IsBaseOf_
+{
+    template<typename ...T>
+    static constexpr std::true_type  DoTest_(const Base<T...> *);
+    static constexpr std::false_type DoTest_(...);
+    using Type = decltype(DoTest_(std::declval<Derived *>()));
+};
+
+template<template<typename...> class Base, typename Derived>
+using IsBaseOf = typename IsBaseOf_<Base, Derived>::Type;
+
+
+template<typename T>
+struct IsControl_: IsBaseOf<pex::control::Value_, T> {};
+
+template<typename T>
+inline constexpr bool IsControl = IsControl_<T>::value;
+
 
 template<typename T, typename enable = void>
 struct IsModelSignal_: std::false_type {};

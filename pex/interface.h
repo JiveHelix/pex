@@ -90,6 +90,14 @@ struct ControlSelector
 };
 
 
+template<typename Observer>
+struct TerminusSelector
+{
+    template<typename T>
+    using Type = typename detail::TerminusSelector_<T>::template Type<Observer>;
+};
+
+
 template<typename T>
 using Identity = typename detail::Identity_<T>::Type;
 

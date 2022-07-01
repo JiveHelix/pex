@@ -30,26 +30,23 @@ namespace wx
 
 
 template
-<   typename Chooser_,
-    typename Convert = Converter<typename Chooser_::Value::Type>
+<   typename Chooser,
+    typename Convert = Converter<typename Chooser::Value::Type>
 >
 class RadioBox: public wxRadioBox
 {
 public:
-    using Chooser = control::ChangeObserver<RadioBox, Chooser_>;
-
     static_assert(
         !Chooser::choicesMayChange,
         "RadioBox choices cannot change after creation");
 
     using Type = typename Chooser::Type;
     using Selection = typename Chooser::Selection;
-    using Choices = typename Chooser::Choices;
     using WxAdapter = WxChooser<typename Chooser::Type, Convert>;
 
     RadioBox(
         wxWindow *parent,
-        Chooser_ chooser,
+        Chooser chooser,
         const std::string &label = "",
         long style = wxRA_SPECIFY_ROWS)
         :
@@ -62,15 +59,15 @@ public:
             WxAdapter::GetChoicesAsStrings(chooser.choices.Get()),
             0,
             style),
-        chooser_(chooser)
+        selection_(this, chooser.selection)
     {
         assert(
-            this->chooser_.selection.Get() <= std::numeric_limits<int>::max());
+            this->selection_.Get() <= std::numeric_limits<int>::max());
 
-        this->SetSelection(static_cast<int>(this->chooser_.selection.Get()));
+        this->SetSelection(static_cast<int>(this->selection_.Get()));
 
         PEX_LOG("Connect");
-        this->chooser_.selection.Connect(this, &RadioBox::OnSelection_);
+        this->selection_.Connect(&RadioBox::OnSelection_);
 
         this->Bind(wxEVT_RADIOBOX, &RadioBox::OnRadioBox_, this);
     }
@@ -90,11 +87,11 @@ public:
             return;
         }
 
-        this->chooser_.selection.Set(static_cast<size_t>(index));
+        this->selection_.Set(static_cast<size_t>(index));
     }
 
 private:
-    Chooser chooser_;
+    pex::Terminus<RadioBox, Selection> selection_;
 };
 
 

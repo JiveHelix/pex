@@ -85,7 +85,7 @@ public:
         filter_{},
         value_{}
     {
-
+        PEX_LOG(this);
     }
 
     explicit Value_(Type value)
@@ -96,6 +96,8 @@ public:
         static_assert(
             detail::FilterIsNoneOrStatic<Type, Filter, SetTag>,
             "A filter with member functions requires a pointer.");
+
+        PEX_LOG(this);
     }
 
     Value_(Type value, Filter filter)
@@ -106,6 +108,8 @@ public:
         static_assert(
             detail::FilterIsMember<Type, Filter>,
             "Static or void Filter does not require a filter instance.");
+
+        PEX_LOG(this);
     }
 
     Value_(Filter filter)
@@ -116,6 +120,8 @@ public:
         static_assert(
             detail::FilterIsMember<Type, Filter>,
             "Static or void Filter does not require a filter instance.");
+
+        PEX_LOG(this);
     }
 
     Value_(const Value_<Type, Filter> &) = delete;
@@ -131,7 +137,7 @@ public:
                 PEX_LOG(
                     "Warning: ",
                     connection.GetObserver(),
-                    " is still connected to ",
+                    " is still connected to Model ",
                     this);
             }
         }
@@ -317,7 +323,7 @@ public:
     {
         if (this->model_)
         {
-            PEX_LOG("Connect");
+            PEX_LOG("Connect ", observer, " to ", this->model_);
             this->model_->Connect(observer, callable);
         }
     }
@@ -331,7 +337,7 @@ public:
         }
     }
 
-    bool HasModel()
+    bool HasModel() const
     {
         return (this->model_ != nullptr);
     }

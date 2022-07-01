@@ -5,8 +5,8 @@
 #include <bitset>
 #include <array>
 
-#include "tau/angles.h"
-#include "fields/fields.h"
+#include <tau/angles.h>
+#include <fields/fields.h>
 
 #include "pex/signal.h"
 #include "pex/value.h"

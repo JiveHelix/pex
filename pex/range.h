@@ -104,7 +104,8 @@ public:
         <
             void,
             Upstream,
-            RangeFilter<typename Upstream::Type> >;
+            RangeFilter<typename Upstream::Type>
+        >;
 
     static_assert(!IsCopyable<Value>);
     static_assert(::pex::model::IsDirect<::pex::UpstreamT<Value>>);
@@ -148,6 +149,11 @@ public:
         this->value_.SetFilter(RangeFilter<Type>(
             this->minimum_.Get(),
             this->maximum_.Get()));
+
+        PEX_LOG("model::Range: ", this);
+        PEX_LOG("model::Range.value_: ", &this->value_);
+        PEX_LOG("model::Range.minimum_: ", &this->minimum_);
+        PEX_LOG("model::Range.maximum_: ", &this->maximum_);
     }
 
     void SetLimits(Type minimum, Type maximum)
@@ -434,6 +440,8 @@ struct RangeGroup
 
         Models(Upstream &upstream)
         {
+            PEX_LOG("RangeGroup::Models ctor");
+
             auto setUpstream = [this, &upstream](
                 const auto &modelField,
                 const auto &upstreamField) -> void
@@ -460,6 +468,17 @@ struct RangeGroup
                 setUpstream,
                 Fields<Models>::fields,
                 Fields<Upstream>::fields);
+
+            auto logger = [this](const auto &field) -> void
+            {
+                PEX_LOG(
+                    "RangeGroup::Models.",
+                    field.name,
+                    ": ",
+                    &(this->*(field.member)));
+            };
+
+            jive::ForEach(Fields<Models>::fields, logger);
         }
     };
 

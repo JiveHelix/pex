@@ -11,12 +11,12 @@
 
 #include <iostream>
 #include <string>
-#include "pex/wx/wxshim.h"
-#include "jive/formatter.h"
-#include "tau/angles.h"
+#include <jive/formatter.h>
+#include <tau/angles.h>
 #include "pex/signal.h"
 #include "pex/value.h"
 #include "pex/converter.h"
+#include "pex/wx/wxshim.h"
 #include "pex/wx/view.h"
 #include "pex/wx/knob.h"
 

@@ -115,7 +115,12 @@ public:
 
     ~Value_()
     {
-        PEX_LOG("control::Value_::~Value_::Disconnect: ", this);
+        PEX_LOG(
+            "control::Value_::~Value_::Disconnect: ",
+            this,
+            " from ",
+            &this->upstream_);
+
         this->upstream_.Disconnect(this);
     }
 
@@ -135,13 +140,20 @@ public:
             HasAccess<Access, OtherAccess>,
             "Cannot copy from another value without equal or greater access.");
 
+        // You can replace a filter with another filter, but only if it uses
+        // static functions?
         static_assert(
             IsCopyable<Value_<OtherObserver, Pex, OtherFilter, OtherAccess>>,
             "Value is not copyable.");
 
         if constexpr (HasAccess<GetTag, Access>)
         {
-            PEX_LOG("Connect");
+            PEX_LOG(
+                "Copy from OtherObserver: ",
+                this,
+                " to ",
+                &this->upstream_);
+
             this->upstream_.Connect(this, &Value_::OnUpstreamChanged_);
         }
     }
@@ -181,7 +193,7 @@ public:
 
         if constexpr (HasAccess<GetTag, Access>)
         {
-            PEX_LOG("Connect");
+            PEX_LOG("Copy from other: ", this, " to ", &this->upstream_);
             this->upstream_.Connect(this, &Value_::OnUpstreamChanged_);
         }
     }
@@ -200,10 +212,13 @@ public:
 
     Value_ & operator=(const Value_ &other)
     {
-        // TODO: Use SFINAE to disable copy constructor
         static_assert(
             IsCopyable<Value_>,
             "This value is not copyable.");
+        
+        static_assert(
+            !detail::FilterIsMember<UpstreamType, Filter>,
+            "IsCopyable implies that Filter uses static functions.");
 
         PEX_LOG("Disconnect");
         this->upstream_.Disconnect(this);
@@ -225,6 +240,7 @@ public:
         PEX_LOG("Disconnect");
         this->upstream_.Disconnect(this);
         this->upstream_ = std::move(other.upstream_);
+        this->filter_ = std::move(other.filter_);
         
         if constexpr (HasAccess<GetTag, Access>)
         {
@@ -302,6 +318,11 @@ public:
     {
         this->Set(value);
         return *this;
+    }
+
+    bool HasModel() const
+    {
+        return this->upstream_.HasModel();
     }
 
 private:

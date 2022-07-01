@@ -5,7 +5,6 @@ target_link_libraries(
     PUBLIC
     project_warnings
     project_options
-    CONAN_PKG::tau
     pex)
 
 
@@ -16,8 +15,6 @@ target_link_libraries(
     PUBLIC
     project_warnings
     project_options
-    CONAN_PKG::tau
-    CONAN_PKG::fields
     pex)
 
 
@@ -28,8 +25,6 @@ target_link_libraries(
     PUBLIC
     project_warnings
     project_options
-    CONAN_PKG::tau
-    CONAN_PKG::fields
     pex)
 
 

@@ -15,15 +15,6 @@ namespace wx
 {
 
 
-#if 0
-
-template<typename T>
-using HsvTemplate_ = typename HsvTemplate<T>::template Template;
-
-using HsvGroup = pex::Group<tau::HsvFields, HsvTemplate<float>, tau::Hsv<float>>;
-
-#else
-
 using HsvGroup = pex::Group
     <
         tau::HsvFields,
@@ -31,11 +22,12 @@ using HsvGroup = pex::Group
         tau::Hsv<float>
     >;
 
-#endif
-
 using Hsv = typename HsvGroup::Plain;
 using HsvModel = typename HsvGroup::Model;
 using HsvControl = typename HsvGroup::Control<void>;
+
+template<typename Observer>
+using HsvTerminus = typename HsvGroup::Terminus<Observer>;
 
 
 using HsvRangeGroup = pex::RangeGroup
@@ -111,20 +103,28 @@ public:
         HsvControl control)
         :
         wxControl(parent, wxID_ANY),
-        control_(control),
+        control_(this, control),
         hsvRanges_(control)
     {
-        this->hsvRanges_.hue.SetLimits(0.0f, 360.0f);
-        this->hsvRanges_.saturation.SetLimits(0.0f, 1.0f);
-        this->hsvRanges_.value.SetLimits(0.0f, 1.0f);
+        PEX_LOG("\n\n ********* picker ctor ************* \n\n");
 
-        this->control_.Connect(this);
+        this->hsvRanges_.hue.SetLimits(0.0f, 360.0f);
+        PEX_LOG("picker ctor");
+        this->hsvRanges_.saturation.SetLimits(0.0f, 1.0f);
+        PEX_LOG("picker ctor");
+        this->hsvRanges_.value.SetLimits(0.0f, 1.0f);
+        PEX_LOG("picker ctor");
+
+        this->control_.Connect(&HsvPicker::OnColorChanged_);
+        PEX_LOG("picker ctor");
 
         HsvRangesControl rangesControl(this->hsvRanges_);
+        PEX_LOG("picker ctor");
 
         using HueSlider =
             SliderAndValue<HueRange, decltype(control.hue), 5>;
 
+        PEX_LOG("picker ctor");
         auto hue = pex::wx::LabeledWidget(
             this,
             "Hue",
@@ -133,9 +133,11 @@ public:
                 HueRange(rangesControl.hue),
                 control.hue));
 
+        PEX_LOG("picker ctor");
         using SaturationSlider =
             SliderAndValue<SaturationRange, decltype(control.saturation), 4>;
 
+        PEX_LOG("picker ctor");
         auto saturation = pex::wx::LabeledWidget(
             this,
             "Saturation",
@@ -144,9 +146,11 @@ public:
                 SaturationRange(rangesControl.saturation),
                 control.saturation));
 
+        PEX_LOG("picker ctor");
         using ValueSlider =
             SliderAndValue<ValueRange, decltype(control.value), 4>;
 
+        PEX_LOG("\n\n picker ctor \n\n");
         auto value = pex::wx::LabeledWidget(
             this,
             "Value",
@@ -154,7 +158,8 @@ public:
                 this,
                 ValueRange(rangesControl.value),
                 control.value));
-
+        ///**
+        PEX_LOG("\n\n picker ctor \n\n");
         this->colorPreview_ = new ColorPreview(
             this,
             tau::HsvToRgb<uint8_t>(control.Get()));
@@ -177,21 +182,22 @@ public:
         sizer->Add(vertical.release(), 0, wxEXPAND);
 
         this->SetSizerAndFit(sizer.release());
+        PEX_LOG("\n\n picker ctor \n\n");
     }
 
-    /*
-     * This function will be called whenever one of the hsv components is
-     * updated.
-     */
-    template<typename T>
-    void OnMemberChanged(Argument<T>)
+    virtual ~HsvPicker()
     {
-        this->colorPreview_->SetColor(
-            tau::HsvToRgb<uint8_t>(this->control_.Get()));
+        this->DestroyChildren();
     }
 
 private:
-    pex::control::ChangeObserver<HsvPicker, HsvControl> control_;
+    void OnColorChanged_(const Hsv &hsv)
+    {
+        this->colorPreview_->SetColor(tau::HsvToRgb<uint8_t>(hsv));
+    }
+
+private:
+    HsvTerminus<HsvPicker> control_;
     HsvRanges hsvRanges_;
     ColorPreview * colorPreview_;
 };
