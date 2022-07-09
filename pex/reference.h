@@ -16,6 +16,7 @@
 #include <jive/zip_apply.h>
 #include "pex/model_value.h"
 #include "pex/traits.h"
+#include "pex/signal.h"
 
 
 
@@ -155,8 +156,24 @@ public:
 template<template<typename> typename Selector>
 struct DeferSelector
 {
+    template<typename T, typename Enable = void>
+    struct DeferHelper_
+    {
+        using Type = Defer<Selector<T>>;
+    };
+
     template<typename T>
-    using Type = Defer<Selector<T>>;
+    struct DeferHelper_
+    <
+        T,
+        std::enable_if_t<IsSignal<Selector<T>>>
+    >
+    {
+        using Type = DescribeSignal;
+    };
+
+    template<typename T>
+    using Type = typename DeferHelper_<T>::Type;
 };
 
 
@@ -182,8 +199,11 @@ public:
             using MemberType = typename std::remove_reference_t<
                 decltype(this->*(deferField.member))>;
 
-            this->*(deferField.member) = MemberType(
-                (upstream.*(upstreamField.member)));
+            if constexpr (!std::is_same_v<DescribeSignal, MemberType>)
+            {
+                this->*(deferField.member) = MemberType(
+                    (upstream.*(upstreamField.member)));
+            }
         };
 
         jive::ZipApply(
@@ -196,7 +216,13 @@ public:
     {
         auto assign = [this, &plain](auto deferField, auto plainField)
         {
-            (this->*(deferField.member)).Set(plain.*(plainField.member));
+            using MemberType = typename std::remove_reference_t<
+                decltype(this->*(deferField.member))>;
+
+            if constexpr (!std::is_same_v<DescribeSignal, MemberType>)
+            {
+                (this->*(deferField.member)).Set(plain.*(plainField.member));
+            }
         };
 
         jive::ZipApply(

@@ -88,17 +88,20 @@ struct Group
     
     using ModelConnection = ValueConnection<void, Plain, NoFilter>;
 
-    struct Model:
-        public Template<pex::ModelSelector>,
-        public Accessors
+    template<typename Derived>
+    using ModelAccessors = Accessors
         <
             Plain,
             Fields,
             Template,
             ModelSelector,
-            Model,
+            Derived,
             detail::NotifyMany<ModelConnection, GetAndSetTag>
-        >
+        >;
+
+    struct Model:
+        public Template<ModelSelector>,
+        public ModelAccessors<Model>
     {
     public:
         using Plain = typename Group::Plain;
@@ -130,6 +133,23 @@ struct Group
         }
     };
 
+    template<typename T>
+    static bool HasModel(const T &group)
+    {
+        bool result = true;
+
+        auto modelChecker = [&group, &result](auto field)
+        {
+            if (result)
+            {
+                result = (group.*(field.member)).HasModel();
+            }
+        };
+
+        jive::ForEach(Fields<T>::fields, modelChecker);
+
+        return result;
+    }
 
     template<typename Observer>
     using ControlConnection = ValueConnection<Observer, Plain, NoFilter>;
@@ -139,7 +159,7 @@ struct Group
         Template<pex::ControlSelector<Observer>::template Type>;
 
     template<typename Observer, typename Derived>
-    using ControlBase = Accessors
+    using ControlAccessors = Accessors
         <
             Plain,
             Fields,
@@ -152,9 +172,9 @@ struct Group
     template<typename Observer>
     struct Control:
         public ControlTemplate<Observer>,
-        public ControlBase<Observer, Control<Observer>>
+        public ControlAccessors<Observer, Control<Observer>>
     {
-        using Base = ControlBase<Observer, Control<Observer>>;
+        using AccessorsBase = ControlAccessors<Observer, Control<Observer>>;
 
         using Plain = typename Group::Plain;
         using Type = Plain;
@@ -176,15 +196,13 @@ struct Group
         }
 
         Control(const Control &other)
-            :
-            Base(other)
         {
             fields::Assign<Fields>(*this, other);
         }
 
         Control & operator=(const Control &other)
         {
-            this->Base::operator=(other);
+            this->AccessorsBase::operator=(other);
             fields::Assign<Fields>(*this, other);
 
             return *this;
@@ -192,8 +210,6 @@ struct Group
 
         template<typename Other>
         Control(const Control<Other> &other)
-            :
-            Base(other)
         {
             fields::AssignConvert<Fields>(*this, other);
         }
@@ -201,14 +217,14 @@ struct Group
         template<typename Other>
         Control & operator=(const Control<Other> &other)
         {
-            this->Base::operator=(other);
+            this->AccessorsBase::operator=(other);
             fields::AssignConvert<Fields>(*this, other);
             return *this;
         }
 
         ~Control()
         {
-#if ENABLE_PEX_LOG
+#ifdef ENABLE_PEX_LOG
             if (!this->connections_.empty())
             {
                 for (auto &connection: this->connections_)
@@ -230,19 +246,7 @@ struct Group
 
         bool HasModel() const
         {
-            bool result = true;
-
-            auto modelChecker = [this, &result](auto field)
-            {
-                if (result)
-                {
-                    result = (this->*(field.member)).HasModel();
-                }
-            };
-
-            jive::ForEach(Fields<Control>::fields, modelChecker);
-
-            return result;
+            return Group::HasModel(*this);
         }
     };
 
@@ -254,7 +258,7 @@ struct Group
         Template<pex::TerminusSelector<Observer>::template Type>;
 
     template<typename Observer, typename Derived>
-    using TerminusBase = Accessors
+    using TerminusAccessors = Accessors
         <
             Plain,
             Fields,
@@ -264,13 +268,66 @@ struct Group
             detail::NotifyMany<TerminusConnection<Observer>, GetAndSetTag>
         >;
 
+    template<typename Observer, typename T, typename C>
+    static void InitializeTerminus(
+        Observer *observer,
+        T &terminus,
+        const C &control)
+    {
+        assert(HasModel(control));
+
+        auto initializer = [&terminus, observer, &control](
+            auto terminusField,
+            auto controlField)
+        {
+            using MemberType = typename std::remove_reference_t
+                <
+                    decltype(terminus.*(terminusField.member))
+                >;
+
+            terminus.*(terminusField.member) =
+                MemberType(observer, control.*(controlField.member));
+        };
+
+        jive::ZipApply(
+            initializer,
+            Fields<T>::fields,
+            Fields<C>::fields);
+
+        auto logger = [&terminus](const auto &terminusField) -> void
+        {
+            PEX_LOG(
+                "Terminus.",
+                terminusField.name,
+                ": ",
+                &(terminus.*(terminusField.member)));
+        };
+
+        jive::ForEach(Fields<T>::fields, logger);
+    }
+
+
+    template<typename T>
+    static void MoveTerminus(T &terminus, T &other)
+    {
+        auto initializer = [&terminus, &other](auto field)
+        {
+            terminus.*(field.member) = std::move(other.*(field.member));
+        };
+
+        jive::ForEach(
+            Fields<T>::fields,
+            initializer);
+    }
+
+
     template<typename Observer>
     struct Terminus:
         public TerminusTemplate<Observer>,
-        public TerminusBase<Observer, Terminus<Observer>>
+        public TerminusAccessors<Observer, Terminus<Observer>>
     {
         using Plain = typename Group::Plain;
-        using Base = TerminusBase<Observer, Terminus<Observer>>;
+        using AccessorsBase = TerminusAccessors<Observer, Terminus<Observer>>;
 
         template<typename T>
         using Pex =
@@ -288,37 +345,7 @@ struct Group
             observer_(observer)
         {
             PEX_LOG("Terminus ctor");
-
-            assert(control.HasModel());
-
-            auto initializer = [this, observer, &control](
-                auto terminusField,
-                auto controlField)
-            {
-                using MemberType = typename std::remove_reference_t
-                    <
-                        decltype(this->*(terminusField.member))
-                    >;
-
-                this->*(terminusField.member) =
-                    MemberType(observer, control.*(controlField.member));
-            };
-
-            jive::ZipApply(
-                initializer,
-                Fields<Terminus>::fields,
-                Fields<Control<void>>::fields);
-
-            auto logger = [this](const auto &terminusField) -> void
-            {
-                PEX_LOG(
-                    "Terminus.",
-                    terminusField.name,
-                    ": ",
-                    &(this->*(terminusField.member)));
-            };
-
-            jive::ForEach(Fields<Terminus>::fields, logger);
+            InitializeTerminus(observer, *this, control);
         }
 
         Terminus(Observer *observer, Model &model)
@@ -330,34 +357,20 @@ struct Group
 
         Terminus(Terminus &&other)
             :
-            Base(std::move(other)),
+            AccessorsBase(std::move(other)),
             observer_(std::move(other.observer_))
         {
-            auto initializer = [this, &other](auto field)
-            {
-                this->*(field.member) = std::move(other.*(field.member));
-            };
-
-            jive::ForEach(
-                Fields<Terminus>::fields,
-                initializer);
+            MoveTerminus(*this, other);
         }
 
         Terminus & operator=(const Terminus &) = delete;
 
         Terminus & operator=(Terminus &&other)
         {
-            this->Base::operator=(std::move(other));
+            this->AccessorsBase::operator=(std::move(other));
             this->observer_ = std::move(other.observer_);
 
-            auto initializer = [this, &other](auto field)
-            {
-                this->*(field.member) = std::move(other.*(field.member));
-            };
-
-            jive::ForEach(
-                Fields<Terminus>::fields,
-                initializer);
+            MoveTerminus(*this, other);
 
             return *this;
         }
@@ -380,19 +393,7 @@ struct Group
 
         bool HasModel() const
         {
-            bool result = true;
-
-            auto modelChecker = [this, &result](auto field)
-            {
-                if (result)
-                {
-                    result = (this->*(field.member)).HasModel();
-                }
-            };
-
-            jive::ForEach(Fields<Terminus>::fields, modelChecker);
-
-            return result;
+            return Group::HasModel(*this);
         }
     
     private:

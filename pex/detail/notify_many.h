@@ -78,7 +78,6 @@ protected:
 
 protected:
     std::vector<Notify> connections_;
-    void * observer_;
 };
 
 

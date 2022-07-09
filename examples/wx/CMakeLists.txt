@@ -24,7 +24,7 @@ target_link_libraries(
     pex)
 
 
-add_executable(field_demo ${windowed} field_demo.cpp)
+add_executable(field_demo field_demo.cpp)
 
 target_link_libraries(
     field_demo

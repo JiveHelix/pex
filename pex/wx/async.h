@@ -37,6 +37,9 @@ public:
     template<typename Observer>
     friend struct Control;
 
+    template<typename>
+    friend class pex::Reference;
+
     template<typename Observer>
     struct Control: public control::Value<Observer, ThreadSafe>
     {
@@ -98,6 +101,13 @@ public:
         return this->value_;
     }
 
+    // The defaut control is for the wx event loop.
+    template<typename Observer>
+    explicit operator Control<Observer> ()
+    {
+        return Control<Observer>(this->wxModel_);
+    }
+
     void Connect(void * observer, typename ThreadSafe::Callable callable)
     {
         this->wxModel_.Connect(observer, callable);
@@ -156,6 +166,40 @@ private:
         this->ignoreWorkerEcho_ = true;
 
         this->workerModel_.Set(value);
+    }
+
+
+    class ReferenceSetter: public Reference<ThreadSafe>
+    {
+    public:
+        using Reference<ThreadSafe>::Reference;
+
+        void SetWithoutNotify(Argument<Type> value)
+        {
+            this->SetWithoutNotify_(value);
+        }
+
+        void DoNotify()
+        {
+            this->DoNotify_();
+        }
+    };
+
+    void SetWithoutNotify_(Argument<Type> value)
+    {
+        {
+            std::lock_guard<std::mutex> lock(this->mutex_);
+            this->value_ = value;
+        }
+
+        ReferenceSetter(this->workerModel_).SetWithoutNotify(value);
+    }
+
+    void DoNotify_()
+    {
+        // This will trigger OnWorkerChanged_, which will notify wxModel_ in
+        // the wx event loop.
+        ReferenceSetter(this->workerModel_).DoNotify();
     }
 
 private:

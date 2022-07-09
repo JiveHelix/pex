@@ -168,6 +168,7 @@ public:
         fields::AssignConvert<Fields>(*this, upstream);
         this->MakeConnections_();
 
+#ifdef ENABLE_PEX_LOG
         auto logger = [this](const auto &field) -> void
         {
             PEX_LOG(
@@ -178,6 +179,8 @@ public:
         };
 
         jive::ForEach(Fields<Aggregate>::fields, logger);
+#endif
+
     }
 
     Aggregate(const Aggregate &) = delete;
@@ -299,7 +302,23 @@ public:
         other.aggregate_.reset();
     }
 
+    template<typename ...Others>
+    Accessors(Accessors<Others...> &&other)
+    {
+        other.aggregate_.reset();
+    }
+
     Accessors & operator=(const Accessors &)
+    {
+        // Allows copy, but never copies the aggregate observer.
+        // Re-connect is required after a copy.
+
+        this->aggregate_.reset();
+        return *this;
+    }
+
+    template<typename ...Others>
+    Accessors & operator=(const Accessors<Others...> &)
     {
         // Allows copy, but never copies the aggregate observer.
         // Re-connect is required after a copy.
@@ -316,9 +335,18 @@ public:
         return *this;
     }
 
+    template<typename ...Others>
+    Accessors & operator=(Accessors<Others...> &&other)
+    {
+        this->aggregate_.reset();
+        other.aggregate_.reset();
+
+        return *this;
+    }
+
     ~Accessors()
     {
-#if ENABLE_PEX_LOG
+#ifdef ENABLE_PEX_LOG
         if (!this->connections_.empty())
         {
             for (auto &connection: this->connections_)

@@ -129,7 +129,7 @@ public:
 
     ~Value_()
     {
-#if ENABLE_PEX_LOG
+#ifdef ENABLE_PEX_LOG
         if (!this->connections_.empty())
         {
             for (auto &connection: this->connections_)

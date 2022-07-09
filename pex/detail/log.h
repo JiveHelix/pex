@@ -17,7 +17,7 @@
         ":", \
         __LINE__, \
         "] ", \
-        __VA_ARGS__)
+        __VA_ARGS__); assert(std::cout.good())
 
 
 #else

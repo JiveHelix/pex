@@ -56,9 +56,11 @@ public:
     Terminus_(Terminus_ &&other)
         :
         observer_(other.observer_),
-        pex_(std::move(other.pex_))
+        pex_()
     {
         PEX_LOG("Terminus move ctor: ", this, ", pex_: ", &this->pex_);
+        other.Disconnect();
+        this->pex_ = std::move(other.pex_);
         other.observer_ = nullptr;
     }
 
@@ -134,9 +136,17 @@ public:
 
     using Type = typename Base::Pex::Type;
 
+    Terminus(Terminus &&other)
+        :
+        Base(std::move(other))
+    {
+        PEX_LOG("Terminus &&: ", &this->pex_);
+    }
+
     Terminus & operator=(Terminus &&other)
     {
         Base::operator=(std::move(other));
+        PEX_LOG("Terminus & operator= &&: ", &this->pex_);
         return *this;
     }
 
