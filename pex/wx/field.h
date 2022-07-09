@@ -29,10 +29,10 @@ template
     typename Control,
     typename ConverterTraits = DefaultConverterTraits
 >
-class Field: public wxTextCtrl
+class Field: public wxControl
 {
 public:
-    using Base = wxTextCtrl;
+    using Base = wxControl;
     using Type = typename Control::Type;
     using Convert = Converter<Type, ConverterTraits>;
 
@@ -41,23 +41,31 @@ public:
         Control value,
         long style = 0)
         :
-        Base(
-            parent,
-            wxID_ANY,
-            Convert::ToString(value.Get()),
-            wxDefaultPosition,
-            wxDefaultSize,
-            style | wxTE_PROCESS_ENTER,
-            wxDefaultValidator),
+        Base(parent, wxID_ANY),
         value_{this, value},
-        displayedString_{Convert::ToString(this->value_.Get())}
+        displayedString_{Convert::ToString(this->value_.Get())},
+        textControl_(
+            new wxTextCtrl(
+                this,
+                wxID_ANY,
+                this->displayedString_,
+                wxDefaultPosition,
+                wxDefaultSize,
+                style | wxTE_PROCESS_ENTER,
+                wxDefaultValidator))
     {
-        this->ChangeValue(this->displayedString_);
-        this->Bind(wxEVT_TEXT_ENTER, &Field::OnEnter_, this);
-        this->Bind(wxEVT_KILL_FOCUS, &Field::OnKillFocus_, this);
+        this->textControl_->Bind(wxEVT_TEXT_ENTER, &Field::OnEnter_, this);
+        this->textControl_->Bind(wxEVT_KILL_FOCUS, &Field::OnKillFocus_, this);
 
         PEX_LOG("Connect");
         this->value_.Connect(&Field::OnValueChanged_);
+    }
+
+    // NOTE: As of wx 3.1.3, changing the font size does not affect
+    // wxTextCtrl's GetBestSize, defeating the window layout mechanism.
+    bool SetFont(const wxFont &font) override
+    {
+        return this->textControl_->SetFont(font);
     }
 
 private:
@@ -74,7 +82,7 @@ private:
 
     void ProcessUserInput_()
     {
-        auto userInput = this->GetValue().ToStdString();
+        auto userInput = this->textControl_->GetValue().ToStdString();
 
         if (userInput == this->displayedString_)
         {
@@ -89,24 +97,25 @@ private:
         }
         catch (std::out_of_range &)
         {
-            this->ChangeValue(this->displayedString_);
+            this->textControl_->ChangeValue(this->displayedString_);
         }
         catch (std::invalid_argument &)
         {
-            this->ChangeValue(this->displayedString_);
+            this->textControl_->ChangeValue(this->displayedString_);
         }
     }
 
     void OnValueChanged_(Argument<Type> value)
     {
         this->displayedString_ = Convert::ToString(value);
-        this->ChangeValue(this->displayedString_);
+        this->textControl_->ChangeValue(this->displayedString_);
     }
 
     using Value = pex::Terminus<Field, Control>;
 
     Value value_;
     std::string displayedString_;
+    wxTextCtrl *textControl_;
 };
 
 
