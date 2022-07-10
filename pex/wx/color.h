@@ -103,7 +103,7 @@ public:
         HsvControl control)
         :
         wxControl(parent, wxID_ANY),
-        control_(this, control),
+        terminus_(this, control),
         hsvRanges_(control)
     {
         PEX_LOG("\n\n ********* picker ctor ************* \n\n");
@@ -115,7 +115,7 @@ public:
         this->hsvRanges_.value.SetLimits(0.0f, 1.0f);
         PEX_LOG("picker ctor");
 
-        this->control_.Connect(&HsvPicker::OnColorChanged_);
+        this->terminus_.Connect(&HsvPicker::OnColorChanged_);
         PEX_LOG("picker ctor");
 
         HsvRangesControl rangesControl(this->hsvRanges_);
@@ -197,7 +197,7 @@ private:
     }
 
 private:
-    HsvTerminus<HsvPicker> control_;
+    HsvTerminus<HsvPicker> terminus_;
     HsvRanges hsvRanges_;
     ColorPreview * colorPreview_;
 };

@@ -285,34 +285,42 @@ struct Group
                     decltype(terminus.*(terminusField.member))
                 >;
 
-            terminus.*(terminusField.member) =
-                MemberType(observer, control.*(controlField.member));
+            (terminus.*(terminusField.member)).Assign(
+                observer,
+                MemberType(observer, control.*(controlField.member)));
         };
 
         jive::ZipApply(
             initializer,
             Fields<T>::fields,
             Fields<C>::fields);
-
-        auto logger = [&terminus](const auto &terminusField) -> void
-        {
-            PEX_LOG(
-                "Terminus.",
-                terminusField.name,
-                ": ",
-                &(terminus.*(terminusField.member)));
-        };
-
-        jive::ForEach(Fields<T>::fields, logger);
     }
 
 
-    template<typename T>
-    static void MoveTerminus(T &terminus, T &other)
+    template<typename T, typename Observer>
+    static void CopyTerminus(Observer *observer, T &terminus, T &other)
     {
-        auto initializer = [&terminus, &other](auto field)
+        auto initializer = [&terminus, &other, observer](auto field)
         {
-            terminus.*(field.member) = std::move(other.*(field.member));
+            (terminus.*(field.member)).Assign(
+                observer,
+                other.*(field.member));
+        };
+
+        jive::ForEach(
+            Fields<T>::fields,
+            initializer);
+    }
+
+
+    template<typename T, typename Observer>
+    static void MoveTerminus(Observer *observer, T &terminus, T &other)
+    {
+        auto initializer = [&terminus, &other, observer](auto field)
+        {
+            (terminus.*(field.member)).Assign(
+                observer,
+                std::move(other.*(field.member)));
         };
 
         jive::ForEach(
@@ -350,27 +358,55 @@ struct Group
 
         Terminus(Observer *observer, Model &model)
         {
-            *this = Terminus(observer, Control<void>(model));
+            this->Assign(observer, Terminus(observer, Control<void>(model)));
         }
 
-        Terminus(const Terminus &) = delete;
 
-        Terminus(Terminus &&other)
+        Terminus(const Terminus &) = delete;
+        Terminus(Terminus &&) = delete;
+        Terminus & operator=(const Terminus &) = delete;
+        Terminus & operator=(Terminus &&) = delete;
+
+
+        // Copy construct
+        Terminus(Observer *observer, const Terminus &other)
+            :
+            AccessorsBase(other),
+            observer_(other.observer_)
+        {
+            CopyTerminus(observer, *this, other);
+        }
+
+
+        // Move construct
+        Terminus(Observer *observer, Terminus &&other)
             :
             AccessorsBase(std::move(other)),
             observer_(std::move(other.observer_))
         {
-            MoveTerminus(*this, other);
+            MoveTerminus(observer, *this, other);
         }
 
-        Terminus & operator=(const Terminus &) = delete;
 
-        Terminus & operator=(Terminus &&other)
+        // Copy assign
+        Terminus & Assign(Observer *observer, const Terminus &other)
+        {
+            this->AccessorsBase::operator=(other);
+            this->observer_ = observer;
+
+            CopyTerminus(observer, *this, other);
+
+            return *this;
+        }
+
+
+        // Move assign
+        Terminus & Assign(Observer *observer, Terminus &&other)
         {
             this->AccessorsBase::operator=(std::move(other));
-            this->observer_ = std::move(other.observer_);
+            this->observer_ = observer;
 
-            MoveTerminus(*this, other);
+            MoveTerminus(observer, *this, other);
 
             return *this;
         }

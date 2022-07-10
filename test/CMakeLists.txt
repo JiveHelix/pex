@@ -9,7 +9,8 @@ add_executable(
     filter_tests.cpp
     expand_tests.cpp
     range_tests.cpp
-    assign_tests.cpp)
+    assign_tests.cpp
+    terminus_tests.cpp)
 
 target_link_libraries(
     pex_tests

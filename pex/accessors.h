@@ -241,7 +241,7 @@ private:
         auto disconnector = [this](const auto &field) -> void
         {
             PEX_LOG(
-                "Disconnect ",
+                "Aggregate Disconnect ",
                 this,
                 " from ",
                 &(this->*(field.member)));
@@ -255,14 +255,14 @@ private:
     template<typename T>
     static void OnMemberChanged_(void * context, Argument<T>)
     {
-        auto me = static_cast<Aggregate *>(context);
+        auto self = static_cast<Aggregate *>(context);
 
-        if (me->isMuted_)
+        if (self->isMuted_)
         {
             return;
         }
 
-        me->Notify_(me->Get());
+        self->Notify_(self->Get());
     }
 
 private:
@@ -292,28 +292,35 @@ public:
     Accessors() = default;
 
     Accessors(const Accessors &)
+        :
+        aggregate_(nullptr)
     {
         // Allows copy, but never copies the aggregate observer.
         // Re-connect is required after a copy.
+        PEX_LOG("Accessors: ", this);
     }
 
-    Accessors(Accessors &&other)
+    Accessors(Accessors &&)
+        :
+        aggregate_(nullptr)
     {
-        other.aggregate_.reset();
+        PEX_LOG("Accessors: ", this);
     }
 
     template<typename ...Others>
-    Accessors(Accessors<Others...> &&other)
+    Accessors(Accessors<Others...> &&)
+        :
+        aggregate_(nullptr)
     {
-        other.aggregate_.reset();
+        PEX_LOG("Accessors: ", this);
     }
 
     Accessors & operator=(const Accessors &)
     {
         // Allows copy, but never copies the aggregate observer.
         // Re-connect is required after a copy.
-
         this->aggregate_.reset();
+        PEX_LOG("Accessors: ", this);
         return *this;
     }
 
@@ -322,25 +329,23 @@ public:
     {
         // Allows copy, but never copies the aggregate observer.
         // Re-connect is required after a copy.
-
         this->aggregate_.reset();
+        PEX_LOG("Accessors: ", this);
         return *this;
     }
 
-    Accessors & operator=(Accessors &&other)
+    Accessors & operator=(Accessors &&)
     {
         this->aggregate_.reset();
-        other.aggregate_.reset();
-
+        PEX_LOG("Accessors: ", this);
         return *this;
     }
 
     template<typename ...Others>
-    Accessors & operator=(Accessors<Others...> &&other)
+    Accessors & operator=(Accessors<Others...> &&)
     {
         this->aggregate_.reset();
-        other.aggregate_.reset();
-
+        PEX_LOG("Accessors: ", this);
         return *this;
     }
 
@@ -395,10 +400,12 @@ protected:
     {
         if (!this->aggregate_)
         {
-            this->aggregate_ =
-                std::make_unique<Aggregate>(*static_cast<Derived *>(this));
+            auto derived = static_cast<Derived *>(this);
 
-            this->aggregate_->Connect(this, &Accessors::OnAggregate_);
+            this->aggregate_ =
+                std::make_unique<Aggregate>(*derived);
+
+            this->aggregate_->Connect(derived, &Accessors::OnAggregate_);
         }
 
         PEX_LOG("Connect ", observer, " to ", this);
@@ -446,8 +453,8 @@ protected:
 private:
     static void OnAggregate_(void * context, const Plain &value)
     {
-        auto self = static_cast<Derived *>(context);
-        self->Notify_(value);
+        auto derived = static_cast<Derived *>(context);
+        derived->Notify_(value);
     }
 };
 

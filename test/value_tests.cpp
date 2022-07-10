@@ -5,43 +5,10 @@
   */
 
 #include <catch2/catch.hpp>
+#include <string>
 #include "jive/testing/cast_limits.h"
 #include "jive/testing/gettys_words.h"
-#include "pex/value.h"
-#include <string>
-
-
-template<typename T, typename Model>
-class Observer
-{
-public:
-    using Control =
-        pex::control::Value<Observer<T, Model>, Model>;
-
-    Observer(Model &model)
-        :
-        control_(this, model),
-        observedValue{this->control_.Get()}
-    {
-        this->control_.Connect(&Observer::Observe_);
-    }
-
-    void Set(pex::Argument<T> value)
-    {
-        this->control_.Set(value);
-    }
-
-private:
-    void Observe_(pex::Argument<T> value)
-    {
-        this->observedValue = value;
-    }
-
-    pex::Terminus<Observer, Control> control_;
-
-public:
-    T observedValue;
-};
+#include "test_observer.h"
 
 
 TEMPLATE_TEST_CASE(
@@ -77,7 +44,7 @@ TEMPLATE_TEST_CASE(
 
     using Model = pex::model::Value<TestType>;
     Model model{original};
-    Observer<TestType, Model> observer(model);
+    TestObserver<Model> observer(model);
 
     if constexpr (std::is_floating_point_v<TestType>)
     {
@@ -134,7 +101,7 @@ TEMPLATE_TEST_CASE(
 
     using Model = pex::model::Value<TestType>;
     Model model{original};
-    Observer<TestType, Model> observer(model);
+    TestObserver<Model> observer(model);
 
     if constexpr (std::is_floating_point_v<TestType>)
     {
@@ -169,7 +136,7 @@ TEST_CASE("std::string propagation", "[value]")
 
     using Model = pex::model::Value<std::string>;
     Model model(original);
-    Observer<std::string, Model> observer(model);
+    TestObserver<Model> observer(model);
 
     REQUIRE(observer.observedValue == original);
     model.Set(propagated);
@@ -210,10 +177,10 @@ TEMPLATE_TEST_CASE(
 
     using Model = pex::model::Value<TestType>;
     Model model{original};
-    Observer<TestType, Model> observer1(model);
-    Observer<TestType, Model> observer2(model);
-    Observer<TestType, Model> observer3(model);
-    Observer<TestType, Model> observer4(model);
+    TestObserver<Model> observer1(model);
+    TestObserver<Model> observer2(model);
+    TestObserver<Model> observer3(model);
+    TestObserver<Model> observer4(model);
 
     if constexpr (std::is_floating_point_v<TestType>)
     {

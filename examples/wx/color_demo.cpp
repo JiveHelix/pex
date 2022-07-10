@@ -20,8 +20,8 @@ private:
 
     pex::wx::HsvModel color_ = pex::wx::HsvModel{{{0, 1, 1}}};
 
-    using ColorControl = pex::Terminus<ExampleApp, pex::wx::HsvModel>;
-    ColorControl colorControl_;
+    using ColorTerminus = pex::Terminus<ExampleApp, pex::wx::HsvModel>;
+    ColorTerminus colorTerminus_;
 };
 
 
@@ -38,10 +38,10 @@ wxshimIMPLEMENT_APP_CONSOLE(ExampleApp)
 
 bool ExampleApp::OnInit()
 {
-    this->colorControl_ = ColorControl(this, this->color_);
+    this->colorTerminus_.Assign(this, ColorTerminus(this, this->color_));
 
     PEX_LOG("color_.Connect");
-    this->colorControl_.Connect(&ExampleApp::OnColor_);
+    this->colorTerminus_.Connect(&ExampleApp::OnColor_);
 
     PEX_LOG("ExampleFrame");
     ExampleFrame *exampleFrame =

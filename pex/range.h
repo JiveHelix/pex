@@ -469,6 +469,7 @@ struct RangeGroup
                 Fields<Models>::fields,
                 Fields<Upstream>::fields);
 
+#ifdef ENABLE_PEX_LOG
             auto logger = [this](const auto &field) -> void
             {
                 PEX_LOG(
@@ -479,6 +480,7 @@ struct RangeGroup
             };
 
             jive::ForEach(Fields<Models>::fields, logger);
+#endif
         }
     };
 

@@ -72,6 +72,7 @@ class Signal
 {
 public:
     using Observer = Observer_;
+    using Pex = pex::model::Signal;
 
     using Callable =
         typename detail::SignalConnection<Observer_>::Callable;
@@ -81,7 +82,7 @@ public:
     Signal(model::Signal &model)
         : model_(&model)
     {
-        PEX_LOG("Connect");
+        PEX_LOG("Connect ", this);
         this->model_->Connect(this, &Signal::OnModelSignaled_);
     }
 
@@ -89,7 +90,7 @@ public:
     {
         if (this->model_)
         {
-            PEX_LOG("Disconnect");
+            PEX_LOG("Disconnect ", this);
             this->model_->Disconnect(this);
         }
     }
@@ -112,7 +113,7 @@ public:
             throw std::logic_error("other.model_ must be set!");
         }
 
-        PEX_LOG("Connect");
+        PEX_LOG("Connect ", this);
         this->model_->Connect(this, &Signal::OnModelSignaled_);
     }
 
@@ -126,7 +127,7 @@ public:
             throw std::logic_error("other.model_ must be set!");
         }
 
-        PEX_LOG("Connect");
+        PEX_LOG("Connect ", this);
         this->model_->Connect(this, &Signal::OnModelSignaled_);
     }
 
@@ -139,13 +140,13 @@ public:
 
         if (this->model_)
         {
-            PEX_LOG("Disconnect");
+            PEX_LOG("Disconnect ", this);
             this->model_->Disconnect(this);
         }
 
         this->model_ = other.model_;
 
-        PEX_LOG("Connect");
+        PEX_LOG("Connect ", this);
         this->model_->Connect(this, &Signal::OnModelSignaled_);
 
         return *this;
@@ -161,13 +162,13 @@ public:
 
         if (this->model_)
         {
-            PEX_LOG("Disconnect");
+            PEX_LOG("Disconnect ", this);
             this->model_->Disconnect(this);
         }
 
         this->model_ = other.model_;
 
-        PEX_LOG("Connect");
+        PEX_LOG("Connect", this);
         this->model_->Connect(this, &Signal::OnModelSignaled_);
 
         return *this;
