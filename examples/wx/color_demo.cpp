@@ -38,7 +38,7 @@ wxshimIMPLEMENT_APP_CONSOLE(ExampleApp)
 
 bool ExampleApp::OnInit()
 {
-    this->colorControl_ = ColorControl(this, this->color_);
+    this->colorControl_.Assign(ColorControl(this, this->color_), this);
 
     PEX_LOG("color_.Connect");
     this->colorControl_.Connect(&ExampleApp::OnColor_);

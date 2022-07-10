@@ -302,11 +302,6 @@ public:
         return *this;
     }
 
-    ~Direct()
-    {
-        PEX_LOG("~Direct()");
-    }
-
     Type Get() const
     {
         REQUIRE_HAS_VALUE(this->model_);
@@ -332,7 +327,7 @@ public:
     {
         if (this->model_)
         {
-            PEX_LOG("Disconnect");
+            PEX_LOG("Disconnect observer: ", observer);
             this->model_->Disconnect(observer);
         }
     }

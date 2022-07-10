@@ -52,12 +52,14 @@ public:
     }
 
     Terminus_(const Terminus_ &other) = delete;
+    Terminus_(Terminus_ &&other) = delete;
 
-    Terminus_(Terminus_ &&other)
+    Terminus_(Terminus_ &&other, Observer *observer)
         :
-        observer_(other.observer_),
+        observer_(observer),
         pex_()
     {
+        assert(this != &other);
         PEX_LOG("Terminus move ctor: ", this, ", pex_: ", &this->pex_);
         other.Disconnect();
         this->pex_ = std::move(other.pex_);
@@ -65,20 +67,23 @@ public:
     }
 
     Terminus_ & operator=(const Terminus_ &) = delete;
+    Terminus_ & operator=(Terminus_ &&) = delete;
 
-    Terminus_ & operator=(Terminus_ &&other)
+    Terminus_ & Assign(Terminus_ &&other, Observer *observer)
     {
         assert(this != &other);
+
+        PEX_LOG("Terminus move assign: ", this);
 
         this->Disconnect();
         other.Disconnect();
 
-        this->observer_ = other.observer_;
+        this->observer_ = observer;
         other.observer_ = nullptr;
 
         this->pex_ = std::move(other.pex_);
 
-        PEX_LOG("Terminus move assign: ", this, ", pex_: ", &this->pex_);
+        PEX_LOG("pex_: ", &this->pex_);
 
         return *this;
     }
@@ -93,7 +98,12 @@ public:
     {
         if (this->observer_)
         {
-            PEX_LOG("Disconnect: ", this->observer_, " from ", &this->pex_);
+            PEX_LOG(
+                "Terminus_ Disconnect: ",
+                this->observer_,
+                " from ",
+                &this->pex_);
+
             this->pex_.Disconnect(this->observer_);
         }
     }
@@ -136,17 +146,16 @@ public:
 
     using Type = typename Base::Pex::Type;
 
-    Terminus(Terminus &&other)
+    Terminus(Terminus &&other, Observer *observer)
         :
-        Base(std::move(other))
+        Base(std::move(other), observer)
     {
-        PEX_LOG("Terminus &&: ", &this->pex_);
+
     }
 
-    Terminus & operator=(Terminus &&other)
+    Terminus & Assign(Terminus &&other, Observer *observer)
     {
-        Base::operator=(std::move(other));
-        PEX_LOG("Terminus & operator= &&: ", &this->pex_);
+        Base::Assign(std::move(other), observer);
         return *this;
     }
 
@@ -175,9 +184,16 @@ public:
     using Base = Terminus_<Observer, Pex_>;
     using Base::Base;
 
-    Terminus & operator=(Terminus &&other)
+    Terminus(Terminus &&other, Observer *observer)
+        :
+        Base(std::move(other), observer)
     {
-        Base::operator=(std::move(other));
+
+    }
+
+    Terminus & Assign(Terminus &&other, Observer *observer)
+    {
+        Base::Assign(std::move(other), observer);
         return *this;
     }
 

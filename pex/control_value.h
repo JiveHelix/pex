@@ -92,7 +92,7 @@ public:
     {
         if constexpr (HasAccess<GetTag, Access>)
         {
-            PEX_LOG("Connect");
+            PEX_LOG("Connect ", this);
             this->upstream_.Connect(this, &Value_::OnUpstreamChanged_);
         }
     }
@@ -108,7 +108,7 @@ public:
 
         if constexpr (HasAccess<GetTag, Access>)
         {
-            PEX_LOG("Connect");
+            PEX_LOG("Connect ", this);
             this->upstream_.Connect(this, &Value_::OnUpstreamChanged_);
         }
     }
@@ -169,13 +169,13 @@ public:
     operator=(
         const Value_<OtherObserver, Pex, OtherFilter, OtherAccess> &other)
     {
-        PEX_LOG("Disconnect");
+        PEX_LOG("Disconnect ", this);
         this->upstream_.Disconnect(this);
         this->upstream_ = other.upstream_;
 
         if constexpr (HasAccess<GetTag, Access>)
         {
-            PEX_LOG("Connect");
+            PEX_LOG("Connect ", this);
             this->upstream_.Connect(this, &Value_::OnUpstreamChanged_);
         }
 
@@ -205,7 +205,7 @@ public:
     {
         if constexpr (HasAccess<GetTag, Access>)
         {
-            PEX_LOG("Connect");
+            PEX_LOG("Connect ", this);
             this->upstream_.Connect(this, &Value_::OnUpstreamChanged_);
         }
     }
@@ -220,13 +220,13 @@ public:
             !detail::FilterIsMember<UpstreamType, Filter>,
             "IsCopyable implies that Filter uses static functions.");
 
-        PEX_LOG("Disconnect");
+        PEX_LOG("Disconnect ", this);
         this->upstream_.Disconnect(this);
         this->upstream_ = other.upstream_;
         
         if constexpr (HasAccess<GetTag, Access>)
         {
-            PEX_LOG("Connect");
+            PEX_LOG("Connect ", this);
             this->upstream_.Connect(
                 this,
                 &Value_::OnUpstreamChanged_);
@@ -237,14 +237,14 @@ public:
 
     Value_ & operator=(Value_ &&other)
     {
-        PEX_LOG("Disconnect");
+        PEX_LOG("Disconnect ", this);
         this->upstream_.Disconnect(this);
         this->upstream_ = std::move(other.upstream_);
         this->filter_ = std::move(other.filter_);
         
         if constexpr (HasAccess<GetTag, Access>)
         {
-            PEX_LOG("Connect");
+            PEX_LOG("Connect ", this);
             this->upstream_.Connect(
                 this,
                 &Value_::OnUpstreamChanged_);

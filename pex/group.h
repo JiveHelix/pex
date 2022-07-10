@@ -285,8 +285,9 @@ struct Group
                     decltype(terminus.*(terminusField.member))
                 >;
 
-            terminus.*(terminusField.member) =
-                MemberType(observer, control.*(controlField.member));
+            (terminus.*(terminusField.member)).Assign(
+                MemberType(observer, control.*(controlField.member)),
+                observer);
         };
 
         jive::ZipApply(
@@ -307,12 +308,14 @@ struct Group
     }
 
 
-    template<typename T>
-    static void MoveTerminus(T &terminus, T &other)
+    template<typename T, typename Observer>
+    static void MoveTerminus(T &terminus, T &other, Observer *observer)
     {
-        auto initializer = [&terminus, &other](auto field)
+        auto initializer = [&terminus, &other, observer](auto field)
         {
-            terminus.*(field.member) = std::move(other.*(field.member));
+            (terminus.*(field.member)).Assign(
+                std::move(other.*(field.member)),
+                observer);
         };
 
         jive::ForEach(
@@ -350,27 +353,27 @@ struct Group
 
         Terminus(Observer *observer, Model &model)
         {
-            *this = Terminus(observer, Control<void>(model));
+            this->Assign(Terminus(observer, Control<void>(model)), observer);
         }
 
         Terminus(const Terminus &) = delete;
 
-        Terminus(Terminus &&other)
+        Terminus(Terminus &&other, Observer *observer)
             :
             AccessorsBase(std::move(other)),
             observer_(std::move(other.observer_))
         {
-            MoveTerminus(*this, other);
+            MoveTerminus(*this, other, observer);
         }
 
         Terminus & operator=(const Terminus &) = delete;
 
-        Terminus & operator=(Terminus &&other)
+        Terminus & Assign(Terminus &&other, Observer *observer)
         {
             this->AccessorsBase::operator=(std::move(other));
-            this->observer_ = std::move(other.observer_);
+            this->observer_ = observer;
 
-            MoveTerminus(*this, other);
+            MoveTerminus(*this, other, observer);
 
             return *this;
         }
