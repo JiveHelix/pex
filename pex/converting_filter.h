@@ -1,6 +1,6 @@
 #pragma once
 
-
+#include <cmath>
 #include <jive/overflow.h>
 #include <jive/platform.h>
 #include "pex/control_value.h"
@@ -43,6 +43,57 @@ struct ConvertingFilter
     {
         CHECK_RANGE(SetType, value);
         return static_cast<SetType>(value);
+    }
+};
+
+
+template<typename F, unsigned Base, unsigned Divisor>
+struct LogarithmicFilter
+{
+    static_assert(
+        std::is_floating_point_v<F>,
+        "Expected a floating point type.");
+
+    static constexpr auto base = static_cast<F>(Base);
+    static constexpr auto divisor = static_cast<F>(Divisor);
+
+    static int Get(F value)
+    {
+        /**
+        v = b^(x/d)
+
+        log_b(v) = (x/d)
+
+        x = d * log_b(v)
+        **/
+
+        if constexpr (Base == 2)
+        {
+            return static_cast<int>(
+                std::round(divisor * std::log2(value)));
+        }
+        else if constexpr (Base == 10)
+        {
+            return static_cast<int>(std::round(divisor * std::log10(value)));
+        }
+        else
+        {
+            /*
+
+            Change-of-base
+            x = d * log(v) / log(b)
+
+            */
+
+            return static_cast<int>(
+                std::round(
+                    divisor * std::log(value) / std::log(base)));
+        }
+    }
+
+    static F Set(int value)
+    {
+        return std::pow(base, static_cast<F>(value) / divisor);
     }
 };
 

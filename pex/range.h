@@ -396,7 +396,8 @@ template
 <
     template<typename> typename Fields,
     template<template<typename> typename> typename Template,
-    typename Upstream_ = void
+    typename Upstream_ = void,
+    typename RangeFilter = NoFilter
 >
 struct RangeGroup
 {
@@ -422,16 +423,11 @@ struct RangeGroup
     template<typename T>
     using UpstreamPex = typename Upstream::template Pex<T>;
 
-#if 0
-    template<typename T>
-    using ModelPex = pex::model::Range<pex::Model<T>>;
-#else
     template<typename T>
     using ModelPex = pex::model::Range<UpstreamPex<T>>;
-#endif
 
     template<typename T>
-    using ControlPex = pex::control::Range<void, ModelPex<T>>;
+    using ControlPex = pex::control::Range<void, ModelPex<T>, RangeFilter>;
 
 
     struct Models: public Template<ModelPex>

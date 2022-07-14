@@ -10,6 +10,7 @@
 **/
 
 #include "pex/range.h"
+#include "pex/converting_filter.h"
 #include "pex/wx/slider.h"
 
 
@@ -30,26 +31,27 @@ inline constexpr size_t maximumPosition = 1000;
 using PlaybackSpeed = pex::model::Value<float>;
 using PlaybackSpeedRange = pex::model::Range<PlaybackSpeed>;
 
-/**
- ** Create a filter that converts between a logarithmic value and a linear one.
- **/
+
+static constexpr unsigned clicksPerOctave = 3;
+
 template<typename T>
-struct PlaybackSpeedFilter
+using PlaybackSpeedFilter =
+    pex::control::LogarithmicFilter<T, 2, clicksPerOctave>;
+
+
+struct PlaybackSpeedTraits: pex::DefaultConverterTraits
 {
-    static constexpr auto base = static_cast<T>(2.0);
+    static constexpr int width = 5;
+    static constexpr int precision = 3;
+};
 
-    // Higher divisor increases the integer range of the filter, which gives
-    // the slider finer control.
-    static constexpr auto divisor = static_cast<T>(100.0);
-
-    static int Get(T value)
+struct PlaybackSpeedConverter:
+    public pex::Converter<typename PlaybackSpeed::Type, PlaybackSpeedTraits>
+{
+    template<typename U>
+    static std::string ToString(U &&value)
     {
-        return static_cast<int>(round(divisor * std::log2(value)));
-    }
-
-    static T Set(int value)
-    {
-        return static_cast<T>(powf(base, static_cast<T>(value) / divisor));
+        return ConvertToString::Call(std::forward<U>(value)) + "x";
     }
 };
 
@@ -62,8 +64,8 @@ using PlaybackSpeedRangeControl = ::pex::control::Range<
 // The unfiltered value used to display playback speed
 using PlaybackSpeedValue = pex::control::Value<void, PlaybackSpeed>;
 
-inline constexpr float minimumPlaybackSpeed = 0.125f;
-inline constexpr float maximumPlaybackSpeed = 2.0f;
+inline constexpr float minimumPlaybackSpeed = 0.25f;
+inline constexpr float maximumPlaybackSpeed = 4.0f;
 inline constexpr float defaultPlaybackSpeed = 1.0f;
 
 
@@ -103,7 +105,12 @@ using PositionSlider =
 
 
 using PlaybackSpeedSlider =
-    pex::wx::SliderAndValue<PlaybackSpeedRangeControl, PlaybackSpeedValue>;
+    pex::wx::SliderAndValueConvert
+    <
+        PlaybackSpeedRangeControl,
+        PlaybackSpeedValue,
+        PlaybackSpeedConverter
+    >;
 
 
 class ExampleFrame: public wxFrame
@@ -157,15 +164,18 @@ ExampleFrame::ExampleFrame(
     auto playbackSpeedSlider =
         new PlaybackSpeedSlider(this, playbackSpeedRange, playbackSpeedValue);
 
-    auto speedView =
-        new pex::wx::View(this, playbackSpeedValue);
+    auto verticalSpeedSlider = new PlaybackSpeedSlider(
+        this,
+        playbackSpeedRange,
+        playbackSpeedValue,
+        wxSL_VERTICAL);
 
     auto topSizer = std::make_unique<wxBoxSizer>(wxVERTICAL);
 
     topSizer->Add(positionSlider, 0, wxALL | wxEXPAND, 10);
     topSizer->Add(verticalSlider, 1, wxALL | wxEXPAND, 10);
     topSizer->Add(playbackSpeedSlider, 0, wxALL | wxEXPAND, 10);
-    topSizer->Add(speedView, 0, wxALL | wxEXPAND, 10);
+    topSizer->Add(verticalSpeedSlider, 0, wxALL | wxEXPAND, 10);
 
     this->SetSizerAndFit(topSizer.release());
 }

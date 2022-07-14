@@ -35,10 +35,12 @@ namespace detail
 struct StyleFilter
 {
 public:
-    StyleFilter(long style, int maximum)
+    StyleFilter(long style, int minimum, int maximum)
         :
         isVertical_(style & wxSL_VERTICAL),
-        maximum_(maximum)
+        minimum_(minimum),
+        maximum_(maximum),
+        offset_(maximum + minimum)
     {
 
     }
@@ -50,17 +52,28 @@ public:
             return value;
         }
         
-        return this->maximum_ - value;
+        // Reverse the values so that the slider is at the top for the highest
+        // value.
+        return this->offset_ - value;
+    }
+
+    void SetMinimum(int minimum)
+    {
+        this->minimum_ = minimum;
+        this->offset_ = this->maximum_ + this->minimum_;
     }
 
     void SetMaximum(int maximum)
     {
         this->maximum_ = maximum;
+        this->offset_ = this->maximum_ + this->minimum_;
     }
 
 private:
     bool isVertical_;
+    int minimum_;
     int maximum_;
+    int offset_;
 };
 
 
@@ -105,6 +118,7 @@ public:
             wxID_ANY,
             detail::StyleFilter(
                 style,
+                range.minimum.Get(),
                 range.maximum.Get())(range.value.Get()),
             range.minimum.Get(),
             range.maximum.Get(),
@@ -115,7 +129,7 @@ public:
         minimum_(this, range.minimum),
         maximum_(this, range.maximum),
         defaultValue_(this->value_.Get()),
-        styleFilter_(style, range.maximum.Get())
+        styleFilter_(style, range.minimum.Get(), range.maximum.Get())
     {
         PEX_LOG(this);
         PEX_LOG("\nvalue_: ", &this->value_);
@@ -156,6 +170,7 @@ public:
         }
 
         this->SetMin(minimum);
+        this->styleFilter_.SetMinimum(minimum);
     }
 
     void OnMaximum_(int maximum)
@@ -216,22 +231,16 @@ template
 <
     typename RangeControl,
     typename ValueControl,
-    int viewPrecision = 6,
-    typename Convert =
-        pex::Converter
-        <
-            typename ValueControl::Type,
-            ViewTraits<10, viewPrecision + 2, viewPrecision>
-        >
+    typename Convert
 >
-class SliderAndValue : public wxControl
+class SliderAndValueConvert : public wxControl
 {
 public:
     using Base = wxControl;
 
     // range is filtered to an int for direct use in the wx.Slider.
     // value is the value from the model for display in the view.
-    SliderAndValue(
+    SliderAndValueConvert(
         wxWindow *parent,
         RangeControl range,
         ValueControl value,
@@ -270,6 +279,33 @@ public:
 
         this->SetSizerAndFit(sizer.release());
     }
+};
+
+
+template<typename RangeControl, typename ValueControl, int precision>
+using SimplifiedConvert = SliderAndValueConvert
+    <
+        RangeControl,
+        ValueControl,
+        pex::Converter
+        <
+            typename ValueControl::Type,
+            ViewTraits<10, precision + 2, precision>
+        >
+    >;
+
+template
+<
+    typename RangeControl,
+    typename ValueControl,
+    int precision
+>
+class SliderAndValue
+    :
+    public SimplifiedConvert<RangeControl, ValueControl, precision>
+{
+    using Base = SimplifiedConvert<RangeControl, ValueControl, precision>;
+    using Base::Base;
 };
 
 
