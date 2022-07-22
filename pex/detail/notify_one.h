@@ -30,12 +30,16 @@ public:
     }
 
     /** Remove all registered callbacks for the observer. **/
-    void Disconnect(typename Notify::Observer * const observer)
+    void Disconnect(
+        [[maybe_unused]] typename Notify::Observer * const observer)
     {
+
+#ifndef NDEBUG
         if (this->notify_)
         {
             assert((*this->notify_).GetObserver() == observer);
         }
+#endif
 
         PEX_LOG(observer);
         this->notify_.reset();
