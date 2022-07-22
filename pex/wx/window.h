@@ -1,6 +1,7 @@
 #pragma once
 
 #include "pex/wx/wxshim.h"
+#include <string>
 
 
 namespace pex
@@ -56,18 +57,20 @@ public:
 
     ~Window()
     {
-        if (this->window_)
-        {
-            this->UnbindCloseHandler_();
-            this->window_->Close();
-        }
+        this->Close();
     }
 
     void Close()
     {
         if (this->window_)
         {
-            this->window_->Close(true);
+            if (!this->window_->IsBeingDeleted())
+            {
+                this->UnbindCloseHandler_();
+                this->window_->Close(true);
+            }
+
+            this->window_ = nullptr;
         }
     }
 
@@ -80,9 +83,18 @@ public:
     {
         if (this->window_)
         {
-            this->UnbindCloseHandler_();
+            if (!this->window_->IsBeingDeleted())
+            {
+                this->UnbindCloseHandler_();
+            }
+
             this->window_ = nullptr;
         }
+    }
+
+    operator bool () const
+    {
+        return (this->window_ != nullptr);
     }
 
 private:

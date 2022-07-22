@@ -3,6 +3,7 @@
 
 #include "pex/traits.h"
 #include "pex/control_value.h"
+#include "pex/reference.h"
 
 
 namespace pex
@@ -100,7 +101,7 @@ public:
         pex_(other.pex_)
     {
         assert(this != &other);
-        PEX_LOG("Terminus move ctor: ", this);
+        PEX_LOG("Terminus copy ctor: ", this, " with ", observer);
     }
 
     // Move construct
@@ -110,7 +111,7 @@ public:
         pex_()
     {
         assert(this != &other);
-        PEX_LOG("Terminus move ctor: ", this);
+        PEX_LOG("Terminus move ctor: ", this, " with ", observer);
         other.Disconnect();
         this->pex_ = std::move(other.pex_);
         other.observer_ = nullptr;
@@ -121,7 +122,7 @@ public:
     {
         assert(this != &other);
 
-        PEX_LOG("Terminus move assign: ", this);
+        PEX_LOG("Terminus copy assign: ", this);
 
         this->Disconnect();
         this->observer_ = observer;
@@ -177,7 +178,12 @@ public:
             throw std::runtime_error("Terminus has no observer.");
         }
 
-        PEX_LOG("Connect to: ", &this->pex_);
+        PEX_LOG(
+            "Connect to: ",
+            &this->pex_,
+            " with observer: ",
+            this->observer_);
+
         this->pex_.Connect(this->observer_, callable);
     }
 
@@ -189,6 +195,11 @@ public:
     explicit operator Pex<void> () const
     {
         return this->pex_;
+    }
+
+    Observer * GetObserver()
+    {
+        return this->observer_;
     }
 
 private:
@@ -232,7 +243,9 @@ class Terminus: public Terminus_<Observer, Pex_>
 public:
     INHERIT_TERMINUS_CONSTRUCTORS
 
-    using Type = typename Base::template Pex<void>::Type;
+    using Pex = typename Base::template Pex<Observer>;
+    using Type = typename Pex::Type;
+    using Filter = typename Pex::Filter;
 
     Type Get() const
     {
@@ -247,6 +260,20 @@ public:
     explicit operator Type () const
     {
         return Type(this->pex_);
+    }
+
+    template<typename>
+    friend class Reference;
+
+protected:
+    void SetWithoutNotify_(Argument<Type> value)
+    {
+        internal::AccessReference<Pex>(this->pex_).SetWithoutNotify(value);
+    }
+
+    void DoNotify_()
+    {
+        internal::AccessReference<Pex>(this->pex_).DoNotify();
     }
 };
 

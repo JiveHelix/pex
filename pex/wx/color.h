@@ -38,7 +38,7 @@ using HsvRangeGroup = pex::RangeGroup
     >;
 
 using HsvRanges = HsvRangeGroup::Models;
-using HsvRangesControl = HsvRangeGroup::Controls;
+using HsvRangesControl = HsvRangeGroup::Controls<void>;
 
 
 class ColorPreview: public wxPanel

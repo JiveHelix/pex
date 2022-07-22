@@ -19,6 +19,7 @@ target_sources(
     pex
     PRIVATE
     wx/shortcut.cpp
+    wx/layout_top_level.cpp
     detail/log.cpp)
 
 install(TARGETS pex DESTINATION ${CMAKE_INSTALL_LIBDIR})

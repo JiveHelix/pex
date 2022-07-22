@@ -48,7 +48,7 @@ using Angle_radians = pex::model::FilteredValue<double, ModelFilter>;
 
 static_assert(pex::IsModel<Angle_radians>);
 static_assert(!pex::IsCopyable<Angle_radians>);
-static_assert(pex::model::IsDirect<pex::UpstreamT<Angle_radians>>);
+static_assert(pex::IsDirect<pex::UpstreamT<Angle_radians>>);
 
 Angle_radians f(0.0);
 

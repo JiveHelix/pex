@@ -298,7 +298,7 @@ struct Group
 
 
     template<typename T, typename Observer>
-    static void CopyTerminus(Observer *observer, T &terminus, T &other)
+    static void CopyTerminus(Observer *observer, T &terminus, const T &other)
     {
         auto initializer = [&terminus, &other, observer](auto field)
         {
@@ -352,12 +352,13 @@ struct Group
             :
             observer_(observer)
         {
-            PEX_LOG("Terminus ctor");
+            PEX_LOG("Terminus construct from Control with ", observer);
             InitializeTerminus(observer, *this, control);
         }
 
         Terminus(Observer *observer, Model &model)
         {
+            PEX_LOG("Terminus construct from Model with ", observer);
             this->Assign(observer, Terminus(observer, Control<void>(model)));
         }
 
@@ -372,8 +373,9 @@ struct Group
         Terminus(Observer *observer, const Terminus &other)
             :
             AccessorsBase(other),
-            observer_(other.observer_)
+            observer_(observer)
         {
+            PEX_LOG("Terminus copy construct observer: ", observer);
             CopyTerminus(observer, *this, other);
         }
 
@@ -382,8 +384,9 @@ struct Group
         Terminus(Observer *observer, Terminus &&other)
             :
             AccessorsBase(std::move(other)),
-            observer_(std::move(other.observer_))
+            observer_(observer)
         {
+            PEX_LOG("Terminus move construct observer: ", observer);
             MoveTerminus(observer, *this, other);
         }
 
@@ -391,6 +394,7 @@ struct Group
         // Copy assign
         Terminus & Assign(Observer *observer, const Terminus &other)
         {
+            PEX_LOG("Terminus copy assign observer: ", observer);
             this->AccessorsBase::operator=(other);
             this->observer_ = observer;
 
@@ -403,6 +407,7 @@ struct Group
         // Move assign
         Terminus & Assign(Observer *observer, Terminus &&other)
         {
+            PEX_LOG("Terminus move assign observer: ", observer);
             this->AccessorsBase::operator=(std::move(other));
             this->observer_ = observer;
 
@@ -413,6 +418,7 @@ struct Group
 
         void Connect(Callable callable)
         {
+            PEX_LOG("Terminus Connect with observer: ", this->observer_);
             this->Connect_(this->observer_, callable);
         }
 
@@ -430,6 +436,11 @@ struct Group
         bool HasModel() const
         {
             return Group::HasModel(*this);
+        }
+
+        Observer * GetObserver()
+        {
+            return this->observer_;
         }
     
     private:

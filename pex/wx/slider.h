@@ -298,14 +298,25 @@ template
 <
     typename RangeControl,
     typename ValueControl,
-    int precision
+    int precision = 3
 >
 class SliderAndValue
     :
     public SimplifiedConvert<RangeControl, ValueControl, precision>
 {
     using Base = SimplifiedConvert<RangeControl, ValueControl, precision>;
-    using Base::Base;
+
+public:
+    SliderAndValue(
+        wxWindow *parent,
+        RangeControl range,
+        ValueControl value,
+        long style = wxSL_HORIZONTAL)
+        :
+        Base(parent, range, value, style)
+    {
+
+    }
 };
 
 

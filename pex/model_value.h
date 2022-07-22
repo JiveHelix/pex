@@ -340,6 +340,9 @@ public:
     template<typename, typename, typename, typename>
     friend class ::pex::control::Value_;
 
+    template<typename>
+    friend class ::pex::Reference;
+
 private:
     void SetWithoutNotify_(Argument<Type> value)
     {
@@ -354,16 +357,6 @@ private:
 private:
     Model *model_;
 };
-
-
-template<typename Pex>
-struct IsDirect_: std::false_type {};
-
-template<typename Pex>
-struct IsDirect_<pex::model::Direct<Pex>>: std::true_type {};
-
-template<typename Pex>
-inline constexpr bool IsDirect = IsDirect_<Pex>::value;
 
 
 } // end namespace model

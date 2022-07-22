@@ -108,7 +108,7 @@ public:
         >;
 
     static_assert(!IsCopyable<Value>);
-    static_assert(::pex::model::IsDirect<::pex::UpstreamT<Value>>);
+    static_assert(::pex::IsDirect<::pex::UpstreamT<Value>>);
 
     using Type = typename Value::Type;
 
@@ -426,9 +426,12 @@ struct RangeGroup
     template<typename T>
     using ModelPex = pex::model::Range<UpstreamPex<T>>;
 
-    template<typename T>
-    using ControlPex = pex::control::Range<void, ModelPex<T>, RangeFilter>;
-
+    template<typename Observer>
+    struct ControlPex
+    {
+        template<typename T>
+        using Type = pex::control::Range<Observer, ModelPex<T>, RangeFilter>;
+    };
 
     struct Models: public Template<ModelPex>
     {
@@ -442,20 +445,6 @@ struct RangeGroup
                 const auto &modelField,
                 const auto &upstreamField) -> void
             {
-                using ModelUpstreamType = std::remove_reference_t<
-                    decltype(this->*(modelField.member))>;
-
-                using UpstreamMemberType = std::remove_reference_t<
-                    decltype(upstream.*(upstreamField.member))>;
-
-                static_assert(
-                    std::is_convertible_v
-                    <
-                        UpstreamMemberType,
-                        ModelUpstreamType
-                    >, 
-                    "Upstream must be convertible to model's upstream type.");
-
                 (this->*(modelField.member)).SetUpstream(
                     upstream.*(upstreamField.member));
             };
@@ -464,23 +453,30 @@ struct RangeGroup
                 setUpstream,
                 Fields<Models>::fields,
                 Fields<Upstream>::fields);
+        }
 
-#ifdef ENABLE_PEX_LOG
-            auto logger = [this](const auto &field) -> void
+        void SetUpstream(Upstream &upstream)
+        {
+            PEX_LOG("RangeGroup::Models");
+
+            auto setUpstream = [this, &upstream](
+                const auto &modelField,
+                const auto &upstreamField) -> void
             {
-                PEX_LOG(
-                    "RangeGroup::Models.",
-                    field.name,
-                    ": ",
-                    &(this->*(field.member)));
+                (this->*(modelField.member)).SetUpstream(
+                    upstream.*(upstreamField.member));
             };
 
-            jive::ForEach(Fields<Models>::fields, logger);
-#endif
+            jive::ZipApply(
+                setUpstream,
+                Fields<Models>::fields,
+                Fields<Upstream>::fields);
         }
     };
 
-    struct Controls: public Template<ControlPex>
+    template<typename Observer>
+    struct Controls:
+        public Template<ControlPex<Observer>::template Type>
     {
         Controls() = default;
 

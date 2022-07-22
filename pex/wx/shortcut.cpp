@@ -358,13 +358,13 @@ AcceleratorShortcuts::CreateAcceleratorEntries(const Shortcuts &shortcuts)
 
 ShortcutWindow::ShortcutWindow(
     wxWindow *window,
-    const pex::wx::ShortcutGroups &groups)
+    const pex::wx::ShortcutGroups &group)
     :
     Window(window),
     acceleratorShortcuts_(
         std::make_unique<AcceleratorShortcuts>(
             pex::wx::Window(window),
-            groups))
+            group))
 {
     window->SetAcceleratorTable(
         this->acceleratorShortcuts_->GetAcceleratorTable());

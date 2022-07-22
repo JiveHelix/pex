@@ -31,27 +31,6 @@ void Assign(Target &target, Source &source)
 }
 
 
-template<typename Pex>
-class AccessorReference: public Reference<Pex>
-{
-public:
-    using Base = Reference<Pex>;
-    using Type = typename Base::Type;
-
-    using Base::Base;
-
-    void SetWithoutNotify(Argument<Type> value)
-    {
-        this->SetWithoutNotify_(value);
-    }
-
-    void DoNotify()
-    {
-        this->DoNotify_();
-    }
-};
-
-
 // Signals do not have an underlying type, so they are not part of the
 // conversion to a plain-old data structure.
 template<typename Pex, typename Enable = void>
@@ -422,8 +401,9 @@ protected:
             using Member = typename std::remove_reference_t<
                 decltype(derived->*(thisField.member))>;
 
-            AccessorReference<Member>(derived->*(thisField.member))
-                .SetWithoutNotify(plain.*(plainField.member));
+            internal::AccessReference<Member>(
+                derived->*(thisField.member))
+                    .SetWithoutNotify(plain.*(plainField.member));
         };
 
         jive::ZipApply(
@@ -441,8 +421,9 @@ protected:
             using Member = typename std::remove_reference_t<
                 decltype(derived->*(thisField.member))>;
 
-            AccessorReference<Member>((derived->*(thisField.member)))
-                .DoNotify();
+            internal::AccessReference<Member>(
+                (derived->*(thisField.member)))
+                    .DoNotify();
         };
 
         jive::ForEach(

@@ -4,15 +4,24 @@
 
 
 template<typename Model>
+struct Defaults
+{
+    using Control = pex::control::Value<void, Model>;
+
+    template<typename Observer>
+    using Terminus = pex::Terminus<Observer, Control>;
+};
+
+
+template
+<
+    typename Model,
+    template<typename> typename Terminus = Defaults<Model>::template Terminus
+>
 class TestObserver
 {
 public:
     using Type = typename Model::Type;
-
-    using Control =
-        pex::control::Value<void, Model>;
-
-    using Terminus = pex::Terminus<TestObserver, Control>;
 
     TestObserver(Model &model)
         :
@@ -32,6 +41,7 @@ public:
         terminus_(this, std::move(other.terminus_)),
         observedValue(std::move(other.observedValue))
     {
+        REQUIRE(this->terminus_.GetObserver() == this);
         this->terminus_.Connect(&TestObserver::Observe_);
     }
 
@@ -40,6 +50,27 @@ public:
         this->terminus_.Assign(this, std::move(other.terminus_));
         this->observedValue = std::move(other.observedValue);
         this->terminus_.Connect(&TestObserver::Observe_);
+
+        REQUIRE(this->terminus_.GetObserver() == this);
+
+        return *this;
+    }
+
+    TestObserver(const TestObserver &other)
+        :
+        terminus_(this, other.terminus_),
+        observedValue(std::move(other.observedValue))
+    {
+        this->terminus_.Connect(&TestObserver::Observe_);
+        REQUIRE(this->terminus_.GetObserver() == this);
+    }
+
+    TestObserver & operator=(const TestObserver &other)
+    {
+        this->terminus_.Assign(this, other.terminus_);
+        this->observedValue = other.observedValue;
+        this->terminus_.Connect(&TestObserver::Observe_);
+        REQUIRE(this->terminus_.GetObserver() == this);
 
         return *this;
     }
@@ -50,7 +81,7 @@ private:
         this->observedValue = value;
     }
 
-    Terminus terminus_;
+    Terminus<TestObserver> terminus_;
 
 public:
     Type observedValue;

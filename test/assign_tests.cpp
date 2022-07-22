@@ -44,7 +44,7 @@ public:
 
 
 template<typename T>
-struct TestFields
+struct AssignTestFields
 {
     static constexpr auto fields = std::make_tuple(
         fields::Field(&T::foo, "foo"),
@@ -54,73 +54,73 @@ struct TestFields
 
 
 template<template<typename> typename T>
-struct TestTemplate
+struct AssignTestTemplate
 {
     T<uint16_t> foo;
     T<double> wibble;
     T<std::string> wobble;
 
-    static constexpr auto fields = TestFields<TestTemplate>::fields;
+    static constexpr auto fields = AssignTestFields<AssignTestTemplate>::fields;
 };
 
 
-struct Test: public TestTemplate<pex::Identity>
+struct AssignPlain: public AssignTestTemplate<pex::Identity>
 {
 
 };
 
 
-struct TestModel: public TestTemplate<pex::Model>
+struct AssignTestModel: public AssignTestTemplate<pex::Model>
 {
-    Test GetTest()
+    AssignPlain GetTest()
     {
-        Test result{};
-        fields::AssignConvert<TestFields>(result, *this);
+        AssignPlain result{};
+        fields::AssignConvert<AssignTestFields>(result, *this);
         return result;
     }
 
-    void SetTest(const Test &test)
+    void SetTest(const AssignPlain &test)
     {
-        fields::Assign<TestFields>(*this, test);
+        fields::Assign<AssignTestFields>(*this, test);
     }
 };
 
 
-struct TestControl:
-    public TestTemplate<pex::Control<void>::template Type>
+struct AssignTestControl:
+    public AssignTestTemplate<pex::Control<void>::template Type>
 {
 public:
-    TestControl(TestModel &model)
+    AssignTestControl(AssignTestModel &model)
     {
-        fields::AssignConvert<TestFields>(*this, model);
+        fields::AssignConvert<AssignTestFields>(*this, model);
     }
 
 };
 
 
-DECLARE_OUTPUT_STREAM_OPERATOR(Test)
+DECLARE_OUTPUT_STREAM_OPERATOR(AssignPlain)
 
 
 TEST_CASE("Assign round trip.", "[pex]")
 {
-    Test test{{42, 3.14159, "frob"}};
+    AssignPlain test{{42, 3.14159, "frob"}};
 
-    TestModel model{};
+    AssignTestModel model{};
 
     model.SetTest(test);
 
-    Test check = model.GetTest();
+    AssignPlain check = model.GetTest();
     REQUIRE(test == check);
 }
 
 
 TEST_CASE("Assign is observed.", "[pex]")
 {
-    Test test{{42, 3.14159, "frob"}};
+    AssignPlain test{{42, 3.14159, "frob"}};
 
-    TestModel model{};
+    AssignTestModel model{};
 
-    auto observer = Observer(TestControl(model).foo);
+    auto observer = Observer(AssignTestControl(model).foo);
 
     model.SetTest(test);
     
@@ -131,15 +131,15 @@ TEST_CASE("Assign is observed.", "[pex]")
 
 TEST_CASE("Assign to control reaches model.", "[pex]")
 {
-    Test test{{42, 3.14159, "frob"}};
+    AssignPlain test{{42, 3.14159, "frob"}};
 
-    TestModel model{};
+    AssignTestModel model{};
 
-    TestControl control(model);
+    AssignTestControl control(model);
 
-    fields::Assign<TestFields>(control, test);
+    fields::Assign<AssignTestFields>(control, test);
 
-    Test check = model.GetTest();
+    AssignPlain check = model.GetTest();
     REQUIRE(test == check);
 }
 

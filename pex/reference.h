@@ -24,6 +24,8 @@ namespace pex
 {
 
 
+
+
 /**
  ** While the Reference exists, the model's value has been changed, but not
  ** published.
@@ -66,15 +68,12 @@ public:
     }
 
 public:
+
     using Type = typename Pex::Type;
 
-    Type & operator * ()
+    const Type & operator * () const
     {
-        static_assert(
-            std::is_same_v<NoFilter, typename Pex::Filter>,
-            "Direct access to underlying value is incompatible with filters.");
-
-        return this->pex_->value_;
+        return GetUpstreamReference(*this->pex_);
     }
 
     Type Get() const
@@ -98,9 +97,74 @@ protected:
         this->pex_->DoNotify_();
     }
 
+private:
+    template<typename U>
+    static const auto & GetUpstreamReference(const U &upstream)
+    {
+        if constexpr (IsModel<U>)
+        {
+            static_assert(
+                std::is_same_v<NoFilter, typename U::Filter>,
+                "Direct access to underlying value is incompatible with "
+                "filters.");
+
+            return upstream.value_;
+        }
+        else if constexpr (IsDirect<U>)
+        {
+            return GetUpstreamReference(*upstream.model_);
+        }
+        else if constexpr (IsControl<U>)
+        {
+            static_assert(
+                std::is_same_v<NoFilter, typename U::Filter>,
+                "Direct access to underlying value is incompatible with "
+                "filters.");
+
+            return GetUpstreamReference(upstream.upstream_);
+        }
+        else
+        {
+            static_assert(
+                std::is_same_v<NoFilter, typename U::Filter>,
+                "Direct access to underlying value is incompatible with "
+                "filters.");
+
+            return GetUpstreamReference(upstream.pex_);
+        }
+    }
+
 protected:
     Pex *pex_;
 };
+
+
+namespace internal
+{
+
+
+template<typename Pex>
+class AccessReference: public Reference<Pex>
+{
+public:
+    using Base = Reference<Pex>;
+    using Type = typename Base::Type;
+
+    using Base::Base;
+
+    void SetWithoutNotify(Argument<Type> value)
+    {
+        this->SetWithoutNotify_(value);
+    }
+
+    void DoNotify()
+    {
+        this->DoNotify_();
+    }
+};
+
+
+}
 
 
 /**

@@ -19,6 +19,17 @@ struct IsModel_<pex::model::Value_<T...>>: std::true_type {};
 template<typename ...T>
 inline constexpr bool IsModel = IsModel_<T...>::value;
 
+
+template<typename Pex>
+struct IsDirect_: std::false_type {};
+
+template<typename Pex>
+struct IsDirect_<pex::model::Direct<Pex>>: std::true_type {};
+
+template<typename Pex>
+inline constexpr bool IsDirect = IsDirect_<Pex>::value;
+
+
 template<typename ...T>
 struct IsControlBase_: std::false_type {};
 
