@@ -30,11 +30,17 @@ template<template<typename> typename T, typename U>
 struct IsMakeCustom_<MakeCustom<T<U>>>: std::true_type {};
 
 
-template<typename T>
+template<typename ...T>
 struct IsMakeGroup_: std::false_type {};
 
-template<typename T>
-struct IsMakeGroup_<MakeGroup<T>>: std::true_type {};
+template
+<
+    typename G,
+    typename M,
+    template<typename> typename C,
+    template<typename> typename T
+>
+struct IsMakeGroup_<MakeGroup<G, M, C, T>>: std::true_type {};
 
 
 template<typename ...T>
@@ -53,8 +59,8 @@ inline constexpr bool IsMakeSignal = detail::IsMakeSignal_<T>::value;
 template<typename ...T>
 inline constexpr bool IsMakeCustom = detail::IsMakeCustom_<T...>::value;
 
-template<typename T>
-inline constexpr bool IsMakeGroup = detail::IsMakeGroup_<T>::value;
+template<typename ...T>
+inline constexpr bool IsMakeGroup = detail::IsMakeGroup_<T...>::value;
 
 template<typename ...T>
 inline constexpr bool IsMember = detail::IsMember_<T...>::value;
@@ -92,7 +98,7 @@ struct ModelSelector_<T, std::enable_if_t<IsMakeCustom<T>>>
 template<typename T>
 struct ModelSelector_<T, std::enable_if_t<IsMakeGroup<T>>>
 {
-    using Type = typename T::Group::Model;
+    using Type = typename T::Model;
 };
 
 
@@ -135,7 +141,7 @@ template<typename T>
 struct ControlSelector_<T, std::enable_if_t<IsMakeGroup<T>>>
 {
     template<typename Observer>
-    using Type = typename T::Group::template Control<Observer>;
+    using Type = typename T::template Control<Observer>;
 };
 
 
@@ -166,7 +172,7 @@ template<typename T>
 struct TerminusSelector_<T, std::enable_if_t<IsMakeGroup<T>>>
 {
     template<typename Observer>
-    using Type = typename T::Group::template Terminus<Observer>;
+    using Type = typename T::template Terminus<Observer>;
 };
 
 

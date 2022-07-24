@@ -12,7 +12,7 @@ template<typename T>
 using PointGroup = pex::Group
     <
         tau::PointFields,
-        typename tau::PointTemplate<T>::Template,
+        tau::PointTemplate<T>::template Template,
         tau::Point<T>
     >;
 

@@ -48,10 +48,24 @@ struct MakeCustom
 };
 
 
-template<typename Group_>
+template
+<
+    typename Group_,
+    typename Model_ = typename Group_::Model,
+    template<typename> typename Control_ = Group_::template Control,
+    template<typename> typename Terminus_ = Group_::template Terminus
+>
 struct MakeGroup
 {
     using Group = Group_;
+    using Model = Model_;
+
+    template<typename Observer>
+    using Control = Control_<Observer>;
+
+    template<typename Observer>
+    using Terminus = Terminus_<Observer>;
+
     using Type = typename Group_::Plain;
 };
 
