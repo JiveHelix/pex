@@ -80,8 +80,8 @@ public:
     }
 
     Terminus_(
-            Observer *observer,
-            typename PexHelper<Pex_>::Upstream &upstream)
+        Observer *observer,
+        typename PexHelper<Pex_>::Upstream &upstream)
         :
         observer_(observer),
         pex_(upstream)
@@ -104,6 +104,18 @@ public:
         PEX_LOG("Terminus copy ctor: ", this, " with ", observer);
     }
 
+    // Copy construct from other observer
+    template<typename OtherObserver>
+    Terminus_(
+        Observer *observer,
+        const Terminus_<OtherObserver, Pex_> &other)
+        :
+        observer_(observer),
+        pex_(other.pex_)
+    {
+        PEX_LOG("Terminus copy ctor: ", this, " with ", observer);
+    }
+
     // Move construct
     Terminus_(Observer *observer, Terminus_ &&other)
         :
@@ -117,8 +129,24 @@ public:
         other.observer_ = nullptr;
     }
 
+    // Move construct from other observer
+    template<typename OtherObserver>
+    Terminus_(Observer *observer, Terminus_<OtherObserver, Pex_> &&other)
+        :
+        observer_(observer),
+        pex_()
+    {
+        PEX_LOG("Terminus move ctor: ", this, " with ", observer);
+        other.Disconnect();
+        this->pex_ = std::move(other.pex_);
+        other.observer_ = nullptr;
+    }
+
     // Copy assign
-    Terminus_ & Assign(Observer *observer, const Terminus_ &other)
+    template<typename OtherObserver>
+    Terminus_ & Assign(
+        Observer *observer,
+        const Terminus_<OtherObserver, Pex_> &other)
     {
         assert(this != &other);
 
@@ -132,7 +160,10 @@ public:
     }
 
     // Move assign
-    Terminus_ & Assign(Observer *observer, Terminus_ &&other)
+    template<typename OtherObserver>
+    Terminus_ & Assign(
+        Observer *observer,
+        Terminus_<OtherObserver, Pex_> &&other)
     {
         assert(this != &other);
 
@@ -210,30 +241,46 @@ protected:
 };
 
 
-#define INHERIT_TERMINUS_CONSTRUCTORS                                     \
-    using Base = Terminus_<Observer, Pex_>;                               \
-    using Base::Base;                                                     \
-                                                                          \
-    Terminus(Observer *observer, const Terminus &other)                   \
-        : Base(observer, other)                                           \
-    {                                                                     \
-    }                                                                     \
-                                                                          \
-    Terminus(Observer *observer, Terminus &&other)                        \
-        : Base(observer, std::move(other))                                \
-    {                                                                     \
-    }                                                                     \
-                                                                          \
-    Terminus &Assign(Observer *observer, const Terminus &other)           \
-    {                                                                     \
-        Base::Assign(observer, other);                                    \
-        return *this;                                                     \
-    }                                                                     \
-                                                                          \
-    Terminus &Assign(Observer *observer, Terminus &&other)                \
-    {                                                                     \
-        Base::Assign(observer, std::move(other));                         \
-        return *this;                                                     \
+#define INHERIT_TERMINUS_CONSTRUCTORS                                        \
+    using Base = Terminus_<Observer, Pex_>;                                  \
+    using Base::Base;                                                        \
+                                                                             \
+    Terminus(Observer *observer, const Terminus &other)                      \
+        : Base(observer, other)                                              \
+    {                                                                        \
+    }                                                                        \
+                                                                             \
+    Terminus(Observer *observer, Terminus &&other)                           \
+        : Base(observer, std::move(other))                                   \
+    {                                                                        \
+    }                                                                        \
+                                                                             \
+    template <typename OtherObserver>                                        \
+    Terminus(Observer *observer, const Terminus<OtherObserver, Pex_> &other) \
+        : Base(observer, other)                                              \
+    {                                                                        \
+    }                                                                        \
+                                                                             \
+    template <typename OtherObserver>                                        \
+    Terminus(Observer *observer, Terminus<OtherObserver, Pex_> &&other)      \
+        : Base(observer, std::move(other))                                   \
+    {                                                                        \
+    }                                                                        \
+                                                                             \
+    template <typename OtherObserver>                                        \
+    Terminus &Assign(                                                        \
+        Observer *observer, const Terminus<OtherObserver, Pex_> &other)      \
+    {                                                                        \
+        Base::Assign(observer, other);                                       \
+        return *this;                                                        \
+    }                                                                        \
+                                                                             \
+    template <typename OtherObserver>                                        \
+    Terminus &Assign(                                                        \
+        Observer *observer, Terminus<OtherObserver, Pex_> &&other)           \
+    {                                                                        \
+        Base::Assign(observer, std::move(other));                            \
+        return *this;                                                        \
     }
 
 

@@ -133,24 +133,6 @@ struct Group
         }
     };
 
-    template<typename T>
-    static bool HasModel(const T &group)
-    {
-        bool result = true;
-
-        auto modelChecker = [&group, &result](auto field)
-        {
-            if (result)
-            {
-                result = (group.*(field.member)).HasModel();
-            }
-        };
-
-        jive::ForEach(Fields<T>::fields, modelChecker);
-
-        return result;
-    }
-
     template<typename Observer>
     using ControlConnection = ValueConnection<Observer, Plain, NoFilter>;
 
@@ -246,7 +228,7 @@ struct Group
 
         bool HasModel() const
         {
-            return Group::HasModel(*this);
+            return pex::HasModel<Fields>(*this);
         }
     };
 
@@ -267,66 +249,6 @@ struct Group
             Derived,
             detail::NotifyMany<TerminusConnection<Observer>, GetAndSetTag>
         >;
-
-    template<typename Observer, typename T, typename C>
-    static void InitializeTerminus(
-        Observer *observer,
-        T &terminus,
-        const C &control)
-    {
-        assert(HasModel(control));
-
-        auto initializer = [&terminus, observer, &control](
-            auto terminusField,
-            auto controlField)
-        {
-            using MemberType = typename std::remove_reference_t
-                <
-                    decltype(terminus.*(terminusField.member))
-                >;
-
-            (terminus.*(terminusField.member)).Assign(
-                observer,
-                MemberType(observer, control.*(controlField.member)));
-        };
-
-        jive::ZipApply(
-            initializer,
-            Fields<T>::fields,
-            Fields<C>::fields);
-    }
-
-
-    template<typename T, typename Observer>
-    static void CopyTerminus(Observer *observer, T &terminus, const T &other)
-    {
-        auto initializer = [&terminus, &other, observer](auto field)
-        {
-            (terminus.*(field.member)).Assign(
-                observer,
-                other.*(field.member));
-        };
-
-        jive::ForEach(
-            Fields<T>::fields,
-            initializer);
-    }
-
-
-    template<typename T, typename Observer>
-    static void MoveTerminus(Observer *observer, T &terminus, T &other)
-    {
-        auto initializer = [&terminus, &other, observer](auto field)
-        {
-            (terminus.*(field.member)).Assign(
-                observer,
-                std::move(other.*(field.member)));
-        };
-
-        jive::ForEach(
-            Fields<T>::fields,
-            initializer);
-    }
 
 
     template<typename Observer>
@@ -353,7 +275,7 @@ struct Group
             observer_(observer)
         {
             PEX_LOG("Terminus construct from Control with ", observer);
-            InitializeTerminus(observer, *this, control);
+            InitializeTerminus<Fields>(observer, *this, control);
         }
 
         Terminus(Observer *observer, Model &model)
@@ -376,7 +298,7 @@ struct Group
             observer_(observer)
         {
             PEX_LOG("Terminus copy construct observer: ", observer);
-            CopyTerminus(observer, *this, other);
+            CopyTerminus<Fields>(observer, *this, other);
         }
 
 
@@ -387,7 +309,7 @@ struct Group
             observer_(observer)
         {
             PEX_LOG("Terminus move construct observer: ", observer);
-            MoveTerminus(observer, *this, other);
+            MoveTerminus<Fields>(observer, *this, other);
         }
 
 
@@ -398,7 +320,7 @@ struct Group
             this->AccessorsBase::operator=(other);
             this->observer_ = observer;
 
-            CopyTerminus(observer, *this, other);
+            CopyTerminus<Fields>(observer, *this, other);
 
             return *this;
         }
@@ -411,7 +333,7 @@ struct Group
             this->AccessorsBase::operator=(std::move(other));
             this->observer_ = observer;
 
-            MoveTerminus(observer, *this, other);
+            MoveTerminus<Fields>(observer, *this, other);
 
             return *this;
         }
@@ -435,7 +357,7 @@ struct Group
 
         bool HasModel() const
         {
-            return Group::HasModel(*this);
+            return pex::HasModel<Fields>(*this);
         }
 
         Observer * GetObserver()
