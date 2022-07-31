@@ -114,6 +114,108 @@ struct Getter
 };
 
 
+template<template<typename> typename Fields, typename T>
+bool HasModel(const T &group)
+{
+    bool result = true;
+
+    auto modelChecker = [&group, &result](auto field)
+    {
+        if (result)
+        {
+            result = (group.*(field.member)).HasModel();
+        }
+    };
+
+    jive::ForEach(Fields<T>::fields, modelChecker);
+
+    return result;
+}
+
+
+template
+<
+    template<typename> typename Fields,
+    typename Observer,
+    typename T,
+    typename Upstream
+>
+void InitializeTerminus(
+    Observer *observer,
+    T &terminus,
+    Upstream &upstream)
+{
+    assert(HasModel<Fields>(upstream));
+
+    auto initializer = [&terminus, observer, &upstream](
+        auto terminusField,
+        auto controlField)
+    {
+        using MemberType = typename std::remove_reference_t
+            <
+                decltype(terminus.*(terminusField.member))
+            >;
+
+        (terminus.*(terminusField.member)).Assign(
+            observer,
+            MemberType(observer, upstream.*(controlField.member)));
+    };
+
+    jive::ZipApply(
+        initializer,
+        Fields<T>::fields,
+        Fields<Upstream>::fields);
+}
+
+
+template
+<
+    template<typename> typename Fields,
+    typename T,
+    typename U,
+    typename Observer
+>
+void CopyTerminus(Observer *observer, T &terminus, const U &other)
+{
+    auto initializer = [&terminus, &other, observer](
+        auto leftField,
+        auto rightField)
+    {
+        (terminus.*(leftField.member)).Assign(
+            observer,
+            other.*(rightField.member));
+    };
+
+    jive::ZipApply(
+        initializer,
+        Fields<T>::fields,
+        Fields<U>::fields);
+}
+
+
+template
+<
+    template<typename> typename Fields,
+    typename T,
+    typename U,
+    typename Observer
+>
+void MoveTerminus(Observer *observer, T &terminus, U &other)
+{
+    auto initializer = [&terminus, &other, observer](
+        auto leftField,
+        auto rightField)
+    {
+        (terminus.*(leftField.member)).Assign(
+            observer,
+            std::move(other.*(rightField.member)));
+    };
+
+    jive::ZipApply(
+        initializer,
+        Fields<T>::fields,
+        Fields<U>::fields);
+}
 
 
 // Internal helper to allow observation of aggregate types.
@@ -124,7 +226,13 @@ template
     template<template<typename> typename> typename Template
 >
 struct Aggregate:
-    public Template<pex::ControlSelector<void>::template Type>,
+    public Template
+    <
+        pex::TerminusSelector
+        <
+            Aggregate<Plain, Fields, Template>
+        >::template Type
+    >,
     public Getter<Plain, Fields, Aggregate<Plain, Fields, Template>>,
     public detail::NotifyConnector
     <
@@ -144,7 +252,7 @@ public:
         :
         isMuted_(false)
     {
-        fields::AssignConvert<Fields>(*this, upstream);
+        InitializeTerminus<Fields>(this, *this, upstream);
         this->MakeConnections_();
 
 #ifdef ENABLE_PEX_LOG
@@ -169,7 +277,7 @@ public:
 
     ~Aggregate()
     {
-        this->Disconnect_();
+        // this->Disconnect_();
         this->ClearConnections_();
         assert(this->connections_.empty());
     }
@@ -208,13 +316,13 @@ private:
             PEX_LOG("Connect ", this, " to ", &(this->*(field.member)));
 
             (this->*(field.member)).Connect(
-                this,
                 &Aggregate::template OnMemberChanged_<MemberType>);
         };
 
         jive::ForEach(Fields<Aggregate>::fields, connector);
     }
 
+    /*
     void Disconnect_()
     {
         auto disconnector = [this](const auto &field) -> void
@@ -230,18 +338,17 @@ private:
 
         jive::ForEach(Fields<Aggregate>::fields, disconnector);
     }
+    */
 
     template<typename T>
-    static void OnMemberChanged_(void * context, Argument<T>)
+    void OnMemberChanged_(Argument<T>)
     {
-        auto self = static_cast<Aggregate *>(context);
-
-        if (self->isMuted_)
+        if (this->isMuted_)
         {
             return;
         }
 
-        self->Notify_(self->Get());
+        this->Notify_(this->Get());
     }
 
 private:
@@ -263,9 +370,15 @@ class Accessors
     public Getter<Plain, Fields, Derived>,
     public Connector
 {
+private:
     using Aggregate = Aggregate<Plain, Fields, Template>;
 
     std::unique_ptr<Aggregate> aggregate_;
+protected:
+    void ResetAccessors_()
+    {
+        this->aggregate_.reset();
+    }
 
 public:
     Accessors() = default;

@@ -10,50 +10,56 @@ namespace pex
 {
 
 
+template<typename P, typename enable = void>
+struct ManagedControl
+{
+    template<typename O>
+    using Type = control::Value_<O, P>;
+
+    using Upstream = P;
+};
+
+template<typename P>
+struct ManagedControl<P, std::enable_if_t<IsControl<P>>>
+{
+    template<typename O>
+    using Type = control::ChangeObserver<O, P>;
+
+    using Upstream = typename P::Pex;
+};
+
+template<typename P>
+struct ManagedControl<P, std::enable_if_t<IsControlSignal<P>>>
+{
+    template<typename O>
+    using Type = control::Signal<O>;
+
+    using Upstream = typename P::Pex;
+};
+
+template<typename P>
+struct ManagedControl<P, std::enable_if_t<IsModelSignal<P>>>
+{
+    template<typename O>
+    using Type = control::Signal<O>;
+
+    using Upstream = P;
+};
+
+
 template<typename Observer, typename Pex_>
 class Terminus_
 {
-    template<typename P, typename enable = void>
-    struct PexHelper
-    {
-        template<typename O>
-        using Type = control::Value_<O, P>;
-
-        using Upstream = P;
-    };
-
-    template<typename P>
-    struct PexHelper<P, std::enable_if_t<IsControl<P>>>
-    {
-        template<typename O>
-        using Type = control::ChangeObserver<O, P>;
-
-        using Upstream = typename P::Pex;
-    };
-
-    template<typename P>
-    struct PexHelper<P, std::enable_if_t<IsControlSignal<P>>>
-    {
-        template<typename O>
-        using Type = control::Signal<O>;
-
-        using Upstream = typename P::Pex;
-    };
-
-    template<typename P>
-    struct PexHelper<P, std::enable_if_t<IsModelSignal<P>>>
-    {
-        template<typename O>
-        using Type = control::Signal<O>;
-
-        using Upstream = P;
-    };
 
 public:
     template<typename O>
-    using Pex = typename PexHelper<Pex_>::template Type<O>;
+    using Pex = typename ManagedControl<Pex_>::template Type<O>;
 
     using Callable = typename Pex<Observer>::Callable;
+
+    // Make any template specialization of Terminus a friend class.
+    template <typename, typename>
+    friend class ::pex::Terminus_;
 
     Terminus_()
         :
@@ -80,8 +86,8 @@ public:
     }
 
     Terminus_(
-            Observer *observer,
-            typename PexHelper<Pex_>::Upstream &upstream)
+        Observer *observer,
+        typename ManagedControl<Pex_>::Upstream &upstream)
         :
         observer_(observer),
         pex_(upstream)
@@ -104,6 +110,30 @@ public:
         PEX_LOG("Terminus copy ctor: ", this, " with ", observer);
     }
 
+    // Copy construct from other observer
+    template<typename O>
+    Terminus_(
+        Observer *observer,
+        const Terminus_<O, Pex_> &other)
+        :
+        observer_(observer),
+        pex_(other.pex_)
+    {
+        PEX_LOG("Terminus copy ctor: ", this, " with ", observer);
+    }
+
+    // Copy construct from other observer
+    template<typename O>
+    Terminus_(
+        Observer *observer,
+        const Terminus_<O, control::ChangeObserver<O, Pex_>> &other)
+        :
+        observer_(observer),
+        pex_(other.pex_)
+    {
+        PEX_LOG("Terminus copy ctor: ", this, " with ", observer);
+    }
+
     // Move construct
     Terminus_(Observer *observer, Terminus_ &&other)
         :
@@ -117,10 +147,66 @@ public:
         other.observer_ = nullptr;
     }
 
-    // Copy assign
-    Terminus_ & Assign(Observer *observer, const Terminus_ &other)
+    // Move construct from other observer
+    template<typename O>
+    Terminus_(
+        Observer *observer,
+        const Terminus_<O, Pex_> &&other)
+        :
+        observer_(observer),
+        pex_()
     {
-        assert(this != &other);
+        PEX_LOG("Terminus move ctor: ", this, " with ", observer);
+        other.Disconnect();
+        this->pex_ = std::move(other.pex_);
+        other.observer_ = nullptr;
+    }
+
+    // Move construct from other observer
+    template<typename O>
+    Terminus_(
+        Observer *observer,
+        const Terminus_<O, control::ChangeObserver<O, Pex_>> &&other)
+        :
+        observer_(observer),
+        pex_()
+    {
+        PEX_LOG("Terminus move ctor: ", this, " with ", observer);
+        other.Disconnect();
+        this->pex_ = std::move(other.pex_);
+        other.observer_ = nullptr;
+    }
+
+    // Copy assign
+    template<typename O>
+    Terminus_ & Assign(
+        Observer *observer,
+        const Terminus_<O, Pex_> &other)
+    {
+        if constexpr (std::is_same_v<Observer, O>)
+        {
+            assert(this != &other);
+        }
+
+        PEX_LOG("Terminus copy assign: ", this);
+
+        this->Disconnect();
+        this->observer_ = observer;
+        this->pex_ = other.pex_;
+
+        return *this;
+    }
+
+    // Copy assign
+    template<typename O>
+    Terminus_ & Assign(
+        Observer *observer,
+        const Terminus_<O, control::ChangeObserver<O, Pex_>> &other)
+    {
+        if constexpr (std::is_same_v<Observer, O>)
+        {
+            assert(this != &other);
+        }
 
         PEX_LOG("Terminus copy assign: ", this);
 
@@ -132,9 +218,41 @@ public:
     }
 
     // Move assign
-    Terminus_ & Assign(Observer *observer, Terminus_ &&other)
+    template<typename O>
+    Terminus_ & Assign(
+        Observer *observer,
+        Terminus_<O, Pex_> &&other)
     {
-        assert(this != &other);
+        if constexpr (std::is_same_v<Observer, O>)
+        {
+            assert(this != &other);
+        }
+
+        PEX_LOG("Terminus move assign: ", this);
+
+        this->Disconnect();
+        other.Disconnect();
+
+        this->observer_ = observer;
+        other.observer_ = nullptr;
+
+        this->pex_ = std::move(other.pex_);
+
+        PEX_LOG("pex_: ", &this->pex_);
+
+        return *this;
+    }
+
+    // Move assign
+    template<typename O>
+    Terminus_ & Assign(
+        Observer *observer,
+        Terminus_<O, control::ChangeObserver<O, Pex_>> &&other)
+    {
+        if constexpr (std::is_same_v<Observer, O>)
+        {
+            assert(this != &other);
+        }
 
         PEX_LOG("Terminus move assign: ", this);
 
@@ -202,6 +320,15 @@ public:
         return this->observer_;
     }
 
+    template
+    <
+        template<typename, typename> typename,
+        typename,
+        typename,
+        typename
+    >
+    friend class ImplementInterface;
+
 private:
     Observer *observer_;
 
@@ -210,85 +337,134 @@ protected:
 };
 
 
-#define INHERIT_TERMINUS_CONSTRUCTORS                                     \
-    using Base = Terminus_<Observer, Pex_>;                               \
-    using Base::Base;                                                     \
-                                                                          \
-    Terminus(Observer *observer, const Terminus &other)                   \
-        : Base(observer, other)                                           \
-    {                                                                     \
-    }                                                                     \
-                                                                          \
-    Terminus(Observer *observer, Terminus &&other)                        \
-        : Base(observer, std::move(other))                                \
-    {                                                                     \
-    }                                                                     \
-                                                                          \
-    Terminus &Assign(Observer *observer, const Terminus &other)           \
-    {                                                                     \
-        Base::Assign(observer, other);                                    \
-        return *this;                                                     \
-    }                                                                     \
-                                                                          \
-    Terminus &Assign(Observer *observer, Terminus &&other)                \
-    {                                                                     \
-        Base::Assign(observer, std::move(other));                         \
-        return *this;                                                     \
+#define INHERIT_TERMINUS_CONSTRUCTORS                                    \
+    using Base = Terminus_<Observer, Pex_>;                              \
+    using Base::Base;                                                    \
+                                                                         \
+    Terminus(Observer *observer, const Terminus &other)                  \
+        : Base(observer, other)                                          \
+    {                                                                    \
+    }                                                                    \
+                                                                         \
+    Terminus(Observer *observer, Terminus &&other)                       \
+        : Base(observer, std::move(other))                               \
+    {                                                                    \
+    }                                                                    \
+                                                                         \
+    template <typename O>                                                \
+    Terminus &Assign(Observer *observer, const Terminus<O, Pex_> &other) \
+    {                                                                    \
+        Base::Assign(observer, other);                                   \
+        return *this;                                                    \
+    }                                                                    \
+                                                                         \
+    template <typename O>                                                \
+    Terminus &Assign(                                                    \
+        Observer *observer,                                              \
+        const Terminus<O, control::ChangeObserver<O, Pex_>> &other)      \
+    {                                                                    \
+        Base::Assign(observer, other);                                   \
+        return *this;                                                    \
+    }                                                                    \
+                                                                         \
+    template <typename O>                                                \
+    Terminus &Assign(Observer *observer, Terminus<O, Pex_> &&other)      \
+    {                                                                    \
+        Base::Assign(observer, std::move(other));                        \
+        return *this;                                                    \
+    }                                                                    \
+                                                                         \
+    template <typename O>                                                \
+    Terminus &Assign(                                                    \
+        Observer *observer,                                              \
+        Terminus<O, control::ChangeObserver<O, Pex_>> &&other)           \
+    {                                                                    \
+        Base::Assign(observer, std::move(other));                        \
+        return *this;                                                    \
     }
 
 
-template<typename Observer, typename Pex_, typename enable = void>
-class Terminus: public Terminus_<Observer, Pex_>
-{
-public:
-    INHERIT_TERMINUS_CONSTRUCTORS
 
-    using Pex = typename Base::template Pex<Observer>;
+template
+<
+    template<typename, typename> typename Derived_,
+    typename Observer,
+    typename Pex_,
+    typename enable = void
+>
+struct ImplementInterface
+{
+    using Derived = Derived_<Observer, Pex_>;
+    using Pex = typename ManagedControl<Pex_>::template Type<Observer>;
     using Type = typename Pex::Type;
     using Filter = typename Pex::Filter;
 
     Type Get() const
     {
-        return this->pex_.Get();
+        return static_cast<const Derived *>(this)->pex_.Get();
     }
 
     void Set(pex::Argument<Type> value)
     {
-        this->pex_.Set(value);
+        static_cast<Derived *>(this)->pex_.Set(value);
     }
 
     explicit operator Type () const
     {
-        return Type(this->pex_);
+        return Type(static_cast<const Derived *>(this)->pex_);
     }
-
-    template<typename>
-    friend class Reference;
 
 protected:
     void SetWithoutNotify_(Argument<Type> value)
     {
-        internal::AccessReference<Pex>(this->pex_).SetWithoutNotify(value);
+        internal::AccessReference<Pex>(
+            static_cast<Derived *>(this)->pex_).SetWithoutNotify(value);
     }
 
     void DoNotify_()
     {
-        internal::AccessReference<Pex>(this->pex_).DoNotify();
+        internal::AccessReference<Pex>(
+            static_cast<Derived *>(this)->pex_).DoNotify();
     }
 };
 
 
+template
+<
+    template<typename, typename> typename Derived_,
+    typename Observer,
+    typename Pex_
+>
+struct ImplementInterface
+<
+    Derived_,
+    Observer,
+    Pex_,
+    std::enable_if_t<IsSignal<Pex_>>
+>
+{
+public:
+    using Derived = Derived_<Observer, Pex_>;
+    using Pex = typename ManagedControl<Pex_>::template Type<Observer>;
+
+    void Trigger()
+    {
+        static_cast<Derived *>(this)->pex_.Trigger();
+    }
+};
+
+
+
 template<typename Observer, typename Pex_>
-class Terminus<Observer, Pex_, std::enable_if_t<IsSignal<Pex_>>>
-    : public Terminus_<Observer, Pex_>
+class Terminus:
+    public Terminus_<Observer, Pex_>,
+    public ImplementInterface<Terminus, Observer, Pex_>
 {
 public:
     INHERIT_TERMINUS_CONSTRUCTORS
 
-    void Trigger()
-    {
-        this->pex_.Trigger();
-    }
+    template<typename>
+    friend class Reference;
 };
 
 

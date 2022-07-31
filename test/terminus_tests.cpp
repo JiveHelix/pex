@@ -95,24 +95,24 @@ struct TestTemplate
 
 using TerminusTestGroup = pex::Group<TestFields, TestTemplate>;
 
-using TerminousTestPlain = TerminusTestGroup::Plain;
+using TerminusTestPlain = TerminusTestGroup::Plain;
 
-DECLARE_OUTPUT_STREAM_OPERATOR(TerminousTestPlain);
+DECLARE_OUTPUT_STREAM_OPERATOR(TerminusTestPlain);
 
-using TerminousTestModel = TerminusTestGroup::Model;
+using TerminusTestModel = TerminusTestGroup::Model;
 
 template<typename Observer>
 using TestTerminus = TerminusTestGroup::Terminus<Observer>;
 
-using TerminousGroupObserver = TestObserver<TerminousTestModel, TestTerminus>;
+using TerminusGroupObserver = TestObserver<TerminusTestModel, TestTerminus>;
 
 
 TEST_CASE("Terminus group uses new observer after move.", "[terminus]")
 {
-    TerminousTestPlain values{{42, 43, 44.0}};
+    TerminusTestPlain values{{42, 43, 44.0}};
 
-    TerminousTestModel model(values);
-    TerminousGroupObserver first(model);
+    TerminusTestModel model(values);
+    TerminusGroupObserver first(model);
 
     REQUIRE(first.observedValue == values);
 
@@ -121,7 +121,7 @@ TEST_CASE("Terminus group uses new observer after move.", "[terminus]")
 
     REQUIRE(first.observedValue == values);
     
-    TerminousGroupObserver second(std::move(first));
+    TerminusGroupObserver second(std::move(first));
 
     REQUIRE(second.observedValue == values);
 
@@ -130,7 +130,7 @@ TEST_CASE("Terminus group uses new observer after move.", "[terminus]")
 
     REQUIRE(second.observedValue == values);
 
-    TerminousGroupObserver third(model);
+    TerminusGroupObserver third(model);
     third = std::move(second);
 
     REQUIRE(third.observedValue == values);
@@ -144,10 +144,10 @@ TEST_CASE("Terminus group uses new observer after move.", "[terminus]")
 
 TEST_CASE("Terminus group uses new observer after copy.", "[terminus]")
 {
-    TerminousTestPlain values{{42, 43, 44.0}};
+    TerminusTestPlain values{{42, 43, 44.0}};
 
-    TerminousTestModel model(values);
-    TerminousGroupObserver first(model);
+    TerminusTestModel model(values);
+    TerminusGroupObserver first(model);
 
     REQUIRE(first.observedValue == values);
 
@@ -156,7 +156,7 @@ TEST_CASE("Terminus group uses new observer after copy.", "[terminus]")
 
     REQUIRE(first.observedValue == values);
     
-    TerminousGroupObserver second(first);
+    TerminusGroupObserver second(first);
 
     REQUIRE(second.observedValue == values);
 
@@ -165,7 +165,7 @@ TEST_CASE("Terminus group uses new observer after copy.", "[terminus]")
 
     REQUIRE(second.observedValue == values);
 
-    TerminousGroupObserver third(model);
+    TerminusGroupObserver third(model);
     third = second;
 
     REQUIRE(third.observedValue == values);
