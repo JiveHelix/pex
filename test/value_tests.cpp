@@ -6,7 +6,7 @@
 
 #include <catch2/catch.hpp>
 #include <string>
-#include "jive/testing/cast_limits.h"
+#include "jive/testing/generator_limits.h"
 #include "jive/testing/gettys_words.h"
 #include "test_observer.h"
 
@@ -28,19 +28,19 @@ TEMPLATE_TEST_CASE(
 {
     auto original = static_cast<TestType>(
         GENERATE(
-	    take(
-		3,
-		random(
-		    CastLimits<TestType>::Min(),
-		    CastLimits<TestType>::Max()))));
+            take(
+            3,
+            random(
+                GeneratorLimits<TestType>::Lowest(),
+                GeneratorLimits<TestType>::Max()))));
 
     auto propagated = static_cast<TestType>(
         GENERATE(
-	    take(
-		10,
-		random(
-		    CastLimits<TestType>::Min(),
-		    CastLimits<TestType>::Max()))));
+            take(
+            10,
+            random(
+                GeneratorLimits<TestType>::Lowest(),
+                GeneratorLimits<TestType>::Max()))));
 
     using Model = pex::model::Value<TestType>;
     Model model{original};
@@ -84,20 +84,20 @@ TEMPLATE_TEST_CASE(
     long double)
 {
     auto original = static_cast<TestType>( 
-	GENERATE(
-	    take(
-		3,
-		random(
-		    CastLimits<TestType>::Min(),
-		    CastLimits<TestType>::Max()))));
+        GENERATE(
+            take(
+            3,
+            random(
+                GeneratorLimits<TestType>::Lowest(),
+                GeneratorLimits<TestType>::Max()))));
 
     auto propagated = static_cast<TestType>(
-	GENERATE(
-	    take(
-		10,
-		random(
-		    CastLimits<TestType>::Min(),
-		    CastLimits<TestType>::Max()))));
+        GENERATE(
+            take(
+            10,
+            random(
+                GeneratorLimits<TestType>::Lowest(),
+                GeneratorLimits<TestType>::Max()))));
 
     using Model = pex::model::Value<TestType>;
     Model model{original};
@@ -160,20 +160,20 @@ TEMPLATE_TEST_CASE(
     long double)
 {
     auto original = static_cast<TestType>(
-	GENERATE(
-	    take(
-		3,
-		random(
-		    CastLimits<TestType>::Min(),
-		    CastLimits<TestType>::Max()))));
+        GENERATE(
+            take(
+            3,
+            random(
+                GeneratorLimits<TestType>::Lowest(),
+                GeneratorLimits<TestType>::Max()))));
 
     auto propagated = static_cast<TestType>(
-	GENERATE(
-	    take(
-		10,
-		random(
-		    CastLimits<TestType>::Min(),
-		    CastLimits<TestType>::Max()))));
+        GENERATE(
+            take(
+            10,
+            random(
+                GeneratorLimits<TestType>::Lowest(),
+                GeneratorLimits<TestType>::Max()))));
 
     using Model = pex::model::Value<TestType>;
     Model model{original};

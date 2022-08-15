@@ -10,8 +10,10 @@
 **/
 
 #include <iostream>
-#include <tau/angles.h>
+#include <cmath>
+
 #include "pex/value.h"
+
 
 /**
  ** Limit the range of angles to [-pi, pi]
@@ -20,8 +22,8 @@ struct ModelFilter
 {
     static double Set(double value)
     {
-        static constexpr auto maximumAngle = tau::Angles<double>::pi;
-        static constexpr auto minimumAngle = -tau::Angles<double>::pi;
+        static constexpr auto maximumAngle = M_PI;
+        static constexpr auto minimumAngle = -M_PI;
         return std::max(minimumAngle, std::min(maximumAngle, value));
     }
 };
@@ -33,13 +35,13 @@ struct DegreesFilter
     /** Convert to degrees on retrieval **/
     static double Get(double value)
     {
-        return tau::ToDegrees(value);
+        return 180 * value / M_PI;
     }
 
     /** Convert back to radians on assignment **/
     static double Set(double value)
     {
-        return tau::ToRadians(value);
+        return M_PI * value / 180.0;
     }
 };
 
@@ -82,6 +84,6 @@ int main()
     p.angle_degrees.Set(250.0);
     p.angle_degrees.Set(-181.0);
     p.angle_degrees.Set(45.0);
-    f.Set(tau::Angles<double>::pi / 3.0);
+    f.Set(M_PI / 3.0);
     std::cout << f.Get() << std::endl;
 }

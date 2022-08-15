@@ -11,8 +11,7 @@ target_link_libraries(
     pex
     PUBLIC
     CONAN_PKG::jive
-    CONAN_PKG::fields
-    CONAN_PKG::tau)
+    CONAN_PKG::fields)
 
 target_sources(
     pex

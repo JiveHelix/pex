@@ -4,9 +4,9 @@
   * Licensed under the MIT license. See LICENSE file.
   */
 
+#include <cmath>
 #include <catch2/catch.hpp>
-#include <jive/testing/cast_limits.h>
-#include <tau/angles.h>
+#include <jive/testing/generator_limits.h>
 #include "pex/value.h"
 
 
@@ -68,9 +68,8 @@ TEMPLATE_TEST_CASE(
                 static_cast<TestType>(-12.0),
                 static_cast<TestType>(12.0))));
 
-    using angles = tau::Angles<TestType>;
-    TestType low = -angles::pi;
-    TestType high = angles::pi;
+    TestType low = -static_cast<TestType>(M_PI);
+    TestType high = static_cast<TestType>(M_PI);
 
     using Model =
         pex::model::FilteredValue<TestType, RangeFilter<TestType>>;
@@ -101,8 +100,8 @@ TEMPLATE_TEST_CASE(
             take(
                 30,
                 random(
-                    CastLimits<TestType>::Min(),
-                    CastLimits<TestType>::Max()))));
+                    GeneratorLimits<TestType>::Lowest(),
+                    GeneratorLimits<TestType>::Max()))));
 
     TestType low;
 
@@ -136,13 +135,13 @@ struct DegreesFilter
     /** Convert to degrees on retrieval **/
     static T Get(T value)
     {
-        return tau::ToDegrees(value);
+        return 180 * value / static_cast<T>(M_PI);
     }
 
     /** Convert back to radians on assignment **/
     static T Set(T value)
     {
-        return tau::ToRadians(value);
+        return static_cast<T>(M_PI) * value / static_cast<T>(180.0);
     }
 };
 
@@ -173,10 +172,8 @@ TEMPLATE_TEST_CASE(
     // Set value in degrees.
     control.Set(value);
 
-    using angles = tau::Angles<TestType>;
-
     // Expect model to be in radians.
-    auto expected = angles::pi * value / angles::piDegrees;
+    auto expected = static_cast<TestType>(M_PI) * value / 180;
     REQUIRE(model.Get() == Approx(expected));
 
     // Expect control to retrieve degrees.
