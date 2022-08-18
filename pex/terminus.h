@@ -327,7 +327,7 @@ public:
         typename,
         typename
     >
-    friend class ImplementInterface;
+    friend struct ImplementInterface;
 
 private:
     Observer *observer_;

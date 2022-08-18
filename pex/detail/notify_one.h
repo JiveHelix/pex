@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cassert>
 #include <optional>
 #include "pex/access_tag.h"
 #include "pex/detail/argument.h"

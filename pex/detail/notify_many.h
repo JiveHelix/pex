@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <type_traits>
 #include <vector>
+#include <cassert>
 #include "pex/access_tag.h"
 #include "pex/detail/argument.h"
 #include "pex/detail/log.h"
