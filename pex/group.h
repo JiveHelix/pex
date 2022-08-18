@@ -131,6 +131,8 @@ struct Group
         {
             this->Connect_(observer, callable);
         }
+
+        bool HasModel() const { return true; }
     };
 
     template<typename Observer>

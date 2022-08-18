@@ -176,6 +176,10 @@ public:
         this->filter_ = filter;
     }
 
+    // This function is used in debug assertions to check that other entities
+    // hold a reference to a model value.
+    bool HasModel() const { return true; }
+
 private:
     void SetWithoutNotify_(Argument<Type> value)
     {
