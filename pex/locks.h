@@ -46,19 +46,17 @@ public:
 
 
 using Mutex = std::shared_mutex;
-using ReadLock = std::shared_lock<Mutex>;
-using WriteLock = std::unique_lock<Mutex>;
 
 
 struct ExclusiveLock 
 {
-    using Lock = WriteLock;
+    using Lock = std::unique_lock<Mutex>;
     static constexpr auto name = "WriteLock";
 };
 
 struct SharedLock 
 {
-    using Lock = ReadLock;
+    using Lock = std::shared_lock<Mutex>;
     static constexpr auto name = "ReadLock";
 };
 
@@ -165,25 +163,35 @@ private:
 };
 
 
-using LogWriteLock = LogLock<ExclusiveLock>;
-using LogReadLock = LogLock<SharedLock>;
+#ifdef ENABLE_LOG_LOCKS
+
+using WriteLock = LogLock<ExclusiveLock>;
+using ReadLock = LogLock<SharedLock>;
+
+#else
+
+using WriteLock = typename ExclusiveLock::Lock;
+using ReadLock = typename SharedLock::Lock;
+
+#endif
 
 
 } // end namespace pex
 
 
 #ifdef ENABLE_LOG_LOCKS
-#define WRITE_LOCK(mutex) pex::LogWriteLock lock( \
+
+#define WRITE_LOCK(mutex) pex::WriteLock lock( \
     jive::path::Base(__FILE__), \
     __LINE__, \
     mutex)
 
-#define READ_LOCK(mutex) pex::LogReadLock lock( \
+#define READ_LOCK(mutex) pex::ReadLock lock( \
     jive::path::Base(__FILE__), \
     __LINE__, \
     mutex)
 
-#define MOVE_LOCK(mutex) pex::LogWriteLock( \
+#define MOVE_LOCK(mutex) pex::WriteLock( \
     jive::path::Base(__FILE__), \
     __LINE__, \
     mutex)
