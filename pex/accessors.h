@@ -218,6 +218,10 @@ void MoveTerminus(Observer *observer, T &terminus, U &other)
 }
 
 
+namespace internal
+{
+
+
 // Internal helper to allow observation of aggregate types.
 template
 <
@@ -277,7 +281,6 @@ public:
 
     ~Aggregate()
     {
-        // this->Disconnect_();
         this->ClearConnections_();
         assert(this->connections_.empty());
     }
@@ -322,24 +325,6 @@ private:
         jive::ForEach(Fields<Aggregate>::fields, connector);
     }
 
-    /*
-    void Disconnect_()
-    {
-        auto disconnector = [this](const auto &field) -> void
-        {
-            PEX_LOG(
-                "Aggregate Disconnect ",
-                this,
-                " from ",
-                &(this->*(field.member)));
-
-            (this->*(field.member)).Disconnect(this);
-        };
-
-        jive::ForEach(Fields<Aggregate>::fields, disconnector);
-    }
-    */
-
     template<typename T>
     void OnMemberChanged_(Argument<T>)
     {
@@ -354,6 +339,9 @@ private:
 private:
     bool isMuted_;
 };
+
+
+} // end namespace internal
 
 
 template
@@ -371,7 +359,7 @@ class Accessors
     public Connector
 {
 private:
-    using Aggregate = Aggregate<Plain, Fields, Template>;
+    using Aggregate = internal::Aggregate<Plain, Fields, Template>;
 
     std::unique_ptr<Aggregate> aggregate_;
 protected:
