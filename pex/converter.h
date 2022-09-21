@@ -1,7 +1,7 @@
 /**
   * @file converter.h
   *
-  * @brief Converter between values and string representations.
+  * @brief Convert between values and string representations.
   *
   * @author Jive Helix (jivehelix@gmail.com)
   * @date 10 Aug 2020
@@ -24,14 +24,14 @@ namespace pex
 
 
 /** Selects the larger of width, precision, or minimumBufferSize. **/
-template<typename T, int width, int precision>
+template<typename T, typename Traits>
 struct BufferSize
 {
     static constexpr int minimumBufferSize = 32;
     static constexpr int maximumSpecified =
-        (width > precision)
-        ? width
-        : precision;
+        (Traits::width > Traits::precision)
+        ? Traits::width
+        : Traits::precision;
 
     static constexpr int value =
         (maximumSpecified > minimumBufferSize)
@@ -40,10 +40,24 @@ struct BufferSize
 };
 
 
-template<typename T, int base, int width, int precision, typename = void>
+template<int base_, int width_, int precision_, typename Flag_>
+struct ConverterTraits
+{
+    static constexpr int base = base_;
+    static constexpr int width = width_;
+    static constexpr int precision = precision_;
+    using Flag = Flag_;
+};
+
+
+using DefaultConverterTraits = ConverterTraits<10, -1, -1, jive::flag::None>;
+
+
+template<typename T, typename Traits, typename = void>
 struct ValueToString
 {
-    static constexpr auto format = jive::AutoFormat<T, base>::value.data();
+    static constexpr auto format =
+        jive::AutoFormat<T, Traits::base, typename Traits::Flag>::value.data();
 
     static std::string Call(T value)
     {
@@ -52,10 +66,10 @@ struct ValueToString
 #pragma GCC diagnostic ignored "-Wformat-nonliteral"
 #pragma GCC diagnostic ignored "-Wdouble-promotion"
 #endif
-        return jive::Formatter<BufferSize<T, width, precision>::value>(
+        return jive::Formatter<BufferSize<T, Traits>::value>(
             format,
-            width,
-            precision,
+            Traits::width,
+            Traits::precision,
             value);
 #ifndef _WIN32
 #pragma GCC diagnostic pop
@@ -65,13 +79,11 @@ struct ValueToString
 
 
 /** Specialization for std::string that doesn't create an extra copy. **/
-template<typename T, int base, int width, int precision>
+template<typename T, typename Traits>
 struct ValueToString
 <
     T,
-    base,
-    width,
-    precision,
+    Traits,
     std::enable_if_t<std::is_same_v<T, std::string>>
 >
 {
@@ -84,13 +96,11 @@ struct ValueToString
 
 
 /** Specialization for std::bitset **/
-template<typename T, int base, int width, int precision>
+template<typename T, typename Traits>
 struct ValueToString
 <
     T,
-    base,
-    width,
-    precision,
+    Traits,
     std::enable_if_t<jive::IsBitset<T>::value>
 >
 {
@@ -149,19 +159,10 @@ struct StringToValue<T, base, std::enable_if_t<jive::IsBitset<T>::value>>
 };
 
 
-struct DefaultConverterTraits
-{
-    static constexpr int base = 10;
-    static constexpr int width = -1;
-    static constexpr int precision = -1;
-};
-
-
 template<typename T, typename Traits = DefaultConverterTraits>
 struct Converter
 {
-    using ConvertToString =
-        ValueToString<T, Traits::base, Traits::width, Traits::precision>;
+    using ConvertToString = ValueToString<T, Traits>;
 
     using ConvertToValue = StringToValue<T, Traits::base>;
 
