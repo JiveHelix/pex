@@ -74,7 +74,7 @@ template<
     typename T,
     typename ModelFilter_ = NoFilter,
     typename ControlAccess_ = GetAndSetTag>
-struct Member
+struct Filtered
 {
     using Type = T;
     using ModelFilter = ModelFilter_;

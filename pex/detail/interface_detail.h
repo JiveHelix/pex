@@ -44,10 +44,10 @@ struct IsMakeGroup_<MakeGroup<G, M, C, T>>: std::true_type {};
 
 
 template<typename ...T>
-struct IsMember_: std::false_type {};
+struct IsFiltered_: std::false_type {};
 
 template<typename ...T>
-struct IsMember_<Member<T...>>: std::true_type {};
+struct IsFiltered_<Filtered<T...>>: std::true_type {};
 
 
 } // end namespace detail
@@ -63,7 +63,10 @@ template<typename ...T>
 inline constexpr bool IsMakeGroup = detail::IsMakeGroup_<T...>::value;
 
 template<typename ...T>
-inline constexpr bool IsMember = detail::IsMember_<T...>::value;
+inline constexpr bool IsFiltered = detail::IsFiltered_<T...>::value;
+
+template<typename ...T>
+inline constexpr bool IsRange = detail::IsFiltered_<T...>::value;
 
 
 namespace detail
@@ -84,9 +87,15 @@ struct ModelSelector_<T, std::enable_if_t<IsMakeSignal<T>>>
 };
 
 template<typename T>
-struct ModelSelector_<T, std::enable_if_t<IsMember<T>>>
+struct ModelSelector_<T, std::enable_if_t<IsFiltered<T>>>
 {
     using Type = model::Value_<typename T::Type, typename T::ModelFilter>;
+};
+
+template<typename T>
+struct ModelSelector_<T, std::enable_if_t<IsRange<T>>>
+{
+    using Type = model::Range<typename T::Type>;
 };
 
 template<typename T>
@@ -118,7 +127,20 @@ struct ControlSelector_<T, std::enable_if_t<IsMakeSignal<T>>>
 };
 
 template<typename T>
-struct ControlSelector_<T, std::enable_if_t<IsMember<T>>>
+struct ControlSelector_<T, std::enable_if_t<IsFiltered<T>>>
+{
+    template<typename Observer>
+    using Type = control::Value_
+    <
+        Observer,
+        typename ModelSelector_<T>::Type,
+        NoFilter,
+        typename T::ControlAccess 
+    >;
+};
+
+template<typename T>
+struct ControlSelector_<T, std::enable_if_t<IsRange<T>>>
 {
     template<typename Observer>
     using Type = control::Value_
@@ -189,7 +211,7 @@ struct Identity_
     T,
     std::enable_if_t
     <
-        IsMember<T> || IsMakeCustom<T> || IsMakeGroup<T>
+        IsFiltered<T> || IsMakeCustom<T> || IsMakeGroup<T>
     >
 >
 {

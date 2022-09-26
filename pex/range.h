@@ -90,27 +90,20 @@ private:
 };
 
 
-template<typename Upstream>
+template<typename T>
 class Range
 {
+public:
+    using Type = T;
+
     static_assert(
-        std::is_arithmetic_v<typename Upstream::Type>,
+        std::is_arithmetic_v<Type>,
         "Designed only for arithmetic types.");
 
-public:
-    // The Range value is a control to a model somewhere else.
-    using Value =
-        pex::control::FilteredValue
-        <
-            void,
-            Upstream,
-            RangeFilter<typename Upstream::Type>
-        >;
+    // The Range Value is the model.
+    using Value = pex::model::Value_<Type, RangeFilter<Type>>;
 
     static_assert(!IsCopyable<Value>);
-    static_assert(::pex::IsDirect<::pex::UpstreamT<Value>>);
-
-    using Type = typename Value::Type;
 
     // The Range limits are stored here in the model.
     using Limit = typename ::pex::model::Value<Type>;
@@ -125,35 +118,19 @@ public:
 
     }
 
-    Range(PexArgument<Upstream> upstream)
+    explicit Range(Type value)
         :
-        value_(upstream),
+        value_(value),
         minimum_(std::numeric_limits<Type>::lowest()),
         maximum_(std::numeric_limits<Type>::max())
     {
-        this->value_.SetFilter(RangeFilter<Type>(
-            this->minimum_.Get(),
-            this->maximum_.Get()));
+        this->value_.SetFilter(
+            RangeFilter<Type>(this->minimum_.Get(), this->maximum_.Get()));
     }
 
     ~Range()
     {
-        PEX_LOG("Disconnect");
-        this->value_.Disconnect(this);
-    }
 
-    void SetUpstream(PexArgument<Upstream> upstream)
-    {
-        this->value_ = Value(upstream);
-
-        this->value_.SetFilter(RangeFilter<Type>(
-            this->minimum_.Get(),
-            this->maximum_.Get()));
-
-        PEX_LOG("model::Range: ", this);
-        PEX_LOG("model::Range.value_: ", &this->value_);
-        PEX_LOG("model::Range.minimum_: ", &this->minimum_);
-        PEX_LOG("model::Range.maximum_: ", &this->maximum_);
     }
 
     void SetLimits(Type minimum, Type maximum)
@@ -226,7 +203,202 @@ public:
         }
     }
 
-    void SetValue(Type value)
+    void Set(Argument<Type> value)
+    {
+        this->value_.Set(value);
+    }
+
+    Type Get() const
+    {
+        return this->value_.Get();
+    }
+
+    explicit operator Type () const
+    {
+        return this->value_.Get();
+    }
+
+    Range & operator=(Argument<Type> value)
+    {
+        this->Set(value);
+        return *this;
+    }
+
+    // This function is used in debug assertions to check that other entities
+    // hold a reference to a model value.
+    bool HasModel() const { return true; }
+
+    Type GetMaximum() const
+    {
+        return this->maximum_.Get();
+    }
+
+    Type GetMinimum() const
+    {
+        return this->minimum_.Get();
+    }
+
+    template<typename, typename, typename, typename>
+    friend class ::pex::control::Range;
+
+    template<typename>
+    friend class ::pex::Reference;
+
+private:
+    void SetWithoutNotify_(Argument<Type> value)
+    {
+        ::pex::AccessReference<Value>(this->value_).SetWithoutNotify(value);
+    }
+
+    void DoNotify_()
+    {
+        ::pex::AccessReference<Value>(this->value_).DoNotify(value);
+    }
+
+private:
+    Value value_;
+    Limit minimum_;
+    Limit maximum_;
+};
+
+
+template<typename Upstream>
+class AddRange
+{
+    static_assert(
+        std::is_arithmetic_v<typename Upstream::Type>,
+        "Designed only for arithmetic types.");
+
+public:
+    // The Range value is a control to a model somewhere else.
+    using Value =
+        pex::control::FilteredValue
+        <
+            void,
+            Upstream,
+            RangeFilter<typename Upstream::Type>
+        >;
+
+    static_assert(!IsCopyable<Value>);
+    static_assert(::pex::IsDirect<::pex::UpstreamT<Value>>);
+
+    using Type = typename Value::Type;
+
+    // The Range limits are stored here in the model.
+    using Limit = typename ::pex::model::Value<Type>;
+
+public:
+    AddRange()
+        :
+        value_(),
+        minimum_(std::numeric_limits<Type>::lowest()),
+        maximum_(std::numeric_limits<Type>::max())
+    {
+
+    }
+
+    AddRange(PexArgument<Upstream> upstream)
+        :
+        value_(upstream),
+        minimum_(std::numeric_limits<Type>::lowest()),
+        maximum_(std::numeric_limits<Type>::max())
+    {
+        this->value_.SetFilter(RangeFilter<Type>(
+            this->minimum_.Get(),
+            this->maximum_.Get()));
+    }
+
+    ~AddRange()
+    {
+        PEX_LOG("Disconnect");
+        this->value_.Disconnect(this);
+    }
+
+    void SetUpstream(PexArgument<Upstream> upstream)
+    {
+        this->value_ = Value(upstream);
+
+        this->value_.SetFilter(RangeFilter<Type>(
+            this->minimum_.Get(),
+            this->maximum_.Get()));
+
+        PEX_LOG("model::AddRange: ", this);
+        PEX_LOG("model::AddRange.value_: ", &this->value_);
+        PEX_LOG("model::AddRange.minimum_: ", &this->minimum_);
+        PEX_LOG("model::AddRange.maximum_: ", &this->maximum_);
+    }
+
+    void SetLimits(Type minimum, Type maximum)
+    {
+        if (maximum < minimum)
+        {
+            // maximum may be equal to minimum, even though it doesn't seem
+            // very useful.
+            throw std::invalid_argument("requires maximum >= minimum");
+        }
+
+        // All model values will be changed, so any request to Get() will
+        // return the new value, but notifications will not be sent until we
+        // exit this scope.
+        auto changeMinimum = ::pex::Defer<Limit>(this->minimum_);
+        auto changeMaximum = ::pex::Defer<Limit>(this->maximum_);
+        auto changeValue = ::pex::Defer<Value>(this->value_);
+
+        changeMinimum.Set(minimum);
+        changeMaximum.Set(maximum);
+
+        this->value_.SetFilter(RangeFilter<Type>(
+            this->minimum_.Get(),
+            this->maximum_.Get()));
+
+        if (this->value_.Get() < minimum)
+        {
+            changeValue.Set(minimum);
+        }
+        else if (this->value_.Get() > maximum)
+        {
+            changeValue.Set(maximum);
+        }
+    }
+
+    void SetMinimum(Type minimum)
+    {
+        minimum = std::min(minimum, this->maximum_.Get());
+
+        // Use a pex::Defer to delay notifying of the bounds change until
+        // the value has been (maybe) adjusted.
+        auto changeMinimum = ::pex::Defer<Limit>(this->minimum_);
+        changeMinimum.Set(minimum);
+
+        this->value_.SetFilter(RangeFilter<Type>(
+            this->minimum_.Get(),
+            this->maximum_.Get()));
+
+        if (this->value_.Get() < minimum)
+        {
+            // The current value is less than the new minimum.
+            // Adjust the value to the minimum.
+            this->value_.Set(minimum);
+        }
+    }
+
+    void SetMaximum(Type maximum)
+    {
+        maximum = std::max(maximum, this->minimum_.Get());
+        auto changeMaximum = ::pex::Defer<Limit>(this->maximum_);
+        changeMaximum.Set(maximum);
+
+        this->value_.SetFilter(RangeFilter<Type>(
+            this->minimum_.Get(),
+            this->maximum_.Get()));
+
+        if (this->value_.Get() > maximum)
+        {
+            this->value_.Set(maximum);
+        }
+    }
+
+    void Set(Type value)
     {
         this->value_.Set(value);
     }
@@ -265,6 +437,9 @@ struct IsModelRange_: std::false_type {};
 
 template<typename T>
 struct IsModelRange_<model::Range<T>>: std::true_type {};
+
+template<typename T>
+struct IsModelRange_<model::AddRange<T>>: std::true_type {};
 
 template<typename T>
 inline constexpr bool IsModelRange = IsModelRange_<T>::value;
