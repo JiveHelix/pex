@@ -129,6 +129,7 @@ struct Group
 
         void Connect(void * observer, Callable callable)
         {
+            PEX_LOG("Group::Model::Connect calling Accessors::Connect_");
             this->Connect_(observer, callable);
         }
 
@@ -163,6 +164,14 @@ struct Group
         using Plain = typename Group::Plain;
         using Type = Plain;
 
+        using Upstream = Model;
+
+        // UpstreamType could be the type returned by a filter.
+        // Filters have not been implemented by this class, so it remains the
+        // same as the Type.
+        using UpstreamType = Plain;
+        using Filter = NoFilter;
+
         template<typename T>
         using Pex =
             typename pex::ControlSelector<Observer>::template Type<T>;
@@ -181,12 +190,13 @@ struct Group
 
         Control(const Control &other)
         {
+            PEX_LOG("Group::Control copy ctor: ", this);
             fields::Assign<Fields>(*this, other);
         }
 
         Control & operator=(const Control &other)
         {
-            this->AccessorsBase::operator=(other);
+            this->ResetAccessors_();
             fields::Assign<Fields>(*this, other);
 
             return *this;
@@ -201,7 +211,7 @@ struct Group
         template<typename Other>
         Control & operator=(const Control<Other> &other)
         {
-            this->AccessorsBase::operator=(other);
+            this->ResetAccessors_();
             fields::AssignConvert<Fields>(*this, other);
             return *this;
         }
@@ -225,6 +235,7 @@ struct Group
 
         void Connect(Observer *observer, Callable callable)
         {
+            PEX_LOG("Group::Control::Connect calling Accessors::Connect_");
             this->Connect_(observer, callable);
         }
 
@@ -251,7 +262,6 @@ struct Group
             Derived,
             detail::NotifyMany<TerminusConnection<Observer>, GetAndSetTag>
         >;
-
 
     template<typename Observer>
     struct Terminus:
@@ -292,7 +302,6 @@ struct Group
         Terminus(Terminus &&) = delete;
         Terminus & operator=(const Terminus &) = delete;
         Terminus & operator=(Terminus &&) = delete;
-
 
         // Copy construct
         Terminus(Observer *observer, const Terminus &other)
@@ -340,7 +349,7 @@ struct Group
         Terminus & Assign(Observer *observer, const Terminus &other)
         {
             PEX_LOG("Terminus copy assign observer: ", observer);
-            this->AccessorsBase::operator=(other);
+            this->ResetAccessors_();
             this->observer_ = observer;
 
             CopyTerminus<Fields>(observer, *this, other);
@@ -367,7 +376,7 @@ struct Group
         Terminus & Assign(Observer *observer, Terminus &&other)
         {
             PEX_LOG("Terminus move assign observer: ", observer);
-            this->AccessorsBase::operator=(std::move(other));
+            this->ResetAccessors_();
             this->observer_ = observer;
 
             MoveTerminus<Fields>(observer, *this, other);
@@ -390,7 +399,10 @@ struct Group
 
         void Connect(Callable callable)
         {
-            PEX_LOG("Terminus Connect with observer: ", this->observer_);
+            PEX_LOG(
+                "Group::Terminus::Connect with observer: ",
+                this->observer_);
+
             this->Connect_(this->observer_, callable);
         }
 

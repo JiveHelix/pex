@@ -89,6 +89,8 @@ public:
     /** Remove all registered callbacks for the observer. **/
     void Disconnect(typename Notify::Observer * const observer)
     {
+        PEX_LOG("Checking connections for observer: ", observer);
+
         if (this->connections_.empty())
         {
             return;

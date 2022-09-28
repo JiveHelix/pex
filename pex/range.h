@@ -108,7 +108,7 @@ public:
         >;
 
     static_assert(!IsCopyable<Value>);
-    static_assert(::pex::IsDirect<::pex::UpstreamT<Value>>);
+    static_assert(::pex::IsDirect<::pex::UpstreamHolderT<Value>>);
 
     using Type = typename Value::Type;
 

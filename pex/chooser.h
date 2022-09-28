@@ -12,6 +12,7 @@
 #pragma once
 
 #include <vector>
+#include "pex/log.h"
 #include "pex/converter.h"
 #include "pex/detail/argument.h"
 #include "pex/value.h"
@@ -84,7 +85,7 @@ template<typename Upstream, typename ChoicesAccess_ = GetAndSetTag>
 class Chooser
 {
 public:
-    using Value = UpstreamT<Upstream>;
+    using Value = UpstreamHolderT<Upstream>;
     using Type = typename Value::Type;
 
     using ChoicesAccess = ChoicesAccess_;
@@ -108,7 +109,7 @@ public:
     {
         static_assert(
             HasAccess<SetTag, ChoicesAccess>,
-            "Choices must be set on construction they are read-only.");
+            "Choices must be set on construction, they are read-only.");
 
         PEX_LOG(this, " calling connect on ", &this->selection_);
         this->selection_.Connect(this, &Chooser::OnSelection_);
@@ -130,7 +131,7 @@ public:
     
     ~Chooser()
     {
-        PEX_LOG(this, " calling Disconect on ", &this->selection_);
+        PEX_LOG(this, " calling Disconnect on ", &this->selection_);
         this->selection_.Disconnect(this);
     }
 
@@ -205,7 +206,7 @@ public:
     {
         PEX_LOG(
             this,
-            " calling Disconect on ",
+            " calling Disconnect on ",
             &this->value_,
             " with ",
             context);

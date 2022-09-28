@@ -140,14 +140,14 @@ inline constexpr bool IsCopyable = IsCopyable_<Pex>::value;
  ** Copyable Upstream may be stored directly, else use Direct.
  **/
 template<typename T, typename Enable = void>
-struct Upstream_
+struct UpstreamHolder_
 {
     using Type = T;
 };
 
 
 template<typename T>
-struct Upstream_
+struct UpstreamHolder_
 <
     T,
     std::enable_if_t<!IsCopyable<T>>
@@ -158,9 +158,9 @@ struct Upstream_
 
 
 template<typename T>
-using UpstreamT = typename Upstream_<T>::Type;
+using UpstreamHolderT = typename UpstreamHolder_<T>::Type;
 
-/** UpstreamT **/
+/** UpstreamHolderT **/
 
 
 /**
@@ -185,5 +185,6 @@ template<typename T>
 using PexArgument = typename PexArgument_<T>::Type;
 
 /** PexArgument **/
+
 
 } // end namespace pex

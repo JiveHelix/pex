@@ -1,5 +1,6 @@
 #pragma once
 
+#include <memory>
 #include <mutex>
 #include <jive/to_stream.h>
 
@@ -8,14 +9,21 @@ namespace pex
 {
 
 
-extern std::mutex logMutex;
+extern std::unique_ptr<std::mutex> logMutex;
 
 
 template <typename ...T>
 void ToStream(T && ... args)
 {
-    std::lock_guard<std::mutex> lock(logMutex);
-    jive::ToStreamFlush(std::forward<T>(args)...);
+    if (logMutex)
+    {
+        std::lock_guard<std::mutex> lock(*logMutex);
+        jive::ToStreamFlush(std::forward<T>(args)...);
+    }
+    else
+    {
+        jive::ToStreamFlush(std::forward<T>(args)...);
+    }
 }
 
 

@@ -2,5 +2,5 @@
 
 namespace pex
 {
-    std::mutex logMutex;
+    std::unique_ptr<std::mutex> logMutex(std::make_unique<std::mutex>());
 }

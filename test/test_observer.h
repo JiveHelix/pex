@@ -3,10 +3,10 @@
 #include "pex/value.h"
 
 
-template<typename Model>
+template<typename Upstream>
 struct Defaults
 {
-    using Control = pex::control::Value<void, Model>;
+    using Control = pex::control::Value<void, Upstream>;
 
     template<typename Observer>
     using Terminus = pex::Terminus<Observer, Control>;
@@ -15,17 +15,17 @@ struct Defaults
 
 template
 <
-    typename Model,
-    template<typename> typename Terminus = Defaults<Model>::template Terminus
+    typename Upstream,
+    template<typename> typename Terminus = Defaults<Upstream>::template Terminus
 >
 class TestObserver
 {
 public:
-    using Type = typename Model::Type;
+    using Type = typename Upstream::Type;
 
-    TestObserver(Model &model)
+    TestObserver(Upstream &upstream)
         :
-        terminus_(this, model),
+        terminus_(this, upstream),
         observedValue{this->terminus_.Get()}
     {
         this->terminus_.Connect(&TestObserver::Observe_);
