@@ -50,7 +50,8 @@ struct ConverterTraits
 };
 
 
-using DefaultConverterTraits = ConverterTraits<10, -1, -1, jive::flag::None>;
+using DefaultConverterTraits =
+    ConverterTraits<10, 0, -1, jive::flag::Alternate>;
 
 
 template<typename T, typename Traits, typename = void>
