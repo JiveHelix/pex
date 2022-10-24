@@ -4,11 +4,10 @@
 #include <fields/fields.h>
 
 #include "pex/accessors.h"
-#include "pex/interface.h"
 
 
 /**
- 
+
 // The Group struct uses a Fields type and a Template type to create a POD
 // struct and corresponding Model and Control.
 
@@ -85,7 +84,7 @@ struct Group
     };
 
     using Plain = typename PlainHelper<Plain_>::Type;
-    
+
     using ModelConnection = ValueConnection<void, Plain, NoFilter>;
 
     template<typename Derived>
@@ -414,9 +413,105 @@ struct Group
         {
             return this->observer_;
         }
-    
+
     private:
         Observer * observer_;
+    };
+};
+
+
+template
+<
+    template<typename> typename Fields,
+    template<template<typename> typename> typename Template,
+    typename Upstream_ = void,
+    typename RangeFilter = NoFilter
+>
+struct RangeGroup
+{
+    template<typename P, typename = void>
+    struct UpstreamHelper
+    {
+        using Type = P;
+    };
+
+    template<typename P>
+    struct UpstreamHelper
+    <
+        P,
+        std::enable_if_t<std::is_same_v<P, void>>
+    >
+    {
+        using Type = typename pex::Group<Fields, Template>::Model;
+    };
+
+    using Upstream = typename UpstreamHelper<Upstream_>::Type;
+    using Plain = typename Upstream::Plain;
+
+    template<typename T>
+    using UpstreamPex = typename Upstream::template Pex<T>;
+
+    template<typename T>
+    using ModelPex = pex::model::Range<UpstreamPex<T>>;
+
+    template<typename Observer>
+    struct ControlPex
+    {
+        template<typename T>
+        using Type = pex::control::Range<Observer, ModelPex<T>, RangeFilter>;
+    };
+
+    struct Models: public Template<ModelPex>
+    {
+        Models() = default;
+
+        Models(Upstream &upstream)
+        {
+            PEX_LOG("RangeGroup::Models ctor");
+
+            auto setUpstream = [this, &upstream](
+                const auto &modelField,
+                const auto &upstreamField) -> void
+            {
+                (this->*(modelField.member)).SetUpstream(
+                    upstream.*(upstreamField.member));
+            };
+
+            jive::ZipApply(
+                setUpstream,
+                Fields<Models>::fields,
+                Fields<Upstream>::fields);
+        }
+
+        void SetUpstream(Upstream &upstream)
+        {
+            PEX_LOG("RangeGroup::Models");
+
+            auto setUpstream = [this, &upstream](
+                const auto &modelField,
+                const auto &upstreamField) -> void
+            {
+                (this->*(modelField.member)).SetUpstream(
+                    upstream.*(upstreamField.member));
+            };
+
+            jive::ZipApply(
+                setUpstream,
+                Fields<Models>::fields,
+                Fields<Upstream>::fields);
+        }
+    };
+
+    template<typename Observer>
+    struct Controls:
+        public Template<ControlPex<Observer>::template Type>
+    {
+        Controls() = default;
+
+        Controls(Models &model)
+        {
+            fields::AssignConvert<Fields>(*this, model);
+        }
     };
 };
 

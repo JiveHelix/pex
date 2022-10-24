@@ -3,7 +3,7 @@
 #include <cassert>
 #include <optional>
 #include "pex/access_tag.h"
-#include "pex/detail/argument.h"
+#include "pex/argument.h"
 #include "pex/detail/log.h"
 
 

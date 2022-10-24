@@ -5,7 +5,7 @@
 
 
 using Value = pex::model::Value<int>;
-using Range = pex::model::Range<Value>;
+using Range = pex::model::AddRange<Value>;
 using Control = pex::control::Range<void, Range>;
 
 
@@ -26,8 +26,8 @@ TEST_CASE("Limits keep value within range.", "[range]")
 
     control.value.Set(-3);
     REQUIRE(value.Get() == 0);
-     
-    range.SetMinimum(5); 
+
+    range.SetMinimum(5);
     REQUIRE(value.Get() == 5);
 }
 
@@ -51,8 +51,8 @@ TEST_CASE("Limits filter propagates to controls.", "[range]")
 
     control.value.Set(-3);
     REQUIRE(value.Get() == 0);
-     
-    range.SetMinimum(5); 
+
+    range.SetMinimum(5);
     REQUIRE(value.Get() == 5);
 }
 

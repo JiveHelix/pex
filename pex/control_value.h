@@ -215,7 +215,7 @@ public:
         static_assert(
             IsCopyable<Value_>,
             "This value is not copyable.");
-        
+
         static_assert(
             !detail::FilterIsMember<UpstreamType, Filter>,
             "IsCopyable implies that Filter uses static functions.");
@@ -223,7 +223,7 @@ public:
         PEX_LOG("Disconnect ", this);
         this->upstream_.Disconnect(this);
         this->upstream_ = other.upstream_;
-        
+
         if constexpr (HasAccess<GetTag, Access>)
         {
             PEX_LOG("Connect ", this);
@@ -241,7 +241,7 @@ public:
         this->upstream_.Disconnect(this);
         this->upstream_ = std::move(other.upstream_);
         this->filter_ = std::move(other.filter_);
-        
+
         if constexpr (HasAccess<GetTag, Access>)
         {
             PEX_LOG("Connect ", this);
@@ -346,7 +346,7 @@ private:
     {
         this->upstream_.DoNotify_();
     }
-    
+
     UpstreamType FilterOnSet_(Argument<Type> value) const
     {
         if constexpr (std::is_same_v<NoFilter, Filter>)
@@ -501,6 +501,23 @@ using FilteredLike = typename FilteredLike_<ControlValue, Filter>::Type;
 
 
 } // namespace control
+
+
+template<typename ...T>
+struct IsControlBase_: std::false_type {};
+
+template<typename ...T>
+struct IsControlBase_<pex::control::Value_<T...>>: std::true_type {};
+
+template<typename ...T>
+inline constexpr bool IsControlBase = IsControlBase_<T...>::value;
+
+
+template<typename T>
+struct IsControl_: IsBaseOf<pex::control::Value_, T> {};
+
+template<typename T>
+inline constexpr bool IsControl = IsControl_<T>::value;
 
 
 } // namespace pex

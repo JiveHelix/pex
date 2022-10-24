@@ -2,7 +2,7 @@
 
 #include <fields/assign.h>
 #include "pex/reference.h"
-#include "pex/interface.h"
+#include "pex/selectors.h"
 
 
 namespace pex
@@ -149,7 +149,7 @@ void InitializeTerminus(
 
     auto initializer = [&terminus, observer, &upstream](
         auto terminusField,
-        auto controlField)
+        auto upstreamField)
     {
         using MemberType = typename std::remove_reference_t
             <
@@ -158,7 +158,7 @@ void InitializeTerminus(
 
         (terminus.*(terminusField.member)).Assign(
             observer,
-            MemberType(observer, upstream.*(controlField.member)));
+            MemberType(observer, upstream.*(upstreamField.member)));
     };
 
     jive::ZipApply(

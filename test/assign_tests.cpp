@@ -5,7 +5,7 @@
 #include <string>
 #include <optional>
 
-#include "pex/interface.h"
+#include "pex/pex.h"
 
 
 #include <fields/comparisons.h>

@@ -26,3 +26,13 @@ target_link_libraries(
     project_warnings
     project_options
     pex)
+
+
+add_executable(range_demo range_demo.cpp)
+
+target_link_libraries(
+    range_demo
+    PUBLIC
+    project_warnings
+    project_options
+    pex)

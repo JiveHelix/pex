@@ -13,7 +13,7 @@
 
 #include <vector>
 #include "pex/converter.h"
-#include "pex/detail/argument.h"
+#include "pex/argument.h"
 #include "pex/value.h"
 #include "pex/reference.h"
 #include "pex/find_index.h"

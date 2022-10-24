@@ -2,7 +2,7 @@
 
 #include <jive/zip_apply.h>
 #include <fields/core.h>
-#include "pex/interface.h"
+#include "pex/selectors.h"
 
 
 namespace pex

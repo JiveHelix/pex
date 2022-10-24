@@ -300,7 +300,7 @@ public:
         {
             throw std::logic_error("other.model_ must be set!");
         }
-        
+
         this->model_ = other.model_;
 
         return *this;
@@ -309,7 +309,7 @@ public:
     Type Get() const
     {
         REQUIRE_HAS_VALUE(this->model_);
-        return this->model_->Get(); 
+        return this->model_->Get();
     }
 
     void Set(Argument<Type> value)

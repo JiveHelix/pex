@@ -13,7 +13,7 @@
 #pragma once
 
 #include <type_traits>
-#include "pex/detail/argument.h"
+#include "pex/argument.h"
 
 
 namespace pex

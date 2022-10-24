@@ -1,38 +1,23 @@
 /**
   * @file interface.h
-  * 
+  *
   * @brief Declares templated helpers for generating interfaces.
-  * 
+  *
   * @author Jive Helix (jivehelix@gmail.com)
   * @date 11 Mar 2022
   * @copyright Jive Helix
   * Licensed under the MIT license. See LICENSE file.
 **/
 
-
 #pragma once
 
-
-#include "pex/value.h"
-#include "pex/signal.h"
-
+#include "pex/no_filter.h"
+#include "pex/access_tag.h"
 
 namespace pex
 {
 
 // Helpful templates for generating interfaces
-
-template<typename T>
-using Model = model::Value<T>;
-
-
-template<typename Observer, template<typename> typename Upstream = pex::Model>
-struct Control
-{
-    template<typename T>
-    using Type = control::Value<Observer, Upstream<T>>;
-};
-
 
 struct MakeSignal {};
 
@@ -45,6 +30,20 @@ struct MakeCustom
 
     template<typename Observer>
     using Control = typename Custom::template Control<Observer>;
+};
+
+
+template
+<
+    typename T,
+    typename Minimum_ = void,
+    typename Maximum_ = void
+>
+struct MakeRange
+{
+    using Type = T;
+    using Minimum = Minimum_;
+    using Maximum = Maximum_;
 };
 
 
@@ -93,27 +92,19 @@ namespace pex
 
 
 template<typename T>
-using ModelSelector = typename detail::ModelSelector_<T>::Type;
+inline constexpr bool IsMakeSignal = detail::IsMakeSignal_<T>::value;
 
+template<typename ...T>
+inline constexpr bool IsMakeCustom = detail::IsMakeCustom_<T...>::value;
 
-template<typename Observer>
-struct ControlSelector
-{
-    template<typename T>
-    using Type = typename detail::ControlSelector_<T>::template Type<Observer>;
-};
+template<typename ...T>
+inline constexpr bool IsMakeGroup = detail::IsMakeGroup_<T...>::value;
 
+template<typename ...T>
+inline constexpr bool IsFiltered = detail::IsFiltered_<T...>::value;
 
-template<typename Observer>
-struct TerminusSelector
-{
-    template<typename T>
-    using Type = typename detail::TerminusSelector_<T>::template Type<Observer>;
-};
-
-
-template<typename T>
-using Identity = typename detail::Identity_<T>::Type;
+template<typename ...T>
+inline constexpr bool IsMakeRange = detail::IsMakeRange_<T...>::value;
 
 
 } // end namespace pex

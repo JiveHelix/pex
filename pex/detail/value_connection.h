@@ -12,8 +12,8 @@
 
 #pragma once
 
+#include "pex/argument.h"
 #include "pex/detail/connection.h"
-#include "pex/detail/argument.h"
 #include "pex/detail/function_style.h"
 
 

@@ -30,16 +30,6 @@ template<typename Pex>
 inline constexpr bool IsDirect = IsDirect_<Pex>::value;
 
 
-template<typename ...T>
-struct IsControlBase_: std::false_type {};
-
-template<typename ...T>
-struct IsControlBase_<pex::control::Value_<T...>>: std::true_type {};
-
-template<typename ...T>
-inline constexpr bool IsControlBase = IsControlBase_<T...>::value;
-
-
 template<template<typename...> typename Base, typename Derived>
 struct IsBaseOf_
 {
@@ -51,13 +41,6 @@ struct IsBaseOf_
 
 template<template<typename...> class Base, typename Derived>
 using IsBaseOf = typename IsBaseOf_<Base, Derived>::Type;
-
-
-template<typename T>
-struct IsControl_: IsBaseOf<pex::control::Value_, T> {};
-
-template<typename T>
-inline constexpr bool IsControl = IsControl_<T>::value;
 
 
 template<typename T, typename enable = void>
@@ -120,7 +103,7 @@ struct IsCopyable_
     std::enable_if_t
     <
         !IsModel<Pex>
-        && 
+        &&
         !IsModelSignal<Pex>
         &&
         !detail::FilterIsMember
@@ -136,7 +119,7 @@ template<typename Pex>
 inline constexpr bool IsCopyable = IsCopyable_<Pex>::value;
 
 
-/** 
+/**
  ** Copyable Upstream may be stored directly, else use Direct.
  **/
 template<typename T, typename Enable = void>

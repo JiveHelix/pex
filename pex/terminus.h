@@ -268,7 +268,7 @@ public:
 
         return *this;
     }
-    
+
     ~Terminus_()
     {
         PEX_LOG("Terminus destroy: ", this, ", pex_: ", &this->pex_);
