@@ -36,15 +36,15 @@ struct RotationFields
 };
 
 
-using pex::Float;
+using pex::Limit;
 
 
 template<template<typename> typename T>
 struct RotationTemplate
 {
-    T<pex::MakeRange<double, Float<-90>, Float<90>>> alpha;
-    T<pex::MakeRange<double, Float<-180>, Float<180>>> beta;
-    T<pex::MakeRange<double, Float<-180>, Float<180>>> gamma;
+    T<pex::MakeRange<double, Limit<-90>, Limit<90>>> alpha;
+    T<pex::MakeRange<double, Limit<-180>, Limit<180>>> beta;
+    T<pex::MakeRange<double, Limit<-180>, Limit<180>>> gamma;
 
     static constexpr auto fields = RotationFields<RotationTemplate>::fields;
     static constexpr auto fieldsTypeName = "Rotation";

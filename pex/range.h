@@ -45,14 +45,21 @@ template<
     signed integral,
     unsigned fractional = 0,
     unsigned denominator = 1000000>
-struct Float
+struct Limit
 {
     template<typename T = double>
     static constexpr T Get()
     {
-        return static_cast<T>(integral)
-            + (static_cast<T>(fractional)
-                / static_cast<T>(denominator));
+        if constexpr (std::is_integral_v<T>)
+        {
+            return static_cast<T>(integral);
+        }
+        else
+        {
+            return static_cast<T>(integral)
+                + (static_cast<T>(fractional)
+                    / static_cast<T>(denominator));
+        }
     }
 };
 
