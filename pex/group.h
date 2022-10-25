@@ -452,7 +452,7 @@ struct RangeGroup
     using UpstreamPex = typename Upstream::template Pex<T>;
 
     template<typename T>
-    using ModelPex = pex::model::Range<UpstreamPex<T>>;
+    using ModelPex = pex::model::AddRange<UpstreamPex<T>>;
 
     template<typename Observer>
     struct ControlPex

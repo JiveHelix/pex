@@ -165,22 +165,27 @@ public:
 public:
     Range()
         :
-        value_(),
+        value_(
+            RangeFilter<Type>(
+                Minimum<T, initialMinimum>::value,
+                Maximum<T, initialMaximum>::value)),
         minimum_(Minimum<T, initialMinimum>::value),
         maximum_(Maximum<T, initialMaximum>::value)
     {
-        this->value_.SetFilter(
-            RangeFilter<Type>(this->minimum_.Get(), this->maximum_.Get()));
+
     }
 
     explicit Range(Type value)
         :
-        value_(value),
+        value_(
+            value,
+            RangeFilter<Type>(
+                Minimum<T, initialMinimum>::value,
+                Maximum<T, initialMaximum>::value)),
         minimum_(Minimum<T, initialMinimum>::value),
         maximum_(Maximum<T, initialMaximum>::value)
     {
-        this->value_.SetFilter(
-            RangeFilter<Type>(this->minimum_.Get(), this->maximum_.Get()));
+
     }
 
     ~Range()
@@ -212,9 +217,10 @@ public:
         changeMinimum.Set(minimum);
         changeMaximum.Set(maximum);
 
-        this->value_.SetFilter(RangeFilter<Type>(
-            this->minimum_.Get(),
-            this->maximum_.Get()));
+        this->value_.SetFilter(
+            RangeFilter<Type>(
+                this->minimum_.Get(),
+                this->maximum_.Get()));
 
         if (this->value_.Get() < minimum)
         {
