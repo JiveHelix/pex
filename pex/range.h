@@ -41,6 +41,12 @@ class Range;
 } // end namespace control
 
 
+// Forward declare the RangeTerminus
+// Necessary for the friend declaration in model::Range
+template<typename, typename>
+class RangeTerminus;
+
+
 template<
     signed integral,
     unsigned fractional = 0,
@@ -306,6 +312,9 @@ public:
 
     template<typename, typename, typename, typename>
     friend class ::pex::control::Range;
+
+    template<typename, typename>
+    friend class ::pex::RangeTerminus;
 
     template<typename>
     friend class ::pex::Reference;
@@ -598,6 +607,16 @@ public:
         return *this;
     }
 
+    explicit operator Type () const
+    {
+        return this->value.Get();
+    }
+
+    Type Get() const
+    {
+        return this->value.Get();
+    }
+
     void Set(Argument<Type> value_)
     {
         this->value.Set(value_);
@@ -636,6 +655,7 @@ private:
 };
 
 
+// Converts values directly between model type and control type.
 template
 <
     typename Observer,
@@ -652,21 +672,35 @@ using ConvertingRange = Range
     >;
 
 
+// Maps control values linearly between minimum and maximum model values.
 template
 <
     typename Observer,
     typename Upstream,
-    typename Converted,
     ssize_t slope,
-    ssize_t offset,
     typename Access = pex::GetAndSetTag
 >
 using LinearRange = Range
     <
         Observer,
         Upstream,
-        LinearFilter<typename Upstream::Value::Type, Converted, slope, offset>,
+        LinearFilter<typename Upstream::Value::Type, slope>,
         Access
+    >;
+
+
+template
+<
+    typename Observer,
+    typename Upstream,
+    unsigned base,
+    unsigned divisor
+>
+using LogarithmicRange = Range
+    <
+        Observer,
+        Upstream,
+        LogarithmicFilter<typename Upstream::Value::Type, base, divisor>
     >;
 
 
@@ -868,6 +902,16 @@ struct RangeTerminus
     explicit operator Type () const
     {
         return this->value.Get();
+    }
+
+    Type Get() const
+    {
+        return this->value.Get();
+    }
+
+    void Set(Argument<Type> value_)
+    {
+        this->value.Set(value_);
     }
 
     bool HasModel() const

@@ -113,30 +113,40 @@ using ConvertingValue = Value_<
 
 
 /**
- ** Converts between a floating-point value and an integer.
+ ** Maps between a model value and the integer values of a control, like
+ ** a slider. Slope determines the number of possible adjustment
+ ** steps per integral value of the model.
+ **
+ ** Examples:
+ ** If model ranges from 0 to 360, and the slope is 1, there will
+ ** be 360 discrete adjustment steps in the slider. A slope of 2 produces 720
+ ** steps, or two steps per whole number.
+ **
+ ** If model ranges from 0 to 1 and the slope is 100, there will be 100
+ ** discrete adjustment steps.
+ **
  **/
-template<typename T, typename I, ssize_t slope, ssize_t offset>
+template<typename T, ssize_t slope>
 struct LinearFilter
 {
     static_assert(slope != 0, "Cannot divide by zero!");
     static_assert(std::is_floating_point_v<T>);
 
-    static I Get(T value)
+    static int Get(T value)
     {
-        T result = value * static_cast<T>(slope) + static_cast<T>(offset);
+        T result = value * static_cast<T>(slope);
 
-        if constexpr (std::is_integral_v<I>)
+        if constexpr (std::is_floating_point_v<T>)
         {
             result = round(result);
         }
 
-        return static_cast<I>(result);
+        return static_cast<int>(result);
     }
 
-    static T Set(I value)
+    static T Set(int value)
     {
-        return static_cast<T>(value - static_cast<I>(offset))
-            / static_cast<T>(slope);
+        return static_cast<T>(value) / static_cast<T>(slope);
     }
 };
 
