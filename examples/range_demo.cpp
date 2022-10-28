@@ -54,11 +54,6 @@ struct RotationTemplate
 using PositionGroup = pex::Group<PositionFields, PositionTemplate>;
 using RotationGroup = pex::Group<RotationFields, RotationTemplate>;
 
-static_assert(
-    std::is_same_v<
-        double,
-        typename decltype(RotationGroup::Model::alpha)::Type>);
-
 
 template<typename T>
 struct PoseFields

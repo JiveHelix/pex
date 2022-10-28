@@ -269,6 +269,7 @@ class Direct
 public:
     using Type = typename Model::Type;
     using Callable = typename Model::Callable;
+    static constexpr bool isPexCopyable = true;
 
     Direct()
         :

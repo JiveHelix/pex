@@ -35,7 +35,9 @@ struct IsBaseOf_
 {
     template<typename ...T>
     static constexpr std::true_type  DoTest_(const Base<T...> *);
+
     static constexpr std::false_type DoTest_(...);
+
     using Type = decltype(DoTest_(std::declval<Derived *>()));
 };
 
@@ -87,6 +89,21 @@ template<typename T>
 inline constexpr bool IsSignal = IsSignal_<T>::value;
 
 
+template<typename T, typename Enable = void>
+struct DefinesPexCopyable_: std::false_type {};
+
+template<typename T>
+struct DefinesPexCopyable_
+<
+    T,
+    std::enable_if_t<T::isPexCopyable>
+>
+: std::true_type {};
+
+template<typename T>
+inline constexpr bool DefinesPexCopyable = DefinesPexCopyable_<T>::value;
+
+
 /** If Pex is a pex::model::Value, it cannot be copied. Also, if it
  ** has a Filter with member functions, then allowing it to be copied
  ** breaks the ability to change the Filter instance. These Pex values must not
@@ -111,6 +128,7 @@ struct IsCopyable_
             typename Pex::UpstreamType,
             typename Pex::Filter
         >
+        && DefinesPexCopyable<Pex>
     >
 >: std::true_type {};
 

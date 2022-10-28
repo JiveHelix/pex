@@ -57,6 +57,8 @@ public:
 
     using Callable = typename Pex<Observer>::Callable;
 
+    static constexpr bool isPexCopyable = true;
+
     // Make any template specialization of Terminus a friend class.
     template <typename, typename>
     friend class ::pex::Terminus_;

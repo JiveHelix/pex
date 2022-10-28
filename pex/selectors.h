@@ -25,7 +25,8 @@ struct RangeTypes
         <
             Type,
             typename RangeMaker::Minimum,
-            typename RangeMaker::Maximum
+            typename RangeMaker::Maximum,
+            RangeMaker::template Value
         >;
 
     template<typename Observer>

@@ -13,6 +13,7 @@
 
 #include "pex/no_filter.h"
 #include "pex/access_tag.h"
+#include "pex/model_value.h"
 
 namespace pex
 {
@@ -37,13 +38,17 @@ template
 <
     typename T,
     typename Minimum_ = void,
-    typename Maximum_ = void
+    typename Maximum_ = void,
+    template<typename, typename> typename Value_ = pex::model::Value_
 >
 struct MakeRange
 {
     using Type = T;
     using Minimum = Minimum_;
     using Maximum = Maximum_;
+
+    template<typename U, typename V>
+    using Value = Value_<U, V>;
 };
 
 
@@ -103,8 +108,9 @@ inline constexpr bool IsMakeGroup = detail::IsMakeGroup_<T...>::value;
 template<typename ...T>
 inline constexpr bool IsFiltered = detail::IsFiltered_<T...>::value;
 
-template<typename ...T>
-inline constexpr bool IsMakeRange = detail::IsMakeRange_<T...>::value;
+template<typename ...Args>
+inline constexpr bool IsMakeRange =
+    detail::IsMakeRange_<Args...>::value;
 
 
 } // end namespace pex

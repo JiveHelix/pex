@@ -45,6 +45,10 @@ class Value_
     >
 {
 public:
+    // This may not ultimately be true depending on the type of filter used.
+    // See pex/traits.h for details.
+    static constexpr bool isPexCopyable = true;
+
     using Observer = Observer_;
     using Pex = Pex_;
 

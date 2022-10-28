@@ -50,8 +50,16 @@ template<typename ...T>
 struct IsFiltered_<Filtered<T...>>: std::true_type {};
 
 
-template<typename ...T>
-struct IsMakeRange_: std::false_type {};
+template<typename ...T> struct IsMakeRange_: std::false_type {};
+
+template
+<
+    typename T,
+    typename U,
+    typename V,
+    template<typename, typename> typename W
+>
+struct IsMakeRange_<MakeRange<T, U, V, W>>: std::true_type {};
 
 template<typename ...T>
 struct IsMakeRange_<MakeRange<T...>>: std::true_type {};

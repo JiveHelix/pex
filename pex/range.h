@@ -149,7 +149,8 @@ template
     typename T,
     // Defaults to numeric_limits<T>::lowest() and ::max()
     typename initialMinimum = void,
-    typename initialMaximum = void
+    typename initialMaximum = void,
+    template<typename, typename> typename ValueTemplate = Value_
 >
 class Range
 {
@@ -160,12 +161,8 @@ public:
         std::is_arithmetic_v<Type>,
         "Designed only for arithmetic types.");
 
-    using Value = pex::model::Value_<Type, RangeFilter<Type>>;
-
-    static_assert(!IsCopyable<Value>);
-
+    using Value = ValueTemplate<T, RangeFilter<T>>;
     using Limit = typename ::pex::model::Value<Type>;
-
     using Callable = typename Value::Callable;
 
 public:
@@ -518,6 +515,15 @@ struct IsModelRange_: std::false_type {};
 template<typename ...T>
 struct IsModelRange_<model::Range<T...>>: std::true_type {};
 
+template
+<
+    typename T,
+    typename U,
+    typename V,
+    template<typename, typename> typename W
+>
+struct IsModelRange_<model::Range<T, U, V, W>>: std::true_type {};
+
 template<typename ...T>
 struct IsModelRange_<model::AddRange<T...>>: std::true_type {};
 
@@ -539,6 +545,8 @@ template
 class Range
 {
 public:
+    static constexpr bool isPexCopyable = true;
+
     using Upstream = Upstream_;
     using Filter = Filter_;
     using Type = typename Upstream::Value::Type;
@@ -738,8 +746,9 @@ struct ManagedControl<P, std::enable_if_t<IsControlRange<P>>>
 
 
 template<typename Observer, typename Pex_>
-struct RangeTerminus
+class RangeTerminus
 {
+public:
     template<typename O>
     using Pex = typename ManagedControl<Pex_>::template Type<O>;
 
@@ -751,6 +760,8 @@ struct RangeTerminus
     Value value;
     Limit minimum;
     Limit maximum;
+
+    static constexpr bool isPexCopyable = true;
 
     RangeTerminus()
         :
