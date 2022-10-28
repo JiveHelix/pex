@@ -23,11 +23,29 @@ struct IsMakeSignal_
 >: std::true_type {};
 
 
-template<typename ...T>
+template<typename T, typename Enable = void>
+struct DefinesMakeCustom_: std::false_type {};
+
+template<typename T>
+struct DefinesMakeCustom_
+<
+    T,
+    std::enable_if_t<T::isMakeCustom>
+>: std::true_type {};
+
+template<typename T>
+inline constexpr bool DefinesMakeCustom = DefinesMakeCustom_<T>::value;
+
+
+template<typename T, typename Enable = void>
 struct IsMakeCustom_: std::false_type {};
 
-template<template<typename> typename T, typename U>
-struct IsMakeCustom_<MakeCustom<T<U>>>: std::true_type {};
+template<typename T>
+struct IsMakeCustom_
+<
+    T,
+    std::enable_if_t<DefinesMakeCustom<T>>
+>: std::true_type {};
 
 
 template<typename ...T>

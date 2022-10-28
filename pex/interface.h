@@ -26,6 +26,8 @@ struct MakeSignal {};
 template<typename Custom_>
 struct MakeCustom
 {
+    static constexpr bool isMakeCustom = true;
+
     using Custom = Custom_;
     using Type = typename Custom::Type;
 
