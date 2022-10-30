@@ -1,5 +1,5 @@
 /**
-  * @file value_detail.h
+  * @file detail/value.h
   *
   * @brief Provides implementation details for pex/value.h.
   *

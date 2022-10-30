@@ -218,7 +218,7 @@ void MoveTerminus(Observer *observer, T &terminus, U &other)
 }
 
 
-namespace internal
+namespace detail
 {
 
 
@@ -240,14 +240,14 @@ struct Aggregate:
     public Getter<Plain, Fields, Aggregate<Plain, Fields, Template>>,
     public detail::NotifyConnector
     <
-        ValueConnection<void, Plain, NoFilter>,
+        ::pex::ValueConnection<void, Plain, NoFilter>,
         GetAndSetTag
     >
 {
 public:
     using Connector = detail::NotifyConnector
         <
-            ValueConnection<void, Plain, NoFilter>,
+            ::pex::ValueConnection<void, Plain, NoFilter>,
             GetAndSetTag
         >;
 
@@ -341,7 +341,7 @@ private:
 };
 
 
-} // end namespace internal
+} // end namespace detail
 
 
 template
@@ -359,7 +359,7 @@ class Accessors
     public Connector
 {
 private:
-    using Aggregate = internal::Aggregate<Plain, Fields, Template>;
+    using Aggregate = detail::Aggregate<Plain, Fields, Template>;
 
     std::unique_ptr<Aggregate> aggregate_;
 protected:
@@ -502,7 +502,7 @@ protected:
             using Member = typename std::remove_reference_t<
                 decltype(derived->*(thisField.member))>;
 
-            internal::AccessReference<Member>(
+            detail::AccessReference<Member>(
                 derived->*(thisField.member))
                     .SetWithoutNotify(plain.*(plainField.member));
         };
@@ -522,7 +522,7 @@ protected:
             using Member = typename std::remove_reference_t<
                 decltype(derived->*(thisField.member))>;
 
-            internal::AccessReference<Member>(
+            detail::AccessReference<Member>(
                 (derived->*(thisField.member)))
                     .DoNotify();
         };

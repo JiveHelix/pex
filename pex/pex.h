@@ -16,7 +16,7 @@
 #include "pex/signal.h"
 #include "pex/range.h"
 
-#include "pex/chooser.h"
+#include "pex/select.h"
 #include "pex/reference.h"
 #include "pex/transaction.h"
 #include "pex/interface.h"

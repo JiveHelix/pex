@@ -56,7 +56,7 @@ void PlayerDemo()
     expanded.age.Set(34);
     expanded.height.Set(1.905);
 
-    std::cout << fields::DescribeColorized(model.Get(), 1) << std::endl;
+    std::cout << fields::DescribeColorized(model.Get()) << std::endl;
 }
 
 

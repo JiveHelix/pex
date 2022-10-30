@@ -11,7 +11,8 @@ add_executable(
     range_tests.cpp
     assign_tests.cpp
     terminus_tests.cpp
-    group_tests.cpp)
+    group_tests.cpp
+    select_tests.cpp)
 
 target_link_libraries(
     pex_tests

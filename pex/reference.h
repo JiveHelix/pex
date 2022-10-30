@@ -138,7 +138,7 @@ protected:
 };
 
 
-namespace internal
+namespace detail
 {
 
 
@@ -338,6 +338,24 @@ public:
 
 private:
     const Model &model_;
+};
+
+
+template<typename T>
+class ReferenceSetter: public pex::Reference<T>
+{
+public:
+    using pex::Reference<T>::Reference;
+
+    void SetWithoutNotify(pex::Argument<typename T::Type> value)
+    {
+        this->SetWithoutNotify_(value);
+    }
+
+    void DoNotify()
+    {
+        this->DoNotify_();
+    }
 };
 
 

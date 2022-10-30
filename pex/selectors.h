@@ -4,6 +4,7 @@
 #include "pex/model_value.h"
 #include "pex/control_value.h"
 #include "pex/range.h"
+#include "pex/select.h"
 #include "pex/signal.h"
 #include "pex/interface.h"
 
@@ -37,6 +38,26 @@ struct RangeTypes
 };
 
 
+template<typename SelectMaker>
+struct SelectTypes
+{
+    using Type = typename SelectMaker::Type;
+
+    using Model =
+        pex::model::Select
+        <
+            Type,
+            typename SelectMaker::Access
+        >;
+
+    template<typename Observer>
+    using Control = pex::control::Select<Observer, Model>;
+
+    template<typename Observer>
+    using Terminus = SelectTerminus<Observer, Model>;
+};
+
+
 /***** ModelSelector *****/
 template<typename T, typename = void>
 struct ModelSelector_
@@ -60,6 +81,12 @@ template<typename T>
 struct ModelSelector_<T, std::enable_if_t<IsMakeRange<T>>>
 {
     using Type = typename RangeTypes<T>::Model;
+};
+
+template<typename T>
+struct ModelSelector_<T, std::enable_if_t<IsMakeSelect<T>>>
+{
+    using Type = typename SelectTypes<T>::Model;
 };
 
 template<typename T>
@@ -111,6 +138,13 @@ struct ControlSelector_<T, std::enable_if_t<IsMakeRange<T>>>
 };
 
 template<typename T>
+struct ControlSelector_<T, std::enable_if_t<IsMakeSelect<T>>>
+{
+    template<typename Observer>
+    using Type = typename SelectTypes<T>::template Control<Observer>;
+};
+
+template<typename T>
 struct ControlSelector_<T, std::enable_if_t<IsMakeCustom<T>>>
 {
     template<typename Observer>
@@ -138,6 +172,20 @@ struct TerminusSelector_
 };
 
 template<typename T>
+struct TerminusSelector_<T, std::enable_if_t<IsMakeRange<T>>>
+{
+    template<typename Observer>
+    using Type = typename RangeTypes<T>::template Terminus<Observer>;
+};
+
+template<typename T>
+struct TerminusSelector_<T, std::enable_if_t<IsMakeSelect<T>>>
+{
+    template<typename Observer>
+    using Type = typename SelectTypes<T>::template Terminus<Observer>;
+};
+
+template<typename T>
 struct TerminusSelector_<T, std::enable_if_t<IsMakeCustom<T>>>
 {
     template<typename Observer>
@@ -155,13 +203,6 @@ struct TerminusSelector_<T, std::enable_if_t<IsMakeGroup<T>>>
     using Type = typename T::template Terminus<Observer>;
 };
 
-template<typename T>
-struct TerminusSelector_<T, std::enable_if_t<IsMakeRange<T>>>
-{
-    template<typename Observer>
-    using Type = typename RangeTypes<T>::template Terminus<Observer>;
-};
-
 
 /***** Identity *****/
 template<typename T, typename = void>
@@ -176,7 +217,11 @@ struct Identity_
     T,
     std::enable_if_t
     <
-        IsFiltered<T> || IsMakeCustom<T> || IsMakeGroup<T> || IsMakeRange<T>
+        IsFiltered<T>
+        || IsMakeCustom<T>
+        || IsMakeGroup<T>
+        || IsMakeRange<T>
+        || IsMakeSelect<T>
     >
 >
 {

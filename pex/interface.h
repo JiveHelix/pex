@@ -56,6 +56,18 @@ struct MakeRange
 
 template
 <
+    typename T,
+    typename Access_ = pex::GetAndSetTag
+>
+struct MakeSelect
+{
+    using Type = T;
+    using Access = Access_;
+};
+
+
+template
+<
     typename Group_,
     typename Model_ = typename Group_::Model,
     template<typename> typename Control_ = Group_::template Control,
@@ -91,7 +103,7 @@ struct Filtered
 } // end namespace pex
 
 
-#include "pex/detail/interface_detail.h"
+#include "pex/detail/interface.h"
 
 
 namespace pex
@@ -113,6 +125,10 @@ inline constexpr bool IsFiltered = detail::IsFiltered_<T...>::value;
 template<typename ...Args>
 inline constexpr bool IsMakeRange =
     detail::IsMakeRange_<Args...>::value;
+
+template<typename ...Args>
+inline constexpr bool IsMakeSelect =
+    detail::IsMakeSelect_<Args...>::value;
 
 
 } // end namespace pex

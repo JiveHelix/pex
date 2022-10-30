@@ -419,13 +419,13 @@ struct ImplementInterface
 protected:
     void SetWithoutNotify_(Argument<Type> value)
     {
-        internal::AccessReference<Pex>(
+        detail::AccessReference<Pex>(
             static_cast<Derived *>(this)->pex_).SetWithoutNotify(value);
     }
 
     void DoNotify_()
     {
-        internal::AccessReference<Pex>(
+        detail::AccessReference<Pex>(
             static_cast<Derived *>(this)->pex_).DoNotify();
     }
 };

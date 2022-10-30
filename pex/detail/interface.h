@@ -83,6 +83,12 @@ template<typename ...T>
 struct IsMakeRange_<MakeRange<T...>>: std::true_type {};
 
 
+template<typename ...T> struct IsMakeSelect_: std::false_type {};
+
+template<typename ...T>
+struct IsMakeSelect_<MakeSelect<T...>>: std::true_type {};
+
+
 } // end namespace detail
 
 

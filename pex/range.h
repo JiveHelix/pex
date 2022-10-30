@@ -319,12 +319,12 @@ public:
 private:
     void SetWithoutNotify_(Argument<Type> value)
     {
-        internal::AccessReference<Value>(this->value_).SetWithoutNotify(value);
+        detail::AccessReference<Value>(this->value_).SetWithoutNotify(value);
     }
 
     void DoNotify_()
     {
-        internal::AccessReference<Value>(this->value_).DoNotify();
+        detail::AccessReference<Value>(this->value_).DoNotify();
     }
 
 private:
@@ -653,12 +653,12 @@ public:
 private:
     void SetWithoutNotify_(Argument<Type> value_)
     {
-        internal::AccessReference<Value>(this->value).SetWithoutNotify(value_);
+        detail::AccessReference<Value>(this->value).SetWithoutNotify(value_);
     }
 
     void DoNotify_()
     {
-        internal::AccessReference<Value>(this->value).DoNotify();
+        detail::AccessReference<Value>(this->value).DoNotify();
     }
 };
 
@@ -745,16 +745,16 @@ struct ManagedControl<P, std::enable_if_t<IsControlRange<P>>>
 };
 
 
-template<typename Observer, typename Pex_>
+template<typename Observer, typename Upstream>
 class RangeTerminus
 {
 public:
     template<typename O>
-    using Pex = typename ManagedControl<Pex_>::template Type<O>;
+    using Pex = typename ManagedControl<Upstream>::template Type<O>;
 
     using Value = pex::Terminus<Observer, typename Pex<Observer>::Value>;
     using Limit = pex::Terminus<Observer, typename Pex<Observer>::Limit>;
-    using Type = typename Pex_::Type;
+    using Type = typename Upstream::Type;
     using Callable = typename Pex<Observer>::Callable;
 
     Value value;
@@ -792,7 +792,7 @@ public:
 
     RangeTerminus(
         Observer *observer,
-        typename ManagedControl<Pex_>::Upstream &upstream)
+        typename ManagedControl<Upstream>::Upstream &upstream)
         :
         value(observer, upstream.value_),
         minimum(observer, upstream.minimum_),
@@ -820,8 +820,7 @@ public:
     template<typename O>
     RangeTerminus(
         Observer *observer,
-        // const RangeTerminus<O, control::ChangeObserver<O, Pex_>> &other)
-        const RangeTerminus<O, Pex_> &other)
+        const RangeTerminus<O, Upstream> &other)
         :
         value(observer, other.value),
         minimum(observer, other.minimum),
@@ -844,7 +843,7 @@ public:
     template<typename O>
     RangeTerminus(
         Observer *observer,
-        RangeTerminus<O, Pex_> &&other)
+        RangeTerminus<O, Upstream> &&other)
         :
         value(observer, std::move(other.value)),
         minimum(observer, std::move(other.minimum)),
@@ -857,7 +856,7 @@ public:
     template<typename O>
     RangeTerminus & Assign(
         Observer *observer,
-        const RangeTerminus<O, Pex_> &other)
+        const RangeTerminus<O, Upstream> &other)
     {
         this->value.Assign(observer, other.value);
         this->minimum.Assign(observer, other.minimum);
@@ -870,7 +869,7 @@ public:
     template<typename O>
     RangeTerminus & Assign(
         Observer *observer,
-        const RangeTerminus<O, control::ChangeObserver<O, Pex_>> &other)
+        const RangeTerminus<O, control::ChangeObserver<O, Upstream>> &other)
     {
         this->value.Assign(observer, other.value);
         this->minimum.Assign(observer, other.minimum);
@@ -883,7 +882,7 @@ public:
     template<typename O>
     RangeTerminus & Assign(
         Observer *observer,
-        RangeTerminus<O, Pex_> &&other)
+        RangeTerminus<O, Upstream> &&other)
     {
         this->value.Assign(observer, std::move(other.value));
         this->minimum.Assign(observer, std::move(other.minimum));
@@ -896,7 +895,7 @@ public:
     template<typename O>
     RangeTerminus & Assign(
         Observer *observer,
-        RangeTerminus<O, control::ChangeObserver<O, Pex_>> &&other)
+        RangeTerminus<O, control::ChangeObserver<O, Upstream>> &&other)
     {
         this->value.Assign(observer, std::move(other.value));
         this->minimum.Assign(observer, std::move(other.minimum));
@@ -938,12 +937,12 @@ public:
 private:
     void SetWithoutNotify_(Argument<Type> value_)
     {
-        internal::AccessReference<Value>(this->value).SetWithoutNotify(value_);
+        detail::AccessReference<Value>(this->value).SetWithoutNotify(value_);
     }
 
     void DoNotify_()
     {
-        internal::AccessReference<Value>(this->value).DoNotify();
+        detail::AccessReference<Value>(this->value).DoNotify();
     }
 };
 

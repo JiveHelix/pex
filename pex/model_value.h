@@ -20,7 +20,7 @@
 #include "pex/detail/notify_many.h"
 #include "pex/detail/value_connection.h"
 #include "pex/detail/filters.h"
-#include "pex/detail/value_detail.h"
+#include "pex/detail/value.h"
 #include "pex/access_tag.h"
 #include "pex/transaction.h"
 #include "pex/detail/require_has_value.h"
@@ -341,7 +341,7 @@ public:
     {
         return (this->model_ != nullptr);
     }
-    
+
     template<typename, typename, typename, typename>
     friend class ::pex::control::Value_;
 

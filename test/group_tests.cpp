@@ -76,7 +76,7 @@ template<typename Plain, typename Model, template<typename> typename Terminus>
 class Observer
 {
 public:
-    
+
     Observer(Model &model)
         :
         terminus(this, model),
@@ -100,10 +100,10 @@ TEST_CASE("Terminus aggregate observer receives message.", "[groups]")
     using Model = typename CircleGroup::Model;
 
     using TestObserver =
-        Observer<Circle, CircleGroup::Model, CircleGroup::Terminus>; 
+        Observer<Circle, CircleGroup::Model, CircleGroup::Terminus>;
 
     Model model{};
-    
+
     TestObserver observer(model);
 
     model.center.x.Set(10.0);
@@ -118,10 +118,10 @@ TEST_CASE("Terminus aggregate member observer receives message.", "[groups]")
     using Model = typename CircleGroup::Model;
 
     using TestObserver =
-        Observer<Point, PointGroup::Model, PointGroup::Terminus>; 
+        Observer<Point, PointGroup::Model, PointGroup::Terminus>;
 
     Model model{};
-    
+
     TestObserver observer(model.center);
 
     model.center.x.Set(10.0);

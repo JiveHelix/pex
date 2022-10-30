@@ -2,9 +2,7 @@
   * @file find_index.h
   *
   * @brief Finds the index of a value found within a container.
-  * Currently requires that the container has contiguous layout. It could be
-  * implemented using std::distance, but an index into a non-contiguous
-  * container has dubious benefit.
+  * Currently requires that the container has contiguous layout.
   *
   *
   * @author Jive Helix (jivehelix@gmail.com)
@@ -50,6 +48,11 @@ ssize_t FindIndex(const Value &value, const Container &container)
     static_assert(
         HasRandomAccessIterator<Container>::value,
         "Requires a container that provides random access iterators.");
+
+    if (container.empty())
+    {
+        return -1;
+    }
 
     auto found = std::find(container.begin(), container.end(), value);
 
