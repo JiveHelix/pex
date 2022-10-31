@@ -29,8 +29,9 @@ namespace pex
 {
 
 
-// Forward declare the control::Range
-// Necessary for the friend declaration in model::Range
+// Forward declarations
+// Necessary for the friend declarations in model::Range
+
 namespace control
 {
 
@@ -41,8 +42,6 @@ class Range;
 } // end namespace control
 
 
-// Forward declare the RangeTerminus
-// Necessary for the friend declaration in model::Range
 template<typename, typename>
 class RangeTerminus;
 
@@ -72,6 +71,16 @@ struct Limit
 
 namespace model
 {
+
+
+template
+<
+    typename,
+    typename,
+    typename,
+    template<typename, typename> typename
+>
+class RangeAccess;
 
 
 template<typename T>
@@ -316,6 +325,15 @@ public:
     template<typename>
     friend class ::pex::Reference;
 
+    template
+    <
+        typename,
+        typename,
+        typename,
+        template<typename, typename> typename
+    >
+    friend class ::pex::model::RangeAccess;
+
 private:
     void SetWithoutNotify_(Argument<Type> value)
     {
@@ -331,6 +349,53 @@ private:
     Value value_;
     Limit minimum_;
     Limit maximum_;
+};
+
+
+template
+<
+    typename T,
+    typename Minimum,
+    typename Maximum,
+    template<typename, typename> typename Value_
+>
+class RangeAccess
+{
+protected:
+    using RangeType = Range<T, Minimum, Maximum, Value_>;
+    using Value = typename RangeType::Value;
+    using Limit = typename RangeType::Limit;
+
+    RangeAccess(RangeType &range)
+        :
+        range_(&range)
+    {
+
+    }
+
+    RangeAccess(const RangeAccess &) = delete;
+    RangeAccess & operator=(const RangeAccess &) = delete;
+
+    RangeAccess(RangeAccess &&) = delete;
+    RangeAccess & operator=(RangeAccess &&) = delete;
+
+    Value & GetValue()
+    {
+        return this->range_->value_;
+    }
+
+    Limit & GetMinimum()
+    {
+        return this->range_->minimum_;
+    }
+
+    Limit & GetMaximum()
+    {
+        return this->range_->maximum_;
+    }
+
+private:
+    RangeType *range_;
 };
 
 

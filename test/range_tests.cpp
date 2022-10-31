@@ -4,56 +4,53 @@
 #include "pex/range.h"
 
 
-using Value = pex::model::Value<int>;
-using Range = pex::model::AddRange<Value>;
+using Range = pex::model::Range<int>;
 using Control = pex::control::Range<void, Range>;
 
 
 TEST_CASE("Limits keep value within range.", "[range]")
 {
-    Value value(18);
-    Range range(value);
+    Range range(18);
     range.SetLimits(0, 20);
 
     Control control(range);
 
-    REQUIRE(value.Get() == 18);
+    REQUIRE(range.Get() == 18);
     REQUIRE(control.minimum.Get() == 0);
     REQUIRE(control.maximum.Get() == 20);
 
     control.value.Set(23);
-    REQUIRE(value.Get() == 20);
+    REQUIRE(range.Get() == 20);
 
     control.value.Set(-3);
-    REQUIRE(value.Get() == 0);
+    REQUIRE(range.Get() == 0);
 
     range.SetMinimum(5);
-    REQUIRE(value.Get() == 5);
+    REQUIRE(range.Get() == 5);
 }
 
 
 TEST_CASE("Limits filter propagates to controls.", "[range]")
 {
-    Value value(18);
-    Range range(value);
+    Range range(18);
     range.SetLimits(0, 20);
 
     Control control(range);
 
-    REQUIRE(value.Get() == 18);
+    REQUIRE(range.Get() == 18);
 
     range.SetLimits(0, 30);
     REQUIRE(control.minimum.Get() == 0);
     REQUIRE(control.maximum.Get() == 30);
 
     control.value.Set(23);
-    REQUIRE(value.Get() == 23);
+    REQUIRE(range.Get() == 23);
 
     control.value.Set(-3);
-    REQUIRE(value.Get() == 0);
+    REQUIRE(range.Get() == 0);
 
     range.SetMinimum(5);
-    REQUIRE(value.Get() == 5);
+    REQUIRE(range.Get() == 5);
 }
 
 
@@ -76,8 +73,7 @@ using FilteredRange = pex::control::Range<void, Control, Filter>;
 
 TEST_CASE("Chaining ranges together to add a filter.", "[range]")
 {
-    Value value(18);
-    Range range(value);
+    Range range(18);
     range.SetLimits(0, 20);
 
     Control control(range);
@@ -116,8 +112,7 @@ struct Observer
 
 TEST_CASE("Range value is echoed to observers.", "[range]")
 {
-    Value value(18);
-    Range range(value);
+    Range range(18);
     range.SetLimits(0, 20);
 
     Control control(range);
@@ -130,13 +125,12 @@ TEST_CASE("Range value is echoed to observers.", "[range]")
 
 TEST_CASE("Model value is echoed to observers.", "[range]")
 {
-    Value value(18);
-    Range range(value);
+    Range range(18);
     range.SetLimits(0, 20);
 
     Control control(range);
     Observer observer(control.value);
-    value.Set(20);
+    range.Set(20);
     REQUIRE(!!observer.observed);
     REQUIRE(*observer.observed == 20);
 }
@@ -144,13 +138,60 @@ TEST_CASE("Model value is echoed to observers.", "[range]")
 
 TEST_CASE("Limited value is echoed to observers.", "[range]")
 {
-    Value value(18);
-    Range range(value);
+    Range range(18);
     range.SetLimits(0, 20);
 
     Control control(range);
     Observer observer(control.value);
     control.value.Set(24);
+    REQUIRE(!!observer.observed);
+    REQUIRE(*observer.observed == 20);
+}
+
+
+template
+<
+    typename T,
+    typename Minimum,
+    typename Maximum,
+    template<typename, typename> typename Value>
+class TestAccess
+    :
+    public pex::model::RangeAccess<T, Minimum, Maximum, Value>
+{
+public:
+    using Base = pex::model::RangeAccess<T, Minimum, Maximum, Value>;
+
+    TestAccess(pex::model::Range<T, Minimum, Maximum, Value> &range)
+        :
+        Base(range)
+    {
+
+    }
+
+    void Set(T value)
+    {
+        this->GetValue().Set(value);
+    }
+};
+
+
+TEST_CASE("Alternate access is echoed to observers.", "[range]")
+{
+    Range range(18);
+    range.SetLimits(0, 20);
+
+    Control control(range);
+    Observer observer(control.value);
+
+    TestAccess(range).Set(12);
+    REQUIRE(!!observer.observed);
+    REQUIRE(*observer.observed == 12);
+
+    observer.observed.reset();
+    REQUIRE(!observer.observed);
+
+    TestAccess(range).Set(42);
     REQUIRE(!!observer.observed);
     REQUIRE(*observer.observed == 20);
 }
