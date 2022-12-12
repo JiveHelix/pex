@@ -344,6 +344,18 @@ private:
 } // end namespace detail
 
 
+template<typename T, typename Enable = void>
+struct HasMute: std::false_type {};
+
+
+template<typename T>
+struct HasMute
+<
+    T,
+    std::invoke_result_t<decltype(&T::Mute), T>
+>: std::true_type {};
+
+
 template
 <
     typename Plain,
@@ -449,7 +461,7 @@ public:
     using Callable = typename Connector::Callable;
     using Observer = typename Connector::Observer;
 
-    void Set(const Plain &plain)
+    void Mute()
     {
         if (this->aggregate_)
         {
@@ -458,18 +470,68 @@ public:
             this->aggregate_->Mute();
         }
 
+        // Iterate over members, muting those that support it.
+        auto derived = static_cast<Derived *>(this);
+
+        auto doMute = [derived] (auto thisField)
         {
-            DeferGroup<Plain, Fields, Template, Selector> deferGroup(
+            using Member = typename std::remove_reference_t<
+                decltype(derived->*(thisField.member))>;
+
+            if constexpr (HasMute<Member>::value)
+            {
+                (derived->*(thisField.member)).Mute();
+            }
+        };
+
+        jive::ForEach(
+            Fields<Derived>::fields,
+            doMute);
+    }
+
+    void Unmute()
+    {
+        if (this->aggregate_)
+        {
+            this->aggregate_->Unmute();
+        }
+
+        // Iterate over members, muting those that support it.
+        auto derived = static_cast<Derived *>(this);
+
+        auto doUnmute = [derived] (auto thisField)
+        {
+            using Member = typename std::remove_reference_t<
+                decltype(derived->*(thisField.member))>;
+
+            if constexpr (HasMute<Member>::value)
+            {
+                (derived->*(thisField.member)).Unmute();
+            }
+        };
+
+        jive::ForEach(
+            Fields<Derived>::fields,
+            doUnmute);
+
+        if (this->aggregate_)
+        {
+            this->aggregate_->Notify(this->Get());
+        }
+    }
+
+    void Set(const Plain &plain)
+    {
+        this->Mute();
+
+        {
+            DeferGroup<Fields, Template, Selector> deferGroup(
                 static_cast<Derived &>(*this));
 
             deferGroup.Set(plain);
         }
 
-        if (this->aggregate_)
-        {
-            this->aggregate_->Unmute();
-            this->aggregate_->Notify(plain);
-        }
+        this->Unmute();
     }
 
     template<typename>

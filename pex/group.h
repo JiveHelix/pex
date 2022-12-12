@@ -56,12 +56,18 @@ namespace pex
 
 template
 <
-    template<typename> typename Fields,
-    template<template<typename> typename> typename Template,
+    template<typename> typename Fields_,
+    template<template<typename> typename> typename Template_,
     typename Plain_ = void
 >
 struct Group
 {
+    template<typename T>
+    using Fields = Fields_<T>;
+
+    template<template<typename> typename T>
+    using Template = Template_<T>;
+
     template<typename P, typename = void>
     struct PlainHelper
     {
@@ -417,6 +423,34 @@ struct Group
     private:
         Observer * observer_;
     };
+
+    template<template<typename> typename Selector>
+    using Defer = DeferGroup<Fields, Template, Selector>;
+
+    using DeferModel = Defer<ModelSelector>;
+
+    template<typename Observer>
+    using DeferControl = Defer<ControlSelector<Observer>::template Type>;
+
+    template<typename Observer>
+    using DeferTerminus = Defer<TerminusSelector<Observer>::template Type>;
+
+    static DeferModel MakeDefer(Model &model)
+    {
+        return DeferModel(model);
+    }
+
+    template<typename Observer>
+    static DeferControl<Observer> MakeDefer(Control<Observer> &control)
+    {
+        return DeferControl<Observer>(control);
+    }
+
+    template<typename Observer>
+    static DeferTerminus<Observer> MakeDefer(Terminus<Observer> &terminus)
+    {
+        return DeferTerminus<Observer>(terminus);
+    }
 };
 
 

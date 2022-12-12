@@ -40,7 +40,7 @@ struct Argument_
     T,
     std::enable_if_t
     <
-        std::is_arithmetic_v<T>
+        std::is_arithmetic_v<T> || std::is_enum_v<T>
     >
 >
 {
@@ -48,7 +48,14 @@ struct Argument_
 };
 
 template<typename T>
-struct Argument_<T, std::enable_if_t<!std::is_arithmetic_v<T>>>
+struct Argument_
+<
+    T,
+    std::enable_if_t
+    <
+        !(std::is_arithmetic_v<T> || std::is_enum_v<T>)
+    >
+>
 {
     using Type = const T &;
 };

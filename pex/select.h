@@ -332,10 +332,14 @@ namespace control
 {
 
 
-template<typename Observer, typename Upstream>
+template<typename Observer, typename Upstream_>
 class Select
 {
 public:
+    using Upstream = Upstream_;
+
+    using Filter = ::pex::NoFilter;
+
     static constexpr bool choicesMayChange =
         HasAccess<typename Upstream::ChoicesAccess, SetTag>;
 

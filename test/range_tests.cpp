@@ -191,6 +191,7 @@ TEST_CASE("Alternate access is echoed to observers.", "[range]")
     observer.observed.reset();
     REQUIRE(!observer.observed);
 
+    // Ensure that the filter limits the value.
     TestAccess(range).Set(42);
     REQUIRE(!!observer.observed);
     REQUIRE(*observer.observed == 20);

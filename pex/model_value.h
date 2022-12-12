@@ -58,6 +58,7 @@ class Value_
     // the filter is void.
     public detail::NotifyMany<ValueConnection<void, T, Filter_>, GetAndSetTag>
 {
+    static_assert(!std::is_void_v<T>);
     static_assert(detail::FilterIsNoneOrValid<T, Filter_, SetTag>);
 
 public:
@@ -174,6 +175,16 @@ public:
             "Static or void Filter does not require a filter instance.");
 
         this->filter_ = filter;
+    }
+
+    Filter & GetFilter()
+    {
+        return *this->filter_;
+    }
+
+    const Filter & GetFilter() const
+    {
+        return *this->filter_;
     }
 
     // This function is used in debug assertions to check that other entities

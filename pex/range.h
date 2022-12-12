@@ -122,6 +122,16 @@ struct RangeFilter
             std::min(value, this->maximum_));
     }
 
+    T GetMinimum() const
+    {
+        return this->minimum_;
+    }
+
+    T GetMaximum() const
+    {
+        return this->maximum_;
+    }
+
 private:
     T minimum_;
     T maximum_;
@@ -242,6 +252,12 @@ public:
         {
             changeValue.Set(maximum);
         }
+        else
+        {
+            // The value did not change.
+            // Do not send notification.
+            changeValue.Clear();
+        }
     }
 
     void SetMinimum(Type minimum)
@@ -274,6 +290,64 @@ public:
         this->value_.SetFilter(RangeFilter<Type>(
             this->minimum_.Get(),
             this->maximum_.Get()));
+
+        if (this->value_.Get() > maximum)
+        {
+            this->value_.Set(maximum);
+        }
+    }
+
+    /*
+     * Trim functions adjust the value filter within the limits of minimum and
+     * maximum.
+     */
+    void TrimMinimum(Type minimum)
+    {
+        auto filterMaximum = this->value_.GetFilter().GetMaximum();
+        minimum = std::min(minimum, filterMaximum);
+        auto changeMinimum = ::pex::Defer<Limit>(this->minimum_);
+
+        if (minimum < this->minimum_.Get())
+        {
+            // The new minimum is extending the valid range.
+            changeMinimum.Set(minimum);
+        }
+        else
+        {
+            // The minimum is within the allowable range.
+            // Only adjust the filter on the value.
+            // Do not send a notification for the minimum.
+            changeMinimum.Clear();
+        }
+
+        this->value_.SetFilter(RangeFilter<Type>(minimum, filterMaximum));
+
+        if (this->value_.Get() < minimum)
+        {
+            this->value_.Set(minimum);
+        }
+    }
+
+    void TrimMaximum(Type maximum)
+    {
+        auto filterMinimum = this->value_.GetFilter().GetMinimum();
+        maximum = std::max(maximum, filterMinimum);
+        auto changeMaximum = ::pex::Defer<Limit>(this->maximum_);
+
+        if (maximum > this->maximum_.Get())
+        {
+            // The new maximum is extending the valid range.
+            changeMaximum.Set(maximum);
+        }
+        else
+        {
+            // The maximum is within the allowable range.
+            // Only adjust the filter on the value.
+            // Do not send a notification for the maximum.
+            changeMaximum.Clear();
+        }
+
+        this->value_.SetFilter(RangeFilter<Type>(filterMinimum, maximum));
 
         if (this->value_.Get() > maximum)
         {
@@ -605,7 +679,7 @@ template
     typename Observer,
     typename Upstream_,
     typename Filter_ = NoFilter,
-    typename Access = pex::GetAndSetTag
+    typename Access_ = pex::GetAndSetTag
 >
 class Range
 {
@@ -615,6 +689,7 @@ public:
     using Upstream = Upstream_;
     using Filter = Filter_;
     using Type = typename Upstream::Value::Type;
+    using Access = Access_;
 
     static_assert(
         pex::detail::FilterIsNoneOrStatic<Type, Filter, Access>,
@@ -743,6 +818,21 @@ using ConvertingRange = Range
         ConvertingFilter<typename Upstream::Value::Type, Converted>,
         Access
     >;
+
+
+template
+<
+    typename Converted,
+    typename Observer,
+    typename Upstream,
+    typename Filter,
+    typename Access
+>
+auto MakeConvertingRange(Range<Observer, Upstream, Filter, Access> range)
+{
+    using Result = ConvertingRange<Observer, Upstream, Converted, Access>;
+    return Result(range);
+}
 
 
 // Maps control values linearly between minimum and maximum model values.

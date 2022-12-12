@@ -106,10 +106,10 @@ using AggregateControl = typename AggregateGroup::Control<void>;
 using AggregateTerminus = typename AggregateGroup::Terminus<void>;
 
 
-void OnWeapons_(void *, const WeaponsPlain &weapons)
+void OnWeapons(void *, const WeaponsPlain &weapons)
 {
-    std::cout << "OnWeapons_: " << fields::DescribeColorized(weapons, 1)
-              << std::endl;
+    std::cout << "OnWeapons: " << fields::DescribeColorized(weapons, 1)
+          << std::endl;
 }
 
 
@@ -137,7 +137,7 @@ int main()
     std::cout << "terminus.weapons.firstFruit.size(): "
         << terminus.weapons.firstFruit.Get().size() << std::endl;
 
-    terminus.weapons.Connect(&OnWeapons_);
+    terminus.weapons.Connect(&OnWeapons);
 
     std::cout << "terminus connected" << std::endl;
 
@@ -153,7 +153,7 @@ int main()
     control.gps.latitude = 40.56923581063791;
     control.gps.longitude = -111.63928609736942;
     control.gps.elevation = 3322.0;
-    
+
     auto plain = model.Get();
 
     std::cout << "changing firstFruit to apple" << std::endl;

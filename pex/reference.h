@@ -18,6 +18,7 @@
 #include "pex/traits.h"
 #include "pex/control_value.h"
 #include "pex/signal.h"
+#include "pex/interface.h"
 
 
 
@@ -83,6 +84,11 @@ public:
     void Set(Argument<Type> value)
     {
         this->pex_->Set(value);
+    }
+
+    void Clear()
+    {
+        this->pex_ = nullptr;
     }
 
 protected:
@@ -205,6 +211,12 @@ public:
         this->SetWithoutNotify_(value);
     }
 
+    Defer & operator=(Argument<Type> value)
+    {
+        this->SetWithoutNotify_(value);
+        return *this;
+    }
+
     ~Defer()
     {
         // Notify on destruction
@@ -229,6 +241,16 @@ struct DeferSelector
     struct DeferHelper_
     <
         T,
+        std::enable_if_t<IsMakeGroup<T>>
+    >
+    {
+        using Type = typename T::Group::template Defer<Selector>;
+    };
+
+    template<typename T>
+    struct DeferHelper_
+    <
+        T,
         std::enable_if_t<IsSignal<Selector<T>>>
     >
     {
@@ -242,7 +264,6 @@ struct DeferSelector
 
 template
 <
-    typename Plain,
     template<typename> typename Fields,
     template<template<typename> typename> typename Template,
     template<typename> typename Selector
@@ -251,8 +272,10 @@ class DeferGroup:
     public Template<DeferSelector<Selector>::template Type>
 {
 public:
-    using This = DeferGroup<Plain, Fields, Template, Selector>;
+    using This = DeferGroup<Fields, Template, Selector>;
     using Upstream = Template<Selector>;
+
+    DeferGroup() = default;
 
     DeferGroup(Upstream &upstream)
     {
@@ -275,6 +298,7 @@ public:
             Fields<Upstream>::fields);
     }
 
+    template<typename Plain>
     void Set(const Plain &plain)
     {
         auto assign = [this, &plain](auto deferField, auto plainField)
