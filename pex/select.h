@@ -500,18 +500,20 @@ public:
     static constexpr bool isPexCopyable = true;
 
     template<typename O>
-    using Pex = typename ManagedControl<Upstream>::template Type<O>;
+    using Managed = typename ManagedControl<Upstream>::template Type<O>;
 
-    using Type = typename Pex<void>::Type;
+    using Pex = Managed<Observer>;
+
+    using Type = typename Managed<void>::Type;
 
     using Selection =
-        pex::Terminus<Observer, typename Pex<Observer>::Selection>;
+        pex::Terminus<Observer, typename Pex::Selection>;
 
     using Choices =
-        pex::Terminus<Observer, typename Pex<Observer>::Choices>;
+        pex::Terminus<Observer, typename Pex::Choices>;
 
     using Value =
-        pex::Terminus<Observer, typename Pex<Observer>::Value>;
+        pex::Terminus<Observer, typename Pex::Value>;
 
     SelectTerminus()
         :
@@ -522,7 +524,7 @@ public:
 
     }
 
-    SelectTerminus(Observer *observer, const Pex<void> &pex)
+    SelectTerminus(Observer *observer, const Managed<void> &pex)
         :
         choices(observer, pex.choices),
         selection(observer, pex.selection),
@@ -531,7 +533,7 @@ public:
 
     }
 
-    SelectTerminus(Observer *observer, Pex<void> &&pex)
+    SelectTerminus(Observer *observer, Managed<void> &&pex)
         :
         choices(observer, std::move(pex.choices)),
         selection(observer, std::move(pex.selection)),

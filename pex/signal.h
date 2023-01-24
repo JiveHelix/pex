@@ -204,8 +204,8 @@ private:
     model::Signal * model_;
 };
 
-} // namespace control
 
+} // namespace control
 
 
 } // namespace pex

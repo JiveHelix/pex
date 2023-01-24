@@ -8,9 +8,6 @@
 #include "pex/pex.h"
 
 
-#include <fields/comparisons.h>
-
-
 template<typename Control>
 class Observer
 {
@@ -99,6 +96,7 @@ public:
 
 
 DECLARE_OUTPUT_STREAM_OPERATOR(AssignPlain)
+DECLARE_COMPARISON_OPERATORS(AssignPlain)
 
 
 TEST_CASE("Assign round trip.", "[pex]")
@@ -123,7 +121,7 @@ TEST_CASE("Assign is observed.", "[pex]")
     auto observer = Observer(AssignTestControl(model).foo);
 
     model.SetTest(test);
-    
+
     REQUIRE(!!observer.observedValue);
     REQUIRE(observer.observedValue == test.foo);
 }

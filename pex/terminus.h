@@ -53,9 +53,9 @@ class Terminus_
 
 public:
     template<typename O>
-    using Pex = typename ManagedControl<Pex_>::template Type<O>;
+    using Managed = typename ManagedControl<Pex_>::template Type<O>;
 
-    using Callable = typename Pex<Observer>::Callable;
+    using Callable = typename Managed<Observer>::Callable;
 
     static constexpr bool isPexCopyable = true;
 
@@ -71,7 +71,7 @@ public:
         PEX_LOG("Terminus default: ", this);
     }
 
-    Terminus_(Observer *observer, const Pex<void> &pex)
+    Terminus_(Observer *observer, const Managed<void> &pex)
         :
         observer_(observer),
         pex_(pex)
@@ -79,7 +79,7 @@ public:
         PEX_LOG("Terminus copy(pex) ctor: ", this);
     }
 
-    Terminus_(Observer *observer, Pex<void> &&pex)
+    Terminus_(Observer *observer, Managed<void> &&pex)
         :
         observer_(observer),
         pex_(std::move(pex))
@@ -312,7 +312,7 @@ public:
         return this->pex_.HasModel();
     }
 
-    explicit operator Pex<void> () const
+    explicit operator Managed<void> () const
     {
         return this->pex_;
     }
@@ -335,7 +335,7 @@ private:
     Observer *observer_;
 
 protected:
-    Pex<Observer> pex_;
+    Managed<Observer> pex_;
 };
 
 

@@ -1,5 +1,6 @@
 #include <catch2/catch.hpp>
 #include <pex/group.h>
+#include <fields/marshal.h>
 
 template<typename T>
 struct PointFields
@@ -17,6 +18,7 @@ struct PointTemplate
     T<double> y;
 
     static constexpr auto fields = PointFields<PointTemplate<T>>::fields;
+    static constexpr auto fieldsTypeName = "Point";
 };
 
 
@@ -51,6 +53,7 @@ struct CircleTemplate
     T<double> radius;
 
     static constexpr auto fields = CircleFields<CircleTemplate<T>>::fields;
+    static constexpr auto fieldsTypeName = "Circle";
 };
 
 
@@ -59,8 +62,8 @@ using CircleGroup = pex::Group<CircleFields, CircleTemplate>;
 using Point = typename PointGroup::Plain;
 using Circle = typename CircleGroup::Plain;
 
-DECLARE_COMPARISON_OPERATORS(Point, Point::fields);
-DECLARE_COMPARISON_OPERATORS(Circle, Circle::fields);
+DECLARE_COMPARISON_OPERATORS(Point)
+DECLARE_COMPARISON_OPERATORS(Circle)
 
 
 TEST_CASE("Customized model is used", "[groups]")
@@ -129,3 +132,68 @@ TEST_CASE("Terminus aggregate member observer receives message.", "[groups]")
 
     REQUIRE(model.center.Get() == observer.observed);
 };
+
+
+template<typename T>
+struct CircleWithSignalFields
+{
+    static constexpr auto fields = std::make_tuple(
+        fields::Field(&T::circle, "circle"),
+        fields::Field(&T::redraw, "redraw"));
+};
+
+
+template<template<typename> typename T>
+struct CircleWithSignalTemplate
+{
+    T<pex::MakeGroup<CircleGroup>> circle;
+    T<pex::MakeSignal> redraw;
+
+    static constexpr auto fields =
+        CircleWithSignalFields<CircleWithSignalTemplate<T>>::fields;
+
+    static constexpr auto fieldsTypeName = "CircleWithSignal";
+};
+
+
+using CircleWithSignalGroup =
+    pex::Group<CircleWithSignalFields, CircleWithSignalTemplate>;
+
+using CircleWithSignal = typename CircleWithSignalGroup::Plain;
+
+DECLARE_COMPARISON_OPERATORS(CircleWithSignal)
+
+
+TEST_CASE("Presence of signal allows observation.", "[groups]")
+{
+    using Model = typename CircleWithSignalGroup::Model;
+
+    using TestObserver =
+        Observer<CircleWithSignal, Model, CircleWithSignalGroup::Terminus>;
+
+    Model model{};
+
+    TestObserver observer(model);
+
+    model.circle.center.x.Set(10.0);
+    model.circle.center.y.Set(42.0);
+
+    REQUIRE(model.Get() == observer.observed);
+}
+
+
+TEST_CASE("Presence of signal allows unstructure/structure.", "[groups]")
+{
+    using Model = typename CircleWithSignalGroup::Model;
+    using Plain = typename CircleWithSignalGroup::Plain;
+
+    Model model{};
+
+    model.circle.center.x.Set(10.0);
+    model.circle.center.y.Set(42.0);
+
+    auto unstructured = fields::Unstructure<fields::Marshal>(model.Get());
+    auto recovered = fields::Structure<Plain>(unstructured);
+
+    REQUIRE(recovered == model.Get());
+}

@@ -53,6 +53,13 @@ struct ConvertsToPlain_
 >: std::false_type {};
 
 template<typename Pex>
+struct ConvertsToPlain_
+<
+    Pex,
+    std::enable_if_t<std::is_same_v<DescribeSignal, Pex>>
+>: std::false_type {};
+
+template<typename Pex>
 inline constexpr bool ConvertsToPlain = ConvertsToPlain_<Pex>::value;
 
 
@@ -313,13 +320,21 @@ private:
     {
         auto connector = [this](const auto &field) -> void
         {
-            using MemberType = typename std::remove_reference_t<
-                decltype(this->*(field.member))>::Type;
+            using MemberPex = typename std::remove_reference_t<
+                decltype(this->*(field.member))>::Pex;
 
-            PEX_LOG("Connect ", this, " to ", &(this->*(field.member)));
+            if constexpr (!IsSignal<MemberPex>)
+            {
+                // Aggregate observers ignore signals.
+                // Notifications are only forwarded when there is data.
+                using MemberType = typename std::remove_reference_t<
+                    decltype(this->*(field.member))>::Type;
 
-            (this->*(field.member)).Connect(
-                &Aggregate::template OnMemberChanged_<MemberType>);
+                PEX_LOG("Connect ", this, " to ", &(this->*(field.member)));
+
+                (this->*(field.member)).Connect(
+                    &Aggregate::template OnMemberChanged_<MemberType>);
+            }
         };
 
         jive::ForEach(Fields<Aggregate>::fields, connector);

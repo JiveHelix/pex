@@ -102,3 +102,15 @@ TEST_CASE("Signal fan out from write-only control", "[signal]")
     REQUIRE(observer3.observedCount == expectedObservedCount);
 }
 
+
+TEST_CASE("Signal Terminus is detected", "[signal]")
+{
+    using ModelSignal = pex::model::Signal;
+    using ControlSignal = pex::control::Signal<void>;
+    using TerminusSignal = pex::Terminus<void, ControlSignal>;
+    STATIC_REQUIRE(pex::IsModelSignal<ModelSignal>);
+    STATIC_REQUIRE(pex::IsControlSignal<ControlSignal>);
+    STATIC_REQUIRE(pex::IsSignal<ModelSignal>);
+    STATIC_REQUIRE(pex::IsSignal<ControlSignal>);
+    STATIC_REQUIRE(pex::IsSignal<typename TerminusSignal::Pex>);
+}

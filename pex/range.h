@@ -905,12 +905,13 @@ class RangeTerminus
 {
 public:
     template<typename O>
-    using Pex = typename ManagedControl<Upstream>::template Type<O>;
+    using Managed = typename ManagedControl<Upstream>::template Type<O>;
 
-    using Value = pex::Terminus<Observer, typename Pex<Observer>::Value>;
-    using Limit = pex::Terminus<Observer, typename Pex<Observer>::Limit>;
+    using Pex = Managed<Observer>;
+    using Value = pex::Terminus<Observer, typename Pex::Value>;
+    using Limit = pex::Terminus<Observer, typename Pex::Limit>;
     using Type = typename Upstream::Type;
-    using Callable = typename Pex<Observer>::Callable;
+    using Callable = typename Pex::Callable;
 
     Value value;
     Limit minimum;
@@ -927,7 +928,7 @@ public:
 
     }
 
-    RangeTerminus(Observer *observer, const Pex<void> &pex)
+    RangeTerminus(Observer *observer, const Managed<void> &pex)
         :
         value(observer, pex.value),
         minimum(observer, pex.minimum),
@@ -936,7 +937,7 @@ public:
 
     }
 
-    RangeTerminus(Observer *observer, Pex<void> &&pex)
+    RangeTerminus(Observer *observer, Managed<void> &&pex)
         :
         value(observer, std::move(pex.value)),
         minimum(observer, std::move(pex.minimum)),

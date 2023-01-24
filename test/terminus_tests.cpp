@@ -1,10 +1,10 @@
 #include <catch2/catch.hpp>
 
+
 #include "test_observer.h"
 #include "pex/terminus.h"
 #include "pex/group.h"
 
-#include <fields/comparisons.h>
 
 using Model = pex::model::Value<int>;
 using Control = pex::control::Value<void, Model>;
@@ -25,7 +25,7 @@ TEST_CASE("Terminus uses new observer after move.", "[terminus]")
     first.Set(43);
 
     REQUIRE(first.observedValue == 43);
-    
+
     Observer second(std::move(first));
 
     REQUIRE(second.observedValue == 43);
@@ -97,7 +97,8 @@ using TerminusTestGroup = pex::Group<TestFields, TestTemplate>;
 
 using TerminusTestPlain = TerminusTestGroup::Plain;
 
-DECLARE_OUTPUT_STREAM_OPERATOR(TerminusTestPlain);
+DECLARE_OUTPUT_STREAM_OPERATOR(TerminusTestPlain)
+DECLARE_COMPARISON_OPERATORS(TerminusTestPlain)
 
 using TerminusTestModel = TerminusTestGroup::Model;
 
@@ -120,7 +121,7 @@ TEST_CASE("Terminus group uses new observer after move.", "[terminus]")
     first.Set(values);
 
     REQUIRE(first.observedValue == values);
-    
+
     TerminusGroupObserver second(std::move(first));
 
     REQUIRE(second.observedValue == values);

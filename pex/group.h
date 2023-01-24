@@ -267,9 +267,7 @@ struct Group
         using Type = Plain;
         using AccessorsBase = TerminusAccessors<Observer, Terminus<Observer>>;
 
-        template<typename T>
-        using Pex =
-            typename pex::TerminusSelector<Observer>::template Type<T>;
+        using Pex = Control<Observer>;
 
         using Callable = typename TerminusConnection<Observer>::Callable;
 
