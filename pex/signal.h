@@ -72,7 +72,7 @@ class Signal
 {
 public:
     using Observer = Observer_;
-    using Pex = pex::model::Signal;
+    using Upstream = pex::model::Signal;
 
     using Callable =
         typename detail::SignalConnection<Observer_>::Callable;

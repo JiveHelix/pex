@@ -129,7 +129,7 @@ public:
     {
         static_assert(
             HasAccess<SetTag, ChoicesAccess>,
-            "Choices must be set on construction they are read-only.");
+            "Choices must be set on construction, they are read-only.");
 
         this->terminus_.Connect(&Select::OnSelection_);
     }
@@ -168,13 +168,6 @@ public:
     {
         return this->value_.Get();
     }
-
-#if 0
-    void Set(size_t selectionIndex)
-    {
-        this->selection_.Set(selectionIndex);
-    }
-#endif
 
     explicit operator Type () const
     {
@@ -471,20 +464,20 @@ inline constexpr bool IsControlSelect = IsControlSelect_<T...>::value;
 
 
 template<typename P>
-struct ManagedControl<P, std::enable_if_t<IsModelSelect<P>>>
+struct MakeControl<P, std::enable_if_t<IsModelSelect<P>>>
 {
     template<typename O>
-    using Type = control::Select<O, P>;
+    using Control = control::Select<O, P>;
 
     using Upstream = P;
 };
 
 
 template<typename P>
-struct ManagedControl<P, std::enable_if_t<IsControlSelect<P>>>
+struct MakeControl<P, std::enable_if_t<IsControlSelect<P>>>
 {
     template<typename O>
-    using Type = control::ChangeObserver<O, P>;
+    using Control = control::ChangeObserver<O, P>;
 
     using Upstream = typename P::Upstream;
 };
@@ -500,11 +493,11 @@ public:
     static constexpr bool isPexCopyable = true;
 
     template<typename O>
-    using Managed = typename ManagedControl<Upstream>::template Type<O>;
+    using ControlTemplate = typename MakeControl<Upstream>::template Control<O>;
 
-    using Pex = Managed<Observer>;
+    using Pex = ControlTemplate<Observer>;
 
-    using Type = typename Managed<void>::Type;
+    using Type = typename ControlTemplate<void>::Type;
 
     using Selection =
         pex::Terminus<Observer, typename Pex::Selection>;
@@ -524,7 +517,7 @@ public:
 
     }
 
-    SelectTerminus(Observer *observer, const Managed<void> &pex)
+    SelectTerminus(Observer *observer, const ControlTemplate<void> &pex)
         :
         choices(observer, pex.choices),
         selection(observer, pex.selection),
@@ -533,7 +526,7 @@ public:
 
     }
 
-    SelectTerminus(Observer *observer, Managed<void> &&pex)
+    SelectTerminus(Observer *observer, ControlTemplate<void> &&pex)
         :
         choices(observer, std::move(pex.choices)),
         selection(observer, std::move(pex.selection)),
@@ -544,7 +537,7 @@ public:
 
     SelectTerminus(
         Observer *observer,
-        typename ManagedControl<Upstream>::Upstream &upstream)
+        typename MakeControl<Upstream>::Upstream &upstream)
         :
         choices(observer, upstream.choices_),
         selection(observer, upstream.selection_),

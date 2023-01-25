@@ -422,6 +422,7 @@ public:
         PEX_LOG("Accessors: ", this);
     }
 
+#if 0
     Accessors & operator=(const Accessors &)
     {
         // Allows copy, but never copies the aggregate observer.
@@ -455,6 +456,7 @@ public:
         PEX_LOG("Accessors: ", this);
         return *this;
     }
+#endif
 
     ~Accessors()
     {

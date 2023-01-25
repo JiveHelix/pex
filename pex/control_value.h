@@ -27,7 +27,7 @@ namespace control
 
 template<
     typename Observer_,
-    typename Pex_,
+    typename Upstream_,
     typename Filter_ = NoFilter,
     typename Access_ = GetAndSetTag
 >
@@ -38,7 +38,7 @@ class Value_
         ValueConnection
         <
             Observer_,
-            typename UpstreamT<Pex_>::Type,
+            typename UpstreamHolderT<Upstream_>::Type,
             Filter_
         >,
         Access_
@@ -50,23 +50,23 @@ public:
     static constexpr bool isPexCopyable = true;
 
     using Observer = Observer_;
-    using Pex = Pex_;
+    using Upstream = Upstream_;
 
-    // If Pex_ is a already a control::Value_, then Upstream is that
-    // control::Value_, else it is Direct<Pex>
-    using Upstream = UpstreamT<Pex_>;
+    // If Upstream_ is a already a control::Value_, then UpstreamHolder is that
+    // control::Value_, else it is Direct<Upstream>
+    using UpstreamHolder = UpstreamHolderT<Upstream_>;
     using Filter = Filter_;
     using Access = Access_;
-    using This = Value_<Observer, Pex, Filter, Access>;
+    using This = Value_<Observer, Upstream_, Filter, Access>;
 
-    using UpstreamType = typename Upstream::Type;
+    using UpstreamType = typename UpstreamHolder::Type;
     using Type = detail::FilteredType<UpstreamType, Filter>;
 
     using Callable =
         typename ValueConnection
         <
             Observer_,
-            typename Upstream::Type,
+            typename UpstreamHolder::Type,
             Filter
         >::Callable;
 
@@ -89,7 +89,7 @@ public:
 
     Value_(): upstream_(), filter_() {}
 
-    explicit Value_(PexArgument<Pex> pex)
+    explicit Value_(PexArgument<Upstream> pex)
         :
         upstream_(pex),
         filter_()
@@ -101,7 +101,7 @@ public:
         }
     }
 
-    explicit Value_(PexArgument<Pex> pex, Filter filter)
+    explicit Value_(PexArgument<Upstream> pex, Filter filter)
         :
         upstream_(pex),
         filter_(filter)
@@ -128,13 +128,13 @@ public:
         this->upstream_.Disconnect(this);
     }
 
-    /** 
+    /**
      ** Allow copy and assignment from another Value that may have different
      ** observers and filters, but tracks the same model.
      **/
     template<typename OtherObserver, typename OtherFilter, typename OtherAccess>
     Value_(
-        const Value_<OtherObserver, Pex, OtherFilter, OtherAccess> &other)
+        const Value_<OtherObserver, Upstream, OtherFilter, OtherAccess> &other)
         :
         upstream_(other.upstream_),
         filter_()
@@ -147,7 +147,10 @@ public:
         // You can replace a filter with another filter, but only if it uses
         // static functions?
         static_assert(
-            IsCopyable<Value_<OtherObserver, Pex, OtherFilter, OtherAccess>>,
+            IsCopyable
+            <
+                Value_<OtherObserver, Upstream, OtherFilter, OtherAccess>
+            >,
             "Value is not copyable.");
 
         if constexpr (HasAccess<GetTag, Access>)
@@ -167,11 +170,14 @@ public:
     std::enable_if_t
     <
         HasAccess<Access, OtherAccess>
-        && IsCopyable<Value_<OtherObserver, Pex, OtherFilter, OtherAccess>>,
+        && IsCopyable
+        <
+            Value_<OtherObserver, Upstream, OtherFilter, OtherAccess>
+        >,
         Value_ &
     >
     operator=(
-        const Value_<OtherObserver, Pex, OtherFilter, OtherAccess> &other)
+        const Value_<OtherObserver, Upstream, OtherFilter, OtherAccess> &other)
     {
         PEX_LOG("Disconnect ", this);
         this->upstream_.Disconnect(this);
@@ -405,23 +411,23 @@ private:
         }
     }
 
-    Upstream upstream_;
+    UpstreamHolder upstream_;
     std::optional<Filter> filter_;
 };
 
 
-template<typename Observer, typename Pex, typename Access = GetAndSetTag>
-using Value = Value_<Observer, Pex, NoFilter, Access>;
+template<typename Observer, typename Upstream, typename Access = GetAndSetTag>
+using Value = Value_<Observer, Upstream, NoFilter, Access>;
 
 
 template
 <
     typename Observer,
-    typename Pex,
+    typename Upstream,
     typename Filter,
     typename Access = GetAndSetTag
 >
-using FilteredValue = Value_<Observer, Pex, Filter, Access>;
+using FilteredValue = Value_<Observer, Upstream, Filter, Access>;
 
 
 template<typename Observer, typename Value>
@@ -457,7 +463,7 @@ struct ChangeAccess_
     using Type = Value_
         <
             typename ControlValue::Observer,
-            typename ControlValue::Pex,
+            typename ControlValue::Upstream,
             typename ControlValue::Filter,
             NewAccess
         >;
@@ -471,16 +477,16 @@ using ChangeAccess = typename ChangeAccess_<ControlValue, NewAccess>::Type;
 template<typename Observer>
 struct BoundFilteredValue
 {
-    template<typename Pex, typename Filter>
-    using Type = FilteredValue<Observer, Pex, Filter>;
+    template<typename Upstream, typename Filter>
+    using Type = FilteredValue<Observer, Upstream, Filter>;
 };
 
 
 template<typename Observer>
 struct BoundValue
 {
-    template<typename Pex>
-    using Type = Value_<Observer, Pex>;
+    template<typename Upstream>
+    using Type = Value_<Observer, Upstream>;
 };
 
 
@@ -494,7 +500,7 @@ struct FilteredLike_
     using Type = Value_
         <
             typename ControlValue::Observer,
-            typename ControlValue::Pex,
+            typename ControlValue::Upstream,
             Filter,
             typename ControlValue::Access
         >;

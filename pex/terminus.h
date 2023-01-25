@@ -10,52 +10,66 @@ namespace pex
 {
 
 
-template<typename P, typename enable = void>
-struct ManagedControl
+/** MakeControl
+ **
+ ** Converts model values/signals into controls.
+ ** Preserves control values/signals.
+ **
+ **/
+template<typename Pex, typename enable = void>
+struct MakeControl
 {
     template<typename O>
-    using Type = control::Value_<O, P>;
+    using Control = control::Value_<O, Pex>;
 
-    using Upstream = P;
-};
-
-template<typename P>
-struct ManagedControl<P, std::enable_if_t<IsControl<P>>>
-{
-    template<typename O>
-    using Type = control::ChangeObserver<O, P>;
-
-    using Upstream = typename P::Pex;
-};
-
-template<typename P>
-struct ManagedControl<P, std::enable_if_t<IsControlSignal<P>>>
-{
-    template<typename O>
-    using Type = control::Signal<O>;
-
-    using Upstream = typename P::Pex;
-};
-
-template<typename P>
-struct ManagedControl<P, std::enable_if_t<IsModelSignal<P>>>
-{
-    template<typename O>
-    using Type = control::Signal<O>;
-
-    using Upstream = P;
+    using Upstream = Pex;
 };
 
 
-template<typename Observer, typename Pex_>
+template<typename Pex>
+struct MakeControl
+<
+    Pex,
+    std::enable_if_t<IsControl<Pex>>
+>
+{
+    template<typename O>
+    using Control = control::ChangeObserver<O, Pex>;
+
+    using Upstream = typename Pex::Upstream;
+};
+
+
+template<typename Pex>
+struct MakeControl<Pex, std::enable_if_t<IsControlSignal<Pex>>>
+{
+    template<typename O>
+    using Control = control::Signal<O>;
+
+    using Upstream = typename Pex::Upstream;
+};
+
+
+template<typename Pex>
+struct MakeControl<Pex, std::enable_if_t<IsModelSignal<Pex>>>
+{
+    template<typename O>
+    using Control = control::Signal<O>;
+
+    using Upstream = Pex;
+};
+
+
+template<typename Observer, typename Upstream_>
 class Terminus_
 {
 
 public:
     template<typename O>
-    using Managed = typename ManagedControl<Pex_>::template Type<O>;
+    using ControlTemplate =
+        typename MakeControl<Upstream_>::template Control<O>;
 
-    using Callable = typename Managed<Observer>::Callable;
+    using Callable = typename ControlTemplate<Observer>::Callable;
 
     static constexpr bool isPexCopyable = true;
 
@@ -71,7 +85,7 @@ public:
         PEX_LOG("Terminus default: ", this);
     }
 
-    Terminus_(Observer *observer, const Managed<void> &pex)
+    Terminus_(Observer *observer, const ControlTemplate<void> &pex)
         :
         observer_(observer),
         pex_(pex)
@@ -79,7 +93,7 @@ public:
         PEX_LOG("Terminus copy(pex) ctor: ", this);
     }
 
-    Terminus_(Observer *observer, Managed<void> &&pex)
+    Terminus_(Observer *observer, ControlTemplate<void> &&pex)
         :
         observer_(observer),
         pex_(std::move(pex))
@@ -89,7 +103,7 @@ public:
 
     Terminus_(
         Observer *observer,
-        typename ManagedControl<Pex_>::Upstream &upstream)
+        typename MakeControl<Upstream_>::Upstream &upstream)
         :
         observer_(observer),
         pex_(upstream)
@@ -116,7 +130,7 @@ public:
     template<typename O>
     Terminus_(
         Observer *observer,
-        const Terminus_<O, Pex_> &other)
+        const Terminus_<O, Upstream_> &other)
         :
         observer_(observer),
         pex_(other.pex_)
@@ -128,7 +142,7 @@ public:
     template<typename O>
     Terminus_(
         Observer *observer,
-        const Terminus_<O, control::ChangeObserver<O, Pex_>> &other)
+        const Terminus_<O, control::ChangeObserver<O, Upstream_>> &other)
         :
         observer_(observer),
         pex_(other.pex_)
@@ -153,7 +167,7 @@ public:
     template<typename O>
     Terminus_(
         Observer *observer,
-        const Terminus_<O, Pex_> &&other)
+        const Terminus_<O, Upstream_> &&other)
         :
         observer_(observer),
         pex_()
@@ -168,7 +182,7 @@ public:
     template<typename O>
     Terminus_(
         Observer *observer,
-        const Terminus_<O, control::ChangeObserver<O, Pex_>> &&other)
+        const Terminus_<O, control::ChangeObserver<O, Upstream_>> &&other)
         :
         observer_(observer),
         pex_()
@@ -183,7 +197,7 @@ public:
     template<typename O>
     Terminus_ & Assign(
         Observer *observer,
-        const Terminus_<O, Pex_> &other)
+        const Terminus_<O, Upstream_> &other)
     {
         if constexpr (std::is_same_v<Observer, O>)
         {
@@ -203,7 +217,7 @@ public:
     template<typename O>
     Terminus_ & Assign(
         Observer *observer,
-        const Terminus_<O, control::ChangeObserver<O, Pex_>> &other)
+        const Terminus_<O, control::ChangeObserver<O, Upstream_>> &other)
     {
         if constexpr (std::is_same_v<Observer, O>)
         {
@@ -223,7 +237,7 @@ public:
     template<typename O>
     Terminus_ & Assign(
         Observer *observer,
-        Terminus_<O, Pex_> &&other)
+        Terminus_<O, Upstream_> &&other)
     {
         if constexpr (std::is_same_v<Observer, O>)
         {
@@ -249,7 +263,7 @@ public:
     template<typename O>
     Terminus_ & Assign(
         Observer *observer,
-        Terminus_<O, control::ChangeObserver<O, Pex_>> &&other)
+        Terminus_<O, control::ChangeObserver<O, Upstream_>> &&other)
     {
         if constexpr (std::is_same_v<Observer, O>)
         {
@@ -312,7 +326,7 @@ public:
         return this->pex_.HasModel();
     }
 
-    explicit operator Managed<void> () const
+    explicit operator ControlTemplate<void> () const
     {
         return this->pex_;
     }
@@ -335,12 +349,12 @@ private:
     Observer *observer_;
 
 protected:
-    Managed<Observer> pex_;
+    ControlTemplate<Observer> pex_;
 };
 
 
 #define INHERIT_TERMINUS_CONSTRUCTORS                                    \
-    using Base = Terminus_<Observer, Pex_>;                              \
+    using Base = Terminus_<Observer, Upstream_>;                              \
     using Base::Base;                                                    \
                                                                          \
     Terminus(Observer *observer, const Terminus &other)                  \
@@ -354,7 +368,7 @@ protected:
     }                                                                    \
                                                                          \
     template <typename O>                                                \
-    Terminus &Assign(Observer *observer, const Terminus<O, Pex_> &other) \
+    Terminus &Assign(Observer *observer, const Terminus<O, Upstream_> &other) \
     {                                                                    \
         Base::Assign(observer, other);                                   \
         return *this;                                                    \
@@ -363,14 +377,14 @@ protected:
     template <typename O>                                                \
     Terminus &Assign(                                                    \
         Observer *observer,                                              \
-        const Terminus<O, control::ChangeObserver<O, Pex_>> &other)      \
+        const Terminus<O, control::ChangeObserver<O, Upstream_>> &other)      \
     {                                                                    \
         Base::Assign(observer, other);                                   \
         return *this;                                                    \
     }                                                                    \
                                                                          \
     template <typename O>                                                \
-    Terminus &Assign(Observer *observer, Terminus<O, Pex_> &&other)      \
+    Terminus &Assign(Observer *observer, Terminus<O, Upstream_> &&other)      \
     {                                                                    \
         Base::Assign(observer, std::move(other));                        \
         return *this;                                                    \
@@ -379,7 +393,7 @@ protected:
     template <typename O>                                                \
     Terminus &Assign(                                                    \
         Observer *observer,                                              \
-        Terminus<O, control::ChangeObserver<O, Pex_>> &&other)           \
+        Terminus<O, control::ChangeObserver<O, Upstream_>> &&other)           \
     {                                                                    \
         Base::Assign(observer, std::move(other));                        \
         return *this;                                                    \
@@ -391,13 +405,13 @@ template
 <
     template<typename, typename> typename Derived_,
     typename Observer,
-    typename Pex_,
+    typename Upstream_,
     typename enable = void
 >
 struct ImplementInterface
 {
-    using Derived = Derived_<Observer, Pex_>;
-    using Pex = typename ManagedControl<Pex_>::template Type<Observer>;
+    using Derived = Derived_<Observer, Upstream_>;
+    using Pex = typename MakeControl<Upstream_>::template Control<Observer>;
     using Type = typename Pex::Type;
     using Filter = typename Pex::Filter;
 
@@ -435,19 +449,19 @@ template
 <
     template<typename, typename> typename Derived_,
     typename Observer,
-    typename Pex_
+    typename Upstream_
 >
 struct ImplementInterface
 <
     Derived_,
     Observer,
-    Pex_,
-    std::enable_if_t<IsSignal<Pex_>>
+    Upstream_,
+    std::enable_if_t<IsSignal<Upstream_>>
 >
 {
 public:
-    using Derived = Derived_<Observer, Pex_>;
-    using Pex = typename ManagedControl<Pex_>::template Type<Observer>;
+    using Derived = Derived_<Observer, Upstream_>;
+    using Pex = typename MakeControl<Upstream_>::template Control<Observer>;
 
     void Trigger()
     {
@@ -457,10 +471,10 @@ public:
 
 
 
-template<typename Observer, typename Pex_>
+template<typename Observer, typename Upstream_>
 class Terminus:
-    public Terminus_<Observer, Pex_>,
-    public ImplementInterface<Terminus, Observer, Pex_>
+    public Terminus_<Observer, Upstream_>,
+    public ImplementInterface<Terminus, Observer, Upstream_>
 {
 public:
     INHERIT_TERMINUS_CONSTRUCTORS

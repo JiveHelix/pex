@@ -168,6 +168,16 @@ struct Group
         using Plain = typename Group::Plain;
         using Type = Plain;
 
+        using Upstream = Model;
+
+        // UpstreamType could be the type returned by a filter.
+        // Filters have not been implemented by this class, so it remains the
+        // same as the Type.
+        using UpstreamType = Plain;
+        using Filter = NoFilter;
+
+        static constexpr bool isPexCopyable = true;
+
         template<typename T>
         using Pex =
             typename pex::ControlSelector<Observer>::template Type<T>;
@@ -191,7 +201,7 @@ struct Group
 
         Control & operator=(const Control &other)
         {
-            this->AccessorsBase::operator=(other);
+            this->ResetAccessors_();
             fields::Assign<Fields>(*this, other);
 
             return *this;
@@ -206,7 +216,7 @@ struct Group
         template<typename Other>
         Control & operator=(const Control<Other> &other)
         {
-            this->AccessorsBase::operator=(other);
+            this->ResetAccessors_();
             fields::AssignConvert<Fields>(*this, other);
             return *this;
         }
@@ -343,7 +353,7 @@ struct Group
         Terminus & Assign(Observer *observer, const Terminus &other)
         {
             PEX_LOG("Terminus copy assign observer: ", observer);
-            this->AccessorsBase::operator=(other);
+            this->ResetAccessors_();
             this->observer_ = observer;
 
             CopyTerminus<Fields>(observer, *this, other);
@@ -370,7 +380,7 @@ struct Group
         Terminus & Assign(Observer *observer, Terminus &&other)
         {
             PEX_LOG("Terminus move assign observer: ", observer);
-            this->AccessorsBase::operator=(std::move(other));
+            this->ResetAccessors_();
             this->observer_ = observer;
 
             MoveTerminus<Fields>(observer, *this, other);
@@ -393,7 +403,10 @@ struct Group
 
         void Connect(Callable callable)
         {
-            PEX_LOG("Terminus Connect with observer: ", this->observer_);
+            PEX_LOG(
+                "Group::Terminus::Connect with observer: ",
+                this->observer_);
+
             this->Connect_(this->observer_, callable);
         }
 

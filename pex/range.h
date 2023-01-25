@@ -491,7 +491,7 @@ public:
         >;
 
     static_assert(!IsCopyable<Value>);
-    static_assert(::pex::IsDirect<::pex::UpstreamT<Value>>);
+    static_assert(::pex::IsDirect<::pex::UpstreamHolderT<Value>>);
 
     using Type = typename Value::Type;
 
@@ -881,20 +881,20 @@ inline constexpr bool IsControlRange = IsControlRange_<T...>::value;
 
 
 template<typename P>
-struct ManagedControl<P, std::enable_if_t<IsModelRange<P>>>
+struct MakeControl<P, std::enable_if_t<IsModelRange<P>>>
 {
     template<typename O>
-    using Type = control::Range<O, P>;
+    using Control = control::Range<O, P>;
 
     using Upstream = P;
 };
 
 
 template<typename P>
-struct ManagedControl<P, std::enable_if_t<IsControlRange<P>>>
+struct MakeControl<P, std::enable_if_t<IsControlRange<P>>>
 {
     template<typename O>
-    using Type = control::ChangeObserver<O, P>;
+    using Control = control::ChangeObserver<O, P>;
 
     using Upstream = typename P::Upstream;
 };
@@ -905,9 +905,9 @@ class RangeTerminus
 {
 public:
     template<typename O>
-    using Managed = typename ManagedControl<Upstream>::template Type<O>;
+    using ControlTemplate = typename MakeControl<Upstream>::template Control<O>;
 
-    using Pex = Managed<Observer>;
+    using Pex = ControlTemplate<Observer>;
     using Value = pex::Terminus<Observer, typename Pex::Value>;
     using Limit = pex::Terminus<Observer, typename Pex::Limit>;
     using Type = typename Upstream::Type;
@@ -928,7 +928,7 @@ public:
 
     }
 
-    RangeTerminus(Observer *observer, const Managed<void> &pex)
+    RangeTerminus(Observer *observer, const ControlTemplate<void> &pex)
         :
         value(observer, pex.value),
         minimum(observer, pex.minimum),
@@ -937,7 +937,7 @@ public:
 
     }
 
-    RangeTerminus(Observer *observer, Managed<void> &&pex)
+    RangeTerminus(Observer *observer, ControlTemplate<void> &&pex)
         :
         value(observer, std::move(pex.value)),
         minimum(observer, std::move(pex.minimum)),
@@ -948,7 +948,7 @@ public:
 
     RangeTerminus(
         Observer *observer,
-        typename ManagedControl<Upstream>::Upstream &upstream)
+        typename MakeControl<Upstream>::Upstream &upstream)
         :
         value(observer, upstream.value_),
         minimum(observer, upstream.minimum_),

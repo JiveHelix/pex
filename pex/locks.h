@@ -37,7 +37,7 @@ public:
         const char *lockName,
         void * lockId)
     {
-        std::lock_guard<std::mutex> lock(pex::logMutex);
+        std::lock_guard<std::mutex> lock(*pex::logMutex);
 
         LogCommon(std::cout, fileName.c_str(), line, lockName, lockId)
             << "LogLock() lock" << std::endl;
@@ -48,13 +48,13 @@ public:
 using Mutex = std::shared_mutex;
 
 
-struct ExclusiveLock 
+struct ExclusiveLock
 {
     using Lock = std::unique_lock<Mutex>;
     static constexpr auto name = "WriteLock";
 };
 
-struct SharedLock 
+struct SharedLock
 {
     using Lock = std::shared_lock<Mutex>;
     static constexpr auto name = "ReadLock";
@@ -111,14 +111,14 @@ public:
 
     ~LogLock()
     {
-        std::lock_guard<std::mutex> lock(pex::logMutex);
+        std::lock_guard<std::mutex> lock(*pex::logMutex);
         this->LogCommon() << "~LogLock() unlock" << std::endl;
     }
 
     void unlock()
     {
         {
-            std::lock_guard<std::mutex> lock(pex::logMutex);
+            std::lock_guard<std::mutex> lock(*pex::logMutex);
             this->LogCommon() << "unlock() calling unlock" << std::endl;
         }
 
@@ -128,7 +128,7 @@ public:
     void lock()
     {
         {
-            std::lock_guard<std::mutex> lock(pex::logMutex);
+            std::lock_guard<std::mutex> lock(*pex::logMutex);
             this->LogCommon() << "lock() calling lock" << std::endl;
         }
 

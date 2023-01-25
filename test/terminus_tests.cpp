@@ -54,7 +54,7 @@ TEST_CASE("Terminus uses new observer after copy.", "[terminus]")
     first.Set(43);
 
     REQUIRE(first.observedValue == 43);
-    
+
     Observer second(first);
 
     REQUIRE(second.observedValue == 43);
@@ -79,8 +79,8 @@ struct TestFields
 {
     static constexpr auto fields = std::make_tuple(
         fields::Field(&T::one, "one"),
-        fields::Field(&T::one, "two"),
-        fields::Field(&T::one, "three"));
+        fields::Field(&T::two, "two"),
+        fields::Field(&T::three, "three"));
 };
 
 template<template<typename> typename T>
@@ -156,7 +156,7 @@ TEST_CASE("Terminus group uses new observer after copy.", "[terminus]")
     first.Set(values);
 
     REQUIRE(first.observedValue == values);
-    
+
     TerminusGroupObserver second(first);
 
     REQUIRE(second.observedValue == values);
@@ -177,3 +177,43 @@ TEST_CASE("Terminus group uses new observer after copy.", "[terminus]")
     REQUIRE(third.observedValue == values);
 }
 
+
+using GroupControl = typename TerminusTestGroup::Control<void>;
+
+template<typename Observer>
+using AggregateTerminus = pex::Terminus<Observer, GroupControl>;
+
+using AggregateObserver = TestObserver<GroupControl, AggregateTerminus>;
+
+// This tests that GroupControl can be passed by copy, then used to create
+// a Terminus.
+std::unique_ptr<AggregateObserver> MakeTestObserver(GroupControl control)
+{
+    return std::make_unique<AggregateObserver>(control);
+}
+
+
+TEST_CASE("pex::Terminus can use Group::Control as its upstream.", "[terminus]")
+{
+    STATIC_REQUIRE(!pex::IsModel<GroupControl>);
+    STATIC_REQUIRE(!pex::IsModelSignal<GroupControl>);
+
+    STATIC_REQUIRE(
+        !pex::detail::FilterIsMember
+        <
+            GroupControl::UpstreamType,
+            GroupControl::Filter
+        >);
+
+    STATIC_REQUIRE(pex::IsCopyable<GroupControl>);
+
+    TerminusTestPlain values{{42, 43, 44.0}};
+    TerminusTestModel model(values);
+
+    auto observer = MakeTestObserver(GroupControl(model));
+
+    model.one.Set(49);
+
+    TerminusTestPlain expected{{49, 43, 44.0}};
+    REQUIRE(expected == observer->observedValue);
+}
