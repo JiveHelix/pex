@@ -36,3 +36,14 @@ target_link_libraries(
     project_warnings
     project_options
     pex)
+
+
+add_executable(serialization serialization.cpp)
+
+target_link_libraries(
+    serialization
+    PUBLIC
+    project_warnings
+    project_options
+    pex
+    CONAN_PKG::nlohmann_json)
