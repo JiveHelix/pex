@@ -312,11 +312,25 @@ public:
             throw std::runtime_error("Terminus has no observer.");
         }
 
-        PEX_LOG(
-            "Connect to: ",
-            &this->pex_,
-            " with observer: ",
-            this->observer_);
+        if constexpr (!std::is_void_v<Observer>)
+        {
+
+            PEX_LOG(
+                "Connect to: ",
+                &this->pex_,
+                " with observer ",
+                Observer::observerName,
+                ": ",
+                this->observer_);
+        }
+        else
+        {
+            PEX_LOG(
+                "Connect to: ",
+                &this->pex_,
+                " with observer: ",
+                this->observer_);
+        }
 
         this->pex_.Connect(this->observer_, callable);
     }
@@ -351,54 +365,6 @@ private:
 protected:
     ControlTemplate<Observer> pex_;
 };
-
-
-#define INHERIT_TERMINUS_CONSTRUCTORS                                    \
-    using Base = Terminus_<Observer, Upstream_>;                              \
-    using Base::Base;                                                    \
-                                                                         \
-    Terminus(Observer *observer, const Terminus &other)                  \
-        : Base(observer, other)                                          \
-    {                                                                    \
-    }                                                                    \
-                                                                         \
-    Terminus(Observer *observer, Terminus &&other)                       \
-        : Base(observer, std::move(other))                               \
-    {                                                                    \
-    }                                                                    \
-                                                                         \
-    template <typename O>                                                \
-    Terminus &Assign(Observer *observer, const Terminus<O, Upstream_> &other) \
-    {                                                                    \
-        Base::Assign(observer, other);                                   \
-        return *this;                                                    \
-    }                                                                    \
-                                                                         \
-    template <typename O>                                                \
-    Terminus &Assign(                                                    \
-        Observer *observer,                                              \
-        const Terminus<O, control::ChangeObserver<O, Upstream_>> &other)      \
-    {                                                                    \
-        Base::Assign(observer, other);                                   \
-        return *this;                                                    \
-    }                                                                    \
-                                                                         \
-    template <typename O>                                                \
-    Terminus &Assign(Observer *observer, Terminus<O, Upstream_> &&other)      \
-    {                                                                    \
-        Base::Assign(observer, std::move(other));                        \
-        return *this;                                                    \
-    }                                                                    \
-                                                                         \
-    template <typename O>                                                \
-    Terminus &Assign(                                                    \
-        Observer *observer,                                              \
-        Terminus<O, control::ChangeObserver<O, Upstream_>> &&other)           \
-    {                                                                    \
-        Base::Assign(observer, std::move(other));                        \
-        return *this;                                                    \
-    }
-
 
 
 template
@@ -477,7 +443,50 @@ class Terminus:
     public ImplementInterface<Terminus, Observer, Upstream_>
 {
 public:
-    INHERIT_TERMINUS_CONSTRUCTORS
+    using Base = Terminus_<Observer, Upstream_>;
+    using Base::Base;
+
+    Terminus(Observer *observer, const Terminus &other)
+        : Base(observer, other)
+    {
+    }
+
+    Terminus(Observer *observer, Terminus &&other)
+        : Base(observer, std::move(other))
+    {
+    }
+
+    template <typename O>
+    Terminus &Assign(Observer *observer, const Terminus<O, Upstream_> &other)
+    {
+        Base::Assign(observer, other);
+        return *this;
+    }
+
+    template <typename O>
+    Terminus &Assign(
+        Observer *observer,
+        const Terminus<O, control::ChangeObserver<O, Upstream_>> &other)
+    {
+        Base::Assign(observer, other);
+        return *this;
+    }
+
+    template <typename O>
+    Terminus &Assign(Observer *observer, Terminus<O, Upstream_> &&other)
+    {
+        Base::Assign(observer, std::move(other));
+        return *this;
+    }
+
+    template <typename O>
+    Terminus &Assign(
+        Observer *observer,
+        Terminus<O, control::ChangeObserver<O, Upstream_>> &&other)
+    {
+        Base::Assign(observer, std::move(other));
+        return *this;
+    }
 
     template<typename>
     friend class Reference;

@@ -9,6 +9,7 @@
 #include "pex/detail/log.h"
 #include <iostream>
 
+#define USE_OBSERVER_NAME
 
 namespace pex
 {
@@ -33,8 +34,28 @@ public:
     {
         if (!this->connections_.empty())
         {
-            std::cout << "ERROR: Active connections destroyed: "
-                << this << std::endl;
+            std::cout << "ERROR: Active connections destroyed: ";
+
+#ifdef USE_OBSERVER_NAME
+            if constexpr (std::is_void_v<Observer>)
+            {
+                std::cout << "void ";
+            }
+            else
+            {
+                std::cout << Observer::observerName << " ";
+            }
+#endif
+            std::cout << this;
+            std::cout << std::endl;
+
+            std::cout << "Was your model destroyed before your controls?"
+                << std::endl;
+
+            for (auto &connection: this->connections_)
+            {
+                std::cout << "  " << connection.GetObserver() << std::endl;
+            }
         }
 
         assert(this->connections_.empty());
@@ -46,7 +67,21 @@ public:
             HasAccess<GetTag, Access>,
             "Cannot connect observer without read access.");
 
-        PEX_LOG(observer, " connecting to ", this);
+#ifdef USE_OBSERVER_NAME
+        if constexpr (std::is_void_v<Observer>)
+        {
+            PEX_LOG("void (", observer, ") connecting to ", this);
+        }
+        else
+        {
+            PEX_LOG(
+                Observer::observerName,
+                " (",
+                observer,
+                ") connecting to ",
+                this);
+        }
+#endif
 
         auto callback = Notify(observer, callable);
 
@@ -62,7 +97,7 @@ public:
             PEX_LOG("Info: ", observer, " is already observing.");
         }
 #endif
-        
+
         this->connections_.insert(insertion, callback);
     }
 
@@ -114,7 +149,7 @@ public:
 
 /* Specialized for notify callbacks that do not accept an argument */
 template<typename Notify, typename Access, typename = std::void_t<>>
-class NotifyConnector : public NotifyConnector_<Notify, Access>
+class NotifyConnector: public NotifyConnector_<Notify, Access>
 {
 protected:
     void Notify_()

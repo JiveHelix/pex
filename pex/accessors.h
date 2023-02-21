@@ -103,6 +103,8 @@ template
 >
 struct Getter
 {
+    static constexpr auto observerName = "Getter";
+
     Plain Get() const
     {
         Plain result;
@@ -140,6 +142,13 @@ bool HasModel(const T &group)
 }
 
 
+template<typename Observer, typename Terminus, typename Upstream>
+void DoAssign(Observer *observer, Terminus &terminus, Upstream &upstream)
+{
+    terminus.Assign(observer, Terminus(observer, upstream));
+}
+
+
 template
 <
     template<typename> typename Fields,
@@ -158,14 +167,21 @@ void InitializeTerminus(
         auto terminusField,
         auto upstreamField)
     {
-        using MemberType = typename std::remove_reference_t
+        DoAssign(
+            observer,
+            terminus.*(terminusField.member),
+            upstream.*(upstreamField.member));
+#if 0
+        using MemberType = typename std::remove_cvref_t
             <
-                decltype(terminus.*(terminusField.member))
+                decltype((terminus.*(terminusField.member)))
             >;
 
-        (terminus.*(terminusField.member)).Assign(
-            observer,
-            MemberType(observer, upstream.*(upstreamField.member)));
+        auto member = MemberType(observer, (upstream.*(upstreamField.member)));
+
+        PEX_LOG("Initialize assign ", terminusField.name);
+        (terminus.*(terminusField.member)).Assign(observer, member);
+#endif
     };
 
     jive::ZipApply(
@@ -188,6 +204,8 @@ void CopyTerminus(Observer *observer, T &terminus, const U &other)
         auto leftField,
         auto rightField)
     {
+        PEX_LOG("Move assign ", leftField.name);
+
         (terminus.*(leftField.member)).Assign(
             observer,
             other.*(rightField.member));
@@ -213,6 +231,8 @@ void MoveTerminus(Observer *observer, T &terminus, U &other)
         auto leftField,
         auto rightField)
     {
+        PEX_LOG("Move assign ", leftField.name);
+
         (terminus.*(leftField.member)).Assign(
             observer,
             std::move(other.*(rightField.member)));
@@ -252,6 +272,8 @@ struct Aggregate:
     >
 {
 public:
+    static constexpr auto observerName = "Aggregate";
+
     using Connector = detail::NotifyConnector
         <
             ::pex::ValueConnection<void, Plain, NoFilter>,
@@ -330,7 +352,14 @@ private:
                 using MemberType = typename std::remove_reference_t<
                     decltype(this->*(field.member))>::Type;
 
-                PEX_LOG("Connect ", this, " to ", &(this->*(field.member)));
+                PEX_LOG(
+                    "Connect ",
+                    this,
+                    " to ",
+                    field.name,
+                    " (",
+                    &(this->*(field.member)),
+                    ")");
 
                 (this->*(field.member)).Connect(
                     &Aggregate::template OnMemberChanged_<MemberType>);
@@ -567,7 +596,7 @@ protected:
             this->aggregate_->Connect(derived, &Accessors::OnAggregate_);
         }
 
-        PEX_LOG("Connect ", observer, " to ", this);
+        PEX_LOG("Connect ", Observer::observerName, " (", observer, ") to ", this);
         Connector::Connect(observer, callable);
     }
 

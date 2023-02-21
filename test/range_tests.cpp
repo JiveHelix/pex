@@ -91,12 +91,14 @@ TEST_CASE("Chaining ranges together to add a filter.", "[range]")
 template<typename Control>
 struct Observer
 {
+    static constexpr auto observerName = "range_tests::Observer";
+
     Observer(Control control)
         :
-        control_(this, control)
+        terminus_(this, control)
     {
         PEX_LOG("Connect");
-        this->control_.Connect(&Observer::OnValue_);
+        this->terminus_.Connect(&Observer::OnValue_);
     }
 
     void OnValue_(int value)
@@ -104,7 +106,7 @@ struct Observer
         this->observed = value;
     }
 
-    pex::Terminus<Observer, Control> control_;
+    pex::Terminus<Observer, Control> terminus_;
 
     std::optional<int> observed;
 };

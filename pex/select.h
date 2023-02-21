@@ -90,6 +90,7 @@ class Select
 public:
     using Type = T;
     using Value = pex::model::Value<T>;
+    static constexpr auto observerName = "pex::model::Select";
 
     using ChoicesAccess = ChoicesAccess_;
     using Selection = ::pex::model::FilteredValue<size_t, SelectFilter<Type>>;

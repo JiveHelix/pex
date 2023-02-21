@@ -18,16 +18,18 @@ template<typename T, typename Model>
 class Observer
 {
 public:
+    static constexpr auto observerName = "filter_tests::Observer";
+
     using Control =
         pex::control::Value<Observer<T, Model>, Model>;
 
     Observer(Model &model)
         :
-        control_(this, model),
-        observedValue{this->control_.Get()}
+        terminus_(this, model),
+        observedValue{this->terminus_.Get()}
     {
         PEX_LOG("Connect");
-        this->control_.Connect(&Observer::Observe_);
+        this->terminus_.Connect(&Observer::Observe_);
     }
 
 private:
@@ -36,7 +38,7 @@ private:
         this->observedValue = value;
     }
 
-    pex::Terminus<Observer, Control> control_;
+    pex::Terminus<Observer, Control> terminus_;
 
 public:
     T observedValue;

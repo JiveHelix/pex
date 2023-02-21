@@ -94,10 +94,6 @@ public:
         filter_{},
         value_{this->FilterOnSet_(value)}
     {
-        static_assert(
-            detail::FilterIsNoneOrStatic<Type, Filter, SetTag>,
-            "A filter with member functions requires a pointer.");
-
         PEX_LOG(this);
     }
 

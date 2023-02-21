@@ -14,6 +14,8 @@ class Observer
 public:
     using Type = typename Control::Type;
 
+    static constexpr auto observerName = "assign_tests::Observer";
+
     Observer(Control control)
         :
         control_(this, control)

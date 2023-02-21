@@ -21,6 +21,8 @@ template
 class TestObserver
 {
 public:
+    static constexpr auto observerName = "TestObserver";
+
     using Type = typename Upstream::Type;
 
     TestObserver(Upstream &upstream)

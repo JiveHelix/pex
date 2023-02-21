@@ -62,6 +62,8 @@ Angle_radians f(0.0);
 class Foo
 {
 public:
+    static constexpr auto observerName = "Foo";
+
     Foo(Angle_radians &angle_radians)
         :
         angle_degrees(angle_radians)

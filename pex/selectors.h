@@ -189,11 +189,7 @@ template<typename T>
 struct TerminusSelector_<T, std::enable_if_t<IsMakeCustom<T>>>
 {
     template<typename Observer>
-    using Type = Terminus
-    <
-        Observer,
-        typename T::template Control<Observer>
-    >;
+    using Type = typename T::template Terminus<Observer>;
 };
 
 template<typename T>

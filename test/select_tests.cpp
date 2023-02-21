@@ -81,6 +81,8 @@ using SomeTerminus = typename SomeGroup::Terminus<Observer>;
 
 struct TestObserver
 {
+    static constexpr auto observerName = "select_tests::TestObserver";
+
     double observedRate;
     SomeTerminus<TestObserver> terminus;
 

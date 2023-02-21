@@ -33,6 +33,9 @@ struct MakeCustom
 
     template<typename Observer>
     using Control = typename Custom::template Control<Observer>;
+
+    template<typename Observer>
+    using Terminus = typename Custom::template Terminus<Observer>;
 };
 
 

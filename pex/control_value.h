@@ -247,7 +247,7 @@ public:
 
     Value_ & operator=(Value_ &&other)
     {
-        PEX_LOG("Disconnect ", this);
+        PEX_LOG("control::Value_ move assign: Disconnect ", this);
         this->upstream_.Disconnect(this);
         this->upstream_ = std::move(other.upstream_);
         this->filter_ = std::move(other.filter_);

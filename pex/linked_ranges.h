@@ -65,6 +65,8 @@ struct LinkedRanges
         HighTerminus highTerminus_;
 
     public:
+        static constexpr auto observerName = "LinkedRanges::Model";
+
         Model()
             :
             Group::Model(Settings::Default()),
@@ -73,6 +75,9 @@ struct LinkedRanges
         {
             this->low.TrimMaximum(this->high.Get());
             this->high.TrimMinimum(this->low.Get());
+
+            PEX_LOG("Connecting LinkedRanges::Model as observer: ", this);
+
             this->lowTerminus_.Connect(&Model::OnLow_);
             this->highTerminus_.Connect(&Model::OnHigh_);
         }

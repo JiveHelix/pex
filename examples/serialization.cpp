@@ -40,6 +40,8 @@ using Terminus = typename FooGroup::Terminus<Observer>;
 class Greeter
 {
 public:
+    static constexpr auto observerName = "Greeter";
+
     Greeter(Terminus<void> &terminus)
         :
         terminus_(this, terminus)

@@ -13,6 +13,7 @@ template<typename Access = pex::GetAndSetTag>
 class Observer
 {
 public:
+    static constexpr auto observerName = "signal_tests::Observer";
     using Control = pex::control::Signal<Observer, Access>;
 
     Observer(pex::model::Signal &model)

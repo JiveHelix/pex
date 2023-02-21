@@ -79,6 +79,7 @@ template<typename Plain, typename Model, template<typename> typename Terminus>
 class Observer
 {
 public:
+    static constexpr auto observerName = "group_tests::Observer";
 
     Observer(Model &model)
         :
