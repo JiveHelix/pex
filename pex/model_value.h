@@ -12,7 +12,6 @@
 #pragma once
 
 #include <type_traits>
-#include <optional>
 #include <stdexcept>
 
 #include "pex/no_filter.h"
@@ -175,12 +174,12 @@ public:
 
     Filter & GetFilter()
     {
-        return *this->filter_;
+        return this->filter_;
     }
 
     const Filter & GetFilter() const
     {
-        return *this->filter_;
+        return this->filter_;
     }
 
     // This function is used in debug assertions to check that other entities
@@ -213,12 +212,11 @@ private:
         }
         else if constexpr (detail::SetterIsMember<Type, Filter>)
         {
-            REQUIRE_HAS_VALUE(this->filter_);
-            return this->filter_->Set(value);
+            return this->filter_.Set(value);
         }
         else
         {
-            // The filter is not a member method.
+            // The filter uses static Set.
             return Filter::Set(value);
         }
     }
@@ -231,8 +229,7 @@ private:
         }
         else if constexpr (detail::GetterIsMember<Type, Filter>)
         {
-            REQUIRE_HAS_VALUE(this->filter_);
-            return this->filter_->Get(value);
+            return this->filter_.Get(value);
         }
         else
         {
@@ -241,7 +238,7 @@ private:
         }
     }
 
-    std::optional<Filter> filter_;
+    Filter filter_;
     Type value_;
 };
 
