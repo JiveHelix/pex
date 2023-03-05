@@ -25,6 +25,8 @@ namespace control
 {
 
 
+
+
 template<
     typename Observer_,
     typename Upstream_,
@@ -62,13 +64,10 @@ public:
     using UpstreamType = typename UpstreamHolder::Type;
     using Type = detail::FilteredType<UpstreamType, Filter>;
 
-    using Callable =
-        typename ValueConnection
-        <
-            Observer_,
-            typename UpstreamHolder::Type,
-            Filter
-        >::Callable;
+    using Connection = ValueConnection<Observer, UpstreamType, Filter>;
+    using Base = detail::NotifyMany<Connection, Access>;
+
+    using Callable = typename Connection::Callable;
 
     // Make any template specialization of Value_ a 'friend' class.
     template <typename, typename, typename, typename>
@@ -94,11 +93,7 @@ public:
         upstream_(pex),
         filter_()
     {
-        if constexpr (HasAccess<GetTag, Access>)
-        {
-            PEX_LOG("Connect ", this);
-            this->upstream_.Connect(this, &Value_::OnUpstreamChanged_);
-        }
+
     }
 
     explicit Value_(PexArgument<Upstream> pex, Filter filter)
@@ -109,12 +104,6 @@ public:
         static_assert(
             detail::FilterIsMember<UpstreamType, Filter>,
             "A void or static filter cannot be set.");
-
-        if constexpr (HasAccess<GetTag, Access>)
-        {
-            PEX_LOG("Connect ", this);
-            this->upstream_.Connect(this, &Value_::OnUpstreamChanged_);
-        }
     }
 
     ~Value_()
@@ -155,13 +144,16 @@ public:
 
         if constexpr (HasAccess<GetTag, Access>)
         {
-            PEX_LOG(
-                "Copy from OtherObserver: ",
-                this,
-                " to ",
-                &this->upstream_);
+            if (this->HasConnections())
+            {
+                PEX_LOG(
+                    "Copy from OtherObserver: ",
+                    this,
+                    " to ",
+                    &this->upstream_);
 
-            this->upstream_.Connect(this, &Value_::OnUpstreamChanged_);
+                this->upstream_.Connect(this, &Value_::OnUpstreamChanged_);
+            }
         }
     }
 
@@ -185,8 +177,11 @@ public:
 
         if constexpr (HasAccess<GetTag, Access>)
         {
-            PEX_LOG("Connect ", this);
-            this->upstream_.Connect(this, &Value_::OnUpstreamChanged_);
+            if (this->HasConnections())
+            {
+                PEX_LOG("Connect ", this);
+                this->upstream_.Connect(this, &Value_::OnUpstreamChanged_);
+            }
         }
 
         return *this;
@@ -203,8 +198,11 @@ public:
 
         if constexpr (HasAccess<GetTag, Access>)
         {
-            PEX_LOG("Copy from other: ", this, " to ", &this->upstream_);
-            this->upstream_.Connect(this, &Value_::OnUpstreamChanged_);
+            if (this->HasConnections())
+            {
+                PEX_LOG("Copy from other: ", this, " to ", &this->upstream_);
+                this->upstream_.Connect(this, &Value_::OnUpstreamChanged_);
+            }
         }
     }
 
@@ -215,8 +213,11 @@ public:
     {
         if constexpr (HasAccess<GetTag, Access>)
         {
-            PEX_LOG("Connect ", this);
-            this->upstream_.Connect(this, &Value_::OnUpstreamChanged_);
+            if (this->HasConnections())
+            {
+                PEX_LOG("Connect ", this);
+                this->upstream_.Connect(this, &Value_::OnUpstreamChanged_);
+            }
         }
     }
 
@@ -236,10 +237,13 @@ public:
 
         if constexpr (HasAccess<GetTag, Access>)
         {
-            PEX_LOG("Connect ", this);
-            this->upstream_.Connect(
-                this,
-                &Value_::OnUpstreamChanged_);
+            if (this->HasConnections())
+            {
+                PEX_LOG("Connect ", this);
+                this->upstream_.Connect(
+                    this,
+                    &Value_::OnUpstreamChanged_);
+            }
         }
 
         return *this;
@@ -254,13 +258,45 @@ public:
 
         if constexpr (HasAccess<GetTag, Access>)
         {
+            if (this->HasConnections())
+            {
+                PEX_LOG("Connect ", this);
+                this->upstream_.Connect(
+                    this,
+                    &Value_::OnUpstreamChanged_);
+            }
+        }
+
+        return *this;
+    }
+
+    void Connect(Observer * const observer, Callable callable)
+    {
+        static_assert(HasAccess<GetTag, Access>);
+
+        if (!this->HasConnections())
+        {
+            // This is the first request for a connection.
+            // Connect ourselves to the upstream.
             PEX_LOG("Connect ", this);
             this->upstream_.Connect(
                 this,
                 &Value_::OnUpstreamChanged_);
         }
 
-        return *this;
+        this->Base::Connect(observer, callable);
+    }
+
+    void Disconnect(Observer * const observer)
+    {
+        this->Base::Disconnect(observer);
+
+        if (!this->HasConnections())
+        {
+            // The last connection has been disconnected.
+            // Remove ourselves from the upstream.
+            this->upstream_.Disconnect(this);
+        }
     }
 
     template<typename OtherObserver>

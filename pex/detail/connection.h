@@ -1,8 +1,7 @@
 /**
   * @file notify.h
   *
-  * @brief Provides Connect, Disconnect, and Notify_ methods for notification
-  * callbacks.
+  * @brief Wraps observer and callback for a connection.
   *
   * @author Jive Helix (jivehelix@gmail.com)
   * @date 15 Jul 2020

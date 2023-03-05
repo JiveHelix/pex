@@ -4,28 +4,61 @@
 #include <type_traits>
 #include <vector>
 #include <cassert>
+#include <iostream>
+#include <atomic>
+
+#include <jive/create_exception.h>
+
+#ifndef NDEBUG
+#include <jive/scope_flag.h>
+#endif
+
 #include "pex/access_tag.h"
 #include "pex/argument.h"
 #include "pex/detail/log.h"
-#include <iostream>
 
-#define USE_OBSERVER_NAME
 
 namespace pex
 {
+
+
+CREATE_EXCEPTION(PexError, std::runtime_error);
+
 
 namespace detail
 {
 
 
-template<typename Notify, typename Access>
+#ifndef NDEBUG
+#define THROW_IF_NOTIFYING                                           \
+    if (this->isNotifying_)                                          \
+    {                                                                \
+        throw PexError(                                              \
+            "Cannot modify connections from notification callback"); \
+    }                                                                \
+
+#define REPORT_NOTIFYING                                             \
+    auto isNotifying = jive::ScopedCountFlag(this->isNotifying_);
+
+#else
+#define THROW_IF_NOTIFYING
+#define REPORT_NOTIFYING
+#endif
+
+
+template<typename ConnectionType, typename Access>
 class NotifyConnector_
 {
 public:
-    using Observer = typename Notify::Observer;
-    using Callable = typename Notify::Callable;
+    using Observer = typename ConnectionType::Observer;
+    using Callable = typename ConnectionType::Callable;
 
     NotifyConnector_()
+        :
+#ifndef NDEBUG
+        isNotifying_{},
+#endif
+        connections_{}
     {
 
     }
@@ -67,6 +100,8 @@ public:
             HasAccess<GetTag, Access>,
             "Cannot connect observer without read access.");
 
+        THROW_IF_NOTIFYING
+
 #ifdef USE_OBSERVER_NAME
         if constexpr (std::is_void_v<Observer>)
         {
@@ -83,7 +118,7 @@ public:
         }
 #endif
 
-        auto callback = Notify(observer, callable);
+        auto callback = ConnectionType(observer, callable);
 
         // sorted insert
         auto insertion = std::upper_bound(
@@ -101,29 +136,11 @@ public:
         this->connections_.insert(insertion, callback);
     }
 
-    size_t GetNotifierCount() const
-    {
-        return this->connections_.size();
-    }
-
-protected:
-    void ClearConnections_()
-    {
-        this->connections_.clear();
-    }
-
-protected:
-    std::vector<Notify> connections_;
-};
-
-
-template<typename Notify, typename Access>
-class NotifyMany_: public NotifyConnector_<Notify, Access>
-{
-public:
     /** Remove all registered callbacks for the observer. **/
-    void Disconnect(typename Notify::Observer * const observer)
+    void Disconnect(typename ConnectionType::Observer * const observer)
     {
+        THROW_IF_NOTIFYING
+
         if (this->connections_.empty())
         {
             return;
@@ -132,7 +149,7 @@ public:
         auto [first, last] = std::equal_range(
             this->connections_.begin(),
             this->connections_.end(),
-            Notify(observer));
+            ConnectionType(observer));
 
         if (first == this->connections_.end())
         {
@@ -144,16 +161,41 @@ public:
 
         this->connections_.erase(first, last);
     }
+
+    size_t GetNotifierCount() const
+    {
+        return this->connections_.size();
+    }
+
+    bool HasConnections() const
+    {
+        return !this->connections_.empty();
+    }
+
+protected:
+    void ClearConnections_()
+    {
+        THROW_IF_NOTIFYING
+        this->connections_.clear();
+    }
+
+protected:
+#ifndef NDEBUG
+    jive::CountFlag<size_t> isNotifying_;
+#endif
+    std::vector<ConnectionType> connections_;
 };
 
 
-/* Specialized for notify callbacks that do not accept an argument */
-template<typename Notify, typename Access, typename = std::void_t<>>
-class NotifyConnector: public NotifyConnector_<Notify, Access>
+// For callbacks without an argument (signals)
+template<typename ConnectionType, typename Access, typename = std::void_t<>>
+class NotifyMany: public NotifyConnector_<ConnectionType, Access>
 {
 protected:
     void Notify_()
     {
+        REPORT_NOTIFYING
+
         for (auto &connection: this->connections_)
         {
             connection();
@@ -161,42 +203,22 @@ protected:
     }
 };
 
-template<typename Notify, typename Access, typename = std::void_t<>>
-class NotifyMany : public NotifyMany_<Notify, Access>
+
+// Iterates over connections, passing the value to each callback.
+template<typename ConnectionType, typename Access>
+class NotifyMany
+<
+    ConnectionType,
+    Access,
+    std::void_t<typename ConnectionType::Type>
+>
+    : public NotifyConnector_<ConnectionType, Access>
 {
 protected:
-    void Notify_()
+    void Notify_(Argument<typename ConnectionType::Type> value)
     {
-        for (auto &connection: this->connections_)
-        {
-            connection();
-        }
-    }
-};
+        REPORT_NOTIFYING
 
-
-/* Specialized for notify callbacks that accept an argument. */
-template<typename Notify, typename Access>
-class NotifyConnector<Notify, Access, std::void_t<typename Notify::Type>>
-    : public NotifyConnector_<Notify, Access>
-{
-protected:
-    void Notify_(Argument<typename Notify::Type> value)
-    {
-        for (auto &connection: this->connections_)
-        {
-            connection(value);
-        }
-    }
-};
-
-template<typename Notify, typename Access>
-class NotifyMany<Notify, Access, std::void_t<typename Notify::Type>>
-    : public NotifyMany_<Notify, Access>
-{
-protected:
-    void Notify_(Argument<typename Notify::Type> value)
-    {
         for (auto &connection: this->connections_)
         {
             connection(value);

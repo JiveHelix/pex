@@ -257,6 +257,8 @@ template
     template<template<typename> typename> typename Template
 >
 struct Aggregate:
+    // Create Terminus members. Connect happens in MakeConnections_, Disconnect
+    // is called by Terminus on destruction.
     public Template
     <
         pex::TerminusSelector
@@ -265,7 +267,7 @@ struct Aggregate:
         >::template Type
     >,
     public Getter<Plain, Fields, Aggregate<Plain, Fields, Template>>,
-    public detail::NotifyConnector
+    public detail::NotifyMany
     <
         ::pex::ValueConnection<void, Plain, NoFilter>,
         GetAndSetTag
@@ -274,7 +276,7 @@ struct Aggregate:
 public:
     static constexpr auto observerName = "Aggregate";
 
-    using Connector = detail::NotifyConnector
+    using Connector = detail::NotifyMany
         <
             ::pex::ValueConnection<void, Plain, NoFilter>,
             GetAndSetTag
@@ -596,7 +598,14 @@ protected:
             this->aggregate_->Connect(derived, &Accessors::OnAggregate_);
         }
 
-        PEX_LOG("Connect ", Observer::observerName, " (", observer, ") to ", this);
+        PEX_LOG(
+            "Connect ",
+            Observer::observerName,
+            " (",
+            observer,
+            ") to ",
+            this);
+
         Connector::Connect(observer, callable);
     }
 
