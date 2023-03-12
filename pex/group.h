@@ -117,7 +117,10 @@ struct Group
 
         Model()
         {
-
+            if constexpr (HasDefault<Plain>)
+            {
+                this->Set(Plain::Default());
+            }
         }
 
         Model(const Plain &plain)

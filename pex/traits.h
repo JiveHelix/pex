@@ -187,4 +187,27 @@ using PexArgument = typename PexArgument_<T>::Type;
 
 /** PexArgument **/
 
+
+template<typename T, typename = void>
+struct HasDefault_: std::false_type {};
+
+template<typename T>
+struct HasDefault_
+<
+    T,
+    std::enable_if_t
+    <
+        std::is_invocable_r_v
+        <
+            T,
+            decltype(&T::Default)
+        >
+    >
+>: std::true_type {};
+
+
+template<typename T>
+static constexpr bool HasDefault = HasDefault_<T>::value;
+
+
 } // end namespace pex
