@@ -4,6 +4,7 @@
 #include <fields/fields.h>
 
 #include "pex/accessors.h"
+#include "pex/traits.h"
 
 
 /**
