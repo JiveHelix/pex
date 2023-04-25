@@ -509,23 +509,6 @@ template<typename ControlValue, typename NewAccess>
 using ChangeAccess = typename ChangeAccess_<ControlValue, NewAccess>::Type;
 
 
-
-template<typename Observer>
-struct BoundFilteredValue
-{
-    template<typename Upstream, typename Filter>
-    using Type = FilteredValue<Observer, Upstream, Filter>;
-};
-
-
-template<typename Observer>
-struct BoundValue
-{
-    template<typename Upstream>
-    using Type = Value_<Observer, Upstream>;
-};
-
-
 template<typename ControlValue, typename Filter>
 struct FilteredLike_
 {

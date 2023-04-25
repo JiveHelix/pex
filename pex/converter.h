@@ -12,6 +12,7 @@
 #pragma once
 
 #include <string>
+#include <iostream>
 #include "jive/auto_format.h"
 #include "jive/formatter.h"
 #include "jive/to_integer.h"
@@ -58,7 +59,8 @@ template<typename T, typename Traits, typename = void>
 struct ValueToString
 {
     static constexpr auto format =
-        jive::AutoFormat<T, Traits::base, typename Traits::Flag>::value.data();
+        jive::FixedFormat<T, Traits::base, typename Traits::Flag>
+            ::value.data();
 
     static std::string Call(T value)
     {
@@ -72,6 +74,7 @@ struct ValueToString
             Traits::width,
             Traits::precision,
             value);
+
 #ifndef _WIN32
 #pragma GCC diagnostic pop
 #endif
