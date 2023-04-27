@@ -82,6 +82,14 @@ struct LinkedRanges
             this->highTerminus_.Connect(&Model::OnHigh_);
         }
 
+        void SetMaximumValue(Type maximumValue)
+        {
+            // The maximum allowed value of "low" is high.
+            // If the value of high is above the new maximumValue,
+            // it will be reduced, trimming low.maximum with it.
+            this->high.SetMaximum(maximumValue);
+        }
+
     private:
         void OnLow_(Type value)
         {

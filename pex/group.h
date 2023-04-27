@@ -443,6 +443,13 @@ struct Group
             return this->observer_;
         }
 
+        explicit operator Control<void> () const
+        {
+            Control<void> result;
+            fields::AssignConvert<Fields>(result, *this);
+            return result;
+        }
+
     private:
         Observer * observer_;
     };
