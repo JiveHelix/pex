@@ -28,6 +28,7 @@ public:
     TestObserver(Upstream &upstream)
         :
         terminus_(this, upstream),
+        count_(0),
         observedValue{this->terminus_.Get()}
     {
         this->terminus_.Connect(&TestObserver::Observe_);
@@ -77,13 +78,20 @@ public:
         return *this;
     }
 
+    size_t GetCount() const
+    {
+        return this->count_;
+    }
+
 private:
     void Observe_(pex::Argument<Type> value)
     {
         this->observedValue = value;
+        ++this->count_;
     }
 
     Terminus<TestObserver> terminus_;
+    size_t count_;
 
 public:
     Type observedValue;

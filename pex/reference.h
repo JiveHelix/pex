@@ -97,6 +97,11 @@ protected:
         this->pex_->SetWithoutNotify_(value);
     }
 
+    void SetWithoutFilter_(Argument<Type> value)
+    {
+        this->pex_->SetWithoutFilter_(value);
+    }
+
     void DoNotify_()
     {
         this->pex_->DoNotify_();
@@ -160,6 +165,11 @@ public:
     void SetWithoutNotify(Argument<Type> value)
     {
         this->SetWithoutNotify_(value);
+    }
+
+    void SetWithoutFilter(Argument<Type> value)
+    {
+        this->SetWithoutFilter_(value);
     }
 
     void DoNotify()
@@ -244,7 +254,7 @@ struct DeferSelector
         std::enable_if_t<IsMakeGroup<T>>
     >
     {
-        using Type = typename T::Group::template Defer<Selector>;
+        using Type = typename T::Group::template DeferGroup<Selector>;
     };
 
     template<typename T>
@@ -365,22 +375,19 @@ private:
 };
 
 
-template<typename T>
-class ReferenceSetter: public pex::Reference<T>
+template<typename Pex>
+auto MakeDefer(Pex &pex)
 {
-public:
-    using pex::Reference<T>::Reference;
-
-    void SetWithoutNotify(pex::Argument<typename T::Type> value)
+    if constexpr (DefinesDefer<Pex>::value)
     {
-        this->SetWithoutNotify_(value);
+        // Group types define a Defer type.
+        return typename Pex::Defer(pex);
     }
-
-    void DoNotify()
+    else
     {
-        this->DoNotify_();
+        return Defer<Pex>(pex);
     }
-};
+}
 
 
 } // namespace pex

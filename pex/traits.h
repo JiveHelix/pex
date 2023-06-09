@@ -210,4 +210,15 @@ template<typename T>
 static constexpr bool HasDefault = HasDefault_<T>::value;
 
 
+template<typename T, typename = void>
+struct DefinesDefer: std::false_type {};
+
+
+template<typename T>
+struct DefinesDefer<T, std::void_t<typename T::Defer>>
+    : std::true_type {};
+
+
+
+
 } // end namespace pex

@@ -199,6 +199,11 @@ private:
         }
     }
 
+    void SetWithoutFilter_(Argument<Type> value)
+    {
+        this->value_ = value;
+    }
+
     void DoNotify_()
     {
         this->Notify_(this->value_);

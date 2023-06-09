@@ -171,17 +171,6 @@ void InitializeTerminus(
             observer,
             terminus.*(terminusField.member),
             upstream.*(upstreamField.member));
-#if 0
-        using MemberType = typename std::remove_cvref_t
-            <
-                decltype((terminus.*(terminusField.member)))
-            >;
-
-        auto member = MemberType(observer, (upstream.*(upstreamField.member)));
-
-        PEX_LOG("Initialize assign ", terminusField.name);
-        (terminus.*(terminusField.member)).Assign(observer, member);
-#endif
     };
 
     jive::ZipApply(
@@ -390,6 +379,117 @@ private:
 } // end namespace detail
 
 
+using MuteModel = typename model::Value<bool>;
+using MuteControl = typename control::Value<void, MuteModel>;
+
+template<typename Observer>
+using MuteTerminus = Terminus<Observer, MuteModel>;
+
+
+class MuteOwner
+{
+public:
+    MuteOwner()
+        :
+        mute_(false)
+    {
+
+    }
+
+    MuteOwner(const MuteOwner &) = delete;
+    MuteOwner(MuteOwner &&) = delete;
+    MuteOwner & operator=(const MuteOwner &) = delete;
+    MuteOwner & operator=(MuteOwner &&) = delete;
+
+    MuteControl GetMuteControl()
+    {
+        return MuteControl(this->mute_);
+    }
+
+private:
+    MuteModel mute_;
+};
+
+
+template<typename Derived>
+class MuteGroup
+{
+public:
+    static constexpr auto observerName = "MuteGroup";
+
+    template<typename Other>
+    friend class MuteGroup;
+
+    MuteGroup()
+        :
+        muteTerminus_()
+    {
+
+    }
+
+    MuteGroup(MuteControl muteControl)
+        :
+        muteTerminus_(this, muteControl)
+    {
+        this->muteTerminus_.Connect(&MuteGroup<Derived>::OnMute_);
+    }
+
+    template<typename Other>
+    MuteGroup(const MuteGroup<Other> &other)
+    {
+        this->muteTerminus_.Assign(this, other.muteTerminus_);
+        this->muteTerminus_.Connect(&MuteGroup<Derived>::OnMute_);
+    }
+
+    MuteGroup(const MuteGroup &other)
+        :
+        muteTerminus_()
+    {
+        this->muteTerminus_.Assign(this, other.muteTerminus_);
+        this->muteTerminus_.Connect(&MuteGroup<Derived>::OnMute_);
+    }
+
+    MuteGroup & operator=(const MuteGroup &other)
+    {
+        this->muteTerminus_.Assign(this, other.muteTerminus_);
+        this->muteTerminus_.Connect(&MuteGroup<Derived>::OnMute_);
+        return *this;
+    }
+
+    bool IsMuted() const
+    {
+        return this->muteTerminus_.Get();
+    }
+
+    void DoMute()
+    {
+        this->muteTerminus_.Set(true);
+    }
+
+    void DoUnmute()
+    {
+        this->muteTerminus_.Set(false);
+    }
+
+private:
+    void OnMute_(bool isMuted)
+    {
+        if (isMuted)
+        {
+            static_cast<Derived *>(this)->Mute();
+        }
+        else
+        {
+            static_cast<Derived *>(this)->Unmute();
+        }
+    }
+
+private:
+    MuteTerminus<MuteGroup<Derived>> muteTerminus_;
+};
+
+
+
 template<typename T, typename Enable = void>
 struct HasMute: std::false_type {};
 
@@ -416,10 +516,14 @@ class Accessors
     public Getter<Plain, Fields, Derived>,
     public Connector
 {
+public:
+    static constexpr auto observerName = "Accessors";
+
 private:
     using Aggregate = detail::Aggregate<Plain, Fields, Template>;
 
     std::unique_ptr<Aggregate> aggregate_;
+
 protected:
     void ResetAccessors_()
     {
@@ -427,7 +531,13 @@ protected:
     }
 
 public:
-    Accessors() = default;
+    Accessors()
+        :
+        aggregate_(nullptr),
+        isMuted_(false)
+    {
+
+    }
 
     Accessors(const Accessors &)
         :
@@ -511,6 +621,13 @@ public:
 
     void Mute()
     {
+        if (this->isMuted_)
+        {
+            return;
+        }
+
+        this->isMuted_ = true;
+
         if (this->aggregate_)
         {
             // Suppress multiple repeated notifications from aggregate
@@ -518,9 +635,10 @@ public:
             this->aggregate_->Mute();
         }
 
-        // Iterate over members, muting those that support it.
         auto derived = static_cast<Derived *>(this);
+        derived->DoMute();
 
+        // Iterate over members, muting those that support it.
         auto doMute = [derived] (auto thisField)
         {
             using Member = typename std::remove_reference_t<
@@ -539,14 +657,17 @@ public:
 
     void Unmute()
     {
-        if (this->aggregate_)
+        if (!this->isMuted_)
         {
-            this->aggregate_->Unmute();
+            return;
         }
 
-        // Iterate over members, muting those that support it.
-        auto derived = static_cast<Derived *>(this);
+        this->isMuted_ = false;
 
+        auto derived = static_cast<Derived *>(this);
+        derived->DoUnmute();
+
+        // Iterate over members, muting those that support it.
         auto doUnmute = [derived] (auto thisField)
         {
             using Member = typename std::remove_reference_t<
@@ -562,9 +683,12 @@ public:
             Fields<Derived>::fields,
             doUnmute);
 
+        // Allow all members to notify before unmuting our own aggregate
+        // observers.
         if (this->aggregate_)
         {
             this->aggregate_->Notify(this->Get());
+            this->aggregate_->Unmute();
         }
     }
 
@@ -598,13 +722,24 @@ protected:
             this->aggregate_->Connect(derived, &Accessors::OnAggregate_);
         }
 
-        PEX_LOG(
-            "Connect ",
-            Observer::observerName,
-            " (",
-            observer,
-            ") to ",
-            this);
+        if constexpr (std::is_void_v<Observer>)
+        {
+            PEX_LOG(
+                "Connect void (",
+                observer,
+                ") to ",
+                this);
+        }
+        else
+        {
+            PEX_LOG(
+                "Connect ",
+                Observer::observerName,
+                " (",
+                observer,
+                ") to ",
+                this);
+        }
 
         Connector::Connect(observer, callable);
     }
@@ -655,6 +790,9 @@ private:
         auto derived = static_cast<Derived *>(context);
         derived->Notify_(value);
     }
+
+private:
+    bool isMuted_;
 };
 
 

@@ -92,6 +92,17 @@ struct Group
 
     using Plain = typename PlainHelper<Plain_>::Type;
 
+    template<template<typename> typename Selector>
+    using DeferGroup = DeferGroup<Fields, Template, Selector>;
+
+    using DeferModel = DeferGroup<ModelSelector>;
+
+    template<typename Observer>
+    using DeferControl = DeferGroup<ControlSelector<Observer>::template Type>;
+
+    template<typename Observer>
+    using DeferTerminus = DeferGroup<TerminusSelector<Observer>::template Type>;
+
     using ModelConnection = ValueConnection<void, Plain, NoFilter>;
 
     template<typename Derived>
@@ -106,17 +117,23 @@ struct Group
         >;
 
     struct Model:
+        public MuteOwner,
+        public MuteGroup<Model>,
         public Template<ModelSelector>,
         public ModelAccessors<Model>
     {
     public:
         using Plain = typename Group::Plain;
         using Type = Plain;
+        using Defer = DeferModel;
 
         template<typename T>
         using Pex = pex::ModelSelector<T>;
 
         Model()
+            :
+            MuteOwner(),
+            MuteGroup<Model>(this->GetMuteControl())
         {
             if constexpr (HasDefault<Plain>)
             {
@@ -125,6 +142,9 @@ struct Group
         }
 
         Model(const Plain &plain)
+            :
+            MuteOwner(),
+            MuteGroup<Model>(this->GetMuteControl())
         {
             this->Set(plain);
         }
@@ -164,6 +184,7 @@ struct Group
 
     template<typename Observer>
     struct Control:
+        public MuteGroup<Control<Observer>>,
         public ControlTemplate<Observer>,
         public ControlAccessors<Observer, Control<Observer>>
     {
@@ -173,6 +194,7 @@ struct Group
         using Type = Plain;
 
         using Upstream = Model;
+        using Defer = DeferControl<Observer>;
 
         // UpstreamType could be the type returned by a filter.
         // Filters have not been implemented by this class, so it remains the
@@ -190,6 +212,7 @@ struct Group
 
         Control()
             :
+            MuteGroup<Control<Observer>>(),
             AccessorsBase()
         {
 
@@ -197,6 +220,7 @@ struct Group
 
         Control(Model &model)
             :
+            MuteGroup<Control<Observer>>(model),
             AccessorsBase()
         {
             fields::AssignConvert<Fields>(*this, model);
@@ -204,6 +228,7 @@ struct Group
 
         Control(const Control &other)
             :
+            MuteGroup<Control<Observer>>(other),
             AccessorsBase()
         {
             fields::Assign<Fields>(*this, other);
@@ -211,6 +236,7 @@ struct Group
 
         Control & operator=(const Control &other)
         {
+            this->MuteGroup<Control<Observer>>::operator=(other);
             this->ResetAccessors_();
             fields::Assign<Fields>(*this, other);
 
@@ -220,6 +246,7 @@ struct Group
         template<typename Other>
         Control(const Control<Other> &other)
             :
+            MuteGroup<Control<Observer>>(other),
             AccessorsBase()
         {
             fields::AssignConvert<Fields>(*this, other);
@@ -228,6 +255,7 @@ struct Group
         template<typename Other>
         Control & operator=(const Control<Other> &other)
         {
+            this->MuteGroup<Control<Observer>>::operator=(other);
             this->ResetAccessors_();
             fields::AssignConvert<Fields>(*this, other);
             return *this;
@@ -282,24 +310,22 @@ struct Group
 
     template<typename Observer>
     struct Terminus:
+        public MuteGroup<Terminus<Observer>>,
         public TerminusTemplate<Observer>,
         public TerminusAccessors<Observer, Terminus<Observer>>
     {
         using Plain = typename Group::Plain;
         using Type = Plain;
         using AccessorsBase = TerminusAccessors<Observer, Terminus<Observer>>;
-
         using Pex = Control<Observer>;
-
         using Callable = typename TerminusConnection<Observer>::Callable;
+        using Defer = DeferTerminus<Observer>;
 
-        Terminus()
-        {
-
-        }
+        Terminus() = default;
 
         Terminus(Observer *observer, const Control<void> &control)
             :
+            MuteGroup<Terminus<Observer>>(control),
             observer_(observer)
         {
             PEX_LOG("Terminus construct from Control with ", observer);
@@ -307,6 +333,9 @@ struct Group
         }
 
         Terminus(Observer *observer, Model &model)
+            :
+            MuteGroup<Terminus<Observer>>(model),
+            observer_(observer)
         {
             PEX_LOG("Terminus construct from Model with ", observer);
             this->Assign(observer, Terminus(observer, Control<void>(model)));
@@ -318,11 +347,14 @@ struct Group
         Terminus & operator=(const Terminus &) = delete;
         Terminus & operator=(Terminus &&) = delete;
 
+        template<typename U>
+        friend struct Terminus;
 
         // Copy construct
         Terminus(Observer *observer, const Terminus &other)
             :
-            AccessorsBase(other),
+            MuteGroup<Terminus<Observer>>(other),
+            AccessorsBase(),
             observer_(observer)
         {
             PEX_LOG("Terminus copy construct observer: ", observer);
@@ -333,6 +365,7 @@ struct Group
         template<typename Other>
         Terminus(Observer *observer, const Terminus<Other> &other)
             :
+            MuteGroup<Terminus<Observer>>(other),
             AccessorsBase(),
             observer_(observer)
         {
@@ -343,7 +376,8 @@ struct Group
         // Move construct
         Terminus(Observer *observer, Terminus &&other)
             :
-            AccessorsBase(std::move(other)),
+            MuteGroup<Terminus<Observer>>(other),
+            AccessorsBase(),
             observer_(observer)
         {
             PEX_LOG("Terminus move construct observer: ", observer);
@@ -354,6 +388,7 @@ struct Group
         template<typename Other>
         Terminus(Observer *observer, Terminus<Other> &&other)
             :
+            MuteGroup<Terminus<Observer>>(other),
             AccessorsBase(),
             observer_(observer)
         {
@@ -365,6 +400,7 @@ struct Group
         Terminus & Assign(Observer *observer, const Terminus &other)
         {
             PEX_LOG("Terminus copy assign observer: ", observer);
+            this->MuteGroup<Terminus<Observer>>::operator=(other);
             this->ResetAccessors_();
             this->observer_ = observer;
 
@@ -380,6 +416,7 @@ struct Group
             const Terminus<Other> &other)
         {
             PEX_LOG("Terminus copy assign observer: ", observer);
+            this->MuteGroup<Terminus<Observer>>::operator=(other);
             this->ResetAccessors_();
             this->observer_ = observer;
 
@@ -392,6 +429,7 @@ struct Group
         Terminus & Assign(Observer *observer, Terminus &&other)
         {
             PEX_LOG("Terminus move assign observer: ", observer);
+            this->MuteGroup<Terminus<Observer>>::operator=(other);
             this->ResetAccessors_();
             this->observer_ = observer;
 
@@ -405,6 +443,7 @@ struct Group
         Terminus & Assign(Observer *observer, Terminus<Other> &&other)
         {
             PEX_LOG("Terminus move assign observer: ", observer);
+            this->MuteGroup<Terminus<Observer>>::operator=(other);
             this->ResetAccessors_();
             this->observer_ = observer;
 
@@ -453,17 +492,6 @@ struct Group
     private:
         Observer * observer_;
     };
-
-    template<template<typename> typename Selector>
-    using Defer = DeferGroup<Fields, Template, Selector>;
-
-    using DeferModel = Defer<ModelSelector>;
-
-    template<typename Observer>
-    using DeferControl = Defer<ControlSelector<Observer>::template Type>;
-
-    template<typename Observer>
-    using DeferTerminus = Defer<TerminusSelector<Observer>::template Type>;
 
     static DeferModel MakeDefer(Model &model)
     {

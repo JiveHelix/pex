@@ -1,5 +1,6 @@
 #include <catch2/catch.hpp>
 
+// #define ENABLE_PEX_LOG
 
 #include "test_observer.h"
 #include "pex/terminus.h"

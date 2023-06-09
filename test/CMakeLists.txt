@@ -4,6 +4,7 @@ target_link_libraries(pex_catch_main PRIVATE project_options)
 
 add_executable(
     pex_tests
+    aggregate_tests.cpp
     value_tests.cpp
     signal_tests.cpp
     filter_tests.cpp

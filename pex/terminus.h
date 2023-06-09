@@ -457,14 +457,14 @@ public:
     }
 
     template <typename O>
-    Terminus &Assign(Observer *observer, const Terminus<O, Upstream_> &other)
+    Terminus & Assign(Observer *observer, const Terminus<O, Upstream_> &other)
     {
         Base::Assign(observer, other);
         return *this;
     }
 
     template <typename O>
-    Terminus &Assign(
+    Terminus & Assign(
         Observer *observer,
         const Terminus<O, control::ChangeObserver<O, Upstream_>> &other)
     {
@@ -473,14 +473,14 @@ public:
     }
 
     template <typename O>
-    Terminus &Assign(Observer *observer, Terminus<O, Upstream_> &&other)
+    Terminus & Assign(Observer *observer, Terminus<O, Upstream_> &&other)
     {
         Base::Assign(observer, std::move(other));
         return *this;
     }
 
     template <typename O>
-    Terminus &Assign(
+    Terminus & Assign(
         Observer *observer,
         Terminus<O, control::ChangeObserver<O, Upstream_>> &&other)
     {
