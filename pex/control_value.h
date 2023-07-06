@@ -101,9 +101,7 @@ public:
         upstream_(pex),
         filter_(filter)
     {
-        static_assert(
-            detail::FilterIsMember<UpstreamType, Filter>,
-            "A void or static filter cannot be set.");
+
     }
 
     ~Value_()
@@ -316,10 +314,6 @@ public:
 
     void SetFilter(Filter filter)
     {
-        static_assert(
-            detail::FilterIsMember<UpstreamType, Filter>,
-            "Static or void Filter does not require a filter instance.");
-
         this->filter_ = filter;
     }
 
@@ -527,6 +521,24 @@ struct FilteredLike_
 
 template<typename ControlValue, typename Filter>
 using FilteredLike = typename FilteredLike_<ControlValue, Filter>::Type;
+
+
+extern template class Value_<void, model::Value_<bool, NoFilter>>;
+
+extern template class Value_<void, model::Value_<int8_t, NoFilter>>;
+extern template class Value_<void, model::Value_<int16_t, NoFilter>>;
+extern template class Value_<void, model::Value_<int32_t, NoFilter>>;
+extern template class Value_<void, model::Value_<int64_t, NoFilter>>;
+
+extern template class Value_<void, model::Value_<uint8_t, NoFilter>>;
+extern template class Value_<void, model::Value_<uint16_t, NoFilter>>;
+extern template class Value_<void, model::Value_<uint32_t, NoFilter>>;
+extern template class Value_<void, model::Value_<uint64_t, NoFilter>>;
+
+extern template class Value_<void, model::Value_<float, NoFilter>>;
+extern template class Value_<void, model::Value_<double, NoFilter>>;
+
+extern template class Value_<void, model::Value_<std::string, NoFilter>>;
 
 
 } // namespace control

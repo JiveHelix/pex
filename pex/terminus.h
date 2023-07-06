@@ -342,7 +342,7 @@ public:
 
     explicit operator ControlTemplate<void> () const
     {
-        return this->pex_;
+        return ControlTemplate<void>(this->pex_);
     }
 
     Observer * GetObserver()

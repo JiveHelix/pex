@@ -3,6 +3,7 @@
 
 #include <fields/fields.h>
 
+#include "pex/selectors.h"
 #include "pex/accessors.h"
 #include "pex/traits.h"
 
@@ -137,7 +138,7 @@ struct Group
         {
             if constexpr (HasDefault<Plain>)
             {
-                this->Set(Plain::Default());
+                this->SetWithoutNotify_(Plain::Default());
             }
         }
 
@@ -146,7 +147,7 @@ struct Group
             MuteOwner(),
             MuteGroup<Model>(this->GetMuteControl())
         {
-            this->Set(plain);
+            this->SetWithoutNotify_(plain);
         }
 
         Model(const Model &) = delete;

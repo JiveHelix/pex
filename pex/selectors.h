@@ -171,6 +171,7 @@ struct TerminusSelector_
     >;
 };
 
+
 template<typename T>
 struct TerminusSelector_<T, std::enable_if_t<IsMakeRange<T>>>
 {

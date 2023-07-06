@@ -11,6 +11,7 @@
 
 #pragma once
 
+#include <string>
 #include <type_traits>
 #include <stdexcept>
 
@@ -101,10 +102,6 @@ public:
         filter_{filter},
         value_{this->FilterOnSet_(value)}
     {
-        static_assert(
-            detail::FilterIsMember<Type, Filter>,
-            "Static or void Filter does not require a filter instance.");
-
         PEX_LOG(this);
     }
 
@@ -113,10 +110,6 @@ public:
         filter_{filter},
         value_{}
     {
-        static_assert(
-            detail::FilterIsMember<Type, Filter>,
-            "Static or void Filter does not require a filter instance.");
-
         PEX_LOG(this);
     }
 
@@ -165,10 +158,6 @@ public:
 
     void SetFilter(Filter filter)
     {
-        static_assert(
-            detail::FilterIsMember<Type, Filter>,
-            "Static or void Filter does not require a filter instance.");
-
         this->filter_ = filter;
     }
 
@@ -197,11 +186,6 @@ private:
         {
             this->value_ = this->FilterOnSet_(value);
         }
-    }
-
-    void SetWithoutFilter_(Argument<Type> value)
-    {
-        this->value_ = value;
     }
 
     void DoNotify_()
@@ -371,6 +355,24 @@ private:
 private:
     Model *model_;
 };
+
+
+extern template class Value_<bool, NoFilter>;
+
+extern template class Value_<int8_t, NoFilter>;
+extern template class Value_<int16_t, NoFilter>;
+extern template class Value_<int32_t, NoFilter>;
+extern template class Value_<int64_t, NoFilter>;
+
+extern template class Value_<uint8_t, NoFilter>;
+extern template class Value_<uint16_t, NoFilter>;
+extern template class Value_<uint32_t, NoFilter>;
+extern template class Value_<uint64_t, NoFilter>;
+
+extern template class Value_<float, NoFilter>;
+extern template class Value_<double, NoFilter>;
+
+extern template class Value_<std::string, NoFilter>;
 
 
 } // end namespace model

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <optional>
+#include <utility>
 #include <fields/assign.h>
 #include "pex/reference.h"
 #include "pex/selectors.h"
@@ -63,6 +65,37 @@ template<typename Pex>
 inline constexpr bool ConvertsToPlain = ConvertsToPlain_<Pex>::value;
 
 
+template<typename Target, typename Source>
+std::enable_if_t<ConvertsToPlain<Target>>
+AssignSourceToTarget(Target &target, const Source &source)
+{
+    target = source.Get();
+}
+
+template<typename Target, typename Source>
+std::enable_if_t<!ConvertsToPlain<Target>>
+AssignSourceToTarget(Target &, const Source &)
+{
+
+}
+
+
+
+template<typename Target, typename Source>
+std::enable_if_t<!IsSignal<Target>>
+SetWithoutNotify(Target &target, const Source &source)
+{
+    detail::AccessReference<Target>(target).SetWithoutNotify(source);
+}
+
+template<typename Target, typename Source>
+std::enable_if_t<IsSignal<Target>>
+SetWithoutNotify(Target &, const Source &)
+{
+
+}
+
+
 template
 <
     template<typename> typename Fields,
@@ -75,17 +108,16 @@ void PlainConvert(Plain &target, Source &source)
         const auto &plainField,
         const auto &sourceField) -> void
     {
-        using PlainType = std::remove_reference_t<
-            decltype(target.*(plainField.member))>;
+        // using PlainType = std::remove_reference_t<
+        //     decltype(target.*(plainField.member))>;
 
-        using SourceType = std::remove_reference_t<
-            decltype(source.*(sourceField.member))>;
+        // using SourceType = std::remove_reference_t<
+        //     decltype(source.*(sourceField.member))>;
 
-        if constexpr (ConvertsToPlain<SourceType>)
-        {
-            target.*(plainField.member) =
-                PlainType(source.*(sourceField.member));
-        }
+        AssignSourceToTarget(
+            target.*(plainField.member),
+            source.*(sourceField.member));
+                // static_cast<PlainType>(source.*(sourceField.member));
     };
 
     jive::ZipApply(
@@ -420,6 +452,8 @@ public:
     template<typename Other>
     friend class MuteGroup;
 
+    using MuteGroupTerminus = std::optional<MuteTerminus<MuteGroup<Derived>>>;
+
     MuteGroup()
         :
         muteTerminus_()
@@ -429,46 +463,76 @@ public:
 
     MuteGroup(MuteControl muteControl)
         :
-        muteTerminus_(this, muteControl)
+        muteTerminus_(std::in_place_t{}, this, muteControl)
     {
-        this->muteTerminus_.Connect(&MuteGroup<Derived>::OnMute_);
+        this->muteTerminus_->Connect(&MuteGroup<Derived>::OnMute_);
     }
 
     template<typename Other>
     MuteGroup(const MuteGroup<Other> &other)
+        :
+        muteTerminus_()
     {
-        this->muteTerminus_.Assign(this, other.muteTerminus_);
-        this->muteTerminus_.Connect(&MuteGroup<Derived>::OnMute_);
+        if (other.muteTerminus_)
+        {
+            this->muteTerminus_.emplace();
+            this->muteTerminus_->Assign(this, *other.muteTerminus_);
+            this->muteTerminus_->Connect(&MuteGroup<Derived>::OnMute_);
+        }
     }
 
     MuteGroup(const MuteGroup &other)
         :
         muteTerminus_()
     {
-        this->muteTerminus_.Assign(this, other.muteTerminus_);
-        this->muteTerminus_.Connect(&MuteGroup<Derived>::OnMute_);
+        if (other.muteTerminus_)
+        {
+            this->muteTerminus_.emplace();
+            this->muteTerminus_->Assign(this, *other.muteTerminus_);
+            this->muteTerminus_->Connect(&MuteGroup<Derived>::OnMute_);
+        }
     }
 
     MuteGroup & operator=(const MuteGroup &other)
     {
-        this->muteTerminus_.Assign(this, other.muteTerminus_);
-        this->muteTerminus_.Connect(&MuteGroup<Derived>::OnMute_);
+        if (other.muteTerminus_)
+        {
+            this->muteTerminus_.emplace();
+            this->muteTerminus_->Assign(this, *other.muteTerminus_);
+            this->muteTerminus_->Connect(&MuteGroup<Derived>::OnMute_);
+        }
+
         return *this;
     }
 
     bool IsMuted() const
     {
-        return this->muteTerminus_.Get();
+        if (!this->muteTerminus_)
+        {
+            throw std::logic_error("Uninitialized");
+        }
+
+        return this->muteTerminus_->Get();
     }
 
     void DoMute()
     {
-        this->muteTerminus_.Set(true);
+        if (!this->muteTerminus_)
+        {
+            throw std::logic_error("Uninitialized");
+        }
+
+        this->muteTerminus_->Set(true);
     }
 
     void DoUnmute()
     {
-        this->muteTerminus_.Set(false);
+        if (!this->muteTerminus_)
+        {
+            throw std::logic_error("Uninitialized");
+        }
+
+        this->muteTerminus_->Set(false);
     }
 
 private:
@@ -485,7 +549,7 @@ private:
     }
 
 private:
-    MuteTerminus<MuteGroup<Derived>> muteTerminus_;
+    MuteGroupTerminus muteTerminus_;
 };
 
 
@@ -751,12 +815,9 @@ protected:
         auto setWithoutNotify = [derived, &plain]
             (auto thisField, auto plainField)
         {
-            using Member = typename std::remove_reference_t<
-                decltype(derived->*(thisField.member))>;
-
-            detail::AccessReference<Member>(
-                derived->*(thisField.member))
-                    .SetWithoutNotify(plain.*(plainField.member));
+            SetWithoutNotify(
+                derived->*(thisField.member),
+                plain.*(plainField.member));
         };
 
         jive::ZipApply(

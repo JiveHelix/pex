@@ -72,6 +72,10 @@ template<typename ...T>
 inline constexpr bool IsControlSignal = IsControlSignal_<T...>::value;
 
 
+// TODO: Add IsTerminusSignal_ to all MakeDefer to operate on groups that
+// contain a Signal.
+
+
 template<typename T, typename enable = void>
 struct IsSignal_: std::false_type {};
 

@@ -16,6 +16,8 @@ target_link_libraries(
 target_sources(
     pex
     PRIVATE
+    model_value.cpp
+    control_value.cpp
     detail/log.cpp)
 
 install(TARGETS pex DESTINATION ${CMAKE_INSTALL_LIBDIR})

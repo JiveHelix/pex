@@ -670,6 +670,19 @@ template<typename ...T>
 inline constexpr bool IsModelRange = IsModelRange_<T...>::value;
 
 
+template<typename T>
+struct Bounds
+{
+    T minimum;
+    T maximum;
+
+    T Constrain(T value) const
+    {
+        return std::min(this->maximum, std::max(value, this->minimum));
+    }
+};
+
+
 namespace control
 {
 
@@ -781,6 +794,13 @@ public:
         return this->value.HasModel()
             && this->minimum.HasModel()
             && this->maximum.HasModel();
+    }
+
+    Bounds<Type> GetBounds()
+    {
+        return {
+            this->minimum.Get(),
+            this->maximum.Get()};
     }
 
     Value value;
@@ -1068,6 +1088,20 @@ public:
     explicit operator Type () const
     {
         return this->value.Get();
+    }
+
+    template<typename OtherObserver>
+    explicit operator ControlTemplate<OtherObserver> () const
+    {
+        using ControlValue = typename ControlTemplate<OtherObserver>::Value;
+        using ControlLimit = typename ControlTemplate<OtherObserver>::Limit;
+
+        ControlTemplate<OtherObserver> result;
+        result.value = ControlValue(this->value);
+        result.minimum = ControlLimit(this->minimum);
+        result.maximum = ControlLimit(this->maximum);
+
+        return result;
     }
 
     Type Get() const
