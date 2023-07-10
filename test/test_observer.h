@@ -1,6 +1,6 @@
 #pragma once
 
-#include "pex/value.h"
+#include "pex/accessors.h"
 
 
 template<typename Upstream>
@@ -18,20 +18,20 @@ template
     typename Upstream,
     template<typename> typename Terminus = Defaults<Upstream>::template Terminus
 >
-class TestObserver
+class TerminusObserver
 {
 public:
-    static constexpr auto observerName = "TestObserver";
+    static constexpr auto observerName = "TerminusObserver";
 
     using Type = typename Upstream::Type;
 
-    TestObserver(Upstream &upstream)
+    TerminusObserver(Upstream &upstream)
         :
         terminus_(this, upstream),
         count_(0),
         observedValue{this->terminus_.Get()}
     {
-        this->terminus_.Connect(&TestObserver::Observe_);
+        this->terminus_.Connect(&TerminusObserver::Observe_);
     }
 
     void Set(pex::Argument<Type> value)
@@ -39,40 +39,40 @@ public:
         this->terminus_.Set(value);
     }
 
-    TestObserver(TestObserver &&other)
+    TerminusObserver(TerminusObserver &&other)
         :
         terminus_(this, std::move(other.terminus_)),
         observedValue(std::move(other.observedValue))
     {
         REQUIRE(this->terminus_.GetObserver() == this);
-        this->terminus_.Connect(&TestObserver::Observe_);
+        this->terminus_.Connect(&TerminusObserver::Observe_);
     }
 
-    TestObserver & operator=(TestObserver &&other)
+    TerminusObserver & operator=(TerminusObserver &&other)
     {
         this->terminus_.Assign(this, std::move(other.terminus_));
         this->observedValue = std::move(other.observedValue);
-        this->terminus_.Connect(&TestObserver::Observe_);
+        this->terminus_.Connect(&TerminusObserver::Observe_);
 
         REQUIRE(this->terminus_.GetObserver() == this);
 
         return *this;
     }
 
-    TestObserver(const TestObserver &other)
+    TerminusObserver(const TerminusObserver &other)
         :
         terminus_(this, other.terminus_),
         observedValue(std::move(other.observedValue))
     {
-        this->terminus_.Connect(&TestObserver::Observe_);
+        this->terminus_.Connect(&TerminusObserver::Observe_);
         REQUIRE(this->terminus_.GetObserver() == this);
     }
 
-    TestObserver & operator=(const TestObserver &other)
+    TerminusObserver & operator=(const TerminusObserver &other)
     {
         this->terminus_.Assign(this, other.terminus_);
         this->observedValue = other.observedValue;
-        this->terminus_.Connect(&TestObserver::Observe_);
+        this->terminus_.Connect(&TerminusObserver::Observe_);
         REQUIRE(this->terminus_.GetObserver() == this);
 
         return *this;
@@ -90,7 +90,54 @@ private:
         ++this->count_;
     }
 
-    Terminus<TestObserver> terminus_;
+    Terminus<TerminusObserver> terminus_;
+    size_t count_;
+
+public:
+    Type observedValue;
+};
+
+
+template<typename Object>
+class TestObserver
+{
+public:
+    static constexpr auto observerName = "TestObserver";
+
+    using Type = typename Object::Type;
+
+    TestObserver(Object &object)
+        :
+        connect_(object, this, &TestObserver::Observe_),
+        count_(0),
+        observedValue{object.Get()}
+    {
+
+    }
+
+    void Set(pex::Argument<Type> value)
+    {
+        this->connect_.Set(value);
+    }
+
+    TestObserver(TestObserver &&) = delete;
+    TestObserver & operator=(TestObserver &&) = delete;
+    TestObserver(const TestObserver &) = delete;
+    TestObserver & operator=(const TestObserver &) = delete;
+
+    size_t GetCount() const
+    {
+        return this->count_;
+    }
+
+private:
+    void Observe_(pex::Argument<Type> value)
+    {
+        this->observedValue = value;
+        ++this->count_;
+    }
+
+    pex::Connect<Object, TestObserver<Object>> connect_;
     size_t count_;
 
 public:

@@ -83,10 +83,11 @@ public:
 
     Observer(Model &model)
         :
-        terminus(this, model),
+        terminus_(this, model),
+        connect_(this->terminus_, this, &Observer::OnValue),
         observed{}
     {
-        this->terminus.Connect(&Observer::OnValue);
+
     }
 
     void OnValue(const Plain &value)
@@ -94,7 +95,8 @@ public:
         this->observed = value;
     }
 
-    Terminus<Observer> terminus;
+    Terminus<Observer> terminus_;
+    pex::Connect<Terminus<Observer>, Observer> connect_;
     Plain observed;
 };
 

@@ -97,7 +97,7 @@ int main()
     PoseControl control(model);
     PoseTerminus terminus(nullptr, model);
 
-    terminus.Connect(&OnPose);
+    pex::Connect<PoseModel, void> connect(model, nullptr, &OnPose);
 
     std::cout << "setting position.x = 42" << std::endl;
     control.position.x = 42.0;

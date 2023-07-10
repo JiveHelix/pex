@@ -44,7 +44,8 @@ TEMPLATE_TEST_CASE(
 
     using Model = pex::model::Value<TestType>;
     Model model{original};
-    TestObserver<Model> observer(model);
+
+    TerminusObserver<Model> observer(model);
 
     if constexpr (std::is_floating_point_v<TestType>)
     {
@@ -83,7 +84,7 @@ TEMPLATE_TEST_CASE(
     double,
     long double)
 {
-    auto original = static_cast<TestType>( 
+    auto original = static_cast<TestType>(
         GENERATE(
             take(
             3,
@@ -101,7 +102,7 @@ TEMPLATE_TEST_CASE(
 
     using Model = pex::model::Value<TestType>;
     Model model{original};
-    TestObserver<Model> observer(model);
+    TerminusObserver<Model> observer(model);
 
     if constexpr (std::is_floating_point_v<TestType>)
     {
@@ -136,7 +137,7 @@ TEST_CASE("std::string propagation", "[value]")
 
     using Model = pex::model::Value<std::string>;
     Model model(original);
-    TestObserver<Model> observer(model);
+    TerminusObserver<Model> observer(model);
 
     REQUIRE(observer.observedValue == original);
     model.Set(propagated);
@@ -177,10 +178,10 @@ TEMPLATE_TEST_CASE(
 
     using Model = pex::model::Value<TestType>;
     Model model{original};
-    TestObserver<Model> observer1(model);
-    TestObserver<Model> observer2(model);
-    TestObserver<Model> observer3(model);
-    TestObserver<Model> observer4(model);
+    TerminusObserver<Model> observer1(model);
+    TerminusObserver<Model> observer2(model);
+    TerminusObserver<Model> observer3(model);
+    TerminusObserver<Model> observer4(model);
 
     if constexpr (std::is_floating_point_v<TestType>)
     {

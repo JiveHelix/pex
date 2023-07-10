@@ -244,6 +244,7 @@ struct DeferSelector
     template<typename T, typename Enable = void>
     struct DeferHelper_
     {
+        // Choose the single-valued Defer for this member
         using Type = Defer<Selector<T>>;
     };
 
@@ -254,7 +255,9 @@ struct DeferSelector
         std::enable_if_t<IsMakeGroup<T>>
     >
     {
-        using Type = typename T::Group::template DeferGroup<Selector>;
+        // This member expands to a group.
+        // Choose the appropriate DeferredGroup
+        using Type = typename T::Group::template DeferredGroup<Selector>;
     };
 
     template<typename T>
@@ -272,22 +275,26 @@ struct DeferSelector
 };
 
 
+namespace detail
+{
+
+
 template
 <
     template<typename> typename Fields,
     template<template<typename> typename> typename Template,
     template<typename> typename Selector
 >
-class DeferGroup:
+class DeferredGroup:
     public Template<DeferSelector<Selector>::template Type>
 {
 public:
-    using This = DeferGroup<Fields, Template, Selector>;
     using Upstream = Template<Selector>;
+    using This = DeferredGroup<Fields, Template, Selector>;
 
-    DeferGroup() = default;
+    DeferredGroup() = default;
 
-    DeferGroup(Upstream &upstream)
+    DeferredGroup(Upstream &upstream)
     {
         auto initialize = [this, &upstream]
             (auto deferField, auto upstreamField)
@@ -327,6 +334,91 @@ public:
             Fields<This>::fields,
             Fields<Plain>::fields);
     }
+};
+
+
+template<typename Upstream>
+class MuteDeferred
+{
+public:
+    MuteDeferred()
+        :
+        upstream_(nullptr),
+        isMuted_(false)
+    {
+
+    }
+
+    MuteDeferred(Upstream &upstream)
+        :
+        upstream_(&upstream),
+        isMuted_(false)
+    {
+
+    }
+
+    ~MuteDeferred()
+    {
+        if (this->isMuted_)
+        {
+            assert(this->upstream_);
+            this->upstream_->CloneMuteControl().Set(false);
+        }
+    }
+
+    void Mute()
+    {
+        if (!this->upstream_)
+        {
+            throw std::logic_error("MuteDeferred is uninitialized");
+        }
+
+        this->upstream_->CloneMuteControl().Set(true);
+        this->isMuted_ = true;
+    }
+
+private:
+    Upstream *upstream_;
+    bool isMuted_;
+};
+
+
+} // end namespace detail
+
+
+template
+<
+    template<typename> typename Fields,
+    template<template<typename> typename> typename Template,
+    template<typename> typename Selector,
+    typename Upstream
+>
+class DeferGroup
+{
+public:
+    DeferGroup() = default;
+
+    DeferGroup(Upstream &upstream)
+        :
+        muteDeferred_(upstream),
+        members(upstream)
+    {
+        this->muteDeferred_.Mute();
+    }
+
+    template<typename Plain>
+    void Set(const Plain &plain)
+    {
+        this->members.Set(plain);
+    }
+
+private:
+    // Destruction order guarantees that the group will be unmuted only after
+    // the deferred members have finished notifying.
+    detail::MuteDeferred<Upstream> muteDeferred_;
+
+public:
+    detail::DeferredGroup<Fields, Template, Selector> members;
 };
 
 

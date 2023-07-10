@@ -3,8 +3,10 @@
 #include <optional>
 #include <utility>
 #include <fields/assign.h>
+#include <jive/for_each.h>
 #include "pex/reference.h"
 #include "pex/selectors.h"
+#include "pex/detail/value_connection.h"
 
 
 namespace pex
@@ -266,6 +268,21 @@ void MoveTerminus(Observer *observer, T &terminus, U &other)
 }
 
 
+template<typename T, typename Enable = void>
+struct IsAccessor_: std::false_type {};
+
+template<typename T>
+struct IsAccessor_
+<
+    T,
+    std::enable_if_t<T::isAccessor>
+>
+: std::true_type {};
+
+template<typename T>
+inline constexpr bool IsAccessor = IsAccessor_<T>::value;
+
+
 namespace detail
 {
 
@@ -309,7 +326,7 @@ public:
         isMuted_(false)
     {
         InitializeTerminus<Fields>(this, *this, upstream);
-        this->MakeConnections_();
+        this->MakeConnections_<Fields<Aggregate>>(*this);
 
 #ifdef ENABLE_PEX_LOG
         auto logger = [this](const auto &field) -> void
@@ -333,6 +350,11 @@ public:
 
     ~Aggregate()
     {
+        this->ClearConnections();
+    }
+
+    void ClearConnections()
+    {
         this->ClearConnections_();
         assert(this->connections_.empty());
     }
@@ -345,14 +367,9 @@ public:
         Connector::Connect(observer, callable);
     }
 
-    void Mute()
+    void SetMuted(bool isMuted)
     {
-        this->isMuted_ = true;
-    }
-
-    void Unmute()
-    {
-        this->isMuted_ = false;
+        this->isMuted_ = isMuted;
     }
 
     void Notify(const Plain &plain)
@@ -361,44 +378,50 @@ public:
     }
 
 private:
-    void MakeConnections_()
+    template<typename Member>
+    void Connector_(Member &member)
     {
-        auto connector = [this](const auto &field) -> void
+        if constexpr (IsAccessor<Member>)
         {
-            using MemberPex = typename std::remove_reference_t<
-                decltype(this->*(field.member))>::Pex;
+            using MemberFields = typename Member::template Fields<Member>;
 
-            if constexpr (!IsSignal<MemberPex>)
+            this->MakeConnections_<MemberFields>(member);
+        }
+        else
+        {
+            if constexpr (!IsSignal<typename Member::Pex>)
             {
-                // Aggregate observers ignore signals.
-                // Notifications are only forwarded when there is data.
-                using MemberType = typename std::remove_reference_t<
-                    decltype(this->*(field.member))>::Type;
+                using MemberType = typename Member::Type;
 
-                PEX_LOG(
-                    "Connect ",
-                    this,
-                    " to ",
-                    field.name,
-                    " (",
-                    &(this->*(field.member)),
-                    ")");
-
-                (this->*(field.member)).Connect(
+                member.Connect(
                     &Aggregate::template OnMemberChanged_<MemberType>);
             }
+        }
+    }
+
+    template<typename MemberFields, typename Object>
+    void MakeConnections_(Object &object)
+    {
+        auto connector = [this, &object](const auto &field) -> void
+        {
+            this->Connector_(object.*(field.member));
         };
 
-        jive::ForEach(Fields<Aggregate>::fields, connector);
+        jive::ForEach(MemberFields::fields, connector);
     }
 
     template<typename T>
     void OnMemberChanged_(Argument<T>)
     {
+        // std::cout << "Aggregate::OnMemberChanged_: " << value << " ...";
+
         if (this->isMuted_)
         {
+            // std::cout << "muted" << std::endl;
             return;
         }
+
+        // std::cout << "notify" << std::endl;
 
         this->Notify_(this->Get());
     }
@@ -443,115 +466,231 @@ private:
 };
 
 
-template<typename Derived>
 class MuteGroup
 {
 public:
-    static constexpr auto observerName = "MuteGroup";
-
-    template<typename Other>
-    friend class MuteGroup;
-
-    using MuteGroupTerminus = std::optional<MuteTerminus<MuteGroup<Derived>>>;
-
     MuteGroup()
         :
-        muteTerminus_()
+        muteControl_()
     {
 
     }
 
     MuteGroup(MuteControl muteControl)
         :
-        muteTerminus_(std::in_place_t{}, this, muteControl)
+        muteControl_(muteControl)
     {
-        this->muteTerminus_->Connect(&MuteGroup<Derived>::OnMute_);
-    }
 
-    template<typename Other>
-    MuteGroup(const MuteGroup<Other> &other)
-        :
-        muteTerminus_()
-    {
-        if (other.muteTerminus_)
-        {
-            this->muteTerminus_.emplace();
-            this->muteTerminus_->Assign(this, *other.muteTerminus_);
-            this->muteTerminus_->Connect(&MuteGroup<Derived>::OnMute_);
-        }
     }
 
     MuteGroup(const MuteGroup &other)
         :
-        muteTerminus_()
+        muteControl_(other.muteControl_)
     {
-        if (other.muteTerminus_)
-        {
-            this->muteTerminus_.emplace();
-            this->muteTerminus_->Assign(this, *other.muteTerminus_);
-            this->muteTerminus_->Connect(&MuteGroup<Derived>::OnMute_);
-        }
+
     }
 
     MuteGroup & operator=(const MuteGroup &other)
     {
-        if (other.muteTerminus_)
-        {
-            this->muteTerminus_.emplace();
-            this->muteTerminus_->Assign(this, *other.muteTerminus_);
-            this->muteTerminus_->Connect(&MuteGroup<Derived>::OnMute_);
-        }
-
+        this->muteControl_ = other.muteControl_;
         return *this;
+    }
+
+    MuteControl CloneMuteControl()
+    {
+        return this->muteControl_;
     }
 
     bool IsMuted() const
     {
-        if (!this->muteTerminus_)
-        {
-            throw std::logic_error("Uninitialized");
-        }
-
-        return this->muteTerminus_->Get();
+        return this->muteControl_.Get();
     }
 
     void DoMute()
     {
-        if (!this->muteTerminus_)
-        {
-            throw std::logic_error("Uninitialized");
-        }
-
-        this->muteTerminus_->Set(true);
+        this->muteControl_.Set(true);
     }
 
     void DoUnmute()
     {
-        if (!this->muteTerminus_)
-        {
-            throw std::logic_error("Uninitialized");
-        }
-
-        this->muteTerminus_->Set(false);
+        this->muteControl_.Set(false);
     }
 
 private:
-    void OnMute_(bool isMuted)
-    {
-        if (isMuted)
-        {
-            static_cast<Derived *>(this)->Mute();
-        }
-        else
-        {
-            static_cast<Derived *>(this)->Unmute();
-        }
-    }
-
-private:
-    MuteGroupTerminus muteTerminus_;
+    MuteControl muteControl_;
 };
 
+
+template<typename GroupSubType, typename Observer>
+class GroupConnect
+{
+public:
+    static_assert(IsAccessor<GroupSubType>);
+
+    using Plain = typename GroupSubType::Plain;
+
+    template< typename T>
+    using Fields = typename GroupSubType::template Fields<T>;
+
+    template<template<typename> typename T>
+    using Template = typename GroupSubType::template GroupTemplate<T>;
+
+    using Aggregate = detail::Aggregate<Plain, Fields, Template>;
+
+    using ValueConnection = detail::ValueConnection<Observer, Plain>;
+    using Callable = typename ValueConnection::Callable;
+
+    GroupConnect(const GroupConnect &) = delete;
+    GroupConnect &operator=(const GroupConnect &) = delete;
+
+    GroupConnect(GroupSubType &group, Observer *observer, Callable callable)
+        :
+        muteTerminus_(this, group.CloneMuteControl()),
+        aggregate_(group),
+        valueConnection_(observer, callable)
+    {
+        this->aggregate_.Connect(this, &GroupConnect::OnAggregate_);
+        this->muteTerminus_.Connect(&GroupConnect::OnMute_);
+    }
+
+    ~GroupConnect()
+    {
+        this->aggregate_.ClearConnections();
+    }
+
+    void OnMute_(bool isMuted)
+    {
+        if (!isMuted)
+        {
+            this->valueConnection_(this->aggregate_.Get());
+        }
+
+        this->aggregate_.SetMuted(isMuted);
+    }
+
+    static void OnAggregate_(void * context, const Plain &value)
+    {
+        auto self = static_cast<GroupConnect *>(context);
+        self->valueConnection_(value);
+    }
+
+private:
+    MuteTerminus<GroupConnect> muteTerminus_;
+    Aggregate aggregate_;
+    ValueConnection valueConnection_;
+};
+
+
+template
+<
+    typename Object,
+    typename Observer,
+    typename Enable = void
+>
+struct CallableHelper {};
+
+
+template
+<
+    typename Object,
+    typename Observer
+>
+struct CallableHelper
+<
+    Object,
+    Observer,
+    std::enable_if_t<IsSignal<Object>>
+>
+{
+    using Callable = typename detail::SignalConnection<Observer>::Callable;
+};
+
+
+template
+<
+    typename Object,
+    typename Observer
+>
+struct CallableHelper
+<
+    Object,
+    Observer,
+    std::enable_if_t<!IsSignal<Object>>
+>
+{
+    using Callable =
+        typename detail::ValueConnection<Observer, typename Object::Type>
+            ::Callable;
+};
+
+
+template<typename Object, typename Observer>
+class ObjectConnect
+{
+public:
+    using ObservedObject = control::ChangeObserver<Observer, Object>;
+
+    using Callable =
+        typename CallableHelper<ObservedObject, Observer>::Callable;
+
+    ObjectConnect(const ObjectConnect &) = delete;
+    ObjectConnect &operator=(const ObjectConnect &) = delete;
+
+    ObjectConnect(Object &object, Observer *observer, Callable callable)
+        :
+        object_(object),
+        observed_(this->object_),
+        observer_(observer)
+    {
+        this->observed_.Connect(observer, callable);
+    }
+
+    ~ObjectConnect()
+    {
+        this->observed_.Disconnect(this->observer_);
+    }
+
+    Object &object_;
+    ObservedObject observed_;
+    Observer *observer_;
+};
+
+
+template<typename T, typename Enable = void>
+struct Connect_ {};
+
+
+template<typename T>
+struct Connect_<T, std::enable_if_t<IsAccessor<T>>>
+{
+    template<typename GroupSubType, typename Observer>
+    using Type = GroupConnect<GroupSubType, Observer>;
+};
+
+
+template<typename T>
+struct Connect_<T, std::enable_if_t<!IsAccessor<T>>>
+{
+    template<typename Object, typename Observer>
+    using Type = ObjectConnect<Object, Observer>;
+};
+
+
+template<typename Object, typename Observer>
+struct Connect: public Connect_<Object>::template Type<Object, Observer>
+{
+    using Base = typename Connect_<Object>::template Type<Object, Observer>;
+
+    Connect(
+        Object &object,
+        Observer *observer,
+        typename Base::Callable callable)
+        :
+        Base(object, observer, callable)
+    {
+
+    }
+};
 
 
 template<typename T, typename Enable = void>
@@ -568,44 +707,44 @@ struct HasMute
 
 template
 <
-    typename Plain,
-    template<typename> typename Fields,
-    template<template<typename> typename> typename Template,
+    typename Plain_,
+    template<typename> typename Fields_,
+    template<template<typename> typename> typename Template_,
     template<typename> typename Selector,
-    typename Derived,
-    typename Connector
+    typename Derived
 >
 class Accessors
     :
-    public Getter<Plain, Fields, Derived>,
-    public Connector
+    public Getter<Plain_, Fields_, Derived>
 {
 public:
+    static constexpr bool isAccessor = true;
+
+    using Plain = Plain_;
+
+    template<typename T>
+    using Fields = Fields_<T>;
+
+    template<template<typename> typename T>
+    using GroupTemplate = Template_<T>;
+
     static constexpr auto observerName = "Accessors";
-
-private:
-    using Aggregate = detail::Aggregate<Plain, Fields, Template>;
-
-    std::unique_ptr<Aggregate> aggregate_;
 
 protected:
     void ResetAccessors_()
     {
-        this->aggregate_.reset();
+
     }
 
 public:
     Accessors()
         :
-        aggregate_(nullptr),
         isMuted_(false)
     {
 
     }
 
     Accessors(const Accessors &)
-        :
-        aggregate_(nullptr)
     {
         // Allows copy, but never copies the aggregate observer.
         // Re-connect is required after a copy.
@@ -613,16 +752,12 @@ public:
     }
 
     Accessors(Accessors &&)
-        :
-        aggregate_(nullptr)
     {
         PEX_LOG("Accessors: ", this);
     }
 
     template<typename ...Others>
     Accessors(Accessors<Others...> &&)
-        :
-        aggregate_(nullptr)
     {
         PEX_LOG("Accessors: ", this);
     }
@@ -632,7 +767,6 @@ public:
     {
         // Allows copy, but never copies the aggregate observer.
         // Re-connect is required after a copy.
-        this->aggregate_.reset();
         PEX_LOG("Accessors: ", this);
         return *this;
     }
@@ -642,14 +776,12 @@ public:
     {
         // Allows copy, but never copies the aggregate observer.
         // Re-connect is required after a copy.
-        this->aggregate_.reset();
         PEX_LOG("Accessors: ", this);
         return *this;
     }
 
     Accessors & operator=(Accessors &&)
     {
-        this->aggregate_.reset();
         PEX_LOG("Accessors: ", this);
         return *this;
     }
@@ -657,7 +789,6 @@ public:
     template<typename ...Others>
     Accessors & operator=(Accessors<Others...> &&)
     {
-        this->aggregate_.reset();
         PEX_LOG("Accessors: ", this);
         return *this;
     }
@@ -680,9 +811,6 @@ public:
 #endif
     }
 
-    using Callable = typename Connector::Callable;
-    using Observer = typename Connector::Observer;
-
     void Mute()
     {
         if (this->isMuted_)
@@ -691,13 +819,6 @@ public:
         }
 
         this->isMuted_ = true;
-
-        if (this->aggregate_)
-        {
-            // Suppress multiple repeated notifications from aggregate
-            // observers.
-            this->aggregate_->Mute();
-        }
 
         auto derived = static_cast<Derived *>(this);
         derived->DoMute();
@@ -747,6 +868,9 @@ public:
             Fields<Derived>::fields,
             doUnmute);
 
+#if 0
+        // TODO: Is this still necessary?
+
         // Allow all members to notify before unmuting our own aggregate
         // observers.
         if (this->aggregate_)
@@ -754,60 +878,21 @@ public:
             this->aggregate_->Notify(this->Get());
             this->aggregate_->Unmute();
         }
+#endif
     }
 
     void Set(const Plain &plain)
     {
-        this->Mute();
+        DeferGroup<Fields, Template_, Selector, Derived> deferGroup(
+            static_cast<Derived &>(*this));
 
-        {
-            DeferGroup<Fields, Template, Selector> deferGroup(
-                static_cast<Derived &>(*this));
-
-            deferGroup.Set(plain);
-        }
-
-        this->Unmute();
+        deferGroup.Set(plain);
     }
 
     template<typename>
     friend class Reference;
 
 protected:
-    void Connect_(Observer *observer, Callable callable)
-    {
-        if (!this->aggregate_)
-        {
-            auto derived = static_cast<Derived *>(this);
-
-            this->aggregate_ =
-                std::make_unique<Aggregate>(*derived);
-
-            this->aggregate_->Connect(derived, &Accessors::OnAggregate_);
-        }
-
-        if constexpr (std::is_void_v<Observer>)
-        {
-            PEX_LOG(
-                "Connect void (",
-                observer,
-                ") to ",
-                this);
-        }
-        else
-        {
-            PEX_LOG(
-                "Connect ",
-                Observer::observerName,
-                " (",
-                observer,
-                ") to ",
-                this);
-        }
-
-        Connector::Connect(observer, callable);
-    }
-
     void SetWithoutNotify_(const Plain &plain)
     {
         auto derived = static_cast<Derived *>(this);
@@ -843,13 +928,6 @@ protected:
         jive::ForEach(
             Fields<Derived>::fields,
             doNotify);
-    }
-
-private:
-    static void OnAggregate_(void * context, const Plain &value)
-    {
-        auto derived = static_cast<Derived *>(context);
-        derived->Notify_(value);
     }
 
 private:

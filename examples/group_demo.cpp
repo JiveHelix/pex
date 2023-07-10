@@ -137,7 +137,7 @@ int main()
     std::cout << "terminus.weapons.firstFruit.size(): "
         << terminus.weapons.firstFruit.Get().size() << std::endl;
 
-    terminus.weapons.Connect(&OnWeapons);
+    pex::Connect connect(terminus.weapons, static_cast<void *>(nullptr), &OnWeapons);
 
     std::cout << "terminus connected" << std::endl;
 

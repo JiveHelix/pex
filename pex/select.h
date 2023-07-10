@@ -289,11 +289,14 @@ private:
                 .SetWithoutNotify(std::vector<Type>({value}));
         }
 
-        detail::AccessReference<Selection>(this->selection_).
-            SetWithoutNotify(
+        detail::AccessReference<Selection>(this->selection_)
+            .SetWithoutNotify(
                 RequireIndex(
                     value,
                     ConstReference(this->choices_).Get()));
+
+        detail::AccessReference<Value>(this->value_)
+            .SetWithoutNotify(value);
     }
 
     void DoNotify_()

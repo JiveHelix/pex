@@ -773,6 +773,16 @@ public:
         return this->value.Get();
     }
 
+    void Connect(Observer *observer, Callable callable)
+    {
+        this->value.Connect(observer, callable);
+    }
+
+    void Disconnect(Observer *observer)
+    {
+        this->value.Disconnect(observer);
+    }
+
     Type Get() const
     {
         return this->value.Get();
