@@ -100,13 +100,11 @@ struct LogarithmicFilter
 
 template
 <
-    typename Observer,
     typename Upstream,
     typename Converted,
     typename Access = pex::GetAndSetTag
 >
 using ConvertingValue = Value_<
-    Observer,
     Upstream,
     ConvertingFilter<typename Upstream::Type, Converted>,
     Access>;

@@ -118,22 +118,8 @@ public:
         }
 #endif
 
-        auto callback = ConnectionType(observer, callable);
-
-        // sorted insert
-        auto insertion = std::upper_bound(
-            this->connections_.begin(),
-            this->connections_.end(),
-            callback);
-
-#ifdef ENABLE_PEX_LOG
-        if (!this->connections_.empty() && *(insertion - 1) == callback)
-        {
-            PEX_LOG("Info: ", observer, " is already observing.");
-        }
-#endif
-
-        this->connections_.insert(insertion, callback);
+        // Callbacks will be executed in the order the connections are made.
+        this->connections_.emplace_back(observer, callable);
     }
 
     /** Remove all registered callbacks for the observer. **/
@@ -141,25 +127,9 @@ public:
     {
         THROW_IF_NOTIFYING
 
-        if (this->connections_.empty())
-        {
-            return;
-        }
-
-        auto [first, last] = std::equal_range(
-            this->connections_.begin(),
-            this->connections_.end(),
+        std::erase(
+            this->connections_,
             ConnectionType(observer));
-
-        if (first == this->connections_.end())
-        {
-            // This observer has no connections.
-            return;
-        }
-
-        PEX_LOG(observer, " disconnecting from ", this);
-
-        this->connections_.erase(first, last);
     }
 
     size_t GetNotifierCount() const
@@ -170,6 +140,16 @@ public:
     bool HasConnections() const
     {
         return !this->connections_.empty();
+    }
+
+    bool HasObserver(Observer *observer)
+    {
+        auto found = std::find(
+            this->connections_.begin(),
+            this->connections_.end(),
+            ConnectionType(observer));
+
+        return (found != this->connections_.end());
     }
 
 protected:
@@ -214,6 +194,9 @@ class NotifyMany
 >
     : public NotifyConnector_<ConnectionType, Access>
 {
+public:
+    using Type = typename ConnectionType::Type;
+
 protected:
     void Notify_(Argument<typename ConnectionType::Type> value)
     {

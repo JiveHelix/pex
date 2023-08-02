@@ -2,6 +2,7 @@
 #include <fields/fields.h>
 #include <pex/select.h>
 #include <pex/group.h>
+#include <pex/endpoint.h>
 
 
 
@@ -42,7 +43,7 @@ struct SomeTemplate
 
 using SomeGroup = pex::Group<SomeFields, SomeTemplate>;
 using SomeModel = typename SomeGroup::Model;
-using SomeControl = typename SomeGroup::Control<void>;
+using SomeControl = typename SomeGroup::Control;
 using SomePlain = typename SomeGroup::Plain;
 
 static_assert(pex::IsModelSelect<decltype(SomeModel::rate)>);
@@ -73,10 +74,10 @@ TEST_CASE("Select is member of Group", "[select]")
 }
 
 
-using SomeControl = typename SomeGroup::Control<void>;
+using SomeControl = typename SomeGroup::Control;
 
 template<typename Observer>
-using SomeTerminus = typename SomeGroup::Terminus<Observer>;
+using SomeEndpointGroup = pex::EndpointGroup<Observer, SomeControl>;
 
 
 struct TestObserver
@@ -84,14 +85,14 @@ struct TestObserver
     static constexpr auto observerName = "select_tests::TestObserver";
 
     double observedRate;
-    SomeTerminus<TestObserver> terminus;
+    SomeEndpointGroup<TestObserver> endpoints_;
 
     TestObserver(SomeControl control)
         :
         observedRate{control.rate.Get()},
-        terminus{this, control}
+        endpoints_{this, control}
     {
-        this->terminus.rate.Connect(&TestObserver::OnObserve_);
+        this->endpoints_.rate.Connect(&TestObserver::OnObserve_);
     }
 
     void OnObserve_(double rate)

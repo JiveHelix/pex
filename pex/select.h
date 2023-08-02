@@ -29,7 +29,7 @@ namespace pex
 namespace control
 {
 
-template<typename, typename>
+template<typename>
 class Select;
 
 
@@ -96,16 +96,15 @@ public:
     using Selection = ::pex::model::FilteredValue<size_t, SelectFilter<Type>>;
     using Choices = ::pex::model::Value<std::vector<Type>>;
 
-    template<typename Observer>
-    using Control = pex::control::Value<Observer, Selection>;
+    using Control = pex::control::Value<Selection>;
 
     template<typename Observer>
     using Terminus = pex::Terminus<Observer, Selection>;
 
     template<typename>
-    friend class pex::Reference;
+    friend class ::pex::Reference;
 
-    template <typename, typename>
+    template <typename>
     friend class ::pex::control::Select;
 
     template <typename, typename>
@@ -117,7 +116,21 @@ private:
     using Defer = ::pex::Defer<Choices>;
 
 public:
-    Select(pex::Argument<Type> value = Type{})
+    Select()
+        :
+        value_(Type{}),
+        choices_(std::vector<Type>{this->value_.Get()}),
+        selection_(
+            static_cast<size_t>(0),
+            SelectFilter(this->choices_.Get())),
+        terminus_(
+            this,
+            this->selection_)
+    {
+        this->terminus_.Connect(&Select::OnSelection_);
+    }
+
+    Select(pex::Argument<Type> value)
         :
         value_(value),
         choices_(std::vector<Type>{value}),
@@ -175,10 +188,9 @@ public:
         return this->value_.Get();
     }
 
-    template<typename Observer>
-    explicit operator Control<Observer> ()
+    explicit operator Control ()
     {
-        return Control<Observer>(this->selection_);
+        return Control(this->selection_);
     }
 
     void SetChoices(const std::vector<Type> &choices)
@@ -329,7 +341,7 @@ namespace control
 {
 
 
-template<typename Observer, typename Upstream_>
+template<typename Upstream_>
 class Select
 {
 public:
@@ -344,10 +356,8 @@ public:
 
     static constexpr bool isPexCopyable = true;
 
-    using Selection =
-        ::pex::control::Value
+    using Selection = ::pex::control::Value
         <
-            Observer,
             typename Upstream::Selection,
             ::pex::GetAndSetTag
         >;
@@ -356,7 +366,6 @@ public:
     using Choices =
         ::pex::control::Value
         <
-            Observer,
             typename Upstream::Choices,
             ::pex::GetTag
         >;
@@ -365,12 +374,21 @@ public:
     using Value =
         ::pex::control::Value
         <
-            Observer,
             typename Upstream::Value,
             ::pex::GetTag
         >;
 
-    Select() = default;
+    template<typename>
+    friend class ::pex::Reference;
+
+    Select()
+        :
+        choices(),
+        selection(),
+        value()
+    {
+
+    }
 
     Select(Upstream &upstream)
     {
@@ -388,37 +406,10 @@ public:
         }
     }
 
-    template<typename OtherObserver>
-    Select(const Select<OtherObserver, Upstream> &other)
-        :
-        choices(other.choices),
-        selection(other.selection),
-        value(other.value)
-    {
-
-    }
-
-    template<typename OtherObserver>
-    Select & operator=(const Select<OtherObserver, Upstream> &other)
-    {
-        this->choices = other.choices;
-        this->selection = other.selection;
-        this->value = other.value;
-
-        return *this;
-    }
-
     Type Get() const
     {
         return this->value.Get();
     }
-
-#if 0
-    void Set(size_t selectionIndex)
-    {
-        this->selection.Set(selectionIndex);
-    }
-#endif
 
     explicit operator Type () const
     {
@@ -432,6 +423,16 @@ public:
             && this->value.HasModel();
     }
 
+    void Connect(void *observer, typename Value::Callable callable)
+    {
+        this->value.Connect(observer, callable);
+    }
+
+    void Disconnect(void *observer)
+    {
+        this->value.Disconnect(observer);
+    }
+
 private:
     void SetWithoutNotify_(pex::Argument<Type> value_)
     {
@@ -439,7 +440,7 @@ private:
             SetWithoutNotify(
                 RequireIndex(
                     value_,
-                    ConstReference(this->choices).Get()));
+                    ConstControlReference(this->choices).Get()));
     }
 
     void DoNotify_()
@@ -470,9 +471,7 @@ inline constexpr bool IsControlSelect = IsControlSelect_<T...>::value;
 template<typename P>
 struct MakeControl<P, std::enable_if_t<IsModelSelect<P>>>
 {
-    template<typename O>
-    using Control = control::Select<O, P>;
-
+    using Control = control::Select<P>;
     using Upstream = P;
 };
 
@@ -480,37 +479,40 @@ struct MakeControl<P, std::enable_if_t<IsModelSelect<P>>>
 template<typename P>
 struct MakeControl<P, std::enable_if_t<IsControlSelect<P>>>
 {
-    template<typename O>
-    using Control = control::ChangeObserver<O, P>;
-
+    using Control = P;
     using Upstream = typename P::Upstream;
 };
 
 
-template<typename Observer, typename Upstream>
+template<typename P>
+inline constexpr bool IsSelect = IsControlSelect<P> || IsModelSelect<P>;
+
+
+template<typename Observer, typename Upstream_>
 class SelectTerminus
 {
 public:
+    using Upstream = Upstream_;
+
     static constexpr bool choicesMayChange =
         HasAccess<typename Upstream::ChoicesAccess, SetTag>;
 
     static constexpr bool isPexCopyable = true;
 
-    template<typename O>
-    using ControlTemplate = typename MakeControl<Upstream>::template Control<O>;
+    using ControlTemplate = typename MakeControl<Upstream>::Control;
 
-    using Pex = ControlTemplate<Observer>;
-
-    using Type = typename ControlTemplate<void>::Type;
+    using Type = typename ControlTemplate::Type;
 
     using Selection =
-        pex::Terminus<Observer, typename Pex::Selection>;
+        pex::Terminus<Observer, typename ControlTemplate::Selection>;
 
     using Choices =
-        pex::Terminus<Observer, typename Pex::Choices>;
+        pex::Terminus<Observer, typename ControlTemplate::Choices>;
 
     using Value =
-        pex::Terminus<Observer, typename Pex::Value>;
+        pex::Terminus<Observer, typename ControlTemplate::Value>;
+
+    using Callable = typename Value::Callable;
 
     SelectTerminus()
         :
@@ -521,7 +523,7 @@ public:
 
     }
 
-    SelectTerminus(Observer *observer, const ControlTemplate<void> &pex)
+    SelectTerminus(Observer *observer, const ControlTemplate &pex)
         :
         choices(observer, pex.choices),
         selection(observer, pex.selection),
@@ -530,7 +532,19 @@ public:
 
     }
 
-    SelectTerminus(Observer *observer, ControlTemplate<void> &&pex)
+    SelectTerminus(
+        Observer *observer,
+        const ControlTemplate &pex,
+        Callable callable)
+        :
+        choices(observer, pex.choices),
+        selection(observer, pex.selection),
+        value(observer, pex.value, callable)
+    {
+
+    }
+
+    SelectTerminus(Observer *observer, ControlTemplate &&pex)
         :
         choices(observer, std::move(pex.choices)),
         selection(observer, std::move(pex.selection)),
@@ -614,19 +628,6 @@ public:
         return *this;
     }
 
-    // Copy assign
-    template<typename O>
-    SelectTerminus & Assign(
-        Observer *observer,
-        const SelectTerminus<O, control::ChangeObserver<O, Upstream>> &other)
-    {
-        this->choices.Assign(observer, other.choices);
-        this->selection.Assign(observer, other.selection);
-        this->value.Assign(observer, other.value);
-
-        return *this;
-    }
-
     // Move assign
     template<typename O>
     SelectTerminus & Assign(
@@ -640,20 +641,7 @@ public:
         return *this;
     }
 
-    // Move assign
-    template<typename O>
-    SelectTerminus & Assign(
-        Observer *observer,
-        SelectTerminus<O, control::ChangeObserver<O, Upstream>> &&other)
-    {
-        this->choices.Assign(observer, std::move(other.choices));
-        this->selection.Assign(observer, std::move(other.selection));
-        this->value.Assign(observer, std::move(other.value));
-
-        return *this;
-    }
-
-    void Connect(typename Value::Callable callable)
+    void Connect(Callable callable)
     {
         this->value.Connect(callable);
     }
@@ -692,7 +680,7 @@ private:
             SetWithoutNotify(
                 RequireIndex(
                     value_,
-                    ConstReference(this->choices).Get()));
+                    this->choices.Get()));
     }
 
     void DoNotify_()

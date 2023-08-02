@@ -21,7 +21,6 @@
 #include "pex/interface.h"
 
 
-
 namespace pex
 {
 
@@ -424,7 +423,7 @@ public:
 
 /**
  ** Allows direct access to the model value as a const reference, so there is
- ** no need to publish any new values.
+ ** no need to publish any new values; they cannot be changed.
  **
  ** It is not possible to create a ConstReference to a Value with a filter.
  **/
@@ -464,6 +463,38 @@ public:
 
 private:
     const Model &model_;
+};
+
+
+template<typename Control>
+class ConstControlReference
+{
+
+public:
+    using Type = typename Control::Type;
+
+    ConstControlReference(const Control &control)
+        :
+        modelReference_(control.GetModel_())
+    {
+
+    }
+
+    ConstControlReference(const ConstControlReference &) = delete;
+    ConstControlReference & operator=(const ConstControlReference &) = delete;
+
+    const Type & Get() const
+    {
+        return this->modelReference_.Get();
+    }
+
+    const Type & operator * () const
+    {
+        return this->modelReference_.Get();
+    }
+
+private:
+    const ConstReference<typename Control::Model_> modelReference_;
 };
 
 

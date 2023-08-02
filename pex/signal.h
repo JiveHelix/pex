@@ -20,6 +20,7 @@
 #include "pex/detail/require_has_value.h"
 #include "pex/detail/log.h"
 
+
 namespace pex
 {
 
@@ -65,17 +66,16 @@ public:
 namespace control
 {
 
-template<typename Observer_, typename Access = GetAndSetTag>
+template<typename Access = GetAndSetTag>
 class Signal
     :
-    public detail::NotifyOne<detail::SignalConnection<Observer_>, Access>
+    public detail::NotifyOne<detail::SignalConnection<void>, Access>
 {
 public:
-    using Observer = Observer_;
     using Upstream = pex::model::Signal;
 
     using Callable =
-        typename detail::SignalConnection<Observer_>::Callable;
+        typename detail::SignalConnection<void>::Callable;
 
     Signal(): model_(nullptr) {}
 
@@ -117,20 +117,6 @@ public:
         this->model_->Connect(this, &Signal::OnModelSignaled_);
     }
 
-    template<typename OtherObserver>
-    explicit Signal(const Signal<OtherObserver> &other)
-        :
-        model_(other.model_)
-    {
-        if (!other.model_)
-        {
-            throw std::logic_error("other.model_ must be set!");
-        }
-
-        PEX_LOG("Connect ", this);
-        this->model_->Connect(this, &Signal::OnModelSignaled_);
-    }
-
     Signal & operator=(const Signal &other)
     {
         if (!other.model_)
@@ -147,28 +133,6 @@ public:
         this->model_ = other.model_;
 
         PEX_LOG("Connect ", this);
-        this->model_->Connect(this, &Signal::OnModelSignaled_);
-
-        return *this;
-    }
-
-    template<typename OtherObserver>
-    Signal<Observer> & operator=(const Signal<OtherObserver> &other)
-    {
-        if (!other.model_)
-        {
-            throw std::logic_error("other.model_ must be set!");
-        }
-
-        if (this->model_)
-        {
-            PEX_LOG("Disconnect ", this);
-            this->model_->Disconnect(this);
-        }
-
-        this->model_ = other.model_;
-
-        PEX_LOG("Connect", this);
         this->model_->Connect(this, &Signal::OnModelSignaled_);
 
         return *this;
@@ -197,7 +161,12 @@ public:
         return DescribeSignal{};
     }
 
-    template<typename U, typename V>
+    void ClearConnections()
+    {
+        this->ClearConnections_();
+    }
+
+    template<typename>
     friend class Signal;
 
 private:

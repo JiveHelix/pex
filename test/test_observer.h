@@ -1,12 +1,13 @@
 #pragma once
 
 #include "pex/accessors.h"
+#include "pex/endpoint.h"
 
 
 template<typename Upstream>
 struct Defaults
 {
-    using Control = pex::control::Value<void, Upstream>;
+    using Control = pex::control::Value<Upstream>;
 
     template<typename Observer>
     using Terminus = pex::Terminus<Observer, Control>;
@@ -108,7 +109,7 @@ public:
 
     TestObserver(Object &object)
         :
-        connect_(object, this, &TestObserver::Observe_),
+        connect_(this, object, &TestObserver::Observe_),
         count_(0),
         observedValue{object.Get()}
     {
@@ -137,7 +138,7 @@ private:
         ++this->count_;
     }
 
-    pex::Connect<Object, TestObserver<Object>> connect_;
+    pex::MakeConnector<TestObserver<Object>, Object> connect_;
     size_t count_;
 
 public:

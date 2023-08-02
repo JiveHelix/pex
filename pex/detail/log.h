@@ -2,6 +2,7 @@
 
 #include <mutex>
 #include <memory>
+#include <jive/path.h>
 #include <jive/to_stream.h>
 
 

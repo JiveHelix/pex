@@ -16,8 +16,10 @@
 #include <cmath>
 #include <iostream>
 
+#define USE_OBSERVER_NAME
 
-#include "pex/value.h"
+#include <pex/value.h>
+#include <pex/endpoint.h>
 
 
 /**
@@ -66,14 +68,15 @@ public:
 
     Foo(Angle_radians &angle_radians)
         :
-        angle_degrees(angle_radians)
+        angle_degrees(angle_radians),
+        angleEndpoint_(this, angle_degrees, &Foo::OnAngleChanged_)
     {
-        this->angle_degrees.Connect(this, &Foo::OnAngleChanged_);
+
     }
 
     ~Foo()
     {
-        this->angle_degrees.Disconnect(this);
+
     }
 
     void OnAngleChanged_(double value)
@@ -81,7 +84,11 @@ public:
         std::cout << "Foo::OnAngleChanged_: " << value << std::endl;
     }
 
-    pex::control::FilteredValue<Foo, Angle_radians, DegreesFilter> angle_degrees;
+    using FilteredControl =
+        pex::control::FilteredValue<Angle_radians, DegreesFilter>;
+
+    FilteredControl angle_degrees;
+    pex::Endpoint<Foo, FilteredControl> angleEndpoint_;
 };
 
 

@@ -223,6 +223,51 @@ struct DefinesDefer<T, std::void_t<typename T::Defer>>
     : std::true_type {};
 
 
+template<typename T, typename Enable = void>
+struct IsAccessor_: std::false_type {};
+
+template<typename T>
+struct IsAccessor_
+<
+    T,
+    std::enable_if_t<T::isAccessor>
+>
+: std::true_type {};
+
+template<typename T>
+inline constexpr bool IsAccessor = IsAccessor_<T>::value;
+
+
+// Signals do not have an underlying type, so they are not part of the
+// conversion to a plain-old data structure.
+template<typename Pex, typename Enable = void>
+struct ConvertsToPlain_: std::true_type {};
+
+// Detects model and control signals.
+template<typename Pex>
+struct ConvertsToPlain_
+<
+    Pex,
+    std::enable_if_t<IsSignal<Pex>>
+>: std::false_type {};
+
+// Detects a Terminus signal.
+template<typename Pex>
+struct ConvertsToPlain_
+<
+    Pex,
+    std::enable_if_t<IsSignal<typename Pex::Pex>>
+>: std::false_type {};
+
+template<typename Pex>
+struct ConvertsToPlain_
+<
+    Pex,
+    std::enable_if_t<std::is_same_v<DescribeSignal, Pex>>
+>: std::false_type {};
+
+template<typename Pex>
+inline constexpr bool ConvertsToPlain = ConvertsToPlain_<Pex>::value;
 
 
 } // end namespace pex

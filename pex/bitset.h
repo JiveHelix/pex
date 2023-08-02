@@ -15,7 +15,7 @@ using BitsetModel = pex::model::Value<std::bitset<bitCount>>;
 
 template<size_t bitCount, typename Access = GetAndSetTag>
 using BitsetControl =
-    pex::control::Value_<void, BitsetModel<bitCount>, NoFilter, Access>;
+    pex::control::Value_<BitsetModel<bitCount>, NoFilter, Access>;
 
 
 template<size_t bitCount>
@@ -56,7 +56,6 @@ private:
 template<size_t bitCount>
 using FlagControl =
     pex::control::FilteredValue<
-        void,
         BitsetControl<bitCount>,
         FlagFilter<bitCount>>;
 
@@ -68,7 +67,7 @@ public:
     using Filter = FlagFilter<bitCount>;
     using FilteredFlag = FlagControl<bitCount>;
 
-    using Flag = pex::control::Value<void, FilteredFlag>;
+    using Flag = pex::control::Value_<FilteredFlag>;
 
     BitsetFlagsControl(BitsetControl<bitCount> bitset)
         :

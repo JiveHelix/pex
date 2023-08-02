@@ -1,6 +1,7 @@
 #include <iostream>
 
 #include <pex/group.h>
+#include <pex/endpoint.h>
 #include <fields/fields.h>
 
 
@@ -78,15 +79,28 @@ struct PoseTemplate
 using PoseGroup = pex::Group<PoseFields, PoseTemplate>;
 using Pose = typename PoseGroup::Plain;
 using PoseModel = typename PoseGroup::Model;
-using PoseControl = typename PoseGroup::Control<void>;
-using PoseTerminus = typename PoseGroup::Terminus<void>;
+using PoseControl = typename PoseGroup::Control;
 
 
-void OnPose(void *, const Pose &pose)
+class PoseObserver
 {
-    std::cout << "OnPose: " << fields::DescribeColorized(pose, 1)
-              << std::endl;
-}
+public:
+    PoseObserver(PoseControl control)
+        :
+        endpoint_(this, control, &PoseObserver::OnPose)
+    {
+
+    }
+
+    void OnPose(const Pose &pose)
+    {
+        std::cout << "OnPose: " << fields::DescribeColorized(pose, 1)
+                  << std::endl;
+    }
+
+private:
+    pex::Endpoint<PoseObserver, PoseControl> endpoint_;
+};
 
 
 int main()
@@ -95,9 +109,7 @@ int main()
 
     PoseModel model;
     PoseControl control(model);
-    PoseTerminus terminus(nullptr, model);
-
-    pex::Connect<PoseModel, void> connect(model, nullptr, &OnPose);
+    PoseObserver observer(control);
 
     std::cout << "setting position.x = 42" << std::endl;
     control.position.x = 42.0;
@@ -123,8 +135,8 @@ int main()
     plain.position.y = 2.0;
     plain.position.z = 3.0;
 
-    std::cout << "Changing the entire struct on the terminus." << std::endl;
-    terminus.Set(plain);
+    std::cout << "Changing the entire struct on the control." << std::endl;
+    control.Set(plain);
 
     std::cout << fields::DescribeColorized(model.Get(), 0) << std::endl;
 

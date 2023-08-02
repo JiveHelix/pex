@@ -31,11 +31,11 @@ template<typename T>
 using Model = model::Value<T>;
 
 
-template<typename Observer, template<typename> typename Upstream = pex::Model>
+template<template<typename> typename Upstream = pex::Model>
 struct Control
 {
     template<typename T>
-    using Type = control::Value<Observer, Upstream<T>>;
+    using Type = control::Value<Upstream<T>>;
 };
 
 

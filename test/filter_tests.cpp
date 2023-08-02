@@ -21,7 +21,7 @@ public:
     static constexpr auto observerName = "filter_tests::Observer";
 
     using Control =
-        pex::control::Value<Observer<T, Model>, Model>;
+        pex::control::Value<Model>;
 
     Observer(Model &model)
         :
@@ -170,7 +170,7 @@ TEMPLATE_TEST_CASE(
     using Filter = DegreesFilter<TestType>;
 
     using Control =
-        pex::control::FilteredValue<void, Model, Filter>;
+        pex::control::FilteredValue<Model, Filter>;
 
     Model model;
     Control control(model);

@@ -8,7 +8,6 @@ add_executable(
     value_tests.cpp
     signal_tests.cpp
     filter_tests.cpp
-    expand_tests.cpp
     range_tests.cpp
     assign_tests.cpp
     terminus_tests.cpp

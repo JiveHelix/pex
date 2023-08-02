@@ -1,11 +1,12 @@
 
 #include <catch2/catch.hpp>
-#include "pex/value.h"
-#include "pex/range.h"
+#include <pex/value.h>
+#include <pex/range.h>
+#include <pex/linked_ranges.h>
 
 
 using Range = pex::model::Range<int>;
-using Control = pex::control::Range<void, Range>;
+using Control = pex::control::Range<Range>;
 
 
 TEST_CASE("Limits keep value within range.", "[range]")
@@ -68,7 +69,7 @@ struct Filter
 };
 
 
-using FilteredRange = pex::control::Range<void, Control, Filter>;
+using FilteredRange = pex::control::Range<Control, Filter>;
 
 
 TEST_CASE("Chaining ranges together to add a filter.", "[range]")
@@ -151,50 +152,19 @@ TEST_CASE("Limited value is echoed to observers.", "[range]")
 }
 
 
-template
-<
-    typename T,
-    typename Minimum,
-    typename Maximum,
-    template<typename, typename> typename Value>
-class TestAccess
-    :
-    public pex::model::RangeAccess<T, Minimum, Maximum, Value>
+TEST_CASE("Linked ranges has comparison operators", "[range]")
 {
-public:
-    using Base = pex::model::RangeAccess<T, Minimum, Maximum, Value>;
+    using TestRanges =
+        pex::LinkedRanges
+        <
+            double,
+            pex::Limit<0>,
+            pex::Limit<0>,
+            pex::Limit<10>,
+            pex::Limit<10>
+        >;
 
-    TestAccess(pex::model::Range<T, Minimum, Maximum, Value> &range)
-        :
-        Base(range)
-    {
+    using TestSettings = typename TestRanges::Settings;
 
-    }
-
-    void Set(T value)
-    {
-        this->GetValue().Set(value);
-    }
-};
-
-
-TEST_CASE("Alternate access is echoed to observers.", "[range]")
-{
-    Range range(18);
-    range.SetLimits(0, 20);
-
-    Control control(range);
-    Observer observer(control.value);
-
-    TestAccess(range).Set(12);
-    REQUIRE(!!observer.observed);
-    REQUIRE(*observer.observed == 12);
-
-    observer.observed.reset();
-    REQUIRE(!observer.observed);
-
-    // Ensure that the filter limits the value.
-    TestAccess(range).Set(42);
-    REQUIRE(!!observer.observed);
-    REQUIRE(*observer.observed == 20);
+    STATIC_REQUIRE(jive::HasEqualTo<TestSettings>);
 }

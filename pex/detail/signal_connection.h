@@ -36,7 +36,6 @@ public:
     {
         if constexpr(Base::IsMemberFunction)
         {
-            // std::cout << "Signal observer " << this->observer_ << std::endl;
             static_assert(
                 !std::is_same_v<Observer, void>,
                 "Cannot call member function on void type.");

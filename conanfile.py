@@ -4,7 +4,7 @@ from conans import ConanFile, CMake, tools
 
 class PexConan(ConanFile):
     name = "pex"
-    version = "0.9.1"
+    version = "0.9.2"
 
     scm = {
         "type": "git",
@@ -47,5 +47,5 @@ class PexConan(ConanFile):
         self.test_requires("nlohmann_json/[~3.11]")
 
     def requirements(self):
-        self.requires("jive/[~1.0]")
-        self.requires("fields/[~1]")
+        self.requires("jive/[~1.1]")
+        self.requires("fields/[~1.2]")

@@ -30,8 +30,7 @@ struct RangeTypes
             RangeMaker::template Value
         >;
 
-    template<typename Observer>
-    using Control = pex::control::Range<Observer, Model>;
+    using Control = pex::control::Range<Model>;
 
     template<typename Observer>
     using Terminus = RangeTerminus<Observer, Model>;
@@ -50,8 +49,7 @@ struct SelectTypes
             typename SelectMaker::Access
         >;
 
-    template<typename Observer>
-    using Control = pex::control::Select<Observer, Model>;
+    using Control = pex::control::Select<Model>;
 
     template<typename Observer>
     using Terminus = SelectTerminus<Observer, Model>;
@@ -106,24 +104,20 @@ struct ModelSelector_<T, std::enable_if_t<IsMakeGroup<T>>>
 template<typename T, typename = void>
 struct ControlSelector_
 {
-    template<typename Observer>
-    using Type = control::Value<Observer, typename ModelSelector_<T>::Type>;
+    using Type = control::Value<typename ModelSelector_<T>::Type>;
 };
 
 template<typename T>
 struct ControlSelector_<T, std::enable_if_t<IsMakeSignal<T>>>
 {
-    template<typename Observer>
-    using Type = control::Signal<Observer>;
+    using Type = control::Signal<>;
 };
 
 template<typename T>
 struct ControlSelector_<T, std::enable_if_t<IsFiltered<T>>>
 {
-    template<typename Observer>
     using Type = control::Value_
     <
-        Observer,
         typename ModelSelector_<T>::Type,
         NoFilter,
         typename T::ControlAccess
@@ -133,32 +127,28 @@ struct ControlSelector_<T, std::enable_if_t<IsFiltered<T>>>
 template<typename T>
 struct ControlSelector_<T, std::enable_if_t<IsMakeRange<T>>>
 {
-    template<typename Observer>
-    using Type = typename RangeTypes<T>::template Control<Observer>;
+    using Type = typename RangeTypes<T>::Control;
 };
 
 template<typename T>
 struct ControlSelector_<T, std::enable_if_t<IsMakeSelect<T>>>
 {
-    template<typename Observer>
-    using Type = typename SelectTypes<T>::template Control<Observer>;
+    using Type = typename SelectTypes<T>::Control;
 };
 
 template<typename T>
 struct ControlSelector_<T, std::enable_if_t<IsMakeCustom<T>>>
 {
-    template<typename Observer>
-    using Type = typename T::template Control<Observer>;
+    using Type = typename T::Control;
 };
 
 template<typename T>
 struct ControlSelector_<T, std::enable_if_t<IsMakeGroup<T>>>
 {
-    template<typename Observer>
-    using Type = typename T::template Control<Observer>;
+    using Type = typename T::Control;
 };
 
-
+#if 0
 /***** TerminusSelector *****/
 template<typename T, typename = void>
 struct TerminusSelector_
@@ -167,7 +157,7 @@ struct TerminusSelector_
     using Type = Terminus
     <
         Observer,
-        typename ControlSelector_<T>::template Type<Observer>
+        typename ControlSelector_<T>::Type
     >;
 };
 
@@ -199,6 +189,7 @@ struct TerminusSelector_<T, std::enable_if_t<IsMakeGroup<T>>>
     template<typename Observer>
     using Type = typename T::template Terminus<Observer>;
 };
+#endif
 
 
 /***** Identity *****/
@@ -239,20 +230,17 @@ template<typename T>
 using ModelSelector = typename detail::ModelSelector_<T>::Type;
 
 
-template<typename Observer>
-struct ControlSelector
-{
-    template<typename T>
-    using Type = typename detail::ControlSelector_<T>::template Type<Observer>;
-};
+template<typename T>
+using ControlSelector = typename detail::ControlSelector_<T>::Type;
 
-
+#if 0
 template<typename Observer>
 struct TerminusSelector
 {
     template<typename T>
     using Type = typename detail::TerminusSelector_<T>::template Type<Observer>;
 };
+#endif
 
 
 template<typename T>

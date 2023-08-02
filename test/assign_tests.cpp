@@ -5,7 +5,7 @@
 #include <string>
 #include <optional>
 
-#include "pex/pex.h"
+#include "pex/selectors.h"
 
 
 template<typename Control>
@@ -69,7 +69,7 @@ struct AssignPlain: public AssignTestTemplate<pex::Identity>
 };
 
 
-struct AssignTestModel: public AssignTestTemplate<pex::Model>
+struct AssignTestModel: public AssignTestTemplate<pex::ModelSelector>
 {
     AssignPlain GetTest()
     {
@@ -86,7 +86,7 @@ struct AssignTestModel: public AssignTestTemplate<pex::Model>
 
 
 struct AssignTestControl:
-    public AssignTestTemplate<pex::Control<void>::template Type>
+    public AssignTestTemplate<pex::ControlSelector>
 {
 public:
     AssignTestControl(AssignTestModel &model)
@@ -98,7 +98,7 @@ public:
 
 
 DECLARE_OUTPUT_STREAM_OPERATOR(AssignPlain)
-DECLARE_COMPARISON_OPERATORS(AssignPlain)
+DECLARE_EQUALITY_OPERATORS(AssignPlain)
 
 
 TEST_CASE("Assign round trip.", "[pex]")

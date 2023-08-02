@@ -6,6 +6,9 @@
 #include "pex/selectors.h"
 #include "pex/accessors.h"
 #include "pex/traits.h"
+#include "pex/detail/mute.h"
+#include "pex/detail/aggregate.h"
+#include "pex/detail/initialize_terminus.h"
 
 
 /**
@@ -106,15 +109,15 @@ struct Group
         <
             Plain,
             Fields,
-            Template,
+            Template_,
             ModelSelector,
             Derived
         >;
 
     struct Model:
-        public MuteOwner,
-        public MuteGroup,
-        public Template<ModelSelector>,
+        public Template_<ModelSelector>,
+        public detail::MuteOwner,
+        public detail::MuteGroup,
         public ModelAccessors<Model>
     {
     public:
@@ -127,8 +130,10 @@ struct Group
 
         Model()
             :
-            MuteOwner(),
-            MuteGroup(this->GetMuteControl())
+            Template<ModelSelector>(),
+            detail::MuteOwner(),
+            detail::MuteGroup(this->GetMuteControl()),
+            ModelAccessors<Model>()
         {
             if constexpr (HasDefault<Plain>)
             {
@@ -138,8 +143,10 @@ struct Group
 
         Model(const Plain &plain)
             :
-            MuteOwner(),
-            MuteGroup(this->GetMuteControl())
+            Template<ModelSelector>(),
+            detail::MuteOwner(),
+            detail::MuteGroup(this->GetMuteControl()),
+            ModelAccessors<Model>()
         {
             this->SetWithoutNotify_(plain);
         }
@@ -152,27 +159,22 @@ struct Group
         bool HasModel() const { return true; }
     };
 
-    template<typename Observer>
-    using ControlTemplate =
-        Template<pex::ControlSelector<Observer>::template Type>;
-
-    template<typename Observer, typename Derived>
+    template<typename Derived>
     using ControlAccessors = Accessors
         <
             Plain,
             Fields,
             Template,
-            ControlSelector<Observer>::template Type,
+            ControlSelector,
             Derived
         >;
 
-    template<typename Observer>
     struct Control:
-        public MuteGroup,
-        public ControlTemplate<Observer>,
-        public ControlAccessors<Observer, Control<Observer>>
+        public detail::MuteGroup,
+        public Template<ControlSelector>,
+        public ControlAccessors<Control>
     {
-        using AccessorsBase = ControlAccessors<Observer, Control<Observer>>;
+        using AccessorsBase = ControlAccessors<Control>;
 
         using Plain = typename Group::Plain;
         using Type = Plain;
@@ -181,8 +183,8 @@ struct Group
 
         using Defer = DeferGroup
             <
-                ControlSelector<Observer>::template Type,
-                Control<Observer>
+                ControlSelector,
+                Control
             >;
 
         // UpstreamType could be the type returned by a filter.
@@ -195,11 +197,11 @@ struct Group
 
         template<typename T>
         using Pex =
-            typename pex::ControlSelector<Observer>::template Type<T>;
+            typename pex::ControlSelector<T>;
 
         Control()
             :
-            MuteGroup(),
+            detail::MuteGroup(),
             AccessorsBase()
         {
 
@@ -207,7 +209,7 @@ struct Group
 
         Control(Model &model)
             :
-            MuteGroup(model.GetMuteControl()),
+            detail::MuteGroup(model.GetMuteControl()),
             AccessorsBase()
         {
             fields::AssignConvert<Fields>(*this, model);
@@ -215,7 +217,7 @@ struct Group
 
         Control(const Control &other)
             :
-            MuteGroup(other),
+            detail::MuteGroup(other),
             AccessorsBase()
         {
             fields::Assign<Fields>(*this, other);
@@ -223,26 +225,9 @@ struct Group
 
         Control & operator=(const Control &other)
         {
-            this->MuteGroup::operator=(other);
+            this->detail::MuteGroup::operator=(other);
             fields::Assign<Fields>(*this, other);
 
-            return *this;
-        }
-
-        template<typename Other>
-        Control(const Control<Other> &other)
-            :
-            MuteGroup(other),
-            AccessorsBase()
-        {
-            fields::AssignConvert<Fields>(*this, other);
-        }
-
-        template<typename Other>
-        Control & operator=(const Control<Other> &other)
-        {
-            this->MuteGroup::operator=(other);
-            fields::AssignConvert<Fields>(*this, other);
             return *this;
         }
 
@@ -265,206 +250,21 @@ struct Group
 
         bool HasModel() const
         {
-            return pex::HasModel<Fields>(*this);
+            return pex::detail::HasModel<Fields>(*this);
         }
     };
 
-    template<typename Observer>
-    using TerminusTemplate =
-        Template<pex::TerminusSelector<Observer>::template Type>;
 
-    template<typename Observer, typename Derived>
-    using TerminusAccessors = Accessors
-        <
-            Plain,
-            Fields,
-            Template,
-            TerminusSelector<Observer>::template Type,
-            Derived
-        >;
-
-    template<typename Observer>
-    struct Terminus:
-        public MuteGroup,
-        public TerminusTemplate<Observer>,
-        public TerminusAccessors<Observer, Terminus<Observer>>
-    {
-        using Plain = typename Group::Plain;
-        using Type = Plain;
-        using AccessorsBase = TerminusAccessors<Observer, Terminus<Observer>>;
-        using Pex = Control<Observer>;
-
-        using Defer = DeferGroup
-            <
-                TerminusSelector<Observer>::template Type,
-                Terminus<Observer>
-            >;
-
-        Terminus() = default;
-
-        Terminus(Observer *observer, const Control<void> &control)
-            :
-            MuteGroup(control),
-            observer_(observer)
-        {
-            PEX_LOG("Terminus construct from Control with ", observer);
-            InitializeTerminus<Fields>(observer, *this, control);
-        }
-
-        Terminus(Observer *observer, Model &model)
-            :
-            MuteGroup(model.GetMuteControl()),
-            observer_(observer)
-        {
-            PEX_LOG("Terminus construct from Model with ", observer);
-            this->Assign(observer, Terminus(observer, Control<void>(model)));
-        }
-
-
-        Terminus(const Terminus &) = delete;
-        Terminus(Terminus &&) = delete;
-        Terminus & operator=(const Terminus &) = delete;
-        Terminus & operator=(Terminus &&) = delete;
-
-        template<typename U>
-        friend struct Terminus;
-
-        // Copy construct
-        Terminus(Observer *observer, const Terminus &other)
-            :
-            MuteGroup(other),
-            AccessorsBase(),
-            observer_(observer)
-        {
-            PEX_LOG("Terminus copy construct observer: ", observer);
-            CopyTerminus<Fields>(observer, *this, other);
-        }
-
-        // Copy construct
-        template<typename Other>
-        Terminus(Observer *observer, const Terminus<Other> &other)
-            :
-            MuteGroup(other),
-            AccessorsBase(),
-            observer_(observer)
-        {
-            PEX_LOG("Terminus copy construct observer: ", observer);
-            CopyTerminus<Fields>(observer, *this, other);
-        }
-
-        // Move construct
-        Terminus(Observer *observer, Terminus &&other)
-            :
-            MuteGroup(other),
-            AccessorsBase(),
-            observer_(observer)
-        {
-            PEX_LOG("Terminus move construct observer: ", observer);
-            MoveTerminus<Fields>(observer, *this, other);
-        }
-
-        // Move construct
-        template<typename Other>
-        Terminus(Observer *observer, Terminus<Other> &&other)
-            :
-            MuteGroup(other),
-            AccessorsBase(),
-            observer_(observer)
-        {
-            PEX_LOG("Terminus move construct observer: ", observer);
-            MoveTerminus<Fields>(observer, *this, other);
-        }
-
-        // Copy assign
-        Terminus & Assign(Observer *observer, const Terminus &other)
-        {
-            PEX_LOG("Terminus copy assign observer: ", observer);
-            this->MuteGroup::operator=(other);
-            this->observer_ = observer;
-
-            CopyTerminus<Fields>(observer, *this, other);
-
-            return *this;
-        }
-
-        // Copy assign
-        template<typename Other>
-        Terminus & Assign(
-            Observer *observer,
-            const Terminus<Other> &other)
-        {
-            PEX_LOG("Terminus copy assign observer: ", observer);
-            this->MuteGroup::operator=(other);
-            this->observer_ = observer;
-
-            CopyTerminus<Fields>(observer, *this, other);
-
-            return *this;
-        }
-
-        // Move assign
-        Terminus & Assign(Observer *observer, Terminus &&other)
-        {
-            PEX_LOG("Terminus move assign observer: ", observer);
-            this->MuteGroup::operator=(other);
-            this->observer_ = observer;
-
-            MoveTerminus<Fields>(observer, *this, other);
-
-            return *this;
-        }
-
-        // Move assign
-        template<typename Other>
-        Terminus & Assign(Observer *observer, Terminus<Other> &&other)
-        {
-            PEX_LOG("Terminus move assign observer: ", observer);
-            this->MuteGroup::operator=(other);
-            this->observer_ = observer;
-
-            MoveTerminus<Fields>(observer, *this, other);
-
-            return *this;
-        }
-
-        bool HasModel() const
-        {
-            return pex::HasModel<Fields>(*this);
-        }
-
-        Observer * GetObserver()
-        {
-            return this->observer_;
-        }
-
-        explicit operator Control<void> () const
-        {
-            Control<void> result;
-            fields::AssignConvert<Fields>(result, *this);
-            return result;
-        }
-
-    private:
-        Observer * observer_;
-    };
+    using Aggregate = detail::Aggregate<Plain, Fields, Template_>;
 
     static typename Model::Defer MakeDefer(Model &model)
     {
         return typename Model::Defer(model);
     }
 
-    template<typename Observer>
-    static typename Control<Observer>::Defer MakeDefer(
-        Control<Observer> &control)
+    static typename Control::Defer MakeDefer(Control &control)
     {
-        return typename Control<Observer>::Defer(control);
-    }
-
-    template<typename Observer>
-    static typename Terminus<Observer>::Defer MakeDefer(
-        Terminus<Observer> &terminus)
-    {
-        return typename Terminus<Observer>::Defer(terminus);
+        return typename Control::Defer(control);
     }
 };
 

@@ -55,10 +55,10 @@ template
 <
     typename G,
     typename M,
-    template<typename> typename C,
-    template<typename> typename T
+    typename C // ,
+    // template<typename> typename T
 >
-struct IsMakeGroup_<MakeGroup<G, M, C, T>>: std::true_type {};
+struct IsMakeGroup_<MakeGroup<G, M, C>>: std::true_type {};
 
 
 template<typename ...T>

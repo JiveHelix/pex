@@ -3,6 +3,9 @@
 
 #include "pex/traits.h"
 #include "pex/control_value.h"
+#include "pex/detail/value_connection.h"
+#include "pex/detail/signal_connection.h"
+#include "pex/signal.h"
 #include "pex/reference.h"
 
 
@@ -19,9 +22,7 @@ namespace pex
 template<typename Pex, typename enable = void>
 struct MakeControl
 {
-    template<typename O>
-    using Control = control::Value_<O, Pex>;
-
+    using Control = control::Value_<Pex>;
     using Upstream = Pex;
 };
 
@@ -33,9 +34,7 @@ struct MakeControl
     std::enable_if_t<IsControl<Pex>>
 >
 {
-    template<typename O>
-    using Control = control::ChangeObserver<O, Pex>;
-
+    using Control = Pex;
     using Upstream = typename Pex::Upstream;
 };
 
@@ -43,9 +42,7 @@ struct MakeControl
 template<typename Pex>
 struct MakeControl<Pex, std::enable_if_t<IsControlSignal<Pex>>>
 {
-    template<typename O>
-    using Control = control::Signal<O>;
-
+    using Control = control::Signal<>;
     using Upstream = typename Pex::Upstream;
 };
 
@@ -53,10 +50,103 @@ struct MakeControl<Pex, std::enable_if_t<IsControlSignal<Pex>>>
 template<typename Pex>
 struct MakeControl<Pex, std::enable_if_t<IsModelSignal<Pex>>>
 {
-    template<typename O>
-    using Control = control::Signal<O>;
-
+    using Control = control::Signal<>;
     using Upstream = Pex;
+};
+
+
+template<typename Notifier>
+class SignalNotifier: public Notifier
+{
+public:
+    using Callable = typename Notifier::Callable;
+    using Observer = typename Notifier::Observer;
+
+    void ClearConnections()
+    {
+        this->ClearConnections_();
+    }
+
+    Callable GetCallable() const
+    {
+        return this->GetCallable_();
+    }
+
+    static void OnUpstream(void * observer)
+    {
+        // The upstream has signaled.
+        // Notify our observer.
+        auto self = static_cast<SignalNotifier<Notifier> *>(observer);
+        self->Notify_();
+    }
+};
+
+
+template<typename Notifier>
+class ValueNotifier: public Notifier
+{
+public:
+    using Type = typename Notifier::Type;
+    using Callable = typename Notifier::Callable;
+    using Observer = typename Notifier::Observer;
+
+    void ClearConnections()
+    {
+        this->ClearConnections_();
+    }
+
+    Callable GetCallable() const
+    {
+        return this->GetCallable_();
+    }
+
+    static void OnUpstream(
+        void * observer,
+        Argument<Type> value)
+    {
+        // The upstream value has changed.
+        // Update our observer.
+        auto self = static_cast<ValueNotifier<Notifier> *>(observer);
+        self->Notify_(value);
+    }
+};
+
+
+template<typename Observer, typename Control, typename enable = void>
+struct MakeConnection
+{
+    using Connection =
+        ValueConnection
+        <
+            Observer,
+            typename Control::Type,
+            typename Control::Filter
+        >;
+
+    using Notifier =
+        ValueNotifier
+            <
+                detail::NotifyOne<Connection, typename Control::Access>
+            >;
+
+    using Callable = typename Connection::Callable;
+};
+
+
+template<typename Observer, typename Control>
+struct MakeConnection
+    <
+        Observer,
+        Control,
+        std::enable_if_t<IsControlSignal<Control>>
+    >
+{
+    using Connection = detail::SignalConnection<Observer>;
+
+    using Notifier =
+        SignalNotifier<detail::NotifyOne<Connection, GetAndSetTag>>;
+
+    using Callable = typename Connection::Callable;
 };
 
 
@@ -65,11 +155,12 @@ class Terminus_
 {
 
 public:
-    template<typename O>
-    using ControlTemplate =
-        typename MakeControl<Upstream_>::template Control<O>;
+    using ControlType =
+        typename MakeControl<Upstream_>::Control;
 
-    using Callable = typename ControlTemplate<Observer>::Callable;
+    using Connection = MakeConnection<Observer, ControlType>;
+    using Notifier = typename Connection::Notifier;
+    using Callable = typename Connection::Callable;
 
     static constexpr bool isPexCopyable = true;
 
@@ -80,25 +171,50 @@ public:
     Terminus_()
         :
         observer_(nullptr),
-        pex_{}
+        notifier_{},
+        upstreamControl_{}
     {
         PEX_LOG("Terminus default: ", this);
     }
 
-    Terminus_(Observer *observer, const ControlTemplate<void> &pex)
+    Terminus_(Observer *observer, const ControlType &control)
         :
         observer_(observer),
-        pex_(pex)
+        notifier_{},
+        upstreamControl_(control)
     {
-        PEX_LOG("Terminus copy(pex) ctor: ", this);
+        this->upstreamControl_.ClearConnections();
+        PEX_LOG("Terminus copy(control) ctor: ", this);
     }
 
-    Terminus_(Observer *observer, ControlTemplate<void> &&pex)
+    Terminus_(Observer *observer, const ControlType &control, Callable callable)
         :
         observer_(observer),
-        pex_(std::move(pex))
+        notifier_{},
+        upstreamControl_(control)
     {
-        PEX_LOG("Terminus move(pex) ctor: ", this);
+        this->upstreamControl_.ClearConnections();
+        this->Connect(callable);
+    }
+
+    Terminus_(Observer *observer, ControlType &&control)
+        :
+        observer_(observer),
+        notifier_{},
+        upstreamControl_(std::move(control))
+    {
+        this->upstreamControl_.ClearConnections();
+        PEX_LOG("Terminus move(control) ctor: ", this);
+    }
+
+    Terminus_(Observer *observer, ControlType &&control, Callable callable)
+        :
+        observer_(observer),
+        notifier_{},
+        upstreamControl_(std::move(control))
+    {
+        this->upstreamControl_.ClearConnections();
+        this->Connect(callable);
     }
 
     Terminus_(
@@ -106,9 +222,24 @@ public:
         typename MakeControl<Upstream_>::Upstream &upstream)
         :
         observer_(observer),
-        pex_(upstream)
+        notifier_{},
+        upstreamControl_(upstream)
     {
+        this->upstreamControl_.ClearConnections();
         PEX_LOG("Terminus upstream ctor: ", this);
+    }
+
+    Terminus_(
+        Observer *observer,
+        typename MakeControl<Upstream_>::Upstream &upstream,
+        Callable callable)
+        :
+        observer_(observer),
+        notifier_{},
+        upstreamControl_(upstream)
+    {
+        this->upstreamControl_.ClearConnections();
+        this->Connect(callable);
     }
 
     Terminus_(const Terminus_ &other) = delete;
@@ -120,10 +251,20 @@ public:
     Terminus_(Observer *observer, const Terminus_ &other)
         :
         observer_(observer),
-        pex_(other.pex_)
+        notifier_{},
+        upstreamControl_(other.upstreamControl_)
     {
         assert(this != &other);
+        assert(observer);
+
+        this->upstreamControl_.ClearConnections();
+
         PEX_LOG("Terminus copy ctor: ", this, " with ", observer);
+
+        if (other.notifier_.HasConnection())
+        {
+            this->Connect(other.notifier_.GetCallable());
+        }
     }
 
     // Copy construct from other observer
@@ -133,64 +274,15 @@ public:
         const Terminus_<O, Upstream_> &other)
         :
         observer_(observer),
-        pex_(other.pex_)
+        notifier_{},
+        upstreamControl_(other.upstreamControl_)
     {
         PEX_LOG("Terminus copy ctor: ", this, " with ", observer);
-    }
+        assert(observer);
 
-    // Copy construct from other observer
-    template<typename O>
-    Terminus_(
-        Observer *observer,
-        const Terminus_<O, control::ChangeObserver<O, Upstream_>> &other)
-        :
-        observer_(observer),
-        pex_(other.pex_)
-    {
-        PEX_LOG("Terminus copy ctor: ", this, " with ", observer);
-    }
+        this->upstreamControl_.ClearConnections();
 
-    // Move construct
-    Terminus_(Observer *observer, Terminus_ &&other)
-        :
-        observer_(observer),
-        pex_()
-    {
-        assert(this != &other);
-        PEX_LOG("Terminus move ctor: ", this, " with ", observer);
-        other.Disconnect();
-        this->pex_ = std::move(other.pex_);
-        other.observer_ = nullptr;
-    }
-
-    // Move construct from other observer
-    template<typename O>
-    Terminus_(
-        Observer *observer,
-        const Terminus_<O, Upstream_> &&other)
-        :
-        observer_(observer),
-        pex_()
-    {
-        PEX_LOG("Terminus move ctor: ", this, " with ", observer);
-        other.Disconnect();
-        this->pex_ = std::move(other.pex_);
-        other.observer_ = nullptr;
-    }
-
-    // Move construct from other observer
-    template<typename O>
-    Terminus_(
-        Observer *observer,
-        const Terminus_<O, control::ChangeObserver<O, Upstream_>> &&other)
-        :
-        observer_(observer),
-        pex_()
-    {
-        PEX_LOG("Terminus move ctor: ", this, " with ", observer);
-        other.Disconnect();
-        this->pex_ = std::move(other.pex_);
-        other.observer_ = nullptr;
+        // There is no way to copy the callable from a different observer.
     }
 
     // Copy assign
@@ -208,101 +300,53 @@ public:
 
         this->Disconnect();
         this->observer_ = observer;
-        this->pex_ = other.pex_;
+        this->upstreamControl_ = other.upstreamControl_;
+        this->upstreamControl_.ClearConnections();
 
-        return *this;
-    }
-
-    // Copy assign
-    template<typename O>
-    Terminus_ & Assign(
-        Observer *observer,
-        const Terminus_<O, control::ChangeObserver<O, Upstream_>> &other)
-    {
         if constexpr (std::is_same_v<Observer, O>)
         {
-            assert(this != &other);
+            if (other.notifier_.HasConnection())
+            {
+                this->Connect(other.notifier_.GetCallable());
+            }
         }
-
-        PEX_LOG("Terminus copy assign: ", this);
-
-        this->Disconnect();
-        this->observer_ = observer;
-        this->pex_ = other.pex_;
+        // else
+        // There is no way to copy the callable from a different observer.
 
         return *this;
-    }
 
-    // Move assign
-    template<typename O>
-    Terminus_ & Assign(
-        Observer *observer,
-        Terminus_<O, Upstream_> &&other)
-    {
-        if constexpr (std::is_same_v<Observer, O>)
-        {
-            assert(this != &other);
-        }
-
-        PEX_LOG("Terminus move assign: ", this);
-
-        this->Disconnect();
-        other.Disconnect();
-
-        this->observer_ = observer;
-        other.observer_ = nullptr;
-
-        this->pex_ = std::move(other.pex_);
-
-        PEX_LOG("pex_: ", &this->pex_);
-
-        return *this;
-    }
-
-    // Move assign
-    template<typename O>
-    Terminus_ & Assign(
-        Observer *observer,
-        Terminus_<O, control::ChangeObserver<O, Upstream_>> &&other)
-    {
-        if constexpr (std::is_same_v<Observer, O>)
-        {
-            assert(this != &other);
-        }
-
-        PEX_LOG("Terminus move assign: ", this);
-
-        this->Disconnect();
-        other.Disconnect();
-
-        this->observer_ = observer;
-        other.observer_ = nullptr;
-
-        this->pex_ = std::move(other.pex_);
-
-        PEX_LOG("pex_: ", &this->pex_);
-
-        return *this;
     }
 
     ~Terminus_()
     {
-        PEX_LOG("Terminus destroy: ", this, ", pex_: ", &this->pex_);
         this->Disconnect();
     }
 
     void Disconnect()
     {
-        if (this->observer_)
-        {
-            PEX_LOG(
-                "Terminus_ Disconnect: ",
-                this->observer_,
-                " from ",
-                &this->pex_);
+        this->upstreamControl_.Disconnect(&this->notifier_);
+        this->notifier_.ClearConnections();
+    }
 
-            this->pex_.Disconnect(this->observer_);
-        }
+    bool HasModel() const
+    {
+        return this->upstreamControl_.HasModel();
+    }
+
+    explicit operator ControlType () const
+    {
+        // return ControlType(this->upstreamControl_);
+        return this->upstreamControl_;
+    }
+
+    const ControlType & GetUpstream() const
+    {
+        return this->upstreamControl_;
+    }
+
+    Observer * GetObserver()
+    {
+        return this->observer_;
     }
 
     void Connect(Callable callable)
@@ -312,42 +356,15 @@ public:
             throw std::runtime_error("Terminus has no observer.");
         }
 
-        if constexpr (!std::is_void_v<Observer>)
+        if (!this->upstreamControl_.HasObserver(&this->notifier_))
         {
-
-            PEX_LOG(
-                "Connect to: ",
-                &this->pex_,
-                " with observer ",
-                Observer::observerName,
-                ": ",
-                this->observer_);
-        }
-        else
-        {
-            PEX_LOG(
-                "Connect to: ",
-                &this->pex_,
-                " with observer: ",
-                this->observer_);
+            // Connect ourselves to the upstream.
+            this->upstreamControl_.Connect(
+                &this->notifier_,
+                &Notifier::OnUpstream);
         }
 
-        this->pex_.Connect(this->observer_, callable);
-    }
-
-    bool HasModel() const
-    {
-        return this->pex_.HasModel();
-    }
-
-    explicit operator ControlTemplate<void> () const
-    {
-        return ControlTemplate<void>(this->pex_);
-    }
-
-    Observer * GetObserver()
-    {
-        return this->observer_;
+        this->notifier_.Connect(this->observer_, callable);
     }
 
     template
@@ -361,9 +378,10 @@ public:
 
 private:
     Observer *observer_;
+    Notifier notifier_;
 
 protected:
-    ControlTemplate<Observer> pex_;
+    ControlType upstreamControl_;
 };
 
 
@@ -377,36 +395,37 @@ template
 struct ImplementInterface
 {
     using Derived = Derived_<Observer, Upstream_>;
-    using Pex = typename MakeControl<Upstream_>::template Control<Observer>;
-    using Type = typename Pex::Type;
-    using Filter = typename Pex::Filter;
+    using Upstream = typename MakeControl<Upstream_>::Control;
+    using Type = typename Upstream::Type;
+    using Filter = typename Upstream::Filter;
+    using Access = typename Upstream::Access;
 
     Type Get() const
     {
-        return static_cast<const Derived *>(this)->pex_.Get();
+        return static_cast<const Derived *>(this)->upstreamControl_.Get();
     }
 
     void Set(pex::Argument<Type> value)
     {
-        static_cast<Derived *>(this)->pex_.Set(value);
+        static_cast<Derived *>(this)->upstreamControl_.Set(value);
     }
 
     explicit operator Type () const
     {
-        return Type(static_cast<const Derived *>(this)->pex_);
+        return Type(static_cast<const Derived *>(this)->upstreamControl_);
     }
 
 protected:
     void SetWithoutNotify_(Argument<Type> value)
     {
-        detail::AccessReference<Pex>(
-            static_cast<Derived *>(this)->pex_).SetWithoutNotify(value);
+        detail::AccessReference<Upstream>(
+            static_cast<Derived *>(this)->upstreamControl_).SetWithoutNotify(value);
     }
 
     void DoNotify_()
     {
-        detail::AccessReference<Pex>(
-            static_cast<Derived *>(this)->pex_).DoNotify();
+        detail::AccessReference<Upstream>(
+            static_cast<Derived *>(this)->upstreamControl_).DoNotify();
     }
 };
 
@@ -427,11 +446,13 @@ struct ImplementInterface
 {
 public:
     using Derived = Derived_<Observer, Upstream_>;
-    using Pex = typename MakeControl<Upstream_>::template Control<Observer>;
+    using Upstream = typename MakeControl<Upstream_>::Control;
+    using Connection = detail::SignalConnection<Observer>;
+    using Callable = typename Connection::Callable;
 
     void Trigger()
     {
-        static_cast<Derived *>(this)->pex_.Trigger();
+        static_cast<Derived *>(this)->upstreamControl_.Trigger();
     }
 };
 
@@ -446,16 +467,61 @@ public:
     using Base = Terminus_<Observer, Upstream_>;
     using Base::Base;
 
+    using Callable = typename Base::Callable;
+
+    using ControlType = typename Base::ControlType;
+
+    using UpstreamControl =
+        typename MakeControl<Upstream_>::Control;
+
     Terminus(Observer *observer, const Terminus &other)
-        : Base(observer, other)
+        :
+        Base(observer, other)
     {
+
     }
 
-    Terminus(Observer *observer, Terminus &&other)
-        : Base(observer, std::move(other))
+    Terminus(Observer *observer, const ControlType &pex, Callable callable)
+        :
+        Base(observer, pex, callable)
     {
+
     }
 
+
+    Terminus(Observer *observer, ControlType &&pex)
+        :
+        Base(observer, std::move(pex))
+    {
+
+    }
+
+    Terminus(Observer *observer, ControlType &&pex, Callable callable)
+        :
+        Base(observer, std::move(pex), callable)
+    {
+
+    }
+
+    Terminus(
+        Observer *observer,
+        typename MakeControl<Upstream_>::Upstream &upstream)
+        :
+        Base(observer, upstream)
+    {
+
+    }
+
+    Terminus(
+        Observer *observer,
+        typename MakeControl<Upstream_>::Upstream &upstream,
+        Callable callable)
+        :
+        Base(observer, upstream, callable)
+    {
+
+    }
+#if 0
     template <typename O>
     Terminus & Assign(Observer *observer, const Terminus<O, Upstream_> &other)
     {
@@ -466,27 +532,12 @@ public:
     template <typename O>
     Terminus & Assign(
         Observer *observer,
-        const Terminus<O, control::ChangeObserver<O, Upstream_>> &other)
-    {
-        Base::Assign(observer, other);
-        return *this;
-    }
-
-    template <typename O>
-    Terminus & Assign(Observer *observer, Terminus<O, Upstream_> &&other)
+        Terminus<O, Upstream_> &&other)
     {
         Base::Assign(observer, std::move(other));
         return *this;
     }
-
-    template <typename O>
-    Terminus & Assign(
-        Observer *observer,
-        Terminus<O, control::ChangeObserver<O, Upstream_>> &&other)
-    {
-        Base::Assign(observer, std::move(other));
-        return *this;
-    }
+#endif
 
     template<typename>
     friend class Reference;

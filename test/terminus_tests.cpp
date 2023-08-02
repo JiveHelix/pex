@@ -8,7 +8,7 @@
 
 
 using Model = pex::model::Value<int>;
-using Control = pex::control::Value<void, Model>;
+using Control = pex::control::Value<Model>;
 
 template<typename Observer>
 using Terminus = pex::Terminus<Observer, Control>;
@@ -99,7 +99,7 @@ using TerminusTestGroup = pex::Group<TestFields, TestTemplate>;
 using TerminusTestPlain = TerminusTestGroup::Plain;
 
 DECLARE_OUTPUT_STREAM_OPERATOR(TerminusTestPlain)
-DECLARE_COMPARISON_OPERATORS(TerminusTestPlain)
+DECLARE_EQUALITY_OPERATORS(TerminusTestPlain)
 
 using TerminusTestModel = TerminusTestGroup::Model;
 using TerminusGroupObserver = TestObserver<TerminusTestModel>;
@@ -179,7 +179,7 @@ TEST_CASE("Terminus group uses new observer after copy.", "[terminus]")
 #endif
 
 
-using GroupControl = typename TerminusTestGroup::Control<void>;
+using GroupControl = typename TerminusTestGroup::Control;
 using AggregateObserver = TestObserver<GroupControl>;
 
 // This tests that GroupControl can be passed by copy, then used to create

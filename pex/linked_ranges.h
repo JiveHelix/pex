@@ -10,6 +10,31 @@ namespace pex
 {
 
 
+template<typename T>
+struct LinkedRangesFields
+{
+    static constexpr auto fields = std::make_tuple(
+        fields::Field(&T::low, "low"),
+        fields::Field(&T::high, "high"));
+};
+
+
+template<typename T>
+struct LinkedRangesSettings
+{
+    T low;
+    T high;
+
+    static constexpr auto fields =
+        LinkedRangesFields<LinkedRangesSettings>::fields;
+
+    static constexpr auto fieldsTypeName = "LinkedRanges";
+};
+
+
+TEMPLATE_COMPARISON_OPERATORS(LinkedRangesSettings)
+
+
 template
 <
     typename Type,
@@ -21,12 +46,7 @@ template
 struct LinkedRanges
 {
     template<typename T>
-    struct Fields
-    {
-        static constexpr auto fields = std::make_tuple(
-            fields::Field(&T::low, "low"),
-            fields::Field(&T::high, "high"));
-    };
+    using Fields = LinkedRangesFields<T>;
 
     template<template<typename> typename T>
     struct Template
@@ -34,11 +54,11 @@ struct LinkedRanges
         T<pex::MakeRange<Type, LowLimit, HighLimit>> low;
         T<pex::MakeRange<Type, LowLimit, HighLimit>> high;
 
-        static constexpr auto fields = Fields<Template>::fields;
+        static constexpr auto fields = LinkedRangesFields<Template>::fields;
         static constexpr auto fieldsTypeName = "LinkedRanges";
     };
 
-    struct Settings: public Template<pex::Identity>
+    struct Settings: public LinkedRangesSettings<Type>
     {
         static Settings Default()
         {
@@ -103,12 +123,7 @@ struct LinkedRanges
     };
 
     using GroupMaker = pex::MakeGroup<Group, Model>;
-
-    template<typename Observer>
-    using Control = typename Group::template Control<Observer>;
-
-    template<typename Observer>
-    using Terminus = typename Group::template Terminus<Observer>;
+    using Control = typename Group::Control;
 };
 
 

@@ -35,7 +35,7 @@ namespace pex
 namespace control
 {
 
-template<typename, typename, typename, typename>
+template<typename, typename, typename>
 class Range;
 
 
@@ -71,16 +71,6 @@ struct Limit
 
 namespace model
 {
-
-
-template
-<
-    typename,
-    typename,
-    typename,
-    template<typename, typename> typename
->
-class RangeAccess;
 
 
 template<typename T>
@@ -390,7 +380,7 @@ public:
         return this->minimum_.Get();
     }
 
-    template<typename, typename, typename, typename>
+    template<typename, typename, typename>
     friend class ::pex::control::Range;
 
     template<typename, typename>
@@ -398,15 +388,6 @@ public:
 
     template<typename>
     friend class ::pex::Reference;
-
-    template
-    <
-        typename,
-        typename,
-        typename,
-        template<typename, typename> typename
-    >
-    friend class ::pex::model::RangeAccess;
 
 private:
     void SetWithoutNotify_(Argument<Type> value)
@@ -423,53 +404,6 @@ private:
     Value value_;
     Limit minimum_;
     Limit maximum_;
-};
-
-
-template
-<
-    typename T,
-    typename Minimum,
-    typename Maximum,
-    template<typename, typename> typename Value_
->
-class RangeAccess
-{
-protected:
-    using RangeType = Range<T, Minimum, Maximum, Value_>;
-    using Value = typename RangeType::Value;
-    using Limit = typename RangeType::Limit;
-
-    RangeAccess(RangeType &range)
-        :
-        range_(&range)
-    {
-
-    }
-
-    RangeAccess(const RangeAccess &) = delete;
-    RangeAccess & operator=(const RangeAccess &) = delete;
-
-    RangeAccess(RangeAccess &&) = delete;
-    RangeAccess & operator=(RangeAccess &&) = delete;
-
-    Value & GetValue()
-    {
-        return this->range_->value_;
-    }
-
-    Limit & GetMinimum()
-    {
-        return this->range_->minimum_;
-    }
-
-    Limit & GetMaximum()
-    {
-        return this->range_->maximum_;
-    }
-
-private:
-    RangeType *range_;
 };
 
 
@@ -686,10 +620,59 @@ struct Bounds
 namespace control
 {
 
+template<typename T, typename Enable = std::void_t<>>
+struct HasControl_: std::false_type {};
+
+template<typename T>
+struct HasControl_
+<
+    T,
+    std::void_t<typename T::Control>
+>
+: std::true_type {};
+
+template<typename T>
+inline constexpr bool HasControl = HasControl_<T>::value;
+
 
 template
 <
-    typename Observer,
+    typename Value,
+    typename Filter,
+    typename Access,
+    typename Enable = std::void_t<>
+>
+struct ValueControl_
+{
+    using Type = pex::control::FilteredValue<Value, Filter, Access>;
+};
+
+
+template
+<
+    typename Value,
+    typename Filter,
+    typename Access
+>
+struct ValueControl_
+    <
+        Value,
+        Filter,
+        Access,
+        std::void_t<typename Value::template FilteredControl<Filter, Access>>
+    >
+{
+    using Type = typename Value::template FilteredControl<Filter, Access>;
+};
+
+
+template<typename ...Args>
+using ValueControl = typename ValueControl_<Args...>::Type;
+
+
+
+template
+<
     typename Upstream_,
     typename Filter_ = NoFilter,
     typename Access_ = pex::GetAndSetTag
@@ -708,20 +691,12 @@ public:
         pex::detail::FilterIsNoneOrStatic<Type, Filter, Access>,
         "This class is designed for free function filters.");
 
-    using Value =
-        pex::control::FilteredValue
-        <
-            Observer,
-            typename Upstream::Value,
-            Filter,
-            Access
-        >;
+    using Value = ValueControl<typename Upstream::Value, Filter, Access>;
 
     // Read-only Limit type for accessing range bounds.
     using Limit =
         pex::control::FilteredValue
         <
-            Observer,
             typename Upstream::Limit,
             Filter,
             pex::GetTag
@@ -747,8 +722,8 @@ public:
         }
     }
 
-    template<typename OtherObserver, typename OtherFilter, typename OtherAccess>
-    Range(const Range<OtherObserver, Upstream, OtherFilter, OtherAccess> &other)
+    template<typename OtherFilter, typename OtherAccess>
+    Range(const Range<Upstream, OtherFilter, OtherAccess> &other)
         :
         value(other.value),
         minimum(other.minimum),
@@ -757,9 +732,9 @@ public:
 
     }
 
-    template<typename OtherObserver, typename OtherFilter, typename OtherAccess>
+    template<typename OtherFilter, typename OtherAccess>
     Range & operator=(
-        const Range<OtherObserver, Upstream, OtherFilter, OtherAccess> &other)
+        const Range<Upstream, OtherFilter, OtherAccess> &other)
     {
         this->value = other.value;
         this->minimum = other.minimum;
@@ -773,12 +748,17 @@ public:
         return this->value.Get();
     }
 
-    void Connect(Observer *observer, Callable callable)
+    bool HasObserver(void *observer)
+    {
+        return this->value.HasObserver(observer);
+    }
+
+    void Connect(void *observer, Callable callable)
     {
         this->value.Connect(observer, callable);
     }
 
-    void Disconnect(Observer *observer)
+    void Disconnect(void *observer)
     {
         this->value.Disconnect(observer);
     }
@@ -813,6 +793,13 @@ public:
             this->maximum.Get()};
     }
 
+    void ClearConnections()
+    {
+        this->value.ClearConnections();
+        this->minimum.ClearConnections();
+        this->maximum.ClearConnections();
+    }
+
     Value value;
     Limit minimum;
     Limit maximum;
@@ -836,14 +823,12 @@ private:
 // Converts values directly between model type and control type.
 template
 <
-    typename Observer,
     typename Upstream,
     typename Converted,
     typename Access = pex::GetAndSetTag
 >
 using ConvertingRange = Range
     <
-        Observer,
         Upstream,
         ConvertingFilter<typename Upstream::Value::Type, Converted>,
         Access
@@ -853,14 +838,13 @@ using ConvertingRange = Range
 template
 <
     typename Converted,
-    typename Observer,
     typename Upstream,
     typename Filter,
     typename Access
 >
-auto MakeConvertingRange(Range<Observer, Upstream, Filter, Access> range)
+auto MakeConvertingRange(Range<Upstream, Filter, Access> range)
 {
-    using Result = ConvertingRange<Observer, Upstream, Converted, Access>;
+    using Result = ConvertingRange<Upstream, Converted, Access>;
     return Result(range);
 }
 
@@ -868,14 +852,12 @@ auto MakeConvertingRange(Range<Observer, Upstream, Filter, Access> range)
 // Maps control values linearly between minimum and maximum model values.
 template
 <
-    typename Observer,
     typename Upstream,
     ssize_t slope,
     typename Access = pex::GetAndSetTag
 >
 using LinearRange = Range
     <
-        Observer,
         Upstream,
         LinearFilter<typename Upstream::Value::Type, slope>,
         Access
@@ -884,14 +866,12 @@ using LinearRange = Range
 
 template
 <
-    typename Observer,
     typename Upstream,
     unsigned base,
     unsigned divisor
 >
 using LogarithmicRange = Range
     <
-        Observer,
         Upstream,
         LogarithmicFilter<typename Upstream::Value::Type, base, divisor>
     >;
@@ -913,9 +893,7 @@ inline constexpr bool IsControlRange = IsControlRange_<T...>::value;
 template<typename P>
 struct MakeControl<P, std::enable_if_t<IsModelRange<P>>>
 {
-    template<typename O>
-    using Control = control::Range<O, P>;
-
+    using Control = control::Range<P>;
     using Upstream = P;
 };
 
@@ -923,25 +901,26 @@ struct MakeControl<P, std::enable_if_t<IsModelRange<P>>>
 template<typename P>
 struct MakeControl<P, std::enable_if_t<IsControlRange<P>>>
 {
-    template<typename O>
-    using Control = control::ChangeObserver<O, P>;
-
+    using Control = P;
     using Upstream = typename P::Upstream;
 };
 
 
-template<typename Observer, typename Upstream>
+template<typename P>
+inline constexpr bool IsRange = IsControlRange<P> || IsModelRange<P>;
+
+
+template<typename Observer, typename Upstream_>
 class RangeTerminus
 {
 public:
-    template<typename O>
-    using ControlTemplate = typename MakeControl<Upstream>::template Control<O>;
+    using ControlTemplate = typename MakeControl<Upstream_>::Control;
 
-    using Pex = ControlTemplate<Observer>;
-    using Value = pex::Terminus<Observer, typename Pex::Value>;
-    using Limit = pex::Terminus<Observer, typename Pex::Limit>;
-    using Type = typename Upstream::Type;
-    using Callable = typename Pex::Callable;
+    using Upstream = typename MakeControl<Upstream_>::Upstream;
+    using Value = pex::Terminus<Observer, typename ControlTemplate::Value>;
+    using Limit = pex::Terminus<Observer, typename ControlTemplate::Limit>;
+    using Type = typename ControlTemplate::Type;
+    using Callable = typename Value::Callable;
 
     Value value;
     Limit minimum;
@@ -958,7 +937,7 @@ public:
 
     }
 
-    RangeTerminus(Observer *observer, const ControlTemplate<void> &pex)
+    RangeTerminus(Observer *observer, const ControlTemplate &pex)
         :
         value(observer, pex.value),
         minimum(observer, pex.minimum),
@@ -967,7 +946,19 @@ public:
 
     }
 
-    RangeTerminus(Observer *observer, ControlTemplate<void> &&pex)
+    RangeTerminus(
+        Observer *observer,
+        const ControlTemplate &pex,
+        Callable callable)
+        :
+        value(observer, pex.value, callable),
+        minimum(observer, pex.minimum),
+        maximum(observer, pex.maximum)
+    {
+
+    }
+
+    RangeTerminus(Observer *observer, ControlTemplate &&pex)
         :
         value(observer, std::move(pex.value)),
         minimum(observer, std::move(pex.minimum)),
@@ -978,7 +969,7 @@ public:
 
     RangeTerminus(
         Observer *observer,
-        typename MakeControl<Upstream>::Upstream &upstream)
+        typename MakeControl<Upstream_>::Upstream &upstream)
         :
         value(observer, upstream.value_),
         minimum(observer, upstream.minimum_),
@@ -1006,7 +997,7 @@ public:
     template<typename O>
     RangeTerminus(
         Observer *observer,
-        const RangeTerminus<O, Upstream> &other)
+        const RangeTerminus<O, Upstream_> &other)
         :
         value(observer, other.value),
         minimum(observer, other.minimum),
@@ -1029,7 +1020,7 @@ public:
     template<typename O>
     RangeTerminus(
         Observer *observer,
-        RangeTerminus<O, Upstream> &&other)
+        RangeTerminus<O, Upstream_> &&other)
         :
         value(observer, std::move(other.value)),
         minimum(observer, std::move(other.minimum)),
@@ -1039,23 +1030,9 @@ public:
     }
 
     // Copy assign
-    template<typename O>
     RangeTerminus & Assign(
         Observer *observer,
-        const RangeTerminus<O, Upstream> &other)
-    {
-        this->value.Assign(observer, other.value);
-        this->minimum.Assign(observer, other.minimum);
-        this->maximum.Assign(observer, other.maximum);
-
-        return *this;
-    }
-
-    // Copy assign
-    template<typename O>
-    RangeTerminus & Assign(
-        Observer *observer,
-        const RangeTerminus<O, control::ChangeObserver<O, Upstream>> &other)
+        const RangeTerminus<Observer, Upstream_> &other)
     {
         this->value.Assign(observer, other.value);
         this->minimum.Assign(observer, other.minimum);
@@ -1065,23 +1042,9 @@ public:
     }
 
     // Move assign
-    template<typename O>
     RangeTerminus & Assign(
         Observer *observer,
-        RangeTerminus<O, Upstream> &&other)
-    {
-        this->value.Assign(observer, std::move(other.value));
-        this->minimum.Assign(observer, std::move(other.minimum));
-        this->maximum.Assign(observer, std::move(other.maximum));
-
-        return *this;
-    }
-
-    // Move assign
-    template<typename O>
-    RangeTerminus & Assign(
-        Observer *observer,
-        RangeTerminus<O, control::ChangeObserver<O, Upstream>> &&other)
+        RangeTerminus<Observer, Upstream_> &&other)
     {
         this->value.Assign(observer, std::move(other.value));
         this->minimum.Assign(observer, std::move(other.minimum));
@@ -1100,16 +1063,12 @@ public:
         return this->value.Get();
     }
 
-    template<typename OtherObserver>
-    explicit operator ControlTemplate<OtherObserver> () const
+    explicit operator ControlTemplate () const
     {
-        using ControlValue = typename ControlTemplate<OtherObserver>::Value;
-        using ControlLimit = typename ControlTemplate<OtherObserver>::Limit;
-
-        ControlTemplate<OtherObserver> result;
-        result.value = ControlValue(this->value);
-        result.minimum = ControlLimit(this->minimum);
-        result.maximum = ControlLimit(this->maximum);
+        ControlTemplate result;
+        result.value = this->value;
+        result.minimum = this->minimum;
+        result.maximum = this->maximum;
 
         return result;
     }

@@ -21,14 +21,15 @@ namespace pex
 {
 
 
+template<typename>
+class ConstControlReference;
+
+
 namespace control
 {
 
 
-
-
 template<
-    typename Observer_,
     typename Upstream_,
     typename Filter_ = NoFilter,
     typename Access_ = GetAndSetTag
@@ -39,7 +40,7 @@ class Value_
     <
         ValueConnection
         <
-            Observer_,
+            void,
             typename UpstreamHolderT<Upstream_>::Type,
             Filter_
         >,
@@ -47,34 +48,44 @@ class Value_
     >
 {
 public:
+    using Upstream = Upstream_;
+
     // This may not ultimately be true depending on the type of filter used.
     // See pex/traits.h for details.
     static constexpr bool isPexCopyable = true;
 
-    using Observer = Observer_;
-    using Upstream = Upstream_;
+    // When Upstream_ is copyable, usually (always?) a control::Value_,
+    // copy/move construct and copy/move assign must call ClearConnections
+    // on this->upstream_ after the copy.
+    // We may have copied connections made to upstream_ by other, and we no
+    // longer need them.
+    static constexpr bool mustClearConnections = IsCopyable<Upstream>;
 
     // If Upstream_ is a already a control::Value_, then UpstreamHolder is that
     // control::Value_, else it is Direct<Upstream>
     using UpstreamHolder = UpstreamHolderT<Upstream_>;
+
     using Filter = Filter_;
     using Access = Access_;
-    using This = Value_<Observer, Upstream_, Filter, Access>;
+    using This = Value_<Upstream_, Filter, Access>;
 
     using UpstreamType = typename UpstreamHolder::Type;
     using Type = detail::FilteredType<UpstreamType, Filter>;
 
-    using Connection = ValueConnection<Observer, UpstreamType, Filter>;
+    using Connection = ValueConnection<void, UpstreamType, Filter>;
     using Base = detail::NotifyMany<Connection, Access>;
 
     using Callable = typename Connection::Callable;
 
     // Make any template specialization of Value_ a 'friend' class.
-    template <typename, typename, typename, typename>
+    template <typename, typename, typename>
     friend class ::pex::control::Value_;
 
     template<typename>
     friend class ::pex::Reference;
+
+    template<typename>
+    friend class ::pex::ConstControlReference;
 
     // A control::Value with a stateful filter cannot be copied, so it can be
     // managed by Direct when needed.
@@ -93,7 +104,10 @@ public:
         upstream_(pex),
         filter_()
     {
-
+        if constexpr (mustClearConnections)
+        {
+            this->upstream_.ClearConnections();
+        }
     }
 
     explicit Value_(PexArgument<Upstream> pex, Filter filter)
@@ -101,7 +115,10 @@ public:
         upstream_(pex),
         filter_(filter)
     {
-
+        if constexpr (mustClearConnections)
+        {
+            this->upstream_.ClearConnections();
+        }
     }
 
     ~Value_()
@@ -116,12 +133,12 @@ public:
     }
 
     /**
-     ** Allow copy and assignment from another Value that may have different
-     ** observers and filters, but tracks the same model.
+     ** Allow copy and assignment from another Value that has a different
+     ** filter, but tracks the same model.
      **/
-    template<typename OtherObserver, typename OtherFilter, typename OtherAccess>
+    template<typename OtherFilter, typename OtherAccess>
     Value_(
-        const Value_<OtherObserver, Upstream, OtherFilter, OtherAccess> &other)
+        const Value_<Upstream, OtherFilter, OtherAccess> &other)
         :
         upstream_(other.upstream_),
         filter_()
@@ -132,20 +149,31 @@ public:
             "Cannot copy from another value without equal or greater access.");
 
         // You can replace a filter with another filter, but only if it uses
-        // static functions?
+        // static functions.
         static_assert(
             IsCopyable
             <
-                Value_<OtherObserver, Upstream, OtherFilter, OtherAccess>
+                Value_<Upstream, OtherFilter, OtherAccess>
             >,
             "Value is not copyable.");
 
-        if constexpr (HasAccess<GetTag, Access>)
+        if constexpr (mustClearConnections)
         {
+            this->upstream_.ClearConnections();
+        }
+
+        using OtherType = detail::FilteredType<UpstreamType, OtherFilter>;
+
+        if constexpr (
+            HasAccess<GetTag, Access>
+            && std::is_same_v<OtherType, Type>)
+        {
+            this->connections_ = other.connections_;
+
             if (this->HasConnections())
             {
                 PEX_LOG(
-                    "Copy from OtherObserver: ",
+                    "Copy from OtherFilter: ",
                     this,
                     " to ",
                     &this->upstream_);
@@ -156,28 +184,38 @@ public:
     }
 
     // Enable the assignment operator if the other has access at or above ours.
-    template<typename OtherObserver, typename OtherFilter, typename OtherAccess>
+    template<typename OtherFilter, typename OtherAccess>
     std::enable_if_t
     <
         HasAccess<Access, OtherAccess>
         && IsCopyable
         <
-            Value_<OtherObserver, Upstream, OtherFilter, OtherAccess>
+            Value_<Upstream, OtherFilter, OtherAccess>
         >,
         Value_ &
     >
     operator=(
-        const Value_<OtherObserver, Upstream, OtherFilter, OtherAccess> &other)
+        const Value_<Upstream, OtherFilter, OtherAccess> &other)
     {
         PEX_LOG("Disconnect ", this);
         this->upstream_.Disconnect(this);
         this->upstream_ = other.upstream_;
 
-        if constexpr (HasAccess<GetTag, Access>)
+        if constexpr (mustClearConnections)
         {
+            this->upstream_.ClearConnections();
+        }
+
+        using OtherType = detail::FilteredType<UpstreamType, OtherFilter>;
+
+        if constexpr (
+            HasAccess<GetTag, Access>
+            && std::is_same_v<OtherType, Type>)
+        {
+            this->connections_ = other.connections_;
+
             if (this->HasConnections())
             {
-                PEX_LOG("Connect ", this);
                 this->upstream_.Connect(this, &Value_::OnUpstreamChanged_);
             }
         }
@@ -185,14 +223,103 @@ public:
         return *this;
     }
 
+
+    /**
+     ** Allow copy and assignment from another Value that has a different
+     ** filter, but tracks the same model.
+     **/
+    template<typename OtherFilter, typename OtherAccess>
+    Value_(Value_<Upstream, OtherFilter, OtherAccess> &&other)
+        :
+        upstream_(std::move(other.upstream_)),
+        filter_()
+    {
+        // Allow the copy if the other has access at or above ours.
+        static_assert(
+            HasAccess<Access, OtherAccess>,
+            "Cannot copy from another value without equal or greater access.");
+
+        // You can replace a filter with another filter, but only if it uses
+        // static functions.
+        static_assert(
+            IsCopyable
+            <
+                Value_<Upstream, OtherFilter, OtherAccess>
+            >,
+            "Value cannot be moved.");
+
+        if constexpr (mustClearConnections)
+        {
+            this->upstream_.ClearConnections();
+        }
+
+        using OtherType = detail::FilteredType<UpstreamType, OtherFilter>;
+
+        if constexpr (
+            HasAccess<GetTag, Access>
+            && std::is_same_v<OtherType, Type>)
+        {
+            this->connections_ = other.connections_;
+
+            if (this->HasConnections())
+            {
+                this->upstream_.Connect(this, &Value_::OnUpstreamChanged_);
+            }
+        }
+    }
+
+    // Enable the assignment operator if the other has access at or above ours.
+    template<typename OtherFilter, typename OtherAccess>
+    std::enable_if_t
+    <
+        HasAccess<Access, OtherAccess>
+        && IsCopyable
+        <
+            Value_<Upstream, OtherFilter, OtherAccess>
+        >,
+        Value_ &
+    >
+    operator=(Value_<Upstream, OtherFilter, OtherAccess> &&other)
+    {
+        PEX_LOG("Disconnect ", this);
+        this->upstream_.Disconnect(this);
+        this->upstream_ = std::move(other.upstream_);
+
+        using OtherType = detail::FilteredType<UpstreamType, OtherFilter>;
+
+        if constexpr (mustClearConnections)
+        {
+            this->upstream_.ClearConnections();
+        }
+
+        if constexpr (
+            HasAccess<GetTag, Access>
+            && std::is_same_v<OtherType, Type>)
+        {
+            this->connections_ = other.connections_;
+
+            if (this->HasConnections())
+            {
+                this->upstream_.Connect(this, &Value_::OnUpstreamChanged_);
+            }
+        }
+
+        return *this;
+    }
+
+
     Value_(const Value_ &other)
         :
+        Base(other),
         upstream_(other.upstream_),
         filter_()
     {
-        static_assert(
-            IsCopyable<Value_>,
-            "This value is not copyable.");
+        static_assert(IsCopyable<Value_>, "This value is not copyable.");
+
+        if constexpr (mustClearConnections)
+        {
+            this->upstream_.ClearConnections();
+        }
 
         if constexpr (HasAccess<GetTag, Access>)
         {
@@ -206,9 +333,20 @@ public:
 
     Value_(Value_ &&other)
         :
+        Base(std::move(other)),
         upstream_(std::move(other.upstream_)),
         filter_(std::move(other.filter_))
     {
+        // Yes, this is a move constructor.
+        // A control::Value with member-function filter is neither copyable nor
+        // move-able.
+        static_assert(IsCopyable<Value_>, "This value cannot be moved.");
+
+        if constexpr (mustClearConnections)
+        {
+            this->upstream_.ClearConnections();
+        }
+
         if constexpr (HasAccess<GetTag, Access>)
         {
             if (this->HasConnections())
@@ -221,17 +359,23 @@ public:
 
     Value_ & operator=(const Value_ &other)
     {
-        static_assert(
-            IsCopyable<Value_>,
-            "This value is not copyable.");
+        static_assert(IsCopyable<Value_>, "This value is not copyable.");
 
+        // Sanity check
         static_assert(
             !detail::FilterIsMember<UpstreamType, Filter>,
             "IsCopyable implies that Filter uses static functions.");
 
+        this->Base::operator=(other);
+
         PEX_LOG("Disconnect ", this);
         this->upstream_.Disconnect(this);
         this->upstream_ = other.upstream_;
+
+        if constexpr (mustClearConnections)
+        {
+            this->upstream_.ClearConnections();
+        }
 
         if constexpr (HasAccess<GetTag, Access>)
         {
@@ -249,10 +393,20 @@ public:
 
     Value_ & operator=(Value_ &&other)
     {
+        static_assert(IsCopyable<Value_>, "This value cannot be moved.");
+
+        this->Base::operator=(std::move(other));
+
         PEX_LOG("control::Value_ move assign: Disconnect ", this);
+
         this->upstream_.Disconnect(this);
         this->upstream_ = std::move(other.upstream_);
         this->filter_ = std::move(other.filter_);
+
+        if constexpr (mustClearConnections)
+        {
+            this->upstream_.ClearConnections();
+        }
 
         if constexpr (HasAccess<GetTag, Access>)
         {
@@ -268,7 +422,7 @@ public:
         return *this;
     }
 
-    void Connect(Observer * const observer, Callable callable)
+    void Connect(void * const observer, Callable callable)
     {
         static_assert(HasAccess<GetTag, Access>);
 
@@ -285,7 +439,7 @@ public:
         this->Base::Connect(observer, callable);
     }
 
-    void Disconnect(Observer * const observer)
+    void Disconnect(void * const observer)
     {
         this->Base::Disconnect(observer);
 
@@ -297,19 +451,11 @@ public:
         }
     }
 
-    template<typename OtherObserver>
-    using Downstream = Value_
-        <
-            OtherObserver,
-            This,
-            NoFilter,
-            Access
-        >;
+    using Downstream = Value_<This, NoFilter, Access>;
 
-    template<typename OtherObserver>
-    Downstream<OtherObserver> GetDownstream()
+    Downstream GetDownstream()
     {
-        return Downstream<OtherObserver>(*this);
+        return Downstream(*this);
     }
 
     void SetFilter(Filter filter)
@@ -363,6 +509,11 @@ public:
     bool HasModel() const
     {
         return this->upstream_.HasModel();
+    }
+
+    void ClearConnections()
+    {
+        this->ClearConnections_();
     }
 
 private:
@@ -441,46 +592,29 @@ private:
         }
     }
 
+    using Model_ = typename UpstreamHolder::Model_;
+
+    const Model_ & GetModel_() const
+    {
+        return this->upstream_.GetModel_();
+    }
+
     UpstreamHolder upstream_;
     std::optional<Filter> filter_;
 };
 
 
-template<typename Observer, typename Upstream, typename Access = GetAndSetTag>
-using Value = Value_<Observer, Upstream, NoFilter, Access>;
+template<typename Upstream, typename Access = GetAndSetTag>
+using Value = Value_<Upstream, NoFilter, Access>;
 
 
 template
 <
-    typename Observer,
     typename Upstream,
     typename Filter,
     typename Access = GetAndSetTag
 >
-using FilteredValue = Value_<Observer, Upstream, Filter, Access>;
-
-
-template<typename Observer, typename Value>
-struct ChangeObserver_;
-
-template
-<
-    typename Observer,
-    template<typename, typename...> typename Value,
-    typename OtherObserver,
-    typename... Others
->
-struct ChangeObserver_<Observer, Value<OtherObserver, Others...>>
-{
-    using Type = Value<Observer, Others...>;
-};
-
-template
-<
-    typename Observer,
-    typename Value
->
-using ChangeObserver = typename ChangeObserver_<Observer, Value>::Type;
+using FilteredValue = Value_<Upstream, Filter, Access>;
 
 
 template<typename ControlValue, typename NewAccess>
@@ -492,7 +626,6 @@ struct ChangeAccess_
 
     using Type = Value_
         <
-            typename ControlValue::Observer,
             typename ControlValue::Upstream,
             typename ControlValue::Filter,
             NewAccess
@@ -512,7 +645,6 @@ struct FilteredLike_
 
     using Type = Value_
         <
-            typename ControlValue::Observer,
             typename ControlValue::Upstream,
             Filter,
             typename ControlValue::Access
@@ -523,22 +655,22 @@ template<typename ControlValue, typename Filter>
 using FilteredLike = typename FilteredLike_<ControlValue, Filter>::Type;
 
 
-extern template class Value_<void, model::Value_<bool, NoFilter>>;
+extern template class Value_<model::Value_<bool, NoFilter>>;
 
-extern template class Value_<void, model::Value_<int8_t, NoFilter>>;
-extern template class Value_<void, model::Value_<int16_t, NoFilter>>;
-extern template class Value_<void, model::Value_<int32_t, NoFilter>>;
-extern template class Value_<void, model::Value_<int64_t, NoFilter>>;
+extern template class Value_<model::Value_<int8_t, NoFilter>>;
+extern template class Value_<model::Value_<int16_t, NoFilter>>;
+extern template class Value_<model::Value_<int32_t, NoFilter>>;
+extern template class Value_<model::Value_<int64_t, NoFilter>>;
 
-extern template class Value_<void, model::Value_<uint8_t, NoFilter>>;
-extern template class Value_<void, model::Value_<uint16_t, NoFilter>>;
-extern template class Value_<void, model::Value_<uint32_t, NoFilter>>;
-extern template class Value_<void, model::Value_<uint64_t, NoFilter>>;
+extern template class Value_<model::Value_<uint8_t, NoFilter>>;
+extern template class Value_<model::Value_<uint16_t, NoFilter>>;
+extern template class Value_<model::Value_<uint32_t, NoFilter>>;
+extern template class Value_<model::Value_<uint64_t, NoFilter>>;
 
-extern template class Value_<void, model::Value_<float, NoFilter>>;
-extern template class Value_<void, model::Value_<double, NoFilter>>;
+extern template class Value_<model::Value_<float, NoFilter>>;
+extern template class Value_<model::Value_<double, NoFilter>>;
 
-extern template class Value_<void, model::Value_<std::string, NoFilter>>;
+extern template class Value_<model::Value_<std::string, NoFilter>>;
 
 
 } // namespace control

@@ -175,7 +175,7 @@ public:
     // hold a reference to a model value.
     bool HasModel() const { return true; }
 
-private:
+protected:
     void SetWithoutNotify_(Argument<Type> value)
     {
         if constexpr (std::is_same_v<NoFilter, Filter>)
@@ -239,6 +239,94 @@ template<typename T, typename Filter>
 using FilteredValue = Value_<T, Filter>;
 
 
+template<typename T, typename Filter_>
+class LockedValue: public Value_<T, Filter_>
+{
+public:
+    template<typename>
+    friend class ::pex::Transaction;
+
+    template<typename>
+    friend class ::pex::Reference;
+
+    template<typename>
+    friend class ::pex::ConstReference;
+
+    template<typename>
+    friend class Direct;
+
+    using Base = Value_<T, Filter_>;
+    using Base::Base;
+
+    using Type = typename Base::Type;
+    using Filter = typename Base::Filter;
+
+    LockedValue()
+        :
+        Base(),
+        mutex_()
+    {
+
+    }
+
+    explicit LockedValue(Type value)
+        :
+        Base(value),
+        mutex_()
+    {
+
+    }
+
+    LockedValue(Type value, Filter filter)
+        :
+        Base(value, filter),
+        mutex_()
+    {
+
+    }
+
+    LockedValue(Filter_ filter)
+        :
+        Base(filter),
+        mutex_()
+    {
+
+    }
+
+    Type Get() const
+    {
+        std::lock_guard lock(this->mutex_);
+        return this->value_;
+    }
+
+    explicit operator Type () const
+    {
+        std::lock_guard lock(this->mutex_);
+        return this->value_;
+    }
+
+protected:
+    void SetWithoutNotify_(Argument<Type> value)
+    {
+        if constexpr (std::is_same_v<NoFilter, Filter_>)
+        {
+            std::lock_guard lock(this->mutex_);
+            this->value_ = value;
+        }
+        else
+        {
+            auto filteredValue = this->FilterOnSet_(value);
+
+            std::lock_guard lock(this->mutex_);
+            this->value_ = filteredValue;
+        }
+    }
+
+private:
+    mutable std::mutex mutex_;
+};
+
+
 } // namespace model
 
 
@@ -246,7 +334,7 @@ namespace control
 {
 
 
-template<typename, typename, typename, typename> class Value_;
+template<typename, typename, typename> class Value_;
 
 
 } // end namespace control
@@ -335,7 +423,7 @@ public:
         return (this->model_ != nullptr);
     }
 
-    template<typename, typename, typename, typename>
+    template<typename, typename, typename>
     friend class ::pex::control::Value_;
 
     template<typename>
@@ -350,6 +438,18 @@ private:
     void DoNotify_()
     {
         this->model_->DoNotify_();
+    }
+
+    using Model_ = Model;
+
+    const Model_ & GetModel_() const
+    {
+        if (!this->HasModel())
+        {
+            throw std::logic_error("Model is not set");
+        }
+
+        return *this->model_;
     }
 
 private:

@@ -31,11 +31,7 @@ struct MakeCustom
     using Custom = Custom_;
     using Type = typename Custom::Type;
 
-    template<typename Observer>
-    using Control = typename Custom::template Control<Observer>;
-
-    template<typename Observer>
-    using Terminus = typename Custom::template Terminus<Observer>;
+    using Control = typename Custom::Control;
 };
 
 
@@ -73,19 +69,20 @@ template
 <
     typename Group_,
     typename Model_ = typename Group_::Model,
-    template<typename> typename Control_ = Group_::template Control,
-    template<typename> typename Terminus_ = Group_::template Terminus
+    typename Control_ = typename Group_::Control
+    // template<typename> typename Terminus_ = Group_::template Terminus
 >
 struct MakeGroup
 {
     using Group = Group_;
     using Model = Model_;
 
-    template<typename Observer>
-    using Control = Control_<Observer>;
+    using Control = Control_;
 
+#if 0
     template<typename Observer>
     using Terminus = Terminus_<Observer>;
+#endif
 
     using Type = typename Group_::Plain;
 };

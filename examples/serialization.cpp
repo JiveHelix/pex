@@ -1,6 +1,7 @@
 #include <iostream>
 #include <fields/fields.h>
 #include <pex/pex.h>
+#include <pex/endpoint.h>
 #include <nlohmann/json.hpp>
 
 using Json = nlohmann::json;
@@ -33,8 +34,7 @@ using FooGroup = pex::Group<FooFields, FooTemplate>;
 using Foo = typename FooGroup::Plain;
 using Model = typename FooGroup::Model;
 
-template<typename Observer>
-using Terminus = typename FooGroup::Terminus<Observer>;
+using Control = typename FooGroup::Control;
 
 
 class Greeter
@@ -42,28 +42,31 @@ class Greeter
 public:
     static constexpr auto observerName = "Greeter";
 
-    Greeter(Terminus<void> &terminus)
+    Greeter(const Control &control)
         :
-        terminus_(this, terminus)
+        control_(control),
+        sayHello_(this, control.sayHello, &Greeter::SayHello_)
     {
-        this->terminus_.sayHello.Connect(&Greeter::SayHello_);
+
     }
 
 private:
     void SayHello_()
     {
         std::cout << "Hello, world. My x is "
-            << this->terminus_.x.Get() << "!" << std::endl;
+            << this->control_.x.Get() << "!" << std::endl;
     }
 
-    Terminus<Greeter> terminus_;
+    Control control_;
+    pex::Endpoint<Greeter, pex::control::Signal<>> sayHello_;
 };
+
 
 int main()
 {
     Model model{};
-    Terminus<void> terminus(nullptr, model);
-    [[maybe_unused]] Greeter greeter(terminus);
+    Control control(model);
+    [[maybe_unused]] Greeter greeter(control);
 
     model.x = 42;
     model.y = 43;
@@ -71,7 +74,7 @@ int main()
 
     model.sayHello.Trigger();
 
-    auto asJson = fields::Unstructure<Json>(terminus.Get());
+    auto asJson = fields::Unstructure<Json>(control.Get());
     auto asString = asJson.dump(4);
 
     std::cout <<

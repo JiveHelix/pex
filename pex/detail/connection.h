@@ -20,8 +20,10 @@
 namespace pex
 {
 
+
 namespace detail
 {
+
 
 template<typename Observer_, typename Callable_>
 class Connection: jive::Compare<Connection<Observer_, Callable_>>
@@ -73,9 +75,14 @@ public:
         return Operator::Call(this->observer_, other.observer_);
     }
 
-    const Observer * GetObserver() const
+    Observer * GetObserver()
     {
         return this->observer_;
+    }
+
+    Callable GetCallable() const
+    {
+        return this->callable_;
     }
 
 protected:
@@ -85,5 +92,6 @@ protected:
 
 
 } // namespace detail
+
 
 } // namespace pex

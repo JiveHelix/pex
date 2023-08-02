@@ -1,6 +1,7 @@
 #include <iostream>
 #include <pex/group.h>
 #include <fields/fields.h>
+#include <pex/endpoint.h>
 
 
 template<typename T>
@@ -29,10 +30,7 @@ using WeaponsGroup = pex::Group<WeaponsFields, WeaponsTemplate>;
 using WeaponsPlain = typename WeaponsGroup::Plain;
 using WeaponsModel = typename WeaponsGroup::Model;
 
-template<typename Observer>
-using WeaponsControl = typename WeaponsGroup::Control<Observer>;
-
-
+using WeaponsControl = typename WeaponsGroup::Control;
 
 
 template<typename T>
@@ -63,8 +61,7 @@ using GpsGroup = pex::Group<GpsFields, GpsTemplate>;
 using GpsPlain = typename GpsGroup::Plain;
 using GpsModel = typename GpsGroup::Model;
 
-template<typename Observer>
-using GpsControl = typename GpsGroup::Control<Observer>;
+using GpsControl = typename GpsGroup::Control;
 
 
 inline GpsPlain DefaultGps()
@@ -102,15 +99,28 @@ struct AggregateTemplate
 
 using AggregateGroup = pex::Group<AggregateFields, AggregateTemplate>;
 using AggregateModel = typename AggregateGroup::Model;
-using AggregateControl = typename AggregateGroup::Control<void>;
-using AggregateTerminus = typename AggregateGroup::Terminus<void>;
+using AggregateControl = typename AggregateGroup::Control;
 
 
-void OnWeapons(void *, const WeaponsPlain &weapons)
+class WeaponsObserver
 {
-    std::cout << "OnWeapons: " << fields::DescribeColorized(weapons, 1)
-          << std::endl;
-}
+public:
+    WeaponsObserver(WeaponsControl control)
+        :
+        endpoint_(this, control, &WeaponsObserver::OnWeapons)
+    {
+
+    }
+
+    void OnWeapons(const WeaponsPlain &weapons)
+    {
+        std::cout << "OnWeapons: " << fields::DescribeColorized(weapons, 1)
+              << std::endl;
+    }
+
+private:
+    pex::Endpoint<WeaponsObserver, WeaponsControl> endpoint_;
+};
 
 
 int main()
@@ -128,18 +138,12 @@ int main()
     std::cout << "control.weapons.firstFruit.size(): "
         << control.weapons.firstFruit.Get().size() << std::endl;
 
-    std::cout << "Creating terminus" << std::endl;
+    std::cout << "control.weapons.firstFruit.size(): "
+        << control.weapons.firstFruit.Get().size() << std::endl;
 
-    AggregateTerminus terminus(nullptr, model);
+    WeaponsObserver weaponsObserver(control.weapons);
 
-    std::cout << "terminus created" << std::endl;
-
-    std::cout << "terminus.weapons.firstFruit.size(): "
-        << terminus.weapons.firstFruit.Get().size() << std::endl;
-
-    pex::Connect connect(terminus.weapons, static_cast<void *>(nullptr), &OnWeapons);
-
-    std::cout << "terminus connected" << std::endl;
+    std::cout << "endpoint connected" << std::endl;
 
     control.airspeedVelocity = 42.0;
     std::cout << "setting passion fruit" << std::endl;

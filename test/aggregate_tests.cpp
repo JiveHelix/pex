@@ -1,6 +1,14 @@
 #include <catch2/catch.hpp>
+
+
 #include <pex/group.h>
 #include "test_observer.h"
+
+
+// Place types used by this translation unit in a namespace to avoid conflicts
+// with other translation units that are part of the catch2 unit tests.
+namespace aggregate
+{
 
 
 template<typename T>
@@ -81,29 +89,32 @@ using Circle = typename CircleGroup::Plain;
 using Stuff = typename StuffGroup::Plain;
 
 
-DECLARE_COMPARISON_OPERATORS(Point)
-DECLARE_COMPARISON_OPERATORS(Circle)
-DECLARE_COMPARISON_OPERATORS(Stuff)
+DECLARE_EQUALITY_OPERATORS(Point)
+DECLARE_EQUALITY_OPERATORS(Circle)
+DECLARE_EQUALITY_OPERATORS(Stuff)
+
+
+} // end namespace aggregate
 
 
 TEST_CASE("Setting Aggregate does not repeat notifications", "[aggregate]")
 {
-    using Model = typename StuffGroup::Model;
-    using Control = typename StuffGroup::Control<void>;
+    using Model = typename aggregate::StuffGroup::Model;
+    using Control = typename aggregate::StuffGroup::Control;
     Model model;
     Control control(model);
 
     TestObserver observer(control);
 
-    Circle leftCircle{{
+    aggregate::Circle leftCircle{{
         {{400.0, 800.0}},
         42.0}};
 
-    Circle rightCircle{{
+    aggregate::Circle rightCircle{{
         {{900.0, 800.0}},
         36.0}};
 
-    Stuff stuff{{
+    aggregate::Stuff stuff{{
         leftCircle,
         rightCircle,
         {{42.0, 42.0}},
@@ -117,22 +128,22 @@ TEST_CASE("Setting Aggregate does not repeat notifications", "[aggregate]")
 
 TEST_CASE("Deferred Aggregate does not repeat notifications", "[aggregate]")
 {
-    using Model = typename StuffGroup::Model;
-    using Control = typename StuffGroup::Control<void>;
+    using Model = typename aggregate::StuffGroup::Model;
+    using Control = typename aggregate::StuffGroup::Control;
     Model model;
     Control control(model);
 
     TestObserver observer(control);
 
-    Circle leftCircle{{
+    aggregate::Circle leftCircle{{
         {{400.0, 800.0}},
         42.0}};
 
-    Circle rightCircle{{
+    aggregate::Circle rightCircle{{
         {{900.0, 800.0}},
         36.0}};
 
-    Stuff stuff{{
+    aggregate::Stuff stuff{{
         leftCircle,
         rightCircle,
         {{42.0, 42.0}},
@@ -146,5 +157,38 @@ TEST_CASE("Deferred Aggregate does not repeat notifications", "[aggregate]")
         REQUIRE(observer.GetCount() == 0);
     }
 
+    REQUIRE(observer.observedValue == stuff);
+    REQUIRE(observer.GetCount() == 1);
+}
+
+
+TEST_CASE("Deferred member struct does not repeat notifications", "[aggregate]")
+{
+    using Model = typename aggregate::StuffGroup::Model;
+    using Control = typename aggregate::StuffGroup::Control;
+    Model model;
+    Control control(model);
+
+    TestObserver observer(control);
+
+    aggregate::Stuff stuff{};
+
+    aggregate::Circle rightCircle{{
+        {{900.0, 800.0}},
+        36.0}};
+
+    stuff.rightCircle = rightCircle;
+
+    REQUIRE(observer.GetCount() == 0);
+
+    {
+        auto defer = pex::MakeDefer(control.rightCircle);
+        defer.members.radius.Set(36.0);
+        defer.members.center.x.Set(900.0);
+        defer.members.center.y.Set(800.0);
+        REQUIRE(observer.GetCount() == 0);
+    }
+
+    REQUIRE(observer.observedValue == stuff);
     REQUIRE(observer.GetCount() == 1);
 }

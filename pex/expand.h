@@ -48,7 +48,7 @@ private:
 
 
 template<typename Control, typename T>
-using ExpandFiltered = 
+using ExpandFiltered =
     pex::control::FilteredLike
     <
         Control,
@@ -103,15 +103,12 @@ template
 >
 struct Expand
 {
-    template<typename Observer>
-    using AggregateControl =
-        typename ControlSelector<Observer>::template Type<Aggregate>;
-    
-    template<typename Observer>
+    using AggregateControl = Template<typename ControlSelector::Type>;
+
     struct Control:
-        public Template<Expander<AggregateControl<Observer>>::template Type>
+        public Template<Expander<AggregateControl>::template Type>
     {
-        Control(AggregateControl<Observer> aggregateControl)
+        Control(AggregateControl aggregateControl)
         {
             pex::InitializeExpanded<Fields>(*this, aggregateControl);
         }
