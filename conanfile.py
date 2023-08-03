@@ -48,4 +48,4 @@ class PexConan(ConanFile):
 
     def requirements(self):
         self.requires("jive/[~1.1]")
-        self.requires("fields/[~1.2]")
+        self.requires("fields/[~1.3]")

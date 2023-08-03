@@ -165,7 +165,7 @@ TEST_CASE("Terminus aggregate observer receives message.", "[groups]")
     model.radius.Set(52.0);
 
     REQUIRE(model.Get() == observer.observed);
-};
+}
 
 
 TEST_CASE("Terminus aggregate member observer receives message.", "[groups]")
@@ -182,7 +182,7 @@ TEST_CASE("Terminus aggregate member observer receives message.", "[groups]")
     model.center.y.Set(42.0);
 
     REQUIRE(model.center.Get() == observer.observed);
-};
+}
 
 
 class EndpointObserver
@@ -284,7 +284,7 @@ TEST_CASE("EndpointGroup receives message.", "[groups]")
     REQUIRE(endpointObserver.center.y == Approx(42.0));
     REQUIRE(endpointObserver.center.units == "furlongs");
     REQUIRE(endpointObserver.radius == Approx(3.1415926));
-};
+}
 
 
 TEST_CASE("Default constructed single Endpoint receives message.", "[groups]")
@@ -300,7 +300,7 @@ TEST_CASE("Default constructed single Endpoint receives message.", "[groups]")
     control.radius.Set(3.1415926);
 
     REQUIRE(radiusObserver.radius == Approx(3.1415926));
-};
+}
 
 
 TEST_CASE("Single Endpoint receives message.", "[groups]")
@@ -315,7 +315,7 @@ TEST_CASE("Single Endpoint receives message.", "[groups]")
     control.radius.Set(3.1415926);
 
     REQUIRE(radiusObserver.radius == Approx(3.1415926));
-};
+}
 
 TEST_CASE(
     "Single Endpoint constructed from model receives message.",
@@ -331,7 +331,7 @@ TEST_CASE(
     control.radius.Set(3.1415926);
 
     REQUIRE(radiusObserver.radius == Approx(3.1415926));
-};
+}
 
 
 TEST_CASE("Default constructed EndpointControl is set.", "[groups]")
@@ -348,7 +348,7 @@ TEST_CASE("Default constructed EndpointControl is set.", "[groups]")
 
     REQUIRE(radiusObserver.endpoint.control.Get() == Approx(3.1415926));
     REQUIRE(radiusObserver.radius == Approx(3.1415926));
-};
+}
 
 
 TEST_CASE("EndpointControl is set.", "[groups]")
@@ -364,7 +364,7 @@ TEST_CASE("EndpointControl is set.", "[groups]")
 
     REQUIRE(radiusObserver.endpoint.control.Get() == Approx(3.1415926));
     REQUIRE(radiusObserver.radius == Approx(3.1415926));
-};
+}
 
 
 TEST_CASE("Setting a group value propagates to model and observer.", "[groups]")
@@ -382,7 +382,7 @@ TEST_CASE("Setting a group value propagates to model and observer.", "[groups]")
 
     REQUIRE(model.center.Get() == endpointObserver.center);
     REQUIRE(model.radius.Get() == endpointObserver.radius);
-};
+}
 
 
 template<typename T>
