@@ -144,7 +144,10 @@ public:
 
     }
 
-    Endpoint(Observer *observer, typename Upstream::Upstream &model, Callable callable)
+    Endpoint(
+        Observer *observer,
+        typename Upstream::Upstream &model,
+        Callable callable)
         :
         observer_(observer),
         connector_(observer, Upstream(model), callable)

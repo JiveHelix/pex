@@ -48,7 +48,7 @@ struct PointModel: public PointGroup::Model
     static_assert(
         std::is_same_v
         <
-            decltype(pex::Group<PointFields, PointTemplate>::Model::units),
+            decltype(PointGroup::Model::units),
             ModelSelectString
         >);
 

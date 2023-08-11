@@ -349,6 +349,8 @@ public:
 
     using Filter = ::pex::NoFilter;
 
+    using ChoicesAccess = typename Upstream::ChoicesAccess;
+
     static constexpr bool choicesMayChange =
         HasAccess<typename Upstream::ChoicesAccess, SetTag>;
 

@@ -563,13 +563,7 @@ public:
         return true;
     }
 
-    template
-    <
-        typename,
-        typename,
-        typename,
-        typename
-    >
+    template<typename, typename, typename>
     friend class ::pex::control::Range;
 
 private:
