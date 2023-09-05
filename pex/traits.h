@@ -61,15 +61,41 @@ struct IsModelSignal_
 template<typename T>
 inline constexpr bool IsModelSignal = IsModelSignal_<T>::value;
 
+#if 0
+template<typename ...T>
+struct IsBaseControlSignal_: std::false_type {};
 
 template<typename ...T>
+struct IsBaseControlSignal_<pex::control::Signal<T...>>: std::true_type {};
+#endif
+
+template<typename T, typename Enable = void>
+struct DefinesIsControlSignal_: std::false_type {};
+
+template<typename T>
+struct DefinesIsControlSignal_
+<
+    T,
+    std::enable_if_t<T::isControlSignal>
+>
+: std::true_type {};
+
+template<typename T>
+inline constexpr bool DefinesIsControlSignal =
+    DefinesIsControlSignal_<T>::value;
+
+template<typename T, typename Enable = void>
 struct IsControlSignal_: std::false_type {};
 
-template<typename ...T>
-struct IsControlSignal_<pex::control::Signal<T...>>: std::true_type {};
+template<typename T>
+struct IsControlSignal_
+    <
+        T,
+        std::enable_if_t<DefinesIsControlSignal<T>>
+    >: std::true_type {};
 
-template<typename ...T>
-inline constexpr bool IsControlSignal = IsControlSignal_<T...>::value;
+template<typename T>
+inline constexpr bool IsControlSignal = IsControlSignal_<T>::value;
 
 
 // TODO: Add IsTerminusSignal_ to all MakeDefer to operate on groups that

@@ -42,7 +42,7 @@ struct MakeControl
 template<typename Pex>
 struct MakeControl<Pex, std::enable_if_t<IsControlSignal<Pex>>>
 {
-    using Control = control::Signal<>;
+    using Control = Pex; // control::Signal<>;
     using Upstream = typename Pex::Upstream;
 };
 

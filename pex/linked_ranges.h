@@ -128,5 +128,3 @@ struct LinkedRanges
 
 
 } // end namespace pex
-
-
