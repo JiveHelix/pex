@@ -137,7 +137,7 @@ struct StringToValue
 template<typename T, int base>
 struct StringToValue<T, base, std::enable_if_t<std::is_integral_v<T>>>
 {
-    static T Call(const std::string_view &asString)
+    static T Call(const std::string &asString)
     {
         return jive::ToInteger<T, base>(asString);
     }
@@ -146,7 +146,7 @@ struct StringToValue<T, base, std::enable_if_t<std::is_integral_v<T>>>
 template<typename T, int base>
 struct StringToValue<T, base, std::enable_if_t<std::is_floating_point_v<T>>>
 {
-    static T Call(const std::string_view &asString)
+    static T Call(const std::string &asString)
     {
         return jive::ToFloat<T>(asString);
     }
@@ -155,7 +155,7 @@ struct StringToValue<T, base, std::enable_if_t<std::is_floating_point_v<T>>>
 template<typename T, int base>
 struct StringToValue<T, base, std::enable_if_t<jive::IsBitset<T>::value>>
 {
-    static T Call(const std::string_view &asString)
+    static T Call(const std::string &asString)
     {
         // std::bitset is constructed from a std::string of 1's and 0's.
         return T(std::string(asString));
