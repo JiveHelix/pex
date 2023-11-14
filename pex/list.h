@@ -181,6 +181,9 @@ public:
     using CountControl = Value<typename Upstream::Count>;
     using CountWillChangeTerminus = ::pex::Terminus<List, pex::model::Signal>;
     using CountTerminus = ::pex::Terminus<List, CountControl>;
+    using Vector = std::vector<Control>;
+    using Iterator = typename Vector::iterator;
+    using ConstIterator = typename Vector::const_iterator;
 
     template<typename>
     friend class ::pex::Reference;
@@ -246,6 +249,26 @@ public:
     Control operator[](size_t index) const
     {
         return this->items_.at(index);
+    }
+
+    Iterator begin()
+    {
+        return std::begin(this->items_);
+    }
+
+    Iterator end()
+    {
+        return std::end(this->items_);
+    }
+
+    ConstIterator begin() const
+    {
+        return std::begin(this->items_);
+    }
+
+    ConstIterator end() const
+    {
+        return std::end(this->items_);
     }
 
     Type Get() const
@@ -316,7 +339,7 @@ private:
             throw std::logic_error("items must be empty");
         }
 
-        std::vector<Control> updatedItems;
+        Vector updatedItems;
 
         for (size_t index = 0; index < count_; ++index)
         {
@@ -330,7 +353,7 @@ private:
     Upstream *upstream_;
     CountWillChangeTerminus countWillChange_;
     CountTerminus countTerminus_;
-    std::vector<Control> items_;
+    Vector items_;
 };
 
 
@@ -338,3 +361,38 @@ private:
 
 
 } // end namespace pex
+
+
+namespace std
+{
+
+template<typename Upstream, typename Control>
+typename pex::control::List<Upstream, Control>::Iterator
+begin(pex::control::List<Upstream, Control> &listControl)
+{
+    return listControl.begin();
+}
+
+template<typename Upstream, typename Control>
+typename pex::control::List<Upstream, Control>::Iterator
+end(pex::control::List<Upstream, Control> &listControl)
+{
+    return listControl.end();
+}
+
+template<typename Upstream, typename Control>
+typename pex::control::List<Upstream, Control>::ConstIterator
+begin(const pex::control::List<Upstream, Control> &listControl)
+{
+    return listControl.begin();
+}
+
+template<typename Upstream, typename Control>
+typename pex::control::List<Upstream, Control>::ConstIterator
+end(const pex::control::List<Upstream, Control> &listControl)
+{
+    return listControl.end();
+}
+
+
+} // end namespace std

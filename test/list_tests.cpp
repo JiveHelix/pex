@@ -226,4 +226,9 @@ TEST_CASE("List of groups can be unstructured", "[List]")
     std::cout << "recovered\n" << fields::DescribeColorized(recovered, 1) << std::endl;
 
     REQUIRE(recovered == model.Get());
+
+    for (auto &it: control.rockets)
+    {
+        std::cout << "\n\n" << it.Get() << std::endl;
+    }
 }
