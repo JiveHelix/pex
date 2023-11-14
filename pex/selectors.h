@@ -7,6 +7,7 @@
 #include "pex/select.h"
 #include "pex/signal.h"
 #include "pex/interface.h"
+#include "pex/list.h"
 
 
 namespace pex
@@ -32,8 +33,8 @@ struct RangeTypes
 
     using Control = pex::control::Range<Model>;
 
-    template<typename Observer>
-    using Terminus = RangeTerminus<Observer, Model>;
+    // template<typename Observer>
+    // using Terminus = RangeTerminus<Observer, Model>;
 };
 
 
@@ -51,9 +52,36 @@ struct SelectTypes
 
     using Control = pex::control::Select<Model>;
 
-    template<typename Observer>
-    using Terminus = SelectTerminus<Observer, Model>;
+    // template<typename Observer>
+    // using Terminus = SelectTerminus<Observer, Model>;
 };
+
+
+template<typename ListMaker, typename Model>
+struct ListModel_
+{
+    using Type = ::pex::model::List<Model, ListMaker::initialCount>;
+};
+
+
+template<typename ListMaker, typename Model>
+using ListModel = typename ListModel_<ListMaker, Model>::Type;
+
+
+template<typename ListMaker, typename Model, typename Control>
+struct ListControl_
+{
+    using Type =
+        ::pex::control::List
+        <
+            ListModel<ListMaker, Model>,
+            Control
+        >;
+};
+
+
+template<typename ListMaker, typename Model, typename Control>
+using ListControl = typename ListControl_<ListMaker, Model, Control>::Type;
 
 
 /***** ModelSelector *****/
@@ -99,6 +127,16 @@ struct ModelSelector_<T, std::enable_if_t<IsMakeGroup<T>>>
     using Type = typename T::Model;
 };
 
+template<typename T>
+struct ModelSelector_<T, std::enable_if_t<IsMakeList<T>>>
+{
+    using Type =
+        ListModel
+        <
+            T,
+            typename ModelSelector_<typename T::MemberType>::Type
+        >;
+};
 
 /***** ControlSelector *****/
 template<typename T, typename = void>
@@ -148,48 +186,17 @@ struct ControlSelector_<T, std::enable_if_t<IsMakeGroup<T>>>
     using Type = typename T::Control;
 };
 
-#if 0
-/***** TerminusSelector *****/
-template<typename T, typename = void>
-struct TerminusSelector_
-{
-    template<typename Observer>
-    using Type = Terminus
-    <
-        Observer,
-        typename ControlSelector_<T>::Type
-    >;
-};
-
-
 template<typename T>
-struct TerminusSelector_<T, std::enable_if_t<IsMakeRange<T>>>
+struct ControlSelector_<T, std::enable_if_t<IsMakeList<T>>>
 {
-    template<typename Observer>
-    using Type = typename RangeTypes<T>::template Terminus<Observer>;
+    using Type =
+        ListControl
+        <
+            T,
+            typename ModelSelector_<typename T::MemberType>::Type,
+            typename ControlSelector_<typename T::MemberType>::Type
+        >;
 };
-
-template<typename T>
-struct TerminusSelector_<T, std::enable_if_t<IsMakeSelect<T>>>
-{
-    template<typename Observer>
-    using Type = typename SelectTypes<T>::template Terminus<Observer>;
-};
-
-template<typename T>
-struct TerminusSelector_<T, std::enable_if_t<IsMakeCustom<T>>>
-{
-    template<typename Observer>
-    using Type = typename T::template Terminus<Observer>;
-};
-
-template<typename T>
-struct TerminusSelector_<T, std::enable_if_t<IsMakeGroup<T>>>
-{
-    template<typename Observer>
-    using Type = typename T::template Terminus<Observer>;
-};
-#endif
 
 
 /***** Identity *****/
@@ -216,11 +223,28 @@ struct Identity_
     using Type = typename T::Type;
 };
 
+
 template<typename T>
 struct Identity_<T, std::enable_if_t<IsMakeSignal<T>>>
 {
     using Type = pex::DescribeSignal;
 };
+
+
+template<typename T>
+struct Identity_
+<
+    T,
+    std::enable_if_t
+    <
+        IsMakeList<T>
+    >
+>
+{
+    // Recursively look up the list type.
+    using Type = std::vector<typename Identity_<typename T::MemberType>::Type>;
+};
+
 
 
 } // end namespace detail

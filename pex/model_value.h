@@ -409,6 +409,15 @@ public:
         }
     }
 
+    void ConnectOnce(void * const observer, Callable callable)
+    {
+        if (this->model_)
+        {
+            PEX_LOG("Connect ", observer, " to ", this->model_);
+            this->model_->ConnectOnce(observer, callable);
+        }
+    }
+
     void Disconnect(void * const observer)
     {
         if (this->model_)

@@ -5,14 +5,15 @@ target_link_libraries(pex_catch_main PRIVATE project_options)
 add_executable(
     pex_tests
     aggregate_tests.cpp
-    value_tests.cpp
-    signal_tests.cpp
-    filter_tests.cpp
-    range_tests.cpp
     assign_tests.cpp
-    terminus_tests.cpp
+    filter_tests.cpp
     group_tests.cpp
-    select_tests.cpp)
+    list_tests.cpp
+    range_tests.cpp
+    select_tests.cpp
+    signal_tests.cpp
+    terminus_tests.cpp
+    value_tests.cpp)
 
 target_link_libraries(
     pex_tests
@@ -20,4 +21,5 @@ target_link_libraries(
     project_warnings
     project_options
     pex_catch_main
-    pex)
+    pex
+    CONAN_PKG::nlohmann_json)

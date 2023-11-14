@@ -521,23 +521,6 @@ public:
     {
 
     }
-#if 0
-    template <typename O>
-    Terminus & Assign(Observer *observer, const Terminus<O, Upstream_> &other)
-    {
-        Base::Assign(observer, other);
-        return *this;
-    }
-
-    template <typename O>
-    Terminus & Assign(
-        Observer *observer,
-        Terminus<O, Upstream_> &&other)
-    {
-        Base::Assign(observer, std::move(other));
-        return *this;
-    }
-#endif
 
     template<typename>
     friend class Reference;

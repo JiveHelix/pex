@@ -48,15 +48,6 @@ struct MakeConnector_<T, std::enable_if_t<IsSelect<T>>>
     using Type = SelectTerminus<Observer, Upstream>;
 };
 
-#if 0
-template<typename T>
-struct MakeConnector_<T, std::enable_if_t<!IsAccessor<T>>>
-{
-    template<typename Observer, typename Upstream>
-    using Type = Terminus<Observer, Upstream>;
-};
-#endif
-
 
 } // end namespace detail
 

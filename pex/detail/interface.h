@@ -89,6 +89,12 @@ template<typename ...T>
 struct IsMakeSelect_<MakeSelect<T...>>: std::true_type {};
 
 
+template<typename ...T> struct IsMakeList_: std::false_type {};
+
+template<typename T, size_t S>
+struct IsMakeList_<MakeList<T, S>>: std::true_type {};
+
+
 } // end namespace detail
 
 

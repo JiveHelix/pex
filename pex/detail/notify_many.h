@@ -132,6 +132,27 @@ public:
             ConnectionType(observer));
     }
 
+    bool IsConnected(typename ConnectionType::Observer * const observer)
+    {
+        return std::end(this->connections_) !=
+            std::find(
+                std::begin(this->connections_),
+                std::end(this->connections_),
+                ConnectionType(observer));
+    }
+
+    // Only make the connection if the observer is not already connected.
+    void ConnectOnce(Observer * const observer, Callable callable)
+    {
+        if (this->IsConnected(observer))
+        {
+            // This observer has already been added to the connections_.
+            return;
+        }
+
+        this->Connect(observer, callable);
+    }
+
     size_t GetNotifierCount() const
     {
         return this->connections_.size();

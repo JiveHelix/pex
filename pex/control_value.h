@@ -97,7 +97,10 @@ public:
     static_assert(
         detail::FilterIsNoneOrValid<UpstreamType, Filter, Access>);
 
-    Value_(): upstream_(), filter_() {}
+    Value_(): upstream_(), filter_()
+    {
+
+    }
 
     explicit Value_(PexArgument<Upstream> pex)
         :
@@ -178,7 +181,7 @@ public:
                     " to ",
                     &this->upstream_);
 
-                this->upstream_.Connect(this, &Value_::OnUpstreamChanged_);
+                this->upstream_.ConnectOnce(this, &Value_::OnUpstreamChanged_);
             }
         }
     }
@@ -199,6 +202,7 @@ public:
     {
         PEX_LOG("Disconnect ", this);
         this->upstream_.Disconnect(this);
+
         this->upstream_ = other.upstream_;
 
         if constexpr (mustClearConnections)
@@ -216,7 +220,7 @@ public:
 
             if (this->HasConnections())
             {
-                this->upstream_.Connect(this, &Value_::OnUpstreamChanged_);
+                this->upstream_.ConnectOnce(this, &Value_::OnUpstreamChanged_);
             }
         }
 
@@ -263,7 +267,7 @@ public:
 
             if (this->HasConnections())
             {
-                this->upstream_.Connect(this, &Value_::OnUpstreamChanged_);
+                this->upstream_.ConnectOnce(this, &Value_::OnUpstreamChanged_);
             }
         }
     }
@@ -283,6 +287,7 @@ public:
     {
         PEX_LOG("Disconnect ", this);
         this->upstream_.Disconnect(this);
+
         this->upstream_ = std::move(other.upstream_);
 
         using OtherType = detail::FilteredType<UpstreamType, OtherFilter>;
@@ -300,7 +305,7 @@ public:
 
             if (this->HasConnections())
             {
-                this->upstream_.Connect(this, &Value_::OnUpstreamChanged_);
+                this->upstream_.ConnectOnce(this, &Value_::OnUpstreamChanged_);
             }
         }
 
@@ -326,7 +331,7 @@ public:
             if (this->HasConnections())
             {
                 PEX_LOG("Copy from other: ", this, " to ", &this->upstream_);
-                this->upstream_.Connect(this, &Value_::OnUpstreamChanged_);
+                this->upstream_.ConnectOnce(this, &Value_::OnUpstreamChanged_);
             }
         }
     }
@@ -352,7 +357,7 @@ public:
             if (this->HasConnections())
             {
                 PEX_LOG("Connect ", this);
-                this->upstream_.Connect(this, &Value_::OnUpstreamChanged_);
+                this->upstream_.ConnectOnce(this, &Value_::OnUpstreamChanged_);
             }
         }
     }
@@ -370,6 +375,7 @@ public:
 
         PEX_LOG("Disconnect ", this);
         this->upstream_.Disconnect(this);
+
         this->upstream_ = other.upstream_;
 
         if constexpr (mustClearConnections)
@@ -382,7 +388,8 @@ public:
             if (this->HasConnections())
             {
                 PEX_LOG("Connect ", this);
-                this->upstream_.Connect(
+
+                this->upstream_.ConnectOnce(
                     this,
                     &Value_::OnUpstreamChanged_);
             }
@@ -398,8 +405,8 @@ public:
         this->Base::operator=(std::move(other));
 
         PEX_LOG("control::Value_ move assign: Disconnect ", this);
-
         this->upstream_.Disconnect(this);
+
         this->upstream_ = std::move(other.upstream_);
         this->filter_ = std::move(other.filter_);
 
@@ -413,7 +420,8 @@ public:
             if (this->HasConnections())
             {
                 PEX_LOG("Connect ", this);
-                this->upstream_.Connect(
+
+                this->upstream_.ConnectOnce(
                     this,
                     &Value_::OnUpstreamChanged_);
             }
@@ -431,7 +439,8 @@ public:
             // This is the first request for a connection.
             // Connect ourselves to the upstream.
             PEX_LOG("Connect ", this);
-            this->upstream_.Connect(
+
+            this->upstream_.ConnectOnce(
                 this,
                 &Value_::OnUpstreamChanged_);
         }

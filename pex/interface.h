@@ -67,23 +67,27 @@ struct MakeSelect
 
 template
 <
+    typename T,
+    size_t initialCount_
+>
+struct MakeList
+{
+    using MemberType = T;
+    inline static constexpr size_t initialCount = initialCount_;
+};
+
+
+template
+<
     typename Group_,
     typename Model_ = typename Group_::Model,
     typename Control_ = typename Group_::Control
-    // template<typename> typename Terminus_ = Group_::template Terminus
 >
 struct MakeGroup
 {
     using Group = Group_;
     using Model = Model_;
-
     using Control = Control_;
-
-#if 0
-    template<typename Observer>
-    using Terminus = Terminus_<Observer>;
-#endif
-
     using Type = typename Group_::Plain;
 };
 
@@ -122,13 +126,14 @@ inline constexpr bool IsMakeGroup = detail::IsMakeGroup_<T...>::value;
 template<typename ...T>
 inline constexpr bool IsFiltered = detail::IsFiltered_<T...>::value;
 
-template<typename ...Args>
-inline constexpr bool IsMakeRange =
-    detail::IsMakeRange_<Args...>::value;
+template<typename ...T>
+inline constexpr bool IsMakeRange = detail::IsMakeRange_<T...>::value;
 
-template<typename ...Args>
-inline constexpr bool IsMakeSelect =
-    detail::IsMakeSelect_<Args...>::value;
+template<typename ...T>
+inline constexpr bool IsMakeSelect = detail::IsMakeSelect_<T...>::value;
+
+template<typename ...T>
+inline constexpr bool IsMakeList = detail::IsMakeList_<T...>::value;
 
 
 } // end namespace pex
