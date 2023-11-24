@@ -24,14 +24,19 @@ namespace model
 {
 
 
+using ListCount = Value<size_t>;
+using ListSelected = Value<std::optional<size_t>>;
+
+
 template<typename Model_, size_t initialCount>
 class List
 {
 public:
     using Model = Model_;
-    using Member = typename Model::Type;
-    using Type = std::vector<Member>;
-    using Count = Value<size_t>;
+    using Item = typename Model::Type;
+    using Type = std::vector<Item>;
+    using Count = ListCount;
+    using Selected = ListSelected;
 
     template<typename>
     friend class ::pex::Reference;
@@ -40,14 +45,15 @@ public:
     friend class ::pex::control::List;
 
     Count count;
+    Selected selected;
 
     List()
         :
         count(initialCount),
+        selected(),
         countWillChange_(),
         items_(),
         countTerminus_(this, this->count, &List::OnCount_)
-
     {
         size_t toInitialize = initialCount;
 
@@ -90,13 +96,23 @@ public:
     {
         if (values.size() != this->items_.size())
         {
-            throw std::out_of_range("Incorrect element count");
+            this->count.Set(values.size());
         }
 
         for (size_t index = 0; index < values.size(); ++index)
         {
             this->items_[index]->Set(values[index]);
         }
+    }
+
+    template<typename Derived>
+    size_t Append(const Derived &item)
+    {
+        size_t newIndex = this->count.Get();
+        this->count.Set(newIndex + 1);
+        this->items_.back()->Set(item);
+
+        return newIndex;
     }
 
 private:
@@ -127,6 +143,8 @@ private:
         // Signal all listening controls to disconnect.
         this->countWillChange_.Trigger();
 
+        this->selected.Set({});
+
         if (count_ < this->items_.size())
         {
             // This is a reduction in size.
@@ -150,6 +168,7 @@ private:
     ::pex::Terminus<List, Count> countTerminus_;
 };
 
+
 template<typename ...T>
 struct IsList_: std::false_type {};
 
@@ -167,6 +186,10 @@ namespace control
 {
 
 
+using ListCount = Value<::pex::model::ListCount>;
+using ListSelected = Value<::pex::model::ListSelected>;
+
+
 template<typename Upstream_, typename Control_>
 class List
 {
@@ -177,10 +200,12 @@ class List
 public:
     using Upstream = Upstream_;
     using Type = typename Upstream::Type;
+    using Item = typename Upstream::Item;
     using Control = Control_;
-    using CountControl = Value<typename Upstream::Count>;
+    using Count = ListCount;
+    using Selected = ListSelected;
     using CountWillChangeTerminus = ::pex::Terminus<List, pex::model::Signal>;
-    using CountTerminus = ::pex::Terminus<List, CountControl>;
+    using CountTerminus = ::pex::Terminus<List, Count>;
     using Vector = std::vector<Control>;
     using Iterator = typename Vector::iterator;
     using ConstIterator = typename Vector::const_iterator;
@@ -188,11 +213,13 @@ public:
     template<typename>
     friend class ::pex::Reference;
 
-    CountControl count;
+    Count count;
+    Selected selected;
 
     List()
         :
         count(),
+        selected(),
         upstream_(nullptr),
         countTerminus_(),
         items_()
@@ -203,6 +230,7 @@ public:
     List(Upstream &upstream)
         :
         count(upstream.count),
+        selected(upstream.selected),
         upstream_(&upstream),
 
         countWillChange_(
@@ -222,6 +250,7 @@ public:
     List(const List &other)
         :
         count(other.count),
+        selected(other.selected),
         upstream_(other.upstream_),
 
         countWillChange_(
@@ -238,6 +267,7 @@ public:
     List & operator=(const List &other)
     {
         this->count = other.count;
+        this->selected = other.selected;
         this->upstream_ = other.upstream_;
         this->countWillChange_.Assign(this, other.countWillChange_);
         this->countTerminus_.Assign(this, other.countTerminus_);
@@ -293,6 +323,11 @@ public:
             return false;
         }
 
+        if (!this->selected.HasModel())
+        {
+            return false;
+        }
+
         for (auto &item: this->items_)
         {
             if (!item->HasModel())
@@ -302,6 +337,17 @@ public:
         }
 
         return true;
+    }
+
+    template<typename Derived>
+    std::optional<size_t> Append(const Derived &item)
+    {
+        if (!this->upstream_)
+        {
+            return {};
+        }
+
+        return this->upstream_->Append(item);
     }
 
 private:

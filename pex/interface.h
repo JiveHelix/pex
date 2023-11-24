@@ -79,6 +79,18 @@ struct MakeList
 
 template
 <
+    typename T,
+    size_t initialCount_
+>
+struct MakePolyList
+{
+    using MemberType = T;
+    inline static constexpr size_t initialCount = initialCount_;
+};
+
+
+template
+<
     typename Group_,
     typename Model_ = typename Group_::Model,
     typename Control_ = typename Group_::Control
@@ -134,6 +146,9 @@ inline constexpr bool IsMakeSelect = detail::IsMakeSelect_<T...>::value;
 
 template<typename ...T>
 inline constexpr bool IsMakeList = detail::IsMakeList_<T...>::value;
+
+template<typename ...T>
+inline constexpr bool IsMakePolyList = detail::IsMakePolyList_<T...>::value;
 
 
 } // end namespace pex

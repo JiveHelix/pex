@@ -8,6 +8,7 @@
 #include "pex/signal.h"
 #include "pex/interface.h"
 #include "pex/list.h"
+#include "pex/poly.h"
 
 
 namespace pex
@@ -138,6 +139,18 @@ struct ModelSelector_<T, std::enable_if_t<IsMakeList<T>>>
         >;
 };
 
+
+template<typename T>
+struct ModelSelector_<T, std::enable_if_t<IsMakePolyList<T>>>
+{
+    using Type =
+        ListModel
+        <
+            T,
+            poly::Model<typename T::MemberType>
+        >;
+};
+
 /***** ControlSelector *****/
 template<typename T, typename = void>
 struct ControlSelector_
@@ -199,6 +212,19 @@ struct ControlSelector_<T, std::enable_if_t<IsMakeList<T>>>
 };
 
 
+template<typename T>
+struct ControlSelector_<T, std::enable_if_t<IsMakePolyList<T>>>
+{
+    using Type =
+        ListControl
+        <
+            T,
+            poly::Model<typename T::MemberType>,
+            poly::Control<typename T::MemberType>
+        >;
+};
+
+
 /***** Identity *****/
 template<typename T, typename = void>
 struct Identity_
@@ -237,14 +263,13 @@ struct Identity_
     T,
     std::enable_if_t
     <
-        IsMakeList<T>
+        IsMakeList<T> || IsMakePolyList<T>
     >
 >
 {
     // Recursively look up the list type.
     using Type = std::vector<typename Identity_<typename T::MemberType>::Type>;
 };
-
 
 
 } // end namespace detail

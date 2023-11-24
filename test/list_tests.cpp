@@ -184,7 +184,8 @@ TEST_CASE("List of groups", "[List]")
     control.rockets.count.Set(10);
     control.rockets[5].y.Set(31);
 
-    std::cout << '\n' << fields::DescribeColorized(another.Get(), 1) << std::endl;
+    std::cout << '\n'
+        << fields::DescribeColorized(another.Get(), 1) << std::endl;
 
     auto drax = another.Get();
 
@@ -226,9 +227,4 @@ TEST_CASE("List of groups can be unstructured", "[List]")
     std::cout << "recovered\n" << fields::DescribeColorized(recovered, 1) << std::endl;
 
     REQUIRE(recovered == model.Get());
-
-    for (auto &it: control.rockets)
-    {
-        std::cout << "\n\n" << it.Get() << std::endl;
-    }
 }

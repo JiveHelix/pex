@@ -9,6 +9,7 @@ add_executable(
     filter_tests.cpp
     group_tests.cpp
     list_tests.cpp
+    poly_list_tests.cpp
     range_tests.cpp
     select_tests.cpp
     signal_tests.cpp
@@ -21,5 +22,4 @@ target_link_libraries(
     project_warnings
     project_options
     pex_catch_main
-    pex
-    CONAN_PKG::nlohmann_json)
+    pex)
