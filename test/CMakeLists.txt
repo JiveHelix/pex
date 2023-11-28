@@ -22,4 +22,5 @@ target_link_libraries(
     project_warnings
     project_options
     pex_catch_main
-    pex)
+    pex
+    CONAN_PKG::nlohmann_json)

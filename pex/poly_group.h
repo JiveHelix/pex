@@ -16,14 +16,14 @@ template
 <
     template<typename> typename Fields_,
     template<template<typename> typename> typename Template_,
-    typename PolyValue_,
-    typename Derived_
+    typename PolyValue_
 >
 struct PolyGroup
 {
-    using ModelBase = ModelBase_<PolyValue_>;
-    using ControlBase = ControlBase_<PolyValue_>;
-    using Derived = Derived_;
+    using ModelBase = detail::ModelBase_<PolyValue_>;
+    using ControlBase = detail::ControlBase_<PolyValue_>;
+    using Derived = PolyDerived<typename PolyValue_::Base, Template_>;
+    using DerivedBase = typename Derived::TemplateBase;
 
     struct PolyValue: public PolyValue_
     {
@@ -31,32 +31,22 @@ struct PolyGroup
 
         std::unique_ptr<ModelBase> CreateModel() const;
 
-        template<typename ...Args>
-        static PolyValue Create(Args &&...args)
+        PolyValue()
+            :
+            PolyValue_()
         {
-            return {std::make_shared<Derived>(std::forward<Args>(args)...)};
+
+        }
+
+        PolyValue(DerivedBase &&base)
+            :
+            PolyValue_{std::make_shared<Derived>(std::move(base))}
+        {
+
         }
     };
 
     using Group = ::pex::Group<Fields_, Template_, Derived>;
-
-    static const Derived * GetDerived(const PolyValue_ &value)
-    {
-        const auto &base = value.Get();
-        return dynamic_cast<const Derived *>(&base);
-    }
-
-    static const Derived & RequireDerived(const PolyValue_ &value)
-    {
-        auto derived = GetDerived(value);
-
-        if (!derived)
-        {
-            throw PolyError("Mismatched polymorphic value");
-        }
-
-        return *derived;
-    }
 
     struct Model
         :
@@ -72,7 +62,7 @@ struct PolyGroup
 
         void SetValue(const PolyValue_ &value) override
         {
-            this->Set(RequireDerived(value));
+            this->Set(value.template RequireDerived<Derived>());
         }
 
         std::string_view GetTypeName() const override
@@ -137,7 +127,7 @@ struct PolyGroup
 
         void SetValue(const PolyValue_ &value) override
         {
-            this->Set(RequireDerived(value));
+            this->Set(value.template RequireDerived<Derived>());
         }
 
         std::string_view GetTypeName() const override
@@ -152,13 +142,12 @@ template
 <
     template<typename> typename Fields_,
     template<template<typename> typename> typename Template_,
-    typename PolyValue_,
-    typename Derived_
+    typename PolyValue_
 >
-std::shared_ptr<ControlBase_<PolyValue_>>
-PolyGroup<Fields_, Template_, PolyValue_, Derived_>::Model::MakeControl()
+std::shared_ptr<detail::ControlBase_<PolyValue_>>
+PolyGroup<Fields_, Template_, PolyValue_>::Model::MakeControl()
 {
-    using ThisGroup = PolyGroup<Fields_, Template_, PolyValue_, Derived_>;
+    using ThisGroup = PolyGroup<Fields_, Template_, PolyValue_>;
     using Control = typename ThisGroup::Control;
 
     return std::make_shared<Control>(*this);
@@ -169,14 +158,13 @@ template
 <
     template<typename> typename Fields_,
     template<template<typename> typename> typename Template_,
-    typename PolyValue_,
-    typename Derived_
+    typename PolyValue_
 >
-std::unique_ptr<ModelBase_<PolyValue_>>
-PolyGroup<Fields_, Template_, PolyValue_, Derived_>::PolyValue
+std::unique_ptr<detail::ModelBase_<PolyValue_>>
+PolyGroup<Fields_, Template_, PolyValue_>::PolyValue
     ::CreateModel() const
 {
-    return std::make_unique<Model>(RequireDerived(*this));
+    return std::make_unique<Model>(this->template RequireDerived<Derived>());
 }
 
 

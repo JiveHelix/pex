@@ -2,10 +2,11 @@
 
 
 #include <memory>
-#include <nlohmann/json.hpp>
 #include <fields/fields.h>
 #include "pex/signal.h"
 #include "pex/terminus.h"
+#include "pex/identity.h"
+#include "pex/detail/poly_detail.h"
 
 
 namespace pex
@@ -19,37 +20,113 @@ namespace poly
 CREATE_EXCEPTION(PolyError, PexError);
 
 
-template<typename Value_>
-struct ControlBase_
+template<typename Json, typename T>
+Json PolyUnstructure(const T &object)
 {
-    using Value = Value_;
+    auto jsonValues = fields::Unstructure<Json>(object);
+    jsonValues["type"] = T::fieldsTypeName;
 
-    virtual ~ControlBase_() {}
-    virtual Value GetValue() const = 0;
-    virtual void SetValue(const Value &) = 0;
-    virtual std::string_view GetTypeName() const = 0;
+    return jsonValues;
+}
+
+
+template<typename Json_>
+class PolyBase
+{
+public:
+    using Json = Json_;
+    using Base = PolyBase<Json_>;
+
+    virtual ~PolyBase() {}
+
+    virtual std::ostream & Describe(
+        std::ostream &outputStream,
+        const fields::Style &style,
+        int indent) const = 0;
+
+    virtual Json Unstructure() const = 0;
+    virtual bool operator==(const PolyBase &) const = 0;
+
+    static constexpr auto polyTypeName = "PolyBase";
 };
 
 
-template<typename Value_>
-struct ModelBase_
+template
+<
+    typename PolyBase_,
+    template<template<typename> typename> typename Template_
+>
+class PolyDerived: public PolyBase_, public Template_<pex::Identity>
 {
-    using Value = Value_;
-    using ControlPtr = std::shared_ptr<ControlBase_<Value>>;
+public:
+    static_assert(
+        detail::IsCompatibleBase<PolyBase_>,
+        "Expected virtual functions to be overloaded in this class");
 
-    virtual ~ModelBase_() {}
-    virtual Value GetValue() const = 0;
-    virtual void SetValue(const Value &) = 0;
-    virtual std::string_view GetTypeName() const = 0;
-    virtual ControlPtr MakeControl() = 0;
+    using Base = PolyBase_;
+    using VirtualBase = typename detail::VirtualBase_<Base>::Type;
+    using Json = typename Base::Json;
+    using TemplateBase = Template_<pex::Identity>;
+
+    PolyDerived()
+        :
+        Base(),
+        TemplateBase()
+    {
+
+    }
+
+    PolyDerived(const TemplateBase &other)
+        :
+        Base(),
+        TemplateBase(other)
+    {
+
+    }
+
+    std::ostream & Describe(
+        std::ostream &outputStream,
+        const fields::Style &style,
+        int indent) const override
+    {
+        return fields::DescribeFields(
+            outputStream,
+            *this,
+            PolyDerived::fields,
+            style,
+            indent);
+    }
+
+    Json Unstructure() const override
+    {
+        return pex::poly::PolyUnstructure<Json>(*this);
+    }
+
+    bool operator==(const VirtualBase &other) const override
+    {
+        auto otherPolyBase = dynamic_cast<const PolyDerived *>(&other);
+
+        if (!otherPolyBase)
+        {
+            return false;
+        }
+
+        return (fields::ComparisonTuple(*this, PolyDerived::fields)
+            == fields::ComparisonTuple(*otherPolyBase, PolyDerived::fields));
+    }
 };
 
 
-template<typename Creator>
+template
+<
+    typename Base_,
+    template<template<typename> typename> typename ...DerivedTemplates
+>
 class Value
 {
 public:
-    using Base = typename Creator::Base;
+    using Base = Base_;
+    using Creator = detail::Creator_<PolyDerived<Base, DerivedTemplates>...>;
 
     static constexpr auto fieldsTypeName = Base::polyTypeName;
 
@@ -84,8 +161,8 @@ public:
     Json Unstructure() const
     {
         static_assert(
-            std::is_same_v<Json, nlohmann::json>,
-            "Only works with nlohmann:json for now");
+            std::is_same_v<Json, typename Base::Json>,
+            "Must match PolyBase Json type");
 
         if (!this->value_)
         {
@@ -107,12 +184,6 @@ public:
         this->value_ = std::make_shared<Derived>(std::forward<Args>(args)...);
     }
 
-    template<typename Derived, typename ...Args>
-    static Value Create(Args &&...args)
-    {
-        return {std::make_shared<Derived>(std::forward<Args>(args)...)};
-    }
-
     Value & operator=(std::shared_ptr<Base> value)
     {
         this->value_ = value;
@@ -131,12 +202,32 @@ public:
 
     bool operator==(const Value &other) const
     {
-        if (!this->value_ && other.value_)
+        if (!(this->value_ && other.value_))
         {
             return false;
         }
 
         return this->value_->operator==(*other.value_);
+    }
+
+    template<typename Derived>
+    const Derived * GetDerived() const
+    {
+        const auto &base = this->Get();
+        return dynamic_cast<const Derived *>(&base);
+    }
+
+    template<typename Derived>
+    const Derived & RequireDerived() const
+    {
+        auto derived = this->template GetDerived<Derived>();
+
+        if (!derived)
+        {
+            throw PolyError("Mismatched polymorphic value");
+        }
+
+        return *derived;
     }
 
 private:
@@ -148,66 +239,6 @@ TEMPLATE_OUTPUT_STREAM(Value)
 TEMPLATE_COMPARISON_OPERATORS(Value)
 
 
-template<typename Json, typename T>
-Json PolyUnstructure(const T &object)
-{
-    auto jsonValues = fields::Unstructure<Json>(object);
-    jsonValues["type"] = T::fieldsTypeName;
-
-    return jsonValues;
-}
-
-
-template<typename Base_, typename ...Derived>
-struct Creator
-{
-    using Base = Base_;
-
-private:
-    template<typename T, typename Json>
-    static bool MakeDerived(std::shared_ptr<Base> &result, const Json &json)
-    {
-        if (json["type"] == T::fieldsTypeName)
-        {
-            result = std::make_shared<T>(fields::Structure<T>(json));
-            return true;
-        }
-
-        return false;
-    }
-
-    template<typename Json>
-    static std::shared_ptr<Base> MakeDerived(const Json &json)
-    {
-        std::shared_ptr<Base> result{};
-
-        // Call MakeDerived with each derived type until a match is found.
-        static_cast<void>(
-            ((MakeDerived<Derived>(result, json) ? false : true) && ...));
-
-        return result;
-    }
-
-public:
-    template<typename Json>
-    static std::shared_ptr<Base> Structure(const Json &jsonValues)
-    {
-        if (!jsonValues.contains("type"))
-        {
-            throw std::runtime_error(
-                "Cannot structure an Aircraft without type information.");
-        }
-
-        auto result = MakeDerived<Json>(jsonValues);
-
-        if (!result)
-        {
-            throw std::runtime_error("Unknown type");
-        }
-
-        return result;
-    }
-};
 
 
 template<typename T>
@@ -220,7 +251,7 @@ struct Model
 public:
     using Value = Value_;
     using Type = Value;
-    using Base = ModelBase_<Value_>;
+    using Base = detail::ModelBase_<Value_>;
 
     template<typename T>
     friend struct Control;
@@ -268,7 +299,7 @@ struct Control
 public:
     using Value = Value_;
     using Type = Value;
-    using Base = ControlBase_<Value>;
+    using Base = detail::ControlBase_<Value>;
     using Upstream = Model<Value>;
 
     Control()

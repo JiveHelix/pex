@@ -81,20 +81,13 @@ TEST_CASE("List as group member", "[List]")
     Control control(model);
     Control another(control);
 
-    std::cout << fields::DescribeColorized(model.Get()) << std::endl;
-    std::cout << fields::DescribeColorized(control.Get()) << std::endl;
-
     control.values[3].Set(4.0);
-
-    std::cout << fields::DescribeColorized(model.Get()) << std::endl;
 
     REQUIRE(model.values[3].Get() == 4.0);
 
     control.values.count.Set(5);
     control.values[4].Set(42.0);
     control.values[2].Set(99.0);
-
-    std::cout << fields::DescribeColorized(another.Get()) << std::endl;
 
     REQUIRE(model.values[4].Get() == 42.0);
     REQUIRE(another.values[4].Get() == 42.0);
@@ -103,11 +96,7 @@ TEST_CASE("List as group member", "[List]")
 
     REQUIRE(model.values.count.Get() == 3);
 
-    std::cout << fields::DescribeColorized(control.Get()) << std::endl;
-
     another.values.count.Set(12);
-
-    std::cout << fields::DescribeColorized(control.Get()) << std::endl;
 }
 
 
@@ -178,14 +167,8 @@ TEST_CASE("List of groups", "[List]")
     Control control(model);
     Control another(model);
 
-    std::cout << fields::DescribeColorized(model.Get()) << std::endl;
-    std::cout << fields::DescribeColorized(control.Get(), 1) << std::endl;
-
     control.rockets.count.Set(10);
     control.rockets[5].y.Set(31);
-
-    std::cout << '\n'
-        << fields::DescribeColorized(another.Get(), 1) << std::endl;
 
     auto drax = another.Get();
 
@@ -213,18 +196,9 @@ TEST_CASE("List of groups can be unstructured", "[List]")
     REQUIRE(model.rockets[2].y.Get() == 27.0);
 
     auto unstructured = fields::Unstructure<json>(model.Get());
-
-    std::cout << "\nunstructured:\n" << std::setw(4) << unstructured
-        << std::endl;
-
     auto asString = unstructured.dump();
-
-    std::cout << "asString:\n" << asString << std::endl;
-
     auto recoveredUnstructured = json::parse(asString);
     auto recovered = fields::Structure<Drax>(recoveredUnstructured);
-
-    std::cout << "recovered\n" << fields::DescribeColorized(recovered, 1) << std::endl;
 
     REQUIRE(recovered == model.Get());
 }
