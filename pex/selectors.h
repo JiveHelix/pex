@@ -123,7 +123,7 @@ struct ModelSelector_<T, std::enable_if_t<IsMakeCustom<T>>>
 };
 
 template<typename T>
-struct ModelSelector_<T, std::enable_if_t<IsMakeGroup<T>>>
+struct ModelSelector_<T, std::enable_if_t<(IsMakeGroup<T> || IsGroup<T>)>>
 {
     using Type = typename T::Model;
 };
@@ -194,7 +194,7 @@ struct ControlSelector_<T, std::enable_if_t<IsMakeCustom<T>>>
 };
 
 template<typename T>
-struct ControlSelector_<T, std::enable_if_t<IsMakeGroup<T>>>
+struct ControlSelector_<T, std::enable_if_t<(IsMakeGroup<T> || IsGroup<T>)>>
 {
     using Type = typename T::Control;
 };

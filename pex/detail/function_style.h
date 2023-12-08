@@ -13,6 +13,7 @@
 #pragma once
 
 #include <type_traits>
+#include <functional>
 #include "pex/argument.h"
 
 
@@ -24,16 +25,15 @@ namespace detail
 
 
 template<typename Observer, typename T>
-using FreeFunction =
-    void (*)(Observer * const observer, Argument<T> value);
+using FreeFunction = std::function<void(Observer *, Argument<T>)>;
 
+// There is no way to declare argument type with std::mem_fn
 template<typename Observer, typename T>
-using MemberFunction =
-    void (Observer::*)(Argument<T> value);
+using MemberFunction = void (Observer::*)(Argument<T> value);
 
 
 template<typename Observer>
-using SignalFreeFunction = void (*)(Observer * const observer);
+using SignalFreeFunction = void (*)(Observer *observer);
 
 template<typename Observer>
 using SignalMemberFunction = void (Observer::*)();

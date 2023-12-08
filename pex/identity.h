@@ -27,6 +27,7 @@ struct Identity_
         IsFiltered<T>
         || IsMakeCustom<T>
         || IsMakeGroup<T>
+        || IsGroup<T>
         || IsMakeRange<T>
         || IsMakeSelect<T>
     >

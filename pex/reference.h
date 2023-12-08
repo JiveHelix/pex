@@ -263,6 +263,18 @@ struct DeferSelector
     struct DeferHelper_
     <
         T,
+        std::enable_if_t<IsGroup<T>>
+    >
+    {
+        // This member expands to a group.
+        // Choose the appropriate DeferredGroup
+        using Type = typename T::template DeferredGroup<Selector>;
+    };
+
+    template<typename T>
+    struct DeferHelper_
+    <
+        T,
         std::enable_if_t<IsSignal<Selector<T>>>
     >
     {
@@ -353,7 +365,7 @@ public:
         upstream_(&upstream),
         isMuted_(false)
     {
-
+        this->Mute();
     }
 
     ~MuteDeferred()
@@ -402,7 +414,7 @@ public:
         muteDeferred_(upstream),
         members(upstream)
     {
-        this->muteDeferred_.Mute();
+        // this->muteDeferred_.Mute();
     }
 
     template<typename Plain>

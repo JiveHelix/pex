@@ -68,8 +68,8 @@ struct PoseFields
 template<template<typename> typename T>
 struct PoseTemplate
 {
-    T<pex::MakeGroup<PositionGroup>> position;
-    T<pex::MakeGroup<RotationGroup>> rotation;
+    T<PositionGroup> position;
+    T<RotationGroup> rotation;
 
     static constexpr auto fields = PoseFields<PoseTemplate>::fields;
     static constexpr auto fieldsTypeName = "Pose";

@@ -2,6 +2,7 @@
 
 
 #include <fields/describe.h>
+#include "pex/make_control.h"
 #include "pex/detail/aggregate.h"
 
 
@@ -9,23 +10,44 @@ namespace pex
 {
 
 
+// Specializations of MakeControl for Groups.
+template<typename P>
+struct MakeControl<P, std::enable_if_t<IsGroupModel<P>>>
+{
+    using Control = typename P::ControlType;
+    using Upstream = P;
+};
+
+
+template<typename P>
+struct MakeControl<P, std::enable_if_t<IsGroupControl<P>>>
+{
+    using Control = P;
+    using Upstream = typename P::Upstream;
+};
+
+
 namespace detail
 {
 
 
-template<typename Observer, typename GroupControl>
+template<typename Observer, typename Upstream_>
 class GroupConnect
 {
 public:
-    static_assert(IsAccessor<GroupControl>);
+    static_assert(IsGroupNode<Upstream_>);
 
-    using Plain = typename GroupControl::Plain;
+    using UpstreamControl = typename MakeControl<Upstream_>::Control;
+    using Upstream = typename MakeControl<Upstream_>::Upstream;
+
+    using Plain = typename UpstreamControl::Plain;
+    using Type = Plain;
 
     template< typename T>
-    using Fields = typename GroupControl::template Fields<T>;
+    using Fields = typename UpstreamControl::template Fields<T>;
 
     template<template<typename> typename T>
-    using Template = typename GroupControl::template GroupTemplate<T>;
+    using Template = typename UpstreamControl::template GroupTemplate<T>;
 
     using Aggregate = detail::Aggregate<Plain, Fields, Template>;
 
@@ -34,7 +56,7 @@ public:
 
     GroupConnect()
         :
-        groupControl_(),
+        upstreamControl_(),
         aggregate_(),
         observer_(nullptr),
         valueConnection_()
@@ -44,10 +66,10 @@ public:
 
     GroupConnect(
         Observer *observer,
-        const GroupControl &groupControl)
+        const UpstreamControl &upstreamControl)
         :
-        groupControl_(groupControl),
-        aggregate_(this->groupControl_),
+        upstreamControl_(upstreamControl),
+        aggregate_(this->upstreamControl_),
         observer_(observer),
         valueConnection_()
     {
@@ -56,22 +78,41 @@ public:
 
     GroupConnect(
         Observer *observer,
-        const GroupControl &groupControl,
+        const UpstreamControl &upstreamControl,
         Callable callable)
         :
-        groupControl_(groupControl),
-        aggregate_(this->groupControl_),
+        upstreamControl_(upstreamControl),
+        aggregate_(this->upstreamControl_),
         observer_(observer),
         valueConnection_(std::in_place_t{}, observer, callable)
     {
         this->aggregate_.Connect(this, &GroupConnect::OnAggregate_);
     }
 
+    GroupConnect(
+        Observer *observer,
+        Upstream &upstream)
+        :
+        GroupConnect(observer, UpstreamControl(upstream))
+    {
+
+    }
+
+    GroupConnect(
+        Observer *observer,
+        Upstream &upstream,
+        Callable callable)
+        :
+        GroupConnect(observer, UpstreamControl(upstream), callable)
+    {
+
+    }
+
     GroupConnect(Observer *observer, const GroupConnect &other)
         :
-        groupControl_(other.groupControl),
-        aggregate_(this->groupControl_),
-        observer_(other.observer_),
+        upstreamControl_(other.upstreamControl_),
+        aggregate_(this->upstreamControl_),
+        observer_(observer),
         valueConnection_()
     {
         if (other.valueConnection_)
@@ -84,15 +125,34 @@ public:
         }
     }
 
-    GroupConnect &operator=(const GroupConnect &) = delete;
-    GroupConnect(const GroupConnect &) = delete;
+    GroupConnect & operator=(const GroupConnect &other)
+    {
+        return this->Assign(other.observer_, other);
+    }
+
+    GroupConnect(const GroupConnect &other)
+        :
+        upstreamControl_(other.upstreamControl_),
+        aggregate_(this->upstreamControl_),
+        observer_(other.observer_),
+        valueConnection_()
+    {
+        if (other.valueConnection_)
+        {
+            this->valueConnection_.emplace(
+                this->observer_,
+                other.valueConnection_->GetCallable());
+
+            this->aggregate_.Connect(this, &GroupConnect::OnAggregate_);
+        }
+    }
 
     GroupConnect & Assign(Observer *observer, const GroupConnect &other)
     {
         this->aggregate_.ClearConnections();
-        this->groupControl_ = other.groupControl_;
+        this->upstreamControl_ = other.upstreamControl_;
 
-        this->aggregate_.AssignUpstream(this->groupControl_);
+        this->aggregate_.AssignUpstream(this->upstreamControl_);
 
         this->observer_ = observer;
 
@@ -119,6 +179,12 @@ public:
         this->aggregate_.Connect(this, &GroupConnect::OnAggregate_);
     }
 
+    void Disconnect(Observer *)
+    {
+        this->aggregate_.Disconnect(this);
+        this->valueConnection_.reset();
+    }
+
     ~GroupConnect()
     {
         this->aggregate_.ClearConnections();
@@ -131,18 +197,28 @@ public:
         (*self->valueConnection_)(value);
     }
 
-    const GroupControl & GetUpstream() const
+    const UpstreamControl & GetControl() const
     {
-        return this->groupControl_;
+        return this->upstreamControl_;
     }
 
-    explicit operator GroupControl () const
+    UpstreamControl & GetControl()
     {
-        return this->groupControl_;
+        return this->upstreamControl_;
+    }
+
+    explicit operator UpstreamControl () const
+    {
+        return this->upstreamControl_;
+    }
+
+    Plain Get() const
+    {
+        return this->upstreamControl_.Get();
     }
 
 private:
-    GroupControl groupControl_;
+    UpstreamControl upstreamControl_;
     Aggregate aggregate_;
     Observer *observer_;
     std::optional<ValueConnection> valueConnection_;

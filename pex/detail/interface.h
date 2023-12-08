@@ -55,8 +55,7 @@ template
 <
     typename G,
     typename M,
-    typename C // ,
-    // template<typename> typename T
+    typename C
 >
 struct IsMakeGroup_<MakeGroup<G, M, C>>: std::true_type {};
 

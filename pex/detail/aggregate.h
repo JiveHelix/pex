@@ -5,6 +5,7 @@
 #include "pex/selectors.h"
 #include "pex/traits.h"
 #include "pex/detail/mute.h"
+#include "pex/detail/forward.h"
 
 
 namespace pex
@@ -96,7 +97,7 @@ inline constexpr bool IsAggregate = IsAggregate_<T>::value;
 
 
 
-
+// AggregateSelector selects group members that are themselves groups.
 template<typename T, typename Enable = void>
 struct AggregateSelector_
 {
@@ -107,6 +108,18 @@ template<typename T>
 struct AggregateSelector_<T, std::enable_if_t<IsMakeGroup<T>>>
 {
     using Type = typename T::Group::Aggregate;
+};
+
+template<typename T>
+struct AggregateSelector_<T, std::enable_if_t<IsGroup<T>>>
+{
+    using Type = typename T::Aggregate;
+};
+
+template<typename T>
+struct AggregateSelector_<T, std::enable_if_t<IsMakeList<T>>>
+{
+    using Type = ListConnect<void, ControlSelector<T>>;
 };
 
 
@@ -158,6 +171,8 @@ public:
     template<typename Upstream>
     void AssignUpstream(Upstream &upstream)
     {
+        this->UnmakeConnections_();
+
         this->muteTerminus_.Assign(
             this,
             MuteTerminus<Aggregate>(this, upstream.CloneMuteControl()));
@@ -198,26 +213,26 @@ public:
         this->ClearConnections_();
     }
 
-    template<typename Member>
-    static void MuteMember_(Member &member, bool isMuted)
-    {
-        if constexpr (IsAggregate<Member>)
-        {
-            member.SetMuted(isMuted);
-        }
-    }
+    // template<typename Member>
+    // static void MuteMember_(Member &member, bool isMuted)
+    // {
+    //     if constexpr (IsAggregate<Member>)
+    //     {
+    //         member.SetMuted(isMuted);
+    //     }
+    // }
 
-    void SetMuted(bool isMuted)
-    {
-        this->isMuted_ = isMuted;
+    // void SetMuted(bool isMuted)
+    // {
+    //     this->isMuted_ = isMuted;
 
-        auto doMute = [this, isMuted](const auto &field) -> void
-        {
-            MuteMember_(this->*(field.member), isMuted);
-        };
+    //     auto doMute = [this, isMuted](const auto &field) -> void
+    //     {
+    //         MuteMember_(this->*(field.member), isMuted);
+    //     };
 
-        jive::ForEach(Fields<Aggregate>::fields, doMute);
-    }
+    //     jive::ForEach(Fields<Aggregate>::fields, doMute);
+    // }
 
     void Notify(const Plain &plain)
     {
@@ -274,7 +289,7 @@ private:
     {
         auto disconnector = [this](const auto &field) -> void
         {
-            Disconnector_(this->*(field.member));
+            this->Disconnector_(this->*(field.member));
         };
 
         jive::ForEach(Fields<Aggregate>::fields, disconnector);

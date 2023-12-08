@@ -22,6 +22,7 @@
 #include "pex/reference.h"
 #include "pex/converting_filter.h"
 #include "pex/traits.h"
+#include "pex/make_control.h"
 #include "pex/terminus.h"
 
 
@@ -884,6 +885,7 @@ template<typename ...T>
 inline constexpr bool IsControlRange = IsControlRange_<T...>::value;
 
 
+// Specializations of MakeControl for Range.
 template<typename P>
 struct MakeControl<P, std::enable_if_t<IsModelRange<P>>>
 {
@@ -908,12 +910,12 @@ template<typename Observer, typename Upstream_>
 class RangeTerminus
 {
 public:
-    using ControlTemplate = typename MakeControl<Upstream_>::Control;
+    using UpstreamControl = typename MakeControl<Upstream_>::Control;
 
     using Upstream = typename MakeControl<Upstream_>::Upstream;
-    using Value = pex::Terminus<Observer, typename ControlTemplate::Value>;
-    using Limit = pex::Terminus<Observer, typename ControlTemplate::Limit>;
-    using Type = typename ControlTemplate::Type;
+    using Value = pex::Terminus<Observer, typename UpstreamControl::Value>;
+    using Limit = pex::Terminus<Observer, typename UpstreamControl::Limit>;
+    using Type = typename UpstreamControl::Type;
     using Callable = typename Value::Callable;
 
     Value value;
@@ -931,7 +933,7 @@ public:
 
     }
 
-    RangeTerminus(Observer *observer, const ControlTemplate &pex)
+    RangeTerminus(Observer *observer, const UpstreamControl &pex)
         :
         value(observer, pex.value),
         minimum(observer, pex.minimum),
@@ -942,7 +944,7 @@ public:
 
     RangeTerminus(
         Observer *observer,
-        const ControlTemplate &pex,
+        const UpstreamControl &pex,
         Callable callable)
         :
         value(observer, pex.value, callable),
@@ -952,7 +954,7 @@ public:
 
     }
 
-    RangeTerminus(Observer *observer, ControlTemplate &&pex)
+    RangeTerminus(Observer *observer, UpstreamControl &&pex)
         :
         value(observer, std::move(pex.value)),
         minimum(observer, std::move(pex.minimum)),
@@ -1057,9 +1059,9 @@ public:
         return this->value.Get();
     }
 
-    explicit operator ControlTemplate () const
+    explicit operator UpstreamControl () const
     {
-        ControlTemplate result;
+        UpstreamControl result;
         result.value = this->value;
         result.minimum = this->minimum;
         result.maximum = this->maximum;

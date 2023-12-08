@@ -48,12 +48,17 @@ struct PolyGroup
 
     using Group = ::pex::Group<Fields_, Template_, Derived>;
 
+
+    struct Control;
+
+
     struct Model
         :
         public ModelBase,
         public Group::Model
     {
         using Group::Model::Model;
+        using ControlType = Control;
 
         PolyValue_ GetValue() const override
         {
@@ -78,6 +83,8 @@ struct PolyGroup
         public ControlBase,
         public Group::Control
     {
+        using Upstream = Model;
+
         Control()
             :
             Group::Control()
@@ -120,6 +127,32 @@ struct PolyGroup
             *this = *upcast;
         }
 
+        Control(const Control &other)
+            :
+            aggregate_(),
+            baseNotifier_(other.baseNotifier_)
+        {
+            if (this->baseNotifier_.HasConnections())
+            {
+                this->aggregate_.AssignUpstream(*this);
+                this->aggregate_.Connect(this, &Control::OnAggregate_);
+            }
+        }
+
+        Control & operator=(const Control &other)
+        {
+            this->Group::Control::operator=(other);
+            this->baseNotifier_ = other.baseNotifier_;
+
+            if (this->baseNotifier_.HasConnections())
+            {
+                this->aggregate_.AssignUpstream(*this);
+                this->aggregate_.Connect(this, &Control::OnAggregate_);
+            }
+
+            return *this;
+        }
+
         PolyValue_ GetValue() const override
         {
             return PolyValue_(std::make_shared<Derived>(this->Get()));
@@ -134,6 +167,61 @@ struct PolyGroup
         {
             return Derived::fieldsTypeName;
         }
+
+        using BaseCallable = typename ControlBase::Callable;
+
+        void Connect(void *observer, BaseCallable callable) override
+        {
+            if (!this->baseNotifier_.HasConnections())
+            {
+                this->aggregate_.AssignUpstream(*this);
+                this->aggregate_.Connect(this, &Control::OnAggregate_);
+            }
+
+            this->baseNotifier_.ConnectOnce(observer, callable);
+        }
+
+        void Disconnect(void *observer) override
+        {
+            this->baseNotifier_.Disconnect(observer);
+
+            if (!this->baseNotifier_.HasConnections())
+            {
+                this->aggregate_.Disconnect(this);
+            }
+        }
+
+    private:
+        static void OnAggregate_(void * context, const Derived &derived)
+        {
+            auto self = static_cast<Control *>(context);
+
+            if (self->baseNotifier_.HasConnections())
+            {
+                self->baseNotifier_.Notify(
+                    PolyValue_(std::make_shared<Derived>(derived)));
+            }
+        }
+
+    private:
+        using Aggregate = typename Group::Aggregate;
+
+        class BaseNotifier
+            : public ::pex::detail::NotifyMany
+            <
+                ::pex::detail::ValueConnection<void, PolyValue_>,
+                ::pex::GetAndSetTag
+            >
+        {
+        public:
+            void Notify(const PolyValue_ &value)
+            {
+                this->Notify_(value);
+            }
+        };
+
+        Aggregate aggregate_;
+        BaseNotifier baseNotifier_;
     };
 };
 

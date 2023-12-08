@@ -71,12 +71,12 @@ template
     template<typename> typename Selector,
     typename Derived
 >
-class Accessors
+class GroupAccessors
     :
     public detail::Getter<Plain_, Fields_, Derived>
 {
 public:
-    static constexpr bool isAccessor = true;
+    static constexpr bool isGroupAccessor = true;
 
     using Plain = Plain_;
 
@@ -87,28 +87,15 @@ public:
     using GroupTemplate = Template_<T>;
 
 public:
-    Accessors()
-        :
-        isMuted_(false)
-    {
-
-    }
-
-    ~Accessors()
-    {
-
-    }
-
     void Mute()
     {
-        if (this->isMuted_)
+        auto derived = static_cast<Derived *>(this);
+
+        if (derived->IsMuted())
         {
             return;
         }
 
-        this->isMuted_ = true;
-
-        auto derived = static_cast<Derived *>(this);
         derived->DoMute();
 
         // Iterate over members, muting those that support it.
@@ -130,12 +117,12 @@ public:
 
     void Unmute()
     {
-        if (!this->isMuted_)
+        auto derived = static_cast<Derived *>(this);
+
+        if (!derived->IsMuted())
         {
             return;
         }
-
-        auto derived = static_cast<Derived *>(this);
 
         // Iterate over members, muting those that support it.
         auto doUnmute = [derived] (auto thisField)
@@ -154,8 +141,6 @@ public:
             doUnmute);
 
         derived->DoUnmute();
-
-        this->isMuted_ = false;
     }
 
     void Set(const Plain &plain)
@@ -206,9 +191,6 @@ protected:
             Fields<Derived>::fields,
             doNotify);
     }
-
-private:
-    bool isMuted_;
 };
 
 

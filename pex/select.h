@@ -18,6 +18,7 @@
 #include "pex/reference.h"
 #include "pex/find_index.h"
 #include "pex/traits.h"
+#include "pex/make_control.h"
 
 
 namespace pex
@@ -470,6 +471,7 @@ template<typename ...T>
 inline constexpr bool IsControlSelect = IsControlSelect_<T...>::value;
 
 
+// Specializations of MakeControl for SelectTerminus.
 template<typename P>
 struct MakeControl<P, std::enable_if_t<IsModelSelect<P>>>
 {
@@ -501,18 +503,18 @@ public:
 
     static constexpr bool isPexCopyable = true;
 
-    using ControlTemplate = typename MakeControl<Upstream>::Control;
+    using UpstreamControl = typename MakeControl<Upstream>::Control;
 
-    using Type = typename ControlTemplate::Type;
+    using Type = typename UpstreamControl::Type;
 
     using Selection =
-        pex::Terminus<Observer, typename ControlTemplate::Selection>;
+        pex::Terminus<Observer, typename UpstreamControl::Selection>;
 
     using Choices =
-        pex::Terminus<Observer, typename ControlTemplate::Choices>;
+        pex::Terminus<Observer, typename UpstreamControl::Choices>;
 
     using Value =
-        pex::Terminus<Observer, typename ControlTemplate::Value>;
+        pex::Terminus<Observer, typename UpstreamControl::Value>;
 
     using Callable = typename Value::Callable;
 
@@ -525,7 +527,7 @@ public:
 
     }
 
-    SelectTerminus(Observer *observer, const ControlTemplate &pex)
+    SelectTerminus(Observer *observer, const UpstreamControl &pex)
         :
         choices(observer, pex.choices),
         selection(observer, pex.selection),
@@ -536,7 +538,7 @@ public:
 
     SelectTerminus(
         Observer *observer,
-        const ControlTemplate &pex,
+        const UpstreamControl &pex,
         Callable callable)
         :
         choices(observer, pex.choices),
@@ -546,7 +548,7 @@ public:
 
     }
 
-    SelectTerminus(Observer *observer, ControlTemplate &&pex)
+    SelectTerminus(Observer *observer, UpstreamControl &&pex)
         :
         choices(observer, std::move(pex.choices)),
         selection(observer, std::move(pex.selection)),

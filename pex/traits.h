@@ -250,18 +250,18 @@ struct DefinesDefer<T, std::void_t<typename T::Defer>>
 
 
 template<typename T, typename Enable = void>
-struct IsAccessor_: std::false_type {};
+struct IsGroupAccessor_: std::false_type {};
 
 template<typename T>
-struct IsAccessor_
+struct IsGroupAccessor_
 <
     T,
-    std::enable_if_t<T::isAccessor>
+    std::enable_if_t<T::isGroupAccessor>
 >
 : std::true_type {};
 
 template<typename T>
-inline constexpr bool IsAccessor = IsAccessor_<T>::value;
+inline constexpr bool IsGroupAccessor = IsGroupAccessor_<T>::value;
 
 
 // Signals do not have an underlying type, so they are not part of the
@@ -294,6 +294,56 @@ struct ConvertsToPlain_
 
 template<typename Pex>
 inline constexpr bool ConvertsToPlain = ConvertsToPlain_<Pex>::value;
+
+
+
+template<typename T, typename = void>
+struct IsGroupModel_: std::false_type {};
+
+template<typename T>
+struct IsGroupModel_<T, std::enable_if_t<T::isGroupModel>>
+    :
+    std::true_type
+{
+
+};
+
+template<typename T>
+inline constexpr bool IsGroupModel = IsGroupModel_<T>::value;
+
+
+template<typename T, typename = void>
+struct IsGroupControl_: std::false_type {};
+
+template<typename T>
+struct IsGroupControl_<T, std::enable_if_t<T::isGroupControl>>
+    :
+    std::true_type
+{
+
+};
+
+template<typename T>
+inline constexpr bool IsGroupControl = IsGroupControl_<T>::value;
+
+
+template<typename T>
+inline constexpr bool IsGroupNode = IsGroupModel<T> || IsGroupControl<T>;
+
+
+template<typename T, typename = void>
+struct IsGroup_: std::false_type {};
+
+template<typename T>
+struct IsGroup_<T, std::enable_if_t<T::isGroup>>
+    :
+    std::true_type
+{
+
+};
+
+template<typename T>
+inline constexpr bool IsGroup = IsGroup_<T>::value;
 
 
 } // end namespace pex

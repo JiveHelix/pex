@@ -89,8 +89,8 @@ template<template<typename> typename T>
 struct AggregateTemplate
 {
     T<double> airspeedVelocity;
-    T<pex::MakeGroup<WeaponsGroup>> weapons;
-    T<pex::MakeGroup<GpsGroup>> gps;
+    T<WeaponsGroup> weapons;
+    T<GpsGroup> gps;
 
     static constexpr auto fields = AggregateFields<AggregateTemplate>::fields;
     static constexpr auto fieldsTypeName = "Aggregate";

@@ -94,7 +94,7 @@ public:
         assert(this->connections_.empty());
     }
 
-    void Connect(Observer * const observer, Callable callable)
+    void Connect(Observer *observer, Callable callable)
     {
         static_assert(
             HasAccess<GetTag, Access>,
@@ -123,7 +123,7 @@ public:
     }
 
     /** Remove all registered callbacks for the observer. **/
-    void Disconnect(typename ConnectionType::Observer * const observer)
+    void Disconnect(typename ConnectionType::Observer *observer)
     {
         THROW_IF_NOTIFYING
 
@@ -132,7 +132,7 @@ public:
             ConnectionType(observer));
     }
 
-    bool IsConnected(typename ConnectionType::Observer * const observer)
+    bool IsConnected(typename ConnectionType::Observer *observer)
     {
         return std::end(this->connections_) !=
             std::find(
@@ -142,7 +142,7 @@ public:
     }
 
     // Only make the connection if the observer is not already connected.
-    void ConnectOnce(Observer * const observer, Callable callable)
+    void ConnectOnce(Observer *observer, Callable callable)
     {
         if (this->IsConnected(observer))
         {

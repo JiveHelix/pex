@@ -7,6 +7,8 @@
 #include "pex/terminus.h"
 #include "pex/range.h"
 #include "pex/select.h"
+#include "pex/list.h"
+#include "pex/detail/list_connect.h"
 
 
 namespace pex
@@ -20,32 +22,40 @@ namespace detail
 template<typename T, typename Enable = void>
 struct MakeConnector_
 {
-    template<typename Observer, typename Upstream>
-    using Type = Terminus<Observer, Upstream>;
+    template<typename Observer>
+    using Type = Terminus<Observer, T>;
 };
 
 
 template<typename T>
-struct MakeConnector_<T, std::enable_if_t<IsAccessor<T>>>
+struct MakeConnector_<T, std::enable_if_t<IsGroupNode<T>>>
 {
-    template<typename Observer, typename GroupControl>
-    using Type = detail::GroupConnect<Observer, GroupControl>;
+    template<typename Observer>
+    using Type = detail::GroupConnect<Observer, T>;
 };
 
 
 template<typename T>
 struct MakeConnector_<T, std::enable_if_t<IsRange<T>>>
 {
-    template<typename Observer, typename Upstream>
-    using Type = RangeTerminus<Observer, Upstream>;
+    template<typename Observer>
+    using Type = RangeTerminus<Observer, T>;
 };
 
 
 template<typename T>
 struct MakeConnector_<T, std::enable_if_t<IsSelect<T>>>
 {
-    template<typename Observer, typename Upstream>
-    using Type = SelectTerminus<Observer, Upstream>;
+    template<typename Observer>
+    using Type = SelectTerminus<Observer, T>;
+};
+
+
+template<typename T>
+struct MakeConnector_<T, std::enable_if_t<::pex::IsList<T>>>
+{
+    template<typename Observer>
+    using Type = ListConnect<Observer, T>;
 };
 
 
@@ -54,10 +64,10 @@ struct MakeConnector_<T, std::enable_if_t<IsSelect<T>>>
 
 template<typename Observer, typename Upstream>
 struct MakeConnector
-    : public detail::MakeConnector_<Upstream>::template Type<Observer, Upstream>
+    : public detail::MakeConnector_<Upstream>::template Type<Observer>
 {
-    using Base = typename detail::MakeConnector_<Upstream>
-        ::template Type<Observer, Upstream>;
+    using Base =
+        typename detail::MakeConnector_<Upstream>::template Type<Observer>;
 
     using Base::Base;
 
@@ -93,6 +103,7 @@ struct Endpoint
 
 public:
     using Connector = MakeConnector<Observer, Upstream>;
+    using UpstreamControl = typename Connector::UpstreamControl;
     using Callable = typename Connector::Callable;
 
     Endpoint()
@@ -111,7 +122,7 @@ public:
 
     }
 
-    Endpoint(Observer *observer, Upstream upstream)
+    Endpoint(Observer *observer, UpstreamControl upstream)
         :
         observer_(observer),
         connector_(observer, upstream)
@@ -119,7 +130,7 @@ public:
 
     }
 
-    Endpoint(Observer *observer, Upstream upstream, Callable callable)
+    Endpoint(Observer *observer, UpstreamControl upstream, Callable callable)
         :
         observer_(observer),
         connector_(observer, upstream, callable)
@@ -127,21 +138,21 @@ public:
 
     }
 
-    Endpoint(Observer *observer, typename Upstream::Upstream &model)
+    Endpoint(Observer *observer, typename UpstreamControl::Upstream &model)
         :
         observer_(observer),
-        connector_(observer, Upstream(model))
+        connector_(observer, UpstreamControl(model))
     {
 
     }
 
     Endpoint(
         Observer *observer,
-        typename Upstream::Upstream &model,
+        typename UpstreamControl::Upstream &model,
         Callable callable)
         :
         observer_(observer),
-        connector_(observer, Upstream(model), callable)
+        connector_(observer, UpstreamControl(model), callable)
     {
 
     }
@@ -161,7 +172,7 @@ public:
         return *this;
     }
 
-    void ConnectUpstream(Upstream upstream, Callable callable)
+    void ConnectUpstream(UpstreamControl upstream, Callable callable)
     {
         this->connector_.Assign(
             this->observer_,
@@ -173,76 +184,24 @@ public:
         this->connector_.Connect(callable);
     }
 
-    const Upstream & GetUpstream() const
+    const UpstreamControl & GetControl() const
     {
-        return this->connector_.GetUpstream();
+        return this->connector_.GetControl();
     }
 
-    explicit operator Upstream () const
+    UpstreamControl & GetControl()
     {
-        return static_cast<Upstream>(this->connector_);
+        return this->connector_.GetControl();
+    }
+
+    explicit operator UpstreamControl () const
+    {
+        return static_cast<UpstreamControl>(this->connector_);
     }
 
     Observer *observer_;
     Connector connector_;
 };
-
-
-template<typename Observer, typename Upstream>
-struct EndpointControl: public Endpoint<Observer, Upstream>
-{
-public:
-    using Base = Endpoint<Observer, Upstream>;
-    using Base::Base;
-
-    using Callable = typename Base::Callable;
-
-    EndpointControl(Observer *observer, Upstream upstream)
-        :
-        Base(observer, upstream),
-        control(upstream)
-    {
-
-    }
-
-    EndpointControl(Observer *observer, Upstream upstream, Callable callable)
-        :
-        Base(observer, upstream, callable),
-        control(upstream)
-    {
-
-    }
-
-    EndpointControl(
-        Observer *observer,
-        typename Upstream::Upstream &model)
-        :
-        Base(observer, model),
-        control(model)
-    {
-
-    }
-
-    EndpointControl(
-        Observer *observer,
-        typename Upstream::Upstream &model,
-        Callable callable)
-        :
-        Base(observer, model, callable),
-        control(model)
-    {
-
-    }
-
-    void ConnectUpstream(Upstream upstream, Callable callable)
-    {
-        this->Base::ConnectUpstream(upstream, callable);
-        this->control = upstream;
-    }
-
-    Upstream control;
-};
-
 
 
 /***** EndpointSelector *****/

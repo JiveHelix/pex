@@ -37,6 +37,8 @@ template<typename>
 class ConstReference;
 
 
+// TODO: This has the same name as ::pex::detail::ValueConnection, which can
+// require explicit namespaces to find it.
 template<typename Observer, typename T, typename Filter>
 using ValueConnection =
     detail::ValueConnection
@@ -63,6 +65,7 @@ class Value_
 
 public:
     using Type = T;
+    using Plain = Type;
     using Filter = Filter_;
     using Callable = typename ValueConnection<void, T, Filter>::Callable;
 
@@ -400,7 +403,7 @@ public:
         this->model_->Set(value);
     }
 
-    void Connect(void * const observer, Callable callable)
+    void Connect(void *observer, Callable callable)
     {
         if (this->model_)
         {
@@ -409,7 +412,7 @@ public:
         }
     }
 
-    void ConnectOnce(void * const observer, Callable callable)
+    void ConnectOnce(void *observer, Callable callable)
     {
         if (this->model_)
         {
@@ -418,7 +421,7 @@ public:
         }
     }
 
-    void Disconnect(void * const observer)
+    void Disconnect(void *observer)
     {
         if (this->model_)
         {

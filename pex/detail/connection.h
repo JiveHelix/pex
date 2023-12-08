@@ -35,7 +35,7 @@ public:
     static constexpr auto IsMemberFunction =
         std::is_member_function_pointer_v<Callable>;
 
-    Connection(Observer * const observer, Callable callable)
+    Connection(Observer *observer, Callable callable)
         :
         observer_(observer),
         callable_(callable)
@@ -44,7 +44,7 @@ public:
     }
 
     /** Conversion from observer pointer for comparisons. **/
-    explicit Connection(Observer * const observer)
+    explicit Connection(Observer *observer)
         :
         observer_(observer),
         callable_{}

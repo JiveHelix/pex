@@ -20,7 +20,7 @@ public:
     using Observer = typename ConnectionType::Observer;
     using Callable = typename ConnectionType::Callable;
 
-    void Connect(Observer * const observer, Callable callable)
+    void Connect(Observer *observer, Callable callable)
     {
         PEX_LOG(observer);
 
@@ -59,7 +59,7 @@ public:
 
     /** Remove all registered callbacks for the observer. **/
     void Disconnect(
-        [[maybe_unused]] typename ConnectionType::Observer * const observer)
+        [[maybe_unused]] typename ConnectionType::Observer *observer)
     {
 
 #ifndef NDEBUG

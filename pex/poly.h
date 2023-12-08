@@ -46,6 +46,7 @@ public:
 
     virtual Json Unstructure() const = 0;
     virtual bool operator==(const PolyBase &) const = 0;
+    virtual std::string_view GetName() const { return polyTypeName; }
 
     static constexpr auto polyTypeName = "PolyBase";
 };
@@ -113,6 +114,11 @@ public:
 
         return (fields::ComparisonTuple(*this, PolyDerived::fields)
             == fields::ComparisonTuple(*otherPolyBase, PolyDerived::fields));
+    }
+
+    std::string_view GetTypeName() const override
+    {
+        return PolyDerived::fieldsTypeName;
     }
 };
 
@@ -192,7 +198,7 @@ public:
 
     operator bool () const
     {
-        return (this->value_);
+        return !!this->value_;
     }
 
     const Base & Get() const
@@ -253,6 +259,8 @@ public:
     using Type = Value;
     using Base = detail::ModelBase_<Value_>;
 
+    using ControlType = Control<Value_>;
+
     template<typename T>
     friend struct Control;
 
@@ -299,8 +307,12 @@ struct Control
 public:
     using Value = Value_;
     using Type = Value;
+    using Plain = Type;
     using Base = detail::ControlBase_<Value>;
+    using Callable = typename Base::Callable;
     using Upstream = Model<Value>;
+
+    static constexpr bool isPexCopyable = true;
 
     Control()
         :
@@ -338,6 +350,41 @@ public:
             &Control::OnBaseCreated_)
     {
 
+    }
+
+    Control(void *observer, Upstream &upstream, Callable callable)
+        :
+        upstream_(upstream),
+        base_(),
+        baseCreated_(
+            this,
+            this->upstream_->baseCreated_,
+            &Control::OnBaseCreated_)
+    {
+        auto modelBase = upstream.GetBase();
+
+        if (modelBase)
+        {
+            this->base_ = modelBase->MakeControl();
+            this->Connect(observer, callable);
+        }
+    }
+
+    Control(void *observer, const Control &other, Callable callable)
+        :
+        upstream_(other.upstream_),
+        base_(other.base_),
+        baseCreated_(
+            this,
+            this->upstream_->baseCreated_,
+            &Control::OnBaseCreated_)
+    {
+        if (!this->base_)
+        {
+            throw std::logic_error("Cannot connect without a valid object.");
+        }
+
+        this->Connect(observer, callable);
     }
 
     Control & operator=(const Control &other)
@@ -378,6 +425,18 @@ public:
         return (this->base_);
     }
 
+    void Connect(void *observer, Callable callable)
+    {
+        assert(this->base_);
+        this->base_->Connect(observer, callable);
+    }
+
+    void Disconnect(void *observer)
+    {
+        assert(this->base_);
+        this->base_->Disconnect(observer);
+    }
+
 private:
     void OnBaseCreated_()
     {
@@ -399,7 +458,25 @@ private:
 };
 
 
+template<typename ...T>
+struct IsPolyControl_: std::false_type {};
+
+template<typename T>
+struct IsPolyControl_<Control<T>>: std::true_type {};
+
+template<typename T>
+inline constexpr bool IsPolyControl = IsPolyControl_<T>::value;
+
+
 } // end namespace poly
+
+
+template<typename T>
+struct IsControl_
+<
+    T,
+    std::enable_if_t<poly::IsPolyControl<T>>
+>: std::true_type {};
 
 
 } // end namespace pex

@@ -46,7 +46,7 @@ struct CircleFields
 template<template<typename> typename T>
 struct CircleTemplate
 {
-    T<pex::MakeGroup<PointGroup>> center;
+    T<PointGroup> center;
     T<double> radius;
 
     static constexpr auto fields = CircleFields<CircleTemplate<T>>::fields;
@@ -71,9 +71,9 @@ struct StuffFields
 template<template<typename> typename T>
 struct StuffTemplate
 {
-    T<pex::MakeGroup<CircleGroup>> leftCircle;
-    T<pex::MakeGroup<CircleGroup>> rightCircle;
-    T<pex::MakeGroup<PointGroup>> aPoint;
+    T<CircleGroup> leftCircle;
+    T<CircleGroup> rightCircle;
+    T<PointGroup> aPoint;
     T<double> aLength;
 
     static constexpr auto fields = StuffFields<StuffTemplate<T>>::fields;

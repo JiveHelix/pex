@@ -67,6 +67,8 @@ template
 >
 struct Group
 {
+    static constexpr bool isGroup = true;
+
     template<typename T>
     using Fields = Fields_<T>;
 
@@ -95,7 +97,7 @@ struct Group
     };
 
     using Plain = typename PlainHelper<Plain_>::Type;
-
+    using Type = Plain;
 
     template<template<typename> typename Selector, typename Upstream>
     using DeferGroup = DeferGroup<Fields, Template, Selector, Upstream>;
@@ -105,7 +107,7 @@ struct Group
 
 
     template<typename Derived>
-    using ModelAccessors = Accessors
+    using ModelAccessors = GroupAccessors
         <
             Plain,
             Fields,
@@ -114,13 +116,18 @@ struct Group
             Derived
         >;
 
+    struct Control;
+
     struct Model:
         public Template_<ModelSelector>,
         public detail::MuteOwner,
-        public detail::MuteGroup,
+        public detail::Mute,
         public ModelAccessors<Model>
     {
     public:
+        static constexpr bool isGroupModel = true;
+
+        using ControlType = Control;
         using Plain = typename Group::Plain;
         using Type = Plain;
         using Defer = DeferGroup<ModelSelector, Model>;
@@ -132,7 +139,7 @@ struct Group
             :
             Template<ModelSelector>(),
             detail::MuteOwner(),
-            detail::MuteGroup(this->GetMuteControl()),
+            detail::Mute(this->GetMuteControl()),
             ModelAccessors<Model>()
         {
             if constexpr (HasDefault<Plain>)
@@ -145,7 +152,7 @@ struct Group
             :
             Template<ModelSelector>(),
             detail::MuteOwner(),
-            detail::MuteGroup(this->GetMuteControl()),
+            detail::Mute(this->GetMuteControl()),
             ModelAccessors<Model>()
         {
             this->SetWithoutNotify_(plain);
@@ -160,7 +167,7 @@ struct Group
     };
 
     template<typename Derived>
-    using ControlAccessors = Accessors
+    using ControlAccessors = GroupAccessors
         <
             Plain,
             Fields,
@@ -170,13 +177,15 @@ struct Group
         >;
 
     struct Control:
-        public detail::MuteGroup,
+        public detail::Mute,
         public Template<ControlSelector>,
         public ControlAccessors<Control>
     {
+        static constexpr bool isGroupControl = true;
+
         using AccessorsBase = ControlAccessors<Control>;
 
-        using Plain = typename Group::Plain;
+        // using Plain = typename Group::Plain;
         using Type = Plain;
 
         using Upstream = Model;
@@ -201,7 +210,7 @@ struct Group
 
         Control()
             :
-            detail::MuteGroup(),
+            detail::Mute(),
             AccessorsBase()
         {
 
@@ -209,7 +218,7 @@ struct Group
 
         Control(Model &model)
             :
-            detail::MuteGroup(model.GetMuteControl()),
+            detail::Mute(model.GetMuteControl()),
             AccessorsBase()
         {
             fields::AssignConvert<Fields>(*this, model);
@@ -217,7 +226,7 @@ struct Group
 
         Control(const Control &other)
             :
-            detail::MuteGroup(other),
+            detail::Mute(other),
             AccessorsBase()
         {
             fields::Assign<Fields>(*this, other);
@@ -225,7 +234,7 @@ struct Group
 
         Control & operator=(const Control &other)
         {
-            this->detail::MuteGroup::operator=(other);
+            this->detail::Mute::operator=(other);
             fields::Assign<Fields>(*this, other);
 
             return *this;
@@ -253,7 +262,6 @@ struct Group
             return pex::detail::HasModel<Fields>(*this);
         }
     };
-
 
     using Aggregate = detail::Aggregate<Plain, Fields, Template_>;
 

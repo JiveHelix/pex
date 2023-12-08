@@ -229,7 +229,7 @@ public:
     using Control = typename groups::CircleGroup::Control;
 
     using RadiusEndpoint =
-        pex::EndpointControl<RadiusObserver, decltype(Control::radius)>;
+        pex::Endpoint<RadiusObserver, decltype(Control::radius)>;
 
     RadiusObserver()
         :
@@ -334,7 +334,7 @@ TEST_CASE(
 }
 
 
-TEST_CASE("Default constructed EndpointControl is set.", "[groups]")
+TEST_CASE("Default constructed Endpoint is set.", "[groups]")
 {
     using Model = typename groups::CircleGroup::Model;
     using Control = typename groups::CircleGroup::Control;
@@ -346,12 +346,12 @@ TEST_CASE("Default constructed EndpointControl is set.", "[groups]")
     radiusObserver.SetControl(control);
     control.radius.Set(3.1415926);
 
-    REQUIRE(radiusObserver.endpoint.control.Get() == Approx(3.1415926));
+    REQUIRE(radiusObserver.endpoint.GetControl().Get() == Approx(3.1415926));
     REQUIRE(radiusObserver.radius == Approx(3.1415926));
 }
 
 
-TEST_CASE("EndpointControl is set.", "[groups]")
+TEST_CASE("Endpoint is set.", "[groups]")
 {
     using Model = typename groups::CircleGroup::Model;
     using Control = typename groups::CircleGroup::Control;
@@ -362,7 +362,7 @@ TEST_CASE("EndpointControl is set.", "[groups]")
     RadiusObserver radiusObserver{model};
     control.radius.Set(3.1415926);
 
-    REQUIRE(radiusObserver.endpoint.control.Get() == Approx(3.1415926));
+    REQUIRE(radiusObserver.endpoint.GetControl().Get() == Approx(3.1415926));
     REQUIRE(radiusObserver.radius == Approx(3.1415926));
 }
 

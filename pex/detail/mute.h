@@ -40,42 +40,52 @@ public:
         return MuteControl(this->mute_);
     }
 
+    void DoMute()
+    {
+        this->mute_.Set(true);
+    }
+
+    void DoUnmute()
+    {
+        this->mute_.Set(false);
+    }
+
 private:
     MuteModel mute_;
 };
 
 
-class MuteGroup
+class Mute
 {
 public:
-    MuteGroup()
+    Mute()
         :
         muteControl_()
     {
 
     }
 
-    MuteGroup(MuteControl muteControl)
+    Mute(MuteControl muteControl)
         :
         muteControl_(muteControl)
     {
 
     }
 
-    MuteGroup(const MuteGroup &other)
+    Mute(const Mute &other)
         :
         muteControl_(other.muteControl_)
     {
 
     }
 
-    MuteGroup & operator=(const MuteGroup &other)
+    Mute & operator=(const Mute &other)
     {
         this->muteControl_ = other.muteControl_;
         return *this;
     }
 
-    MuteControl CloneMuteControl()
+    MuteControl CloneMuteControl() const
     {
         return this->muteControl_;
     }

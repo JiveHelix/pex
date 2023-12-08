@@ -3,6 +3,7 @@
 #include <pex/group.h>
 #include <pex/poly.h>
 #include <pex/poly_group.h>
+#include <pex/endpoint.h>
 #include <nlohmann/json.hpp>
 
 
@@ -32,6 +33,7 @@ public:
 
     virtual Json Unstructure() const = 0;
     virtual bool operator==(const Aircraft &) const = 0;
+    virtual std::string_view GetTypeName() const = 0;
 
     static constexpr auto polyTypeName = "Aircraft";
 };
@@ -202,4 +204,142 @@ TEST_CASE("List of polymorphic values can be unstructured", "[poly]")
     //     << std::endl;
 
     REQUIRE(recovered == model.Get());
+}
+
+
+using TestListControl =
+    pex::control::List
+    <
+        pex::model::List
+        <
+            pex::poly::Model
+            <
+                pex::poly::Value
+                <
+                    Aircraft,
+                    FixedWingTemplate,
+                    RotorWingTemplate
+                >
+            >,
+            0
+        >,
+        pex::poly::Control
+        <
+            pex::poly::Value<Aircraft, FixedWingTemplate, RotorWingTemplate>
+        >
+    >;
+
+static_assert(pex::IsListControl<TestListControl>);
+
+using TestControl =
+    pex::poly::Control
+    <
+        pex::poly::Value
+        <
+            Aircraft,
+            FixedWingTemplate,
+            RotorWingTemplate
+        >
+    >;
+
+static_assert(pex::IsControl<TestControl>);
+
+using SelectedTestControl = pex::detail::ConnectableSelector<TestControl>;
+
+static_assert(std::is_same_v<TestControl, SelectedTestControl>);
+
+
+class AircraftObserver
+{
+public:
+    using AircraftListControl = decltype(Control::aircraft);
+    static_assert(pex::IsListControl<AircraftListControl>);
+
+    using AircraftEndpoint =
+        pex::Endpoint<AircraftObserver, AircraftListControl>;
+
+    using AircraftList = typename AircraftListControl::Type;
+
+    AircraftObserver(AircraftListControl aircraftListControl)
+        :
+        endpoint_(this, aircraftListControl, &AircraftObserver::OnAircraft_),
+        aircraftList_(aircraftListControl.Get()),
+        notificationCount_()
+    {
+
+    }
+
+    void OnAircraft_(const AircraftList &aircraft)
+    {
+        this->aircraftList_ = aircraft;
+        ++this->notificationCount_;
+    }
+
+    size_t GetNotificationCount() const
+    {
+        return this->notificationCount_;
+    }
+
+    const AircraftList & GetAircraft() const
+    {
+        return this->aircraftList_;
+    }
+
+    bool operator==(const AircraftList &aircraftList) const
+    {
+        if (aircraftList.size() != this->aircraftList_.size())
+        {
+            return false;
+        }
+
+        for (size_t i = 0; i < aircraftList.size(); ++i)
+        {
+            if (aircraftList[i] != this->aircraftList_[i])
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+private:
+    AircraftEndpoint endpoint_;
+    AircraftList aircraftList_;
+    size_t notificationCount_;
+};
+
+
+TEST_CASE("Poly list of groups can be observed", "[List]")
+{
+    Model model;
+    Control control(model);
+    AircraftObserver observer(control.aircraft);
+
+    auto values = GENERATE(
+        take(
+            3,
+            chunk(
+                15,
+                random(-1000.0, 1000.0))));
+
+    control.aircraft.Append(
+        RotorWingValue({values.at(0), values.at(1), values.at(2)}));
+
+    control.aircraft.Append(
+        FixedWingValue({values.at(3), values.at(4), values.at(5)}));
+
+    control.aircraft.Append(
+        FixedWingValue({values.at(6), values.at(7), values.at(8)}));
+
+    control.aircraft.Append(
+        RotorWingValue({values.at(9), values.at(10), values.at(11)}));
+
+    control.aircraft.Append(
+        RotorWingValue({values.at(12), values.at(13), values.at(14)}));
+
+    REQUIRE(observer == control.aircraft.Get());
+    REQUIRE(observer.GetNotificationCount() == 5);
+
+    std::cout << fields::DescribeColorized(control.Get(), 1) << std::endl;
 }

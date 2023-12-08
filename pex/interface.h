@@ -150,5 +150,8 @@ inline constexpr bool IsMakeList = detail::IsMakeList_<T...>::value;
 template<typename ...T>
 inline constexpr bool IsMakePolyList = detail::IsMakePolyList_<T...>::value;
 
+template<typename ...T>
+inline constexpr bool IsListMaker = IsMakeList<T...> || IsMakePolyList<T...>;
+
 
 } // end namespace pex

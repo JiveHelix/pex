@@ -7,6 +7,8 @@
 #include "pex/control_value.h"
 #include "pex/terminus.h"
 #include "pex/signal.h"
+#include "pex/detail/mute.h"
+#include "pex/reference.h"
 
 
 namespace pex
@@ -30,6 +32,10 @@ using ListSelected = Value<std::optional<size_t>>;
 
 template<typename Model_, size_t initialCount>
 class List
+    :
+    public detail::MuteOwner,
+    public detail::Mute
+
 {
 public:
     using Model = Model_;
@@ -44,14 +50,17 @@ public:
     template<typename, typename>
     friend class ::pex::control::List;
 
+    Signal countWillChange;
     Count count;
     Selected selected;
 
     List()
         :
+        detail::MuteOwner(),
+        detail::Mute(this->GetMuteControl()),
+        countWillChange(),
         count(initialCount),
         selected(),
-        countWillChange_(),
         items_(),
         countTerminus_(this, this->count, &List::OnCount_)
     {
@@ -63,7 +72,28 @@ public:
         }
     }
 
+    List(const Type &items)
+        :
+        List()
+    {
+        this->Set(items);
+    }
+
     Model & operator[](size_t index)
+    {
+        auto &pointer = this->items_[index];
+
+#ifndef NDEBUG
+        if (!pointer)
+        {
+            throw std::logic_error("item unitialized");
+        }
+#endif
+
+        return *pointer;
+    }
+
+    Model & at(size_t index)
     {
         auto &pointer = this->items_.at(index);
 
@@ -94,6 +124,10 @@ public:
 
     void Set(const Type &values)
     {
+        // Mute while setting item values.
+        auto muteDeferred = detail::MuteDeferred<List>(*this);
+        muteDeferred.Mute();
+
         if (values.size() != this->items_.size())
         {
             this->count.Set(values.size());
@@ -108,8 +142,15 @@ public:
     template<typename Derived>
     size_t Append(const Derived &item)
     {
+        // Mute while setting item values.
+        // TODO: Rename MuteDeferred. It unmutes at end of scope.
+        auto muteDeferred = detail::MuteDeferred<List>(*this);
+        muteDeferred.Mute();
+
         size_t newIndex = this->count.Get();
-        this->count.Set(newIndex + 1);
+        auto deferCount = pex::MakeDefer(this->count);
+        deferCount.Set(newIndex + 1);
+        this->OnCount_(newIndex + 1);
         this->items_.back()->Set(item);
 
         return newIndex;
@@ -141,7 +182,7 @@ private:
     void OnCount_(size_t count_)
     {
         // Signal all listening controls to disconnect.
-        this->countWillChange_.Trigger();
+        this->countWillChange.Trigger();
 
         this->selected.Set({});
 
@@ -151,7 +192,7 @@ private:
             // No new elements need to be created.
             this->items_.resize(count_);
         }
-        else
+        else if (count_ != this->items_.size())
         {
             size_t toInitialize = count_ - this->items_.size();
 
@@ -163,7 +204,7 @@ private:
     }
 
 private:
-    Signal countWillChange_;
+    ::pex::detail::MuteOwner mute_;
     std::vector<std::unique_ptr<Model>> items_;
     ::pex::Terminus<List, Count> countTerminus_;
 };
@@ -190,8 +231,8 @@ using ListCount = Value<::pex::model::ListCount>;
 using ListSelected = Value<::pex::model::ListSelected>;
 
 
-template<typename Upstream_, typename Control_>
-class List
+template<typename Upstream_, typename ItemControl_>
+class List: public detail::Mute
 {
     static_assert(
         model::IsList<Upstream_>,
@@ -201,23 +242,27 @@ public:
     using Upstream = Upstream_;
     using Type = typename Upstream::Type;
     using Item = typename Upstream::Item;
-    using Control = Control_;
+    using ItemControl = ItemControl_;
     using Count = ListCount;
     using Selected = ListSelected;
-    using CountWillChangeTerminus = ::pex::Terminus<List, pex::model::Signal>;
+    using CountWillChange = Signal<GetTag>;
+    using CountWillChangeTerminus = ::pex::Terminus<List, CountWillChange>;
     using CountTerminus = ::pex::Terminus<List, Count>;
-    using Vector = std::vector<Control>;
+    using Vector = std::vector<ItemControl>;
     using Iterator = typename Vector::iterator;
     using ConstIterator = typename Vector::const_iterator;
 
     template<typename>
     friend class ::pex::Reference;
 
+    CountWillChange countWillChange;
     Count count;
     Selected selected;
 
     List()
         :
+        detail::Mute(),
+        countWillChange(),
         count(),
         selected(),
         upstream_(nullptr),
@@ -229,13 +274,15 @@ public:
 
     List(Upstream &upstream)
         :
+        detail::Mute(upstream.CloneMuteControl()),
+        countWillChange(upstream.countWillChange),
         count(upstream.count),
         selected(upstream.selected),
         upstream_(&upstream),
 
         countWillChange_(
             this,
-            this->upstream_->countWillChange_,
+            this->countWillChange,
             &List::OnCountWillChange_),
 
         countTerminus_(this, this->count, &List::OnCount_),
@@ -249,13 +296,15 @@ public:
 
     List(const List &other)
         :
+        detail::Mute(other),
+        countWillChange(other.countWillChange),
         count(other.count),
         selected(other.selected),
         upstream_(other.upstream_),
 
         countWillChange_(
             this,
-            this->upstream_->countWillChange_,
+            this->countWillChange,
             &List::OnCountWillChange_),
 
         countTerminus_(this, this->count, &List::OnCount_),
@@ -266,6 +315,8 @@ public:
 
     List & operator=(const List &other)
     {
+        this->detail::Mute::operator=(other);
+        this->countWillChange = other.countWillChange;
         this->count = other.count;
         this->selected = other.selected;
         this->upstream_ = other.upstream_;
@@ -276,7 +327,22 @@ public:
         return *this;
     }
 
-    Control operator[](size_t index) const
+    const ItemControl & operator[](size_t index) const
+    {
+        return this->items_[index];
+    }
+
+    ItemControl & operator[](size_t index)
+    {
+        return this->items_[index];
+    }
+
+    const ItemControl & at(size_t index) const
+    {
+        return this->items_.at(index);
+    }
+
+    ItemControl & at(size_t index)
     {
         return this->items_.at(index);
     }
@@ -318,6 +384,11 @@ public:
             return false;
         }
 
+        if (!this->countWillChange.HasModel())
+        {
+            return false;
+        }
+
         if (!this->count.HasModel())
         {
             return false;
@@ -355,7 +426,7 @@ private:
     {
         for (auto &item: this->items_)
         {
-            detail::AccessReference<Control>(*item).DoNotify();
+            detail::AccessReference<ItemControl>(*item).DoNotify();
         }
     }
 
@@ -368,7 +439,7 @@ private:
 
         for (size_t index = 0; index < values.size(); ++index)
         {
-            detail::AccessReference<Control>(*this->items_[index])
+            detail::AccessReference<ItemControl>(*this->items_[index])
                 .SetWithoutNotify(values[index]);
         }
     }
@@ -403,7 +474,26 @@ private:
 };
 
 
+template<typename ...T>
+struct IsList_: std::false_type {};
+
+template<typename ...T>
+struct IsList_<List<T...>>: std::true_type {};
+
+template<typename ...T>
+inline constexpr bool IsList = IsList_<T...>::value;
+
+
 } // end namespace control
+
+template<typename T>
+inline constexpr bool IsListModel = model::IsList<T>;
+
+template<typename T>
+inline constexpr bool IsListControl = control::IsList<T>;
+
+template<typename T>
+inline constexpr bool IsList = control::IsList<T> || model::IsList<T>;
 
 
 } // end namespace pex

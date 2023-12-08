@@ -1,58 +1,14 @@
 #pragma once
 
 
-#include "pex/traits.h"
-#include "pex/control_value.h"
 #include "pex/detail/value_connection.h"
 #include "pex/detail/signal_connection.h"
-#include "pex/signal.h"
 #include "pex/reference.h"
+#include "pex/make_control.h"
 
 
 namespace pex
 {
-
-
-/** MakeControl
- **
- ** Converts model values/signals into controls.
- ** Preserves control values/signals.
- **
- **/
-template<typename Pex, typename enable = void>
-struct MakeControl
-{
-    using Control = control::Value_<Pex>;
-    using Upstream = Pex;
-};
-
-
-template<typename Pex>
-struct MakeControl
-<
-    Pex,
-    std::enable_if_t<IsControl<Pex>>
->
-{
-    using Control = Pex;
-    using Upstream = typename Pex::Upstream;
-};
-
-
-template<typename Pex>
-struct MakeControl<Pex, std::enable_if_t<IsControlSignal<Pex>>>
-{
-    using Control = Pex; // control::Signal<>;
-    using Upstream = typename Pex::Upstream;
-};
-
-
-template<typename Pex>
-struct MakeControl<Pex, std::enable_if_t<IsModelSignal<Pex>>>
-{
-    using Control = control::Signal<>;
-    using Upstream = Pex;
-};
 
 
 template<typename Notifier>
@@ -158,6 +114,7 @@ public:
     using ControlType =
         typename MakeControl<Upstream_>::Control;
 
+    using UpstreamControl = ControlType;
     using Connection = MakeConnection<Observer, ControlType>;
     using Notifier = typename Connection::Notifier;
     using Callable = typename Connection::Callable;
@@ -339,7 +296,12 @@ public:
         return this->upstreamControl_;
     }
 
-    const ControlType & GetUpstream() const
+    const ControlType & GetControl() const
+    {
+        return this->upstreamControl_;
+    }
+
+    ControlType & GetControl()
     {
         return this->upstreamControl_;
     }

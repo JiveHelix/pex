@@ -71,6 +71,7 @@ public:
 
     using UpstreamType = typename UpstreamHolder::Type;
     using Type = detail::FilteredType<UpstreamType, Filter>;
+    using Plain = Type;
 
     using Connection = ValueConnection<void, UpstreamType, Filter>;
     using Base = detail::NotifyMany<Connection, Access>;
@@ -122,6 +123,31 @@ public:
         {
             this->upstream_.ClearConnections();
         }
+    }
+
+    Value_(void *observer, PexArgument<Upstream> pex, Callable callable)
+        :
+        upstream_(pex),
+        filter_()
+    {
+        if constexpr (mustClearConnections)
+        {
+            this->upstream_.ClearConnections();
+        }
+
+        this->Connect(observer, callable);
+    }
+
+    Value_(void *observer, const Value_ &pex, Callable callable)
+        :
+        Value_(pex)
+    {
+        if constexpr (mustClearConnections)
+        {
+            this->upstream_.ClearConnections();
+        }
+
+        this->Connect(observer, callable);
     }
 
     ~Value_()
@@ -430,7 +456,7 @@ public:
         return *this;
     }
 
-    void Connect(void * const observer, Callable callable)
+    void Connect(void *observer, Callable callable)
     {
         static_assert(HasAccess<GetTag, Access>);
 
@@ -448,7 +474,7 @@ public:
         this->Base::Connect(observer, callable);
     }
 
-    void Disconnect(void * const observer)
+    void Disconnect(void *observer)
     {
         this->Base::Disconnect(observer);
 
@@ -695,8 +721,15 @@ template<typename ...T>
 inline constexpr bool IsControlBase = IsControlBase_<T...>::value;
 
 
+template<typename T, typename = void>
+struct IsControl_: std::false_type {};
+
 template<typename T>
-struct IsControl_: IsBaseOf<pex::control::Value_, T> {};
+struct IsControl_
+<
+    T,
+    std::enable_if_t<IsBaseOf<pex::control::Value_, T>::value>
+>: std::true_type {};
 
 template<typename T>
 inline constexpr bool IsControl = IsControl_<T>::value;

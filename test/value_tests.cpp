@@ -6,8 +6,8 @@
 
 #include <catch2/catch.hpp>
 #include <string>
-#include "jive/testing/generator_limits.h"
-#include "jive/testing/gettys_words.h"
+#include <jive/testing/generator_limits.h>
+#include <jive/testing/gettys_words.h>
 #include "test_observer.h"
 
 
@@ -29,18 +29,18 @@ TEMPLATE_TEST_CASE(
     auto original = static_cast<TestType>(
         GENERATE(
             take(
-            3,
-            random(
-                GeneratorLimits<TestType>::Lowest(),
-                GeneratorLimits<TestType>::Max()))));
+                3,
+                random(
+                    GeneratorLimits<TestType>::Lowest(),
+                    GeneratorLimits<TestType>::Max()))));
 
     auto propagated = static_cast<TestType>(
         GENERATE(
             take(
-            10,
-            random(
-                GeneratorLimits<TestType>::Lowest(),
-                GeneratorLimits<TestType>::Max()))));
+                10,
+                random(
+                    GeneratorLimits<TestType>::Lowest(),
+                    GeneratorLimits<TestType>::Max()))));
 
     using Model = pex::model::Value<TestType>;
     Model model{original};

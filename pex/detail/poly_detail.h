@@ -25,6 +25,10 @@ struct ControlBase_
     virtual Value GetValue() const = 0;
     virtual void SetValue(const Value &) = 0;
     virtual std::string_view GetTypeName() const = 0;
+
+    using Callable = std::function<void(void *, const Value &)>;
+    virtual void Connect(void *observer, Callable callable) = 0;
+    virtual void Disconnect(void *observer) = 0;
 };
 
 
@@ -169,6 +173,24 @@ struct BaseHasOperatorEquals_
 >: std::true_type {};
 
 
+template<typename T, typename = void>
+struct BaseHasGetTypeName_: std::false_type {};
+
+template<typename T>
+struct BaseHasGetTypeName_
+<
+    T,
+    std::enable_if_t
+    <
+        std::is_same_v
+        <
+            std::string_view,
+            decltype(std::declval<T>().GetTypeName())
+        >
+    >
+>: std::true_type {};
+
+
 template<typename T, typename Enable = void>
 struct IsCompatibleBase_: std::false_type {};
 
@@ -183,6 +205,7 @@ struct IsCompatibleBase_
         && BaseHasDescribe_<T>::value
         && BaseHasUnstructure_<T>::value
         && BaseHasOperatorEquals_<T>::value
+        && BaseHasGetTypeName_<T>::value
     >
 >: std::true_type {};
 
