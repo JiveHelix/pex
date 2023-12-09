@@ -401,7 +401,7 @@ public:
 
         for (auto &item: this->items_)
         {
-            if (!item->HasModel())
+            if (!item.HasModel())
             {
                 return false;
             }
@@ -426,7 +426,7 @@ private:
     {
         for (auto &item: this->items_)
         {
-            detail::AccessReference<ItemControl>(*item).DoNotify();
+            detail::AccessReference<ItemControl>(item).DoNotify();
         }
     }
 
@@ -439,7 +439,7 @@ private:
 
         for (size_t index = 0; index < values.size(); ++index)
         {
-            detail::AccessReference<ItemControl>(*this->items_[index])
+            detail::AccessReference<ItemControl>(this->items_[index])
                 .SetWithoutNotify(values[index]);
         }
     }
