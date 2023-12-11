@@ -420,6 +420,6 @@ TEST_CASE("List of groups member lists can be observed", "[List]")
 
     control.draxes.at(0).name.Set("I am Drax");
 
-    std::cout << fields::DescribeColorized(observer.GetGamora(), 1)
-        << std::endl;
+    // std::cout << fields::DescribeColorized(observer.GetGamora(), 1)
+    //     << std::endl;
 }

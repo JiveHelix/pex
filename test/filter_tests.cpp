@@ -11,21 +11,23 @@
 #include <cmath>
 #include <catch2/catch.hpp>
 #include <jive/testing/generator_limits.h>
+#include <fields/fields.h>
 #include "pex/value.h"
+#include "pex/group.h"
+#include "pex/converting_filter.h"
+#include "pex/range.h"
 
 
-template<typename T, typename Model>
+template<typename Control>
 class Observer
 {
 public:
+    using Type = typename Control::Type;
     static constexpr auto observerName = "filter_tests::Observer";
 
-    using Control =
-        pex::control::Value<Model>;
-
-    Observer(Model &model)
+    Observer(Control control)
         :
-        terminus_(this, model),
+        terminus_(this, control),
         observedValue{this->terminus_.Get()}
     {
         PEX_LOG("Connect");
@@ -33,7 +35,7 @@ public:
     }
 
 private:
-    void Observe_(T value)
+    void Observe_(Type value)
     {
         this->observedValue = value;
     }
@@ -41,7 +43,7 @@ private:
     pex::Terminus<Observer, Control> terminus_;
 
 public:
-    T observedValue;
+    Type observedValue;
 };
 
 
@@ -81,8 +83,9 @@ TEMPLATE_TEST_CASE(
         pex::model::FilteredValue<TestType, RangeFilter<TestType>>;
 
     RangeFilter<TestType> filter{low, high};
+    using Control = pex::control::Value<Model>;
     Model model{filter};
-    Observer<TestType, Model> observer(model);
+    Observer<Control> observer((Control(model)));
     model.Set(value);
     REQUIRE(observer.observedValue <= high);
     REQUIRE(observer.observedValue >= low);
@@ -127,7 +130,8 @@ TEMPLATE_TEST_CASE(
 
     RangeFilter<TestType> filter{low, high};
     Model model{filter};
-    Observer<TestType, Model> observer(model);
+    using Control = pex::control::Value<Model>;
+    Observer<Control> observer((Control(model)));
     model.Set(value);
     REQUIRE(observer.observedValue <= high);
     REQUIRE(observer.observedValue >= low);
@@ -184,4 +188,101 @@ TEMPLATE_TEST_CASE(
 
     // Expect control to retrieve degrees.
     REQUIRE(control.Get() == Approx(value));
+}
+
+
+template<typename T>
+struct CoffeeFields
+{
+    static constexpr auto fields = std::make_tuple(
+        fields::Field(&T::id, "id"),
+        fields::Field(&T::price, "price"));
+};
+
+template<template<typename> typename T>
+struct CoffeeTemplate
+{
+    T<pex::Filtered<size_t, pex::NoFilter, pex::GetTag>> id;
+    T<double> price;
+
+    static constexpr auto fields = CoffeeFields<CoffeeTemplate>::fields;
+};
+
+
+TEST_CASE("Use Filtered interface to create read-only control", "[filters]")
+{
+    using Group = pex::Group<CoffeeFields, CoffeeTemplate>;
+    using Model = typename Group::Model;
+    using Control = typename Group::Control;
+
+    Model model{};
+    Control control(model);
+    model.id.Set(42);
+
+    REQUIRE(control.id.Get() == 42);
+}
+
+
+TEST_CASE("Observe a control that follows another control", "[filters]")
+{
+    using Model = pex::model::Value<double>;
+    using Control = pex::control::Value<Model>;
+    using Follower = pex::control::Value<Control>;
+
+    Model model;
+    Control control(model);
+
+    Observer<Control> controlObserver{control};
+    Observer<Follower> observer{Follower(control)};
+
+    model.Set(3.14);
+
+    REQUIRE(control.HasModel());
+    REQUIRE(Follower(control).HasModel());
+    REQUIRE(controlObserver.observedValue == 3.14);
+    REQUIRE(observer.observedValue == 3.14);
+}
+
+
+TEST_CASE("Observe filtered value", "[filters]")
+{
+    using Model = pex::model::Value<double>;
+    using Control = pex::control::Value<Model>;
+
+    using FilteredControl = pex::control::FilteredValue
+    <
+        Control,
+        pex::control::LinearFilter<double, 1000>,
+        pex::GetAndSetTag
+    >;
+
+    Model model;
+    Control control(model);
+
+    Observer<FilteredControl> observer{FilteredControl(control)};
+
+    model.Set(3.14);
+
+    REQUIRE(observer.observedValue == 3140);
+}
+
+
+using WeightRange = pex::model::Range<double>;
+using WeightControl = pex::control::Range<WeightRange>;
+
+using FilteredWeight = pex::control::LinearRange<WeightControl, 1>;
+
+
+TEST_CASE("LinearRange is observable", "[filters]")
+{
+    WeightRange weightRange;
+    weightRange.SetMinimum(100.0);
+    weightRange.SetMaximum(150.0);
+
+    WeightControl control(weightRange);
+
+    auto observer = Observer(FilteredWeight(control).value);
+    control.value.Set(125.0);
+
+    REQUIRE(observer.observedValue == 125);
 }

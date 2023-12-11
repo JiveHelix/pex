@@ -37,3 +37,13 @@ target_link_libraries(
     project_options
     pex
     CONAN_PKG::nlohmann_json)
+
+
+add_executable(simple simple.cpp)
+
+target_link_libraries(
+    simple
+    PUBLIC
+    project_warnings
+    project_options
+    pex)

@@ -474,6 +474,24 @@ public:
         this->Base::Connect(observer, callable);
     }
 
+    void ConnectOnce(void *observer, Callable callable)
+    {
+        static_assert(HasAccess<GetTag, Access>);
+
+        if (!this->HasConnections())
+        {
+            // This is the first request for a connection.
+            // Connect ourselves to the upstream.
+            PEX_LOG("Connect ", this);
+
+            this->upstream_.ConnectOnce(
+                this,
+                &Value_::OnUpstreamChanged_);
+        }
+
+        this->Base::ConnectOnce(observer, callable);
+    }
+
     void Disconnect(void *observer)
     {
         this->Base::Disconnect(observer);

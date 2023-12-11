@@ -643,6 +643,7 @@ struct ValueControl_
 };
 
 
+// A Value may declare its own FilteredControl
 template
 <
     typename Value,

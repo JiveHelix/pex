@@ -341,5 +341,5 @@ TEST_CASE("Poly list of groups can be observed", "[List]")
     REQUIRE(observer == control.aircraft.Get());
     REQUIRE(observer.GetNotificationCount() == 5);
 
-    std::cout << fields::DescribeColorized(control.Get(), 1) << std::endl;
+    // std::cout << fields::DescribeColorized(control.Get(), 1) << std::endl;
 }
