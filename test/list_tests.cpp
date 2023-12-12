@@ -374,7 +374,7 @@ private:
 };
 
 
-TEST_CASE("List of groups member lists can be observed", "[List]")
+TEST_CASE("List of groups with member lists can be observed", "[List]")
 {
     using Model = typename GamoraGroup::Model;
     using Control = typename GamoraGroup::Control;
@@ -422,4 +422,48 @@ TEST_CASE("List of groups member lists can be observed", "[List]")
 
     // std::cout << fields::DescribeColorized(observer.GetGamora(), 1)
     //     << std::endl;
+}
+
+
+TEST_CASE("List of groups can be Set", "[List]")
+{
+    using Model = typename DraxGroup::Model;
+    using Control = typename DraxGroup::Control;
+
+    Model model;
+    model.name.Set("I am Drax");
+    Control control(model);
+    RocketObserver observer(control.rockets);
+
+    auto values = GENERATE(
+        take(
+            3,
+            chunk(
+                15,
+                random(-1000.0, 1000.0))));
+
+    std::vector<Rocket> rockets(4);
+
+    for (size_t i = 0; i < 4; ++i)
+    {
+        rockets.at(i).x = values.at(0 + i * 3);
+        rockets.at(i).y = values.at(1 + i * 3);
+        rockets.at(i).z = values.at(2 + i * 3);
+    }
+
+    control.rockets.Set(rockets);
+
+    REQUIRE(observer == rockets);
+    REQUIRE(observer.GetNotificationCount() == 1);
+
+    // Add another rocket.
+    rockets.push_back({values.at(12), values.at(13), values.at(14)});
+
+    auto drax = control.Get();
+    drax.rockets = rockets;
+
+    control.Set(drax);
+
+    REQUIRE(observer == rockets);
+    // REQUIRE(observer.GetNotificationCount() == 2);
 }

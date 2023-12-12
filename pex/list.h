@@ -133,6 +133,8 @@ public:
             this->count.Set(values.size());
         }
 
+        assert(this->items_.size() == values.size());
+
         for (size_t index = 0; index < values.size(); ++index)
         {
             this->items_[index]->Set(values[index]);
@@ -167,10 +169,16 @@ private:
 
     void SetWithoutNotify_(const Type &values)
     {
+        // Mute while setting item values.
+        auto muteDeferred = detail::MuteDeferred<List>(*this);
+        muteDeferred.Mute();
+
         if (values.size() != this->items_.size())
         {
-            throw std::out_of_range("Incorrect element count");
+            this->count.Set(values.size());
         }
+
+        assert(this->items_.size() == values.size());
 
         for (size_t index = 0; index < values.size(); ++index)
         {
@@ -432,16 +440,13 @@ private:
 
     void SetWithoutNotify_(const Type &values)
     {
-        if (values.size() != this->items_.size())
+#ifndef NDEBUG
+        if (!this->upstream_)
         {
-            throw std::out_of_range("Incorrect element count");
+            throw std::logic_error("control::List is uninitialized");
         }
-
-        for (size_t index = 0; index < values.size(); ++index)
-        {
-            detail::AccessReference<ItemControl>(this->items_[index])
-                .SetWithoutNotify(values[index]);
-        }
+#endif
+        this->upstream_->SetWithoutNotify_(values);
     }
 
     void OnCountWillChange_()
