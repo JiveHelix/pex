@@ -116,6 +116,10 @@ struct Filtered
 };
 
 
+template<typename T>
+using ReadOnly = Filtered<T, NoFilter, GetTag>;
+
+
 } // end namespace pex
 
 

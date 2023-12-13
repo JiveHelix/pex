@@ -174,6 +174,7 @@ public:
     using Value = ValueTemplate<T, RangeFilter<T>>;
     using Limit = typename ::pex::model::Value<Type>;
     using Callable = typename Value::Callable;
+    using Access = GetAndSetTag;
 
 public:
     Range()

@@ -66,6 +66,8 @@ class ListConnect
 public:
     static_assert(::pex::IsList<Upstream_>);
 
+    static constexpr auto observerName = "pex::detail::ListConnect";
+
     using ListControl = typename MakeControl<Upstream_>::Control;
     using Connectable = ConnectableSelector<typename ListControl::ItemControl>;
     using Vector = std::vector<Connectable>;

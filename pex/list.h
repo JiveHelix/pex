@@ -17,7 +17,7 @@ namespace pex
 
 namespace control
 {
-    template<typename, typename>
+    template<typename, typename, typename>
     class List;
 }
 
@@ -35,19 +35,21 @@ class List
     :
     public detail::MuteOwner,
     public detail::Mute
-
 {
 public:
+    static constexpr auto observerName = "pex::model::List";
+
     using Model = Model_;
     using Item = typename Model::Type;
     using Type = std::vector<Item>;
     using Count = ListCount;
     using Selected = ListSelected;
+    using Access = GetAndSetTag;
 
     template<typename>
     friend class ::pex::Reference;
 
-    template<typename, typename>
+    template<typename, typename, typename>
     friend class ::pex::control::List;
 
     Signal countWillChange;
@@ -239,7 +241,12 @@ using ListCount = Value<::pex::model::ListCount>;
 using ListSelected = Value<::pex::model::ListSelected>;
 
 
-template<typename Upstream_, typename ItemControl_>
+template
+<
+    typename Upstream_,
+    typename ItemControl_,
+    typename Access_ = GetAndSetTag
+>
 class List: public detail::Mute
 {
     static_assert(
@@ -247,6 +254,10 @@ class List: public detail::Mute
         "Expected a model::List as upstream");
 
 public:
+    static constexpr auto observerName = "pex::control::List";
+
+    using Access = Access_;
+
     using Upstream = Upstream_;
     using Type = typename Upstream::Type;
     using Item = typename Upstream::Item;

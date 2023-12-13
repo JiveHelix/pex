@@ -93,6 +93,9 @@ public:
     using Value = pex::model::Value<T>;
     static constexpr auto observerName = "pex::model::Select";
 
+    // Model always has full access.
+    using Access = GetAndSetTag;
+
     using ChoicesAccess = ChoicesAccess_;
     using Selection = ::pex::model::FilteredValue<size_t, SelectFilter<Type>>;
     using Choices = ::pex::model::Value<std::vector<Type>>;
@@ -350,6 +353,7 @@ public:
 
     using Filter = ::pex::NoFilter;
 
+    using Access = GetAndSetTag;
     using ChoicesAccess = typename Upstream::ChoicesAccess;
 
     static constexpr bool choicesMayChange =

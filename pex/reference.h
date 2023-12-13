@@ -193,6 +193,7 @@ class Defer: public Reference<Pex>
 public:
     using Base = Reference<Pex>;
     using Type = typename Base::Type;
+    using Access = typename Pex::Access;
 
     using Base::Base;
 
@@ -289,6 +290,50 @@ struct DeferSelector
 namespace detail
 {
 
+template<typename Target, typename = void>
+struct CanBeSet_: std::true_type {};
+
+template<typename Target>
+struct CanBeSet_
+<
+    Target,
+    std::enable_if_t
+    <
+        IsSignal<Target>
+    >
+>: std::false_type {};
+
+
+template<typename Target>
+struct CanBeSet_
+<
+    Target,
+    std::enable_if_t
+    <
+        !HasAccess<SetTag, typename Target::Access>
+    >
+>: std::false_type {};
+
+
+template<typename Target>
+inline constexpr bool CanBeSet = CanBeSet_<Target>::value;
+
+
+template<typename Target, typename Source>
+std::enable_if_t<CanBeSet<Target>>
+SetByAccess(Target &target, const Source &source)
+{
+    target.Set(source);
+}
+
+
+template<typename Target, typename Source>
+std::enable_if_t<!CanBeSet<Target>>
+SetByAccess(Target &, const Source &)
+{
+    // Do not set members that are read-only.
+}
+
 
 template
 <
@@ -336,7 +381,9 @@ public:
 
             if constexpr (!std::is_same_v<DescribeSignal, MemberType>)
             {
-                (this->*(deferField.member)).Set(plain.*(plainField.member));
+                SetByAccess(
+                    this->*(deferField.member),
+                    plain.*(plainField.member));
             }
         };
 

@@ -37,14 +37,14 @@ void Assign(Target &target, Source &source)
 
 
 template<typename Target, typename Source>
-std::enable_if_t<!IsSignal<Target>>
+std::enable_if_t<detail::CanBeSet<Target>>
 SetWithoutNotify(Target &target, const Source &source)
 {
     detail::AccessReference<Target>(target).SetWithoutNotify(source);
 }
 
 template<typename Target, typename Source>
-std::enable_if_t<IsSignal<Target>>
+std::enable_if_t<!detail::CanBeSet<Target>>
 SetWithoutNotify(Target &, const Source &)
 {
 

@@ -202,14 +202,14 @@ struct CoffeeFields
 template<template<typename> typename T>
 struct CoffeeTemplate
 {
-    T<pex::Filtered<size_t, pex::NoFilter, pex::GetTag>> id;
+    T<pex::ReadOnly<size_t>> id;
     T<double> price;
 
     static constexpr auto fields = CoffeeFields<CoffeeTemplate>::fields;
 };
 
 
-TEST_CASE("Use Filtered interface to create read-only control", "[filters]")
+TEST_CASE("Use ReadOnly interface to create read-only control", "[filters]")
 {
     using Group = pex::Group<CoffeeFields, CoffeeTemplate>;
     using Model = typename Group::Model;
@@ -220,6 +220,37 @@ TEST_CASE("Use Filtered interface to create read-only control", "[filters]")
     model.id.Set(42);
 
     REQUIRE(control.id.Get() == 42);
+}
+
+
+TEST_CASE(
+    "Assign all aggregate members except any read-only members.",
+    "[filters]")
+{
+    using Group = pex::Group<CoffeeFields, CoffeeTemplate>;
+    using Model = typename Group::Model;
+    using Control = typename Group::Control;
+    using Coffee = typename Group::Plain;
+
+    Model model{{0, 11.99}};
+    Control control(model);
+    Coffee coffee{42, 12.99};
+
+    model.Set(coffee);
+
+    REQUIRE(model.price.Get() == 12.99);
+
+    // Models always have Set access.
+    REQUIRE(model.id.Get() == 42);
+
+    coffee.id = 13;
+    coffee.price = 13.99;
+    control.Set(coffee);
+
+    REQUIRE(model.price.Get() == 13.99);
+
+    // id (read-only from the Control) should not have been changed.
+    REQUIRE(model.id.Get() == 42);
 }
 
 
