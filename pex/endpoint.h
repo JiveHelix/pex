@@ -95,7 +95,7 @@ struct MakeConnector
 
 
 template<typename Observer, typename Upstream>
-struct Endpoint
+class Endpoint_
 {
     static_assert(
         !std::is_same_v<Observer, void>,
@@ -106,7 +106,7 @@ public:
     using UpstreamControl = typename Connector::UpstreamControl;
     using Callable = typename Connector::Callable;
 
-    Endpoint()
+    Endpoint_()
         :
         observer_(nullptr),
         connector_()
@@ -114,7 +114,7 @@ public:
 
     }
 
-    Endpoint(Observer *observer)
+    Endpoint_(Observer *observer)
         :
         observer_(observer),
         connector_()
@@ -122,7 +122,7 @@ public:
 
     }
 
-    Endpoint(Observer *observer, UpstreamControl upstream)
+    Endpoint_(Observer *observer, UpstreamControl upstream)
         :
         observer_(observer),
         connector_(observer, upstream)
@@ -130,7 +130,7 @@ public:
 
     }
 
-    Endpoint(Observer *observer, UpstreamControl upstream, Callable callable)
+    Endpoint_(Observer *observer, UpstreamControl upstream, Callable callable)
         :
         observer_(observer),
         connector_(observer, upstream, callable)
@@ -138,7 +138,7 @@ public:
 
     }
 
-    Endpoint(Observer *observer, typename UpstreamControl::Upstream &model)
+    Endpoint_(Observer *observer, typename UpstreamControl::Upstream &model)
         :
         observer_(observer),
         connector_(observer, UpstreamControl(model))
@@ -146,7 +146,7 @@ public:
 
     }
 
-    Endpoint(
+    Endpoint_(
         Observer *observer,
         typename UpstreamControl::Upstream &model,
         Callable callable)
@@ -157,7 +157,7 @@ public:
 
     }
 
-    Endpoint(const Endpoint &other)
+    Endpoint_(const Endpoint_ &other)
         :
         observer_(other.observer_),
         connector_(other.observer_, other.connector_)
@@ -165,7 +165,7 @@ public:
 
     }
 
-    Endpoint & operator=(const Endpoint &other)
+    Endpoint_ & operator=(const Endpoint_ &other)
     {
         this->observer_ = other.observer_;
         this->connector_.Assign(other.observer_, other.connector_);
@@ -184,24 +184,60 @@ public:
         this->connector_.Connect(callable);
     }
 
-    const UpstreamControl & GetControl() const
-    {
-        return this->connector_.GetControl();
-    }
-
-    UpstreamControl & GetControl()
-    {
-        return this->connector_.GetControl();
-    }
-
     explicit operator UpstreamControl () const
     {
         return static_cast<UpstreamControl>(this->connector_);
     }
 
+protected:
     Observer *observer_;
     Connector connector_;
 };
+
+
+template<typename Observer, typename Upstream>
+class ValueEndpoint_: public Endpoint_<Observer, Upstream>
+{
+public:
+    using Base = Endpoint_<Observer, Upstream>;
+    using UpstreamControl = typename Base::UpstreamControl;
+    using Type = typename UpstreamControl::Type;
+
+    using Base::Base;
+
+    Type Get() const
+    {
+        return this->connector_.Get();
+    }
+
+    void Set(Argument<Type> value) const
+    {
+        this->connector_.Set(value);
+    }
+};
+
+
+template<typename Observer, typename Upstream, typename = void>
+struct ChooseEndpoint_
+{
+    using Type = ValueEndpoint_<Observer, Upstream>;
+};
+
+
+template<typename Observer, typename Upstream>
+struct ChooseEndpoint_
+<
+    Observer,
+    Upstream,
+    std::enable_if_t<IsSignal<Upstream>>
+>
+{
+    using Type = Endpoint_<Observer, Upstream>;
+};
+
+
+template<typename Observer, typename Upstream>
+using Endpoint = typename ChooseEndpoint_<Observer, Upstream>::Type;
 
 
 /***** EndpointSelector *****/

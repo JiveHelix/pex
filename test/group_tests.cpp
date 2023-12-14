@@ -346,7 +346,7 @@ TEST_CASE("Default constructed Endpoint is set.", "[groups]")
     radiusObserver.SetControl(control);
     control.radius.Set(3.1415926);
 
-    REQUIRE(radiusObserver.endpoint.GetControl().Get() == Approx(3.1415926));
+    REQUIRE(radiusObserver.endpoint.Get() == Approx(3.1415926));
     REQUIRE(radiusObserver.radius == Approx(3.1415926));
 }
 
@@ -362,7 +362,7 @@ TEST_CASE("Endpoint is set.", "[groups]")
     RadiusObserver radiusObserver{model};
     control.radius.Set(3.1415926);
 
-    REQUIRE(radiusObserver.endpoint.GetControl().Get() == Approx(3.1415926));
+    REQUIRE(radiusObserver.endpoint.Get() == Approx(3.1415926));
     REQUIRE(radiusObserver.radius == Approx(3.1415926));
 }
 
