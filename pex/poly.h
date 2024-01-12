@@ -6,7 +6,9 @@
 #include "pex/signal.h"
 #include "pex/terminus.h"
 #include "pex/identity.h"
+#include "pex/detail/choose_not_void.h"
 #include "pex/detail/poly_detail.h"
+#include "pex/detail/traits.h"
 
 
 namespace pex
@@ -30,12 +32,14 @@ Json PolyUnstructure(const T &object)
 }
 
 
-template<typename Json_>
+template<typename Json_, typename Base_ = void>
 class PolyBase
 {
 public:
     using Json = Json_;
-    using Base = PolyBase<Json_>;
+
+    using Base =
+        typename ::pex::detail::ChooseNotVoid<Base_, PolyBase<Json_>>;
 
     virtual ~PolyBase() {}
 
@@ -45,8 +49,9 @@ public:
         int indent) const = 0;
 
     virtual Json Unstructure() const = 0;
-    virtual bool operator==(const PolyBase &) const = 0;
-    virtual std::string_view GetName() const { return polyTypeName; }
+    virtual bool operator==(const Base &) const = 0;
+    virtual std::string_view GetTypeName() const = 0;
+    virtual std::shared_ptr<Base> Copy() const = 0;
 
     static constexpr auto polyTypeName = "PolyBase";
 };
@@ -57,7 +62,7 @@ template
     typename PolyBase_,
     template<template<typename> typename> typename Template_
 >
-class PolyDerived: public PolyBase_, public Template_<pex::Identity>
+class PolyDerived_: public PolyBase_, public Template_<pex::Identity>
 {
 public:
     static_assert(
@@ -69,7 +74,7 @@ public:
     using Json = typename Base::Json;
     using TemplateBase = Template_<pex::Identity>;
 
-    PolyDerived()
+    PolyDerived_()
         :
         Base(),
         TemplateBase()
@@ -77,7 +82,7 @@ public:
 
     }
 
-    PolyDerived(const TemplateBase &other)
+    PolyDerived_(const TemplateBase &other)
         :
         Base(),
         TemplateBase(other)
@@ -93,7 +98,7 @@ public:
         return fields::DescribeFields(
             outputStream,
             *this,
-            PolyDerived::fields,
+            PolyDerived_::fields,
             style,
             indent);
     }
@@ -105,36 +110,96 @@ public:
 
     bool operator==(const VirtualBase &other) const override
     {
-        auto otherPolyBase = dynamic_cast<const PolyDerived *>(&other);
+        auto otherPolyBase = dynamic_cast<const PolyDerived_ *>(&other);
 
         if (!otherPolyBase)
         {
             return false;
         }
 
-        return (fields::ComparisonTuple(*this, PolyDerived::fields)
-            == fields::ComparisonTuple(*otherPolyBase, PolyDerived::fields));
+        return (fields::ComparisonTuple(*this, PolyDerived_::fields)
+            == fields::ComparisonTuple(*otherPolyBase, PolyDerived_::fields));
     }
 
     std::string_view GetTypeName() const override
     {
-        return PolyDerived::fieldsTypeName;
+        return PolyDerived_::fieldsTypeName;
+    }
+
+    std::shared_ptr<Base> Copy() const override
+    {
+        if constexpr (::pex::detail::HasImpl<Template_<pex::Identity>>)
+        {
+            using Type = Template_<pex::Identity>::template Impl<PolyDerived_>;
+            auto self = dynamic_cast<const Type *>(this);
+
+            if (!self)
+            {
+                throw std::logic_error(
+                    "This is not the class you are looking for.");
+            }
+
+            return std::make_shared<Type>(*self);
+        }
+        else
+        {
+            return std::make_shared<PolyDerived_>(*this);
+        }
     }
 };
 
 
 template
 <
-    typename Base_,
+    typename Base,
+    template<template<typename> typename> typename Template_,
+    typename = void
+>
+struct MakePolyDerived
+{
+    using Type = PolyDerived_<Base, Template_>;
+};
+
+
+template
+<
+    typename Base,
+    template<template<typename> typename> typename Template_
+>
+struct MakePolyDerived
+<
+    Base,
+    Template_,
+    std::enable_if_t<::pex::detail::HasImpl<Template_<pex::Identity>>>
+>
+{
+    using Type =
+        Template_<pex::Identity>::template Impl<PolyDerived_<Base, Template_>>;
+};
+
+
+template
+<
+    typename Base,
+    template<template<typename> typename> typename Template_
+>
+using PolyDerived = typename MakePolyDerived<Base, Template_>::Type;
+
+
+template
+<
+    typename ValueBase_,
     template<template<typename> typename> typename ...DerivedTemplates
 >
 class Value
 {
 public:
-    using Base = Base_;
-    using Creator = detail::Creator_<PolyDerived<Base, DerivedTemplates>...>;
+    using ValueBase = ValueBase_;
 
-    static constexpr auto fieldsTypeName = Base::polyTypeName;
+    using Creator =
+        detail::Creator_<PolyDerived<ValueBase, DerivedTemplates>...>;
+
+    static constexpr auto fieldsTypeName = ValueBase::polyTypeName;
 
     Value()
         :
@@ -143,9 +208,16 @@ public:
 
     }
 
-    Value(const std::shared_ptr<Base> &value)
+    Value(const std::shared_ptr<ValueBase> &value)
         :
         value_(value)
+    {
+
+    }
+
+    Value(const ValueBase &value)
+        :
+        value_(value.Copy())
     {
 
     }
@@ -167,7 +239,7 @@ public:
     Json Unstructure() const
     {
         static_assert(
-            std::is_same_v<Json, typename Base::Json>,
+            std::is_same_v<Json, typename ValueBase::Json>,
             "Must match PolyBase Json type");
 
         if (!this->value_)
@@ -190,7 +262,7 @@ public:
         this->value_ = std::make_shared<Derived>(std::forward<Args>(args)...);
     }
 
-    Value & operator=(std::shared_ptr<Base> value)
+    Value & operator=(std::shared_ptr<ValueBase> value)
     {
         this->value_ = value;
         return *this;
@@ -201,9 +273,14 @@ public:
         return !!this->value_;
     }
 
-    const Base & Get() const
+    std::shared_ptr<const ValueBase> GetValueBase() const
     {
-        return *this->value_.get();
+        return this->value_;
+    }
+
+    std::shared_ptr<ValueBase> GetValueBase()
+    {
+        return this->value_;
     }
 
     bool operator==(const Value &other) const
@@ -219,8 +296,8 @@ public:
     template<typename Derived>
     const Derived * GetDerived() const
     {
-        const auto &base = this->Get();
-        return dynamic_cast<const Derived *>(&base);
+        const auto base = this->value_.get();
+        return dynamic_cast<const Derived *>(base);
     }
 
     template<typename Derived>
@@ -237,32 +314,28 @@ public:
     }
 
 private:
-    std::shared_ptr<Base> value_;
+    std::shared_ptr<ValueBase> value_;
 };
 
 
 TEMPLATE_OUTPUT_STREAM(Value)
 TEMPLATE_COMPARISON_OPERATORS(Value)
 
+template<typename T, typename Custom = void>
+class Control;
 
 
-
-template<typename T>
-struct Control;
-
-
-template<typename Value_>
-struct Model
+template<typename Value_, typename Custom = void>
+class Model
 {
 public:
     using Value = Value_;
     using Type = Value;
-    using Base = detail::ModelBase_<Value_>;
+    using ModelBase = detail::MakeModelBase<Custom, Value>;
+    using ControlType = Control<Value_, Custom>;
 
-    using ControlType = Control<Value_>;
-
-    template<typename T>
-    friend struct Control;
+    template<typename, typename>
+    friend class Control;
 
     Value Get() const
     {
@@ -274,7 +347,7 @@ public:
     {
         if (!this->base_)
         {
-            // Create the right kind of Base for this value.
+            // Create the right kind of ModelBase for this value.
             this->base_ = derived.CreateModel();
             this->base_->SetValue(derived);
             this->baseCreated_.Trigger();
@@ -290,27 +363,29 @@ public:
         return this->base_->GetTypeName();
     }
 
-    Base * GetBase()
+    ModelBase * GetModelBase()
     {
         return this->base_.get();
     }
 
 private:
-    std::unique_ptr<Base> base_;
+    std::unique_ptr<ModelBase> base_;
     pex::model::Signal baseCreated_;
 };
 
 
-template<typename Value_>
-struct Control
+template<typename Value_, typename Custom>
+class Control
 {
 public:
     using Value = Value_;
     using Type = Value;
     using Plain = Type;
-    using Base = detail::ControlBase_<Value>;
-    using Callable = typename Base::Callable;
-    using Upstream = Model<Value>;
+
+    using ControlBase = detail::MakeControlBase<Custom, Value>;
+
+    using Callable = typename ControlBase::Callable;
+    using Upstream = Model<Value, Custom>;
 
     static constexpr bool isPexCopyable = true;
 
@@ -332,7 +407,7 @@ public:
             this->upstream_->baseCreated_,
             &Control::OnBaseCreated_)
     {
-        auto modelBase = upstream.GetBase();
+        auto modelBase = upstream.GetModelBase();
 
         if (modelBase)
         {
@@ -361,7 +436,7 @@ public:
             this->upstream_->baseCreated_,
             &Control::OnBaseCreated_)
     {
-        auto modelBase = upstream.GetBase();
+        auto modelBase = upstream.GetModelBase();
 
         if (modelBase)
         {
@@ -408,13 +483,19 @@ public:
         return this->base_->GetTypeName();
     }
 
-    const Base * GetBase() const
+    const ControlBase * GetControlBase() const
     {
         assert(this->base_);
         return this->base_.get();
     }
 
-    void Set(Value &value)
+    ControlBase * GetControlBase()
+    {
+        assert(this->base_);
+        return this->base_.get();
+    }
+
+    void Set(const Value &value)
     {
         assert(this->base_);
         this->base_->SetValue(value);
@@ -440,7 +521,7 @@ public:
 private:
     void OnBaseCreated_()
     {
-        auto modelBase = this->upstream_->GetBase();
+        auto modelBase = this->upstream_->GetModelBase();
 
         if (modelBase)
         {
@@ -453,13 +534,16 @@ private:
         ::pex::Terminus<Control, pex::control::Signal<>>;
 
     Upstream *upstream_;
-    std::shared_ptr<Base> base_;
+    std::shared_ptr<ControlBase> base_;
     BaseCreatedTerminus baseCreated_;
 };
 
 
 template<typename ...T>
 struct IsPolyControl_: std::false_type {};
+
+template<typename T, typename Custom>
+struct IsPolyControl_<Control<T, Custom>>: std::true_type {};
 
 template<typename T>
 struct IsPolyControl_<Control<T>>: std::true_type {};

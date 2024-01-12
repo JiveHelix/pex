@@ -84,8 +84,8 @@ struct IsMakeList_<MakeList<T, S>>: std::true_type {};
 
 template<typename ...T> struct IsMakePolyList_: std::false_type {};
 
-template<typename T, size_t S>
-struct IsMakePolyList_<MakePolyList<T, S>>: std::true_type {};
+template<typename T, typename UserBases_>
+struct IsMakePolyList_<MakePolyList<T, UserBases_>>: std::true_type {};
 
 
 } // end namespace detail

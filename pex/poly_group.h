@@ -16,20 +16,203 @@ template
 <
     template<typename> typename Fields_,
     template<template<typename> typename> typename Template_,
-    typename PolyValue_
+    typename PolyValue_,
+    typename Custom = void
 >
 struct PolyGroup
 {
-    using ModelBase = detail::ModelBase_<PolyValue_>;
-    using ControlBase = detail::ControlBase_<PolyValue_>;
-    using Derived = PolyDerived<typename PolyValue_::Base, Template_>;
+    using ControlBase =
+        detail::MakeControlBase<Custom, PolyValue_>;
+
+    using ModelBase =
+        detail::MakeModelBase<Custom, PolyValue_>;
+
+    using ValueBase = typename PolyValue_::ValueBase;
+    using Derived = PolyDerived<typename PolyValue_::ValueBase, Template_>;
     using DerivedBase = typename Derived::TemplateBase;
 
-    struct PolyValue: public PolyValue_
+    struct GroupTemplates_
     {
-        using PolyValue_::PolyValue_;
+        using Plain = Derived;
 
-        std::unique_ptr<ModelBase> CreateModel() const;
+        template<typename GroupBase>
+        class Model
+            :
+            public ModelBase,
+            public GroupBase
+        {
+        public:
+            using GroupPlain = Derived;
+
+            using GroupBase::GroupBase;
+
+            PolyValue_ GetValue() const override
+            {
+                return PolyValue_(std::make_shared<Derived>(this->Get()));
+            }
+
+            void SetValue(const PolyValue_ &value) override
+            {
+                this->Set(value.template RequireDerived<Derived>());
+            }
+
+            std::string_view GetTypeName() const override
+            {
+                return Derived::fieldsTypeName;
+            }
+
+            std::shared_ptr<ControlBase> MakeControl() override;
+
+            std::shared_ptr<ValueBase> GetValueBase() const override
+            {
+                return std::make_shared<Derived>(this->Get());
+            }
+        };
+
+        template<typename GroupBase>
+        class Control
+            :
+            public ControlBase,
+            public GroupBase
+        {
+        public:
+            using GroupBase::GroupBase;
+            using Upstream = typename GroupBase::Upstream;
+            using Aggregate = typename GroupBase::Aggregate;
+
+            Control(::pex::poly::Model<PolyValue_, Custom> &model);
+
+            Control(const ::pex::poly::Control<PolyValue_, Custom> &control);
+
+            Control(const Control &other)
+                :
+                GroupBase(other),
+                aggregate_(),
+                baseNotifier_(other.baseNotifier_)
+            {
+                if (this->baseNotifier_.HasConnections())
+                {
+                    this->aggregate_.AssignUpstream(*this);
+                    this->aggregate_.Connect(this, &Control::OnAggregate_);
+                }
+            }
+
+            Control & operator=(const Control &other)
+            {
+                this->GroupBase::operator=(other);
+                this->baseNotifier_ = other.baseNotifier_;
+
+                if (this->baseNotifier_.HasConnections())
+                {
+                    this->aggregate_.AssignUpstream(*this);
+                    this->aggregate_.Connect(this, &Control::OnAggregate_);
+                }
+
+                return *this;
+            }
+
+            std::shared_ptr<ValueBase> GetValueBase() const override
+            {
+                return std::make_shared<Derived>(this->Get());
+            }
+
+            PolyValue_ GetValue() const override
+            {
+                return PolyValue_(this->GetValueBase());
+            }
+
+            void SetValue(const PolyValue_ &value) override
+            {
+                this->Set(value.template RequireDerived<Derived>());
+            }
+
+            std::string_view GetTypeName() const override
+            {
+                return Derived::fieldsTypeName;
+            }
+
+            using BaseCallable = typename ControlBase::Callable;
+
+            void Connect(void *observer, BaseCallable callable) override
+            {
+                if (!this->baseNotifier_.HasConnections())
+                {
+                    this->aggregate_.AssignUpstream(*this);
+                    this->aggregate_.Connect(this, &Control::OnAggregate_);
+                }
+
+                this->baseNotifier_.ConnectOnce(observer, callable);
+            }
+
+            void Disconnect(void *observer) override
+            {
+                this->baseNotifier_.Disconnect(observer);
+
+                if (!this->baseNotifier_.HasConnections())
+                {
+                    this->aggregate_.Disconnect(this);
+                }
+            }
+
+            std::shared_ptr<ControlBase> Copy() const override;
+
+        private:
+            static void OnAggregate_(void * context, const Derived &derived)
+            {
+                auto self = static_cast<Control *>(context);
+
+                if (self->baseNotifier_.HasConnections())
+                {
+                    self->baseNotifier_.Notify(
+                        PolyValue_(std::make_shared<Derived>(derived)));
+                }
+            }
+
+        private:
+            class BaseNotifier
+                : public ::pex::detail::NotifyMany
+                <
+                    ::pex::detail::ValueConnection<void, PolyValue_>,
+                    ::pex::GetAndSetTag
+                >
+            {
+            public:
+                void Notify(const PolyValue_ &value)
+                {
+                    this->Notify_(value);
+                }
+            };
+
+            Aggregate aggregate_;
+            BaseNotifier baseNotifier_;
+        };
+    };
+
+private:
+    using Group_ = ::pex::Group<Fields_, Template_, GroupTemplates_>;
+
+public:
+    // Allow the Customized types to inherit from Group::Model and Control.
+    using Model = typename ::pex::detail::Model<Custom, typename Group_::Model>;
+
+    using Control =
+        typename ::pex::detail::Control<Custom, typename Group_::Control>;
+
+    using ControlMembers = typename Group_::ControlMembers;
+
+    class PolyValue: public PolyValue_
+    {
+    public:
+        using PolyValue_::PolyValue_;
+        using DerivedControl = Control;
+
+        std::unique_ptr<ModelBase> CreateModel() const
+        {
+            auto result = std::make_unique<Model>();
+            result->Set(this->template RequireDerived<Derived>());
+
+            return std::move(result);
+        }
 
         PolyValue()
             :
@@ -44,184 +227,25 @@ struct PolyGroup
         {
 
         }
-    };
 
-    using Group = ::pex::Group<Fields_, Template_, Derived>;
-
-
-    struct Control;
-
-
-    struct Model
-        :
-        public ModelBase,
-        public Group::Model
-    {
-        using Group::Model::Model;
-        using ControlType = Control;
-
-        PolyValue_ GetValue() const override
-        {
-            return PolyValue_(std::make_shared<Derived>(this->Get()));
-        }
-
-        void SetValue(const PolyValue_ &value) override
-        {
-            this->Set(value.template RequireDerived<Derived>());
-        }
-
-        std::string_view GetTypeName() const override
-        {
-            return Derived::fieldsTypeName;
-        }
-
-        std::shared_ptr<ControlBase> MakeControl() override;
-    };
-
-    struct Control
-        :
-        public ControlBase,
-        public Group::Control
-    {
-        using Upstream = Model;
-
-        Control()
+        PolyValue(Derived &&derived)
             :
-            Group::Control()
+            PolyValue_{std::make_shared<Derived>(std::move(derived))}
         {
 
         }
 
-        Control(Model &model)
-            :
-            Group::Control(model)
+        static PolyValue Default()
         {
-
-        }
-
-        Control(::pex::poly::Model<PolyValue_> &model)
-        {
-            auto base = model.GetBase();
-
-            auto upcast = dynamic_cast<Model *>(base);
-
-            if (!upcast)
+            if constexpr (HasDefault<Derived>)
             {
-                throw PolyError("Mismatched polymorphic value");
+                return PolyValue(Derived::Default());
             }
-
-            *this = Control(*upcast);
-        }
-
-        Control(const ::pex::poly::Control<PolyValue_> &control)
-        {
-            auto base = control.GetBase();
-
-            auto upcast = dynamic_cast<const Control *>(base);
-
-            if (!upcast)
+            else
             {
-                throw PolyError("Mismatched polymorphic value");
-            }
-
-            *this = *upcast;
-        }
-
-        Control(const Control &other)
-            :
-            aggregate_(),
-            baseNotifier_(other.baseNotifier_)
-        {
-            if (this->baseNotifier_.HasConnections())
-            {
-                this->aggregate_.AssignUpstream(*this);
-                this->aggregate_.Connect(this, &Control::OnAggregate_);
+                return PolyValue(Derived{});
             }
         }
-
-        Control & operator=(const Control &other)
-        {
-            this->Group::Control::operator=(other);
-            this->baseNotifier_ = other.baseNotifier_;
-
-            if (this->baseNotifier_.HasConnections())
-            {
-                this->aggregate_.AssignUpstream(*this);
-                this->aggregate_.Connect(this, &Control::OnAggregate_);
-            }
-
-            return *this;
-        }
-
-        PolyValue_ GetValue() const override
-        {
-            return PolyValue_(std::make_shared<Derived>(this->Get()));
-        }
-
-        void SetValue(const PolyValue_ &value) override
-        {
-            this->Set(value.template RequireDerived<Derived>());
-        }
-
-        std::string_view GetTypeName() const override
-        {
-            return Derived::fieldsTypeName;
-        }
-
-        using BaseCallable = typename ControlBase::Callable;
-
-        void Connect(void *observer, BaseCallable callable) override
-        {
-            if (!this->baseNotifier_.HasConnections())
-            {
-                this->aggregate_.AssignUpstream(*this);
-                this->aggregate_.Connect(this, &Control::OnAggregate_);
-            }
-
-            this->baseNotifier_.ConnectOnce(observer, callable);
-        }
-
-        void Disconnect(void *observer) override
-        {
-            this->baseNotifier_.Disconnect(observer);
-
-            if (!this->baseNotifier_.HasConnections())
-            {
-                this->aggregate_.Disconnect(this);
-            }
-        }
-
-    private:
-        static void OnAggregate_(void * context, const Derived &derived)
-        {
-            auto self = static_cast<Control *>(context);
-
-            if (self->baseNotifier_.HasConnections())
-            {
-                self->baseNotifier_.Notify(
-                    PolyValue_(std::make_shared<Derived>(derived)));
-            }
-        }
-
-    private:
-        using Aggregate = typename Group::Aggregate;
-
-        class BaseNotifier
-            : public ::pex::detail::NotifyMany
-            <
-                ::pex::detail::ValueConnection<void, PolyValue_>,
-                ::pex::GetAndSetTag
-            >
-        {
-        public:
-            void Notify(const PolyValue_ &value)
-            {
-                this->Notify_(value);
-            }
-        };
-
-        Aggregate aggregate_;
-        BaseNotifier baseNotifier_;
     };
 };
 
@@ -230,15 +254,32 @@ template
 <
     template<typename> typename Fields_,
     template<template<typename> typename> typename Template_,
-    typename PolyValue_
+    typename PolyValue_,
+    typename Custom
 >
-std::shared_ptr<detail::ControlBase_<PolyValue_>>
-PolyGroup<Fields_, Template_, PolyValue_>::Model::MakeControl()
+template<typename GroupBase>
+std::shared_ptr<detail::MakeControlBase<Custom, PolyValue_>>
+PolyGroup<Fields_, Template_, PolyValue_, Custom>::GroupTemplates_
+    ::template Model<GroupBase>::MakeControl()
 {
-    using ThisGroup = PolyGroup<Fields_, Template_, PolyValue_>;
-    using Control = typename ThisGroup::Control;
+    using This = std::remove_cvref_t<decltype(*this)>;
 
-    return std::make_shared<Control>(*this);
+    using DerivedModel =
+        typename PolyGroup<Fields_, Template_, PolyValue_, Custom>::Model;
+
+    static_assert(std::is_base_of_v<This, DerivedModel>);
+
+    using Control =
+        typename PolyGroup<Fields_, Template_, PolyValue_, Custom>::Control;
+
+    auto derivedModel = dynamic_cast<DerivedModel *>(this);
+
+    if (!derivedModel)
+    {
+        throw std::logic_error("Expected this class to be a base");
+    }
+
+    return std::make_shared<Control>(*derivedModel);
 }
 
 
@@ -246,13 +287,85 @@ template
 <
     template<typename> typename Fields_,
     template<template<typename> typename> typename Template_,
-    typename PolyValue_
+    typename PolyValue_,
+    typename Custom
 >
-std::unique_ptr<detail::ModelBase_<PolyValue_>>
-PolyGroup<Fields_, Template_, PolyValue_>::PolyValue
-    ::CreateModel() const
+template<typename GroupBase>
+std::shared_ptr<detail::MakeControlBase<Custom, PolyValue_>>
+PolyGroup<Fields_, Template_, PolyValue_, Custom>::GroupTemplates_
+    ::template Control<GroupBase>::Copy() const
 {
-    return std::make_unique<Model>(this->template RequireDerived<Derived>());
+    using Control =
+        typename PolyGroup<Fields_, Template_, PolyValue_, Custom>::Control;
+
+    auto derivedControl = dynamic_cast<const Control *>(this);
+
+    if (!derivedControl)
+    {
+        throw std::logic_error("Expected this class to be a base");
+    }
+
+    return std::make_shared<Control>(*derivedControl);
+}
+
+
+template
+<
+    template<typename> typename Fields_,
+    template<template<typename> typename> typename Template_,
+    typename PolyValue_,
+    typename Custom
+>
+template<typename GroupBase>
+PolyGroup<Fields_, Template_, PolyValue_, Custom>::GroupTemplates_
+    ::template Control<GroupBase>::Control(
+        ::pex::poly::Model<PolyValue_, Custom> &model)
+    :
+    GroupBase()
+{
+    using Control =
+        typename PolyGroup<Fields_, Template_, PolyValue_, Custom>::Control;
+
+    auto base = model.GetModelBase();
+
+    auto upcast = dynamic_cast<Upstream *>(base);
+
+    if (!upcast)
+    {
+        throw PolyError("Mismatched polymorphic value");
+    }
+
+    *this = Control(*upcast);
+}
+
+
+template
+<
+    template<typename> typename Fields_,
+    template<template<typename> typename> typename Template_,
+    typename PolyValue_,
+    typename Custom
+>
+template<typename GroupBase>
+PolyGroup<Fields_, Template_, PolyValue_, Custom>::GroupTemplates_
+    ::template Control<GroupBase>::Control(
+        const ::pex::poly::Control<PolyValue_, Custom> &control)
+    :
+    GroupBase()
+{
+    using Control =
+        typename PolyGroup<Fields_, Template_, PolyValue_, Custom>::Control;
+
+    auto base = control.GetControlBase();
+
+    auto upcast = dynamic_cast<const Control *>(base);
+
+    if (!upcast)
+    {
+        throw PolyError("Mismatched polymorphic value");
+    }
+
+    *this = *upcast;
 }
 
 

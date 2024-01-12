@@ -153,7 +153,7 @@ struct ModelSelector_<T, std::enable_if_t<IsMakePolyList<T>>>
         ListModel
         <
             T,
-            poly::Model<typename T::MemberType, typename T::PreBases>
+            poly::Model<typename T::MemberType, typename T::UserBases>
         >;
 };
 
@@ -225,8 +225,8 @@ struct ControlSelector_<T, std::enable_if_t<IsMakePolyList<T>>>
         ListControl
         <
             T,
-            poly::Model<typename T::MemberType, typename T::PreBases>,
-            poly::Control<typename T::MemberType, typename T::PreBases>
+            poly::Model<typename T::MemberType, typename T::UserBases>,
+            poly::Control<typename T::MemberType, typename T::UserBases>
         >;
 };
 

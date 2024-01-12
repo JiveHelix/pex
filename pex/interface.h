@@ -80,39 +80,25 @@ struct MakeList
 template
 <
     typename T,
-    size_t initialCount_
+    typename UserBases_ = void
 >
 struct MakePolyList
 {
     using MemberType = T;
-    inline static constexpr size_t initialCount = initialCount_;
-};
-
-
-template
-<
-    typename Group_,
-    typename Model_ = typename Group_::Model,
-    typename Control_ = typename Group_::Control
->
-struct MakeGroup
-{
-    using Group = Group_;
-    using Model = Model_;
-    using Control = Control_;
-    using Type = typename Group_::Plain;
+    using UserBases = UserBases_;
+    inline static constexpr size_t initialCount = 0;
 };
 
 
 template<
     typename T,
     typename ModelFilter_ = NoFilter,
-    typename ControlAccess_ = GetAndSetTag>
+    typename Access_ = GetAndSetTag>
 struct Filtered
 {
     using Type = T;
     using ModelFilter = ModelFilter_;
-    using ControlAccess = ControlAccess_;
+    using Access = Access_;
 };
 
 

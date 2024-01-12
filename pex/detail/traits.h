@@ -55,35 +55,35 @@ inline constexpr bool HasControlTemplate = HasControlTemplate_<T>::value;
 
 
 template<typename T, typename = void>
-struct HasModelPreBaseTemplate_: std::false_type {};
+struct HasModelUserBaseTemplate_: std::false_type {};
 
 template<typename T>
-struct HasModelPreBaseTemplate_
+struct HasModelUserBaseTemplate_
 <
     T,
-    std::void_t<typename T::template ModelPreBase<void>>
+    std::void_t<typename T::template ModelUserBase<void>>
 >
 : std::true_type {};
 
 template<typename T>
-inline constexpr bool HasModelPreBaseTemplate =
-    HasModelPreBaseTemplate_<T>::value;
+inline constexpr bool HasModelUserBaseTemplate =
+    HasModelUserBaseTemplate_<T>::value;
 
 
 template<typename T, typename = void>
-struct HasControlPreBaseTemplate_: std::false_type {};
+struct HasControlUserBaseTemplate_: std::false_type {};
 
 template<typename T>
-struct HasControlPreBaseTemplate_
+struct HasControlUserBaseTemplate_
 <
     T,
-    std::void_t<typename T::template ControlPreBase<void>>
+    std::void_t<typename T::template ControlUserBase<void>>
 >
 : std::true_type {};
 
 template<typename T>
-inline constexpr bool HasControlPreBaseTemplate =
-    HasControlPreBaseTemplate_<T>::value;
+inline constexpr bool HasControlUserBaseTemplate =
+    HasControlUserBaseTemplate_<T>::value;
 
 
 template<typename T, typename = void>

@@ -52,6 +52,10 @@ public:
     template<typename, typename, typename>
     friend class ::pex::control::List;
 
+private:
+    Signal internalCountWillChange_;
+
+public:
     Signal countWillChange;
     Count count;
     Selected selected;
@@ -60,6 +64,7 @@ public:
         :
         detail::MuteOwner(),
         detail::Mute(this->GetMuteControl()),
+        internalCountWillChange_(),
         countWillChange(),
         count(initialCount),
         selected(),
@@ -194,6 +199,11 @@ private:
         // Signal all listening controls to disconnect.
         this->countWillChange.Trigger();
 
+        // Now signal control::Lists that the count will change.
+        this->internalCountWillChange_.Trigger();
+
+        auto wasSelected = this->selected.Get();
+
         this->selected.Set({});
 
         if (count_ < this->items_.size())
@@ -210,6 +220,11 @@ private:
             {
                 this->items_.push_back(std::make_unique<Model>());
             }
+        }
+
+        if (wasSelected && *wasSelected < count_)
+        {
+            this->selected.Set(wasSelected);
         }
     }
 
@@ -301,7 +316,7 @@ public:
 
         countWillChange_(
             this,
-            this->countWillChange,
+            this->upstream_->internalCountWillChange_,
             &List::OnCountWillChange_),
 
         countTerminus_(this, this->count, &List::OnCount_),
@@ -323,7 +338,7 @@ public:
 
         countWillChange_(
             this,
-            this->countWillChange,
+            this->upstream_->internalCountWillChange_,
             &List::OnCountWillChange_),
 
         countTerminus_(this, this->count, &List::OnCount_),
