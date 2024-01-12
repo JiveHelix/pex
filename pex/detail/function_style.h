@@ -33,7 +33,7 @@ using MemberFunction = void (Observer::*)(Argument<T> value);
 
 
 template<typename Observer>
-using SignalFreeFunction = void (*)(Observer *observer);
+using SignalFreeFunction = std::function<void(Observer *)>;
 
 template<typename Observer>
 using SignalMemberFunction = void (Observer::*)();

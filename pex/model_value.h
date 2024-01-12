@@ -53,12 +53,12 @@ namespace model
 // Model must use unbound callbacks so it can send notifications to
 // different observer types.
 // All observers are stored as void *.
-template<typename T, typename Filter_>
+template<typename T, typename Filter_, typename Access_ = GetAndSetTag>
 class Value_
     :
     //Callback values will be the type returned by the Filter, or T if
     // the filter is void.
-    public detail::NotifyMany<ValueConnection<void, T, Filter_>, GetAndSetTag>
+    public detail::NotifyMany<ValueConnection<void, T, Filter_>, Access_>
 {
     static_assert(!std::is_void_v<T>);
     static_assert(detail::FilterIsNoneOrValid<T, Filter_, SetTag>);
@@ -70,7 +70,7 @@ public:
     using Callable = typename ValueConnection<void, T, Filter>::Callable;
 
     // All model nodes have writable access.
-    using Access = GetAndSetTag;
+    using Access = Access_;
 
     template<typename>
     friend class ::pex::Transaction;
@@ -137,7 +137,7 @@ public:
     }
 
     /** Set the value and notify interfaces **/
-    void Set(Argument<Type> value)
+    void Set(Argument<Type> value) requires (HasAccess<SetTag, Access>)
     {
         this->SetWithoutNotify_(value);
         this->DoNotify_();
@@ -154,6 +154,7 @@ public:
     }
 
     Value_ & operator=(Argument<Type> value)
+        requires (HasAccess<SetTag, Access>)
     {
         this->Set(value);
         return *this;
@@ -399,6 +400,8 @@ public:
 
     void Set(Argument<Type> value)
     {
+        static_assert(HasAccess<SetTag, typename Model::Access>);
+
         REQUIRE_HAS_VALUE(this->model_);
         this->model_->Set(value);
     }

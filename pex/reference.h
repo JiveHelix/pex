@@ -161,6 +161,12 @@ public:
 
     using Base::Base;
 
+    void Set(Argument<Type> value)
+    {
+        this->SetWithoutNotify_(value);
+        this->DoNotify_();
+    }
+
     void SetWithoutNotify(Argument<Type> value)
     {
         this->SetWithoutNotify_(value);
@@ -178,6 +184,17 @@ public:
 };
 
 
+}
+
+
+template<typename Pex, typename Value>
+void SetOverride(Pex &pex, Value &&value) requires (IsModel<Pex>)
+{
+    static_assert(
+        !HasAccess<SetTag, typename Pex::Access>,
+        "This function is intended to override a read-only value");
+
+    detail::AccessReference<Pex>(pex).Set(std::forward<Value>(value));
 }
 
 
@@ -246,18 +263,6 @@ struct DeferSelector
     {
         // Choose the single-valued Defer for this member
         using Type = Defer<Selector<T>>;
-    };
-
-    template<typename T>
-    struct DeferHelper_
-    <
-        T,
-        std::enable_if_t<IsMakeGroup<T>>
-    >
-    {
-        // This member expands to a group.
-        // Choose the appropriate DeferredGroup
-        using Type = typename T::Group::template DeferredGroup<Selector>;
     };
 
     template<typename T>

@@ -204,13 +204,13 @@ TEST_CASE("pex::Terminus can use Group::Control as its upstream.", "[terminus]")
 
     STATIC_REQUIRE(pex::IsCopyable<GroupControl>);
 
-    TerminusTestPlain values{{42, 43, 44.0}};
+    TerminusTestPlain values{42, 43, 44.0};
     TerminusTestModel model(values);
 
     auto observer = MakeTestObserver(GroupControl(model));
 
     model.one.Set(49);
 
-    TerminusTestPlain expected{{49, 43, 44.0}};
+    TerminusTestPlain expected{49, 43, 44.0};
     REQUIRE(expected == observer->observedValue);
 }

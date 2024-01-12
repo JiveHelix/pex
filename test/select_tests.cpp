@@ -51,7 +51,7 @@ static_assert(pex::IsModelSelect<decltype(SomeModel::rate)>);
 
 TEST_CASE("Select is member of Group", "[select]")
 {
-    SomePlain plain{{1.0, 2.0, 42.0}};
+    SomePlain plain{1.0, 2.0, 42.0};
     SomeModel model(plain);
 
     REQUIRE(SomeControl(model).rate.selection.Get() == 0);

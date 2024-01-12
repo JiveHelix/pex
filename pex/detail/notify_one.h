@@ -22,11 +22,25 @@ public:
 
     void Connect(Observer *observer, Callable callable)
     {
-        PEX_LOG(observer);
-
         static_assert(
             HasAccess<GetTag, Access>,
             "Cannot connect observer without read access.");
+
+#ifdef USE_OBSERVER_NAME
+        if constexpr (std::is_void_v<Observer>)
+        {
+            PEX_LOG("void (", observer, ") connecting to ", this);
+        }
+        else
+        {
+            PEX_LOG(
+                Observer::observerName,
+                " (",
+                observer,
+                ") connecting to ",
+                this);
+        }
+#endif
 
         this->connection_ = ConnectionType(observer, callable);
     }
@@ -69,7 +83,22 @@ public:
         }
 #endif
 
-        PEX_LOG(observer);
+#ifdef USE_OBSERVER_NAME
+        if constexpr (std::is_void_v<Observer>)
+        {
+            PEX_LOG("void (", observer, ") disconnecting from ", this);
+        }
+        else
+        {
+            PEX_LOG(
+                Observer::observerName,
+                " (",
+                observer,
+                ") disconnecting from ",
+                this);
+        }
+#endif
+
         this->connection_.reset();
     }
 

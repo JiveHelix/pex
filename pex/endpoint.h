@@ -210,7 +210,7 @@ public:
         return this->connector_.Get();
     }
 
-    void Set(Argument<Type> value) const
+    void Set(Argument<Type> value)
     {
         this->connector_.Set(value);
     }

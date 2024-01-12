@@ -59,19 +59,25 @@ struct GrootTemplate
     static constexpr auto fieldsTypeName = "Groot";
 };
 
-struct Groot: public GrootTemplate<pex::Identity>
+struct GroupTypes
 {
-    static Groot Default()
+    template<typename Base>
+    struct Plain: public Base
     {
-        return {
-            "I am Groot",
-            {{1.0, 2.0, 3.0, 4.0}}};
-    }
+        static Plain Default()
+        {
+            return {
+                "I am Groot",
+                {{1.0, 2.0, 3.0, 4.0}}};
+        }
+    };
 };
 
-DECLARE_EQUALITY_OPERATORS(Groot)
+using GrootGroup = pex::Group<GrootFields, GrootTemplate, GroupTypes>;
+using Groot = typename GrootGroup::Plain;
 
-using GrootGroup = pex::Group<GrootFields, GrootTemplate, Groot>;
+DECLARE_EQUALITY_OPERATORS(Groot)
+DECLARE_EQUALITY_OPERATORS(GrootTemplate<pex::Identity>)
 
 
 TEST_CASE("List as group member", "[List]")
@@ -82,6 +88,9 @@ TEST_CASE("List as group member", "[List]")
     using Control = typename GrootGroup::Control;
 
     Model model;
+
+    REQUIRE(model.values.at(2).Get() == 3.0);
+
     Control control(model);
     Control another(control);
 

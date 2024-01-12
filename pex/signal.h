@@ -82,7 +82,8 @@ public:
     Signal(): model_(nullptr) {}
 
     Signal(model::Signal &model)
-        : model_(&model)
+        :
+        model_(&model)
     {
         PEX_LOG("Connect ", this);
         this->model_->Connect(this, &Signal::OnModelSignaled_);
@@ -95,6 +96,20 @@ public:
             PEX_LOG("Disconnect ", this);
             this->model_->Disconnect(this);
         }
+    }
+
+    Signal(void *observer, model::Signal &model, Callable callable)
+        :
+        Signal(model)
+    {
+        this->Connect(observer, callable);
+    }
+
+    Signal(void *observer, const Signal &other, Callable callable)
+        :
+        Signal(other)
+    {
+        this->Connect(observer, callable);
     }
 
     /** Signals the model node, which echoes the signal back to all of the

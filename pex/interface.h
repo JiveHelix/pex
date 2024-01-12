@@ -40,7 +40,7 @@ template
     typename T,
     typename Minimum_ = void,
     typename Maximum_ = void,
-    template<typename, typename> typename Value_ = pex::model::Value_
+    template<typename, typename, typename> typename Value_ = pex::model::Value_
 >
 struct MakeRange
 {
@@ -48,8 +48,8 @@ struct MakeRange
     using Minimum = Minimum_;
     using Maximum = Maximum_;
 
-    template<typename U, typename V>
-    using Value = Value_<U, V>;
+    template<typename U, typename V, typename W>
+    using Value = Value_<U, V, W>;
 };
 
 
@@ -135,9 +135,6 @@ inline constexpr bool IsMakeSignal = detail::IsMakeSignal_<T>::value;
 
 template<typename ...T>
 inline constexpr bool IsMakeCustom = detail::IsMakeCustom_<T...>::value;
-
-template<typename ...T>
-inline constexpr bool IsMakeGroup = detail::IsMakeGroup_<T...>::value;
 
 template<typename ...T>
 inline constexpr bool IsFiltered = detail::IsFiltered_<T...>::value;

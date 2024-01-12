@@ -217,6 +217,11 @@ public:
         return this->upstreamControl_.Get();
     }
 
+    void Set(const Plain &plain)
+    {
+        this->upstreamControl_.Set(plain);
+    }
+
 private:
     UpstreamControl upstreamControl_;
     Aggregate aggregate_;

@@ -9,6 +9,8 @@
 #include "pex/detail/mute.h"
 #include "pex/detail/aggregate.h"
 #include "pex/detail/initialize_terminus.h"
+#include "pex/detail/choose_not_void.h"
+#include "pex/detail/traits.h"
 
 
 /**
@@ -59,11 +61,127 @@ namespace pex
 {
 
 
+namespace detail
+{
+
+
+template<typename Custom, typename T, typename = void>
+struct Plain_
+{
+    using Type = T;
+};
+
+
+template<typename Custom, typename T>
+struct Plain_<Custom, T, std::enable_if_t<HasPlainTemplate<Custom>>>
+{
+    using Type = typename Custom::template Plain<T>;
+};
+
+
+template<typename Custom, typename T>
+struct Plain_<Custom, T, std::enable_if_t<HasPlain<Custom>>>
+{
+    using Type = typename Custom::Plain;
+};
+
+
+template<typename Custom, typename T>
+using Plain = typename Plain_<Custom, T>::Type;
+
+
+template<typename Custom, typename T, typename = void>
+struct Model_
+{
+    using Type = T;
+};
+
+
+template<typename Custom, typename T>
+struct Model_<Custom, T, std::enable_if_t<HasModelTemplate<Custom>>>
+{
+    using Type = typename Custom::template Model<T>;
+};
+
+template<typename Custom, typename T>
+using Model = typename Model_<Custom, T>::Type;
+
+
+template<typename Custom, typename T, typename = void>
+struct Control_
+{
+    using Type = T;
+};
+
+template<typename Custom, typename T>
+struct Control_<Custom, T, std::enable_if_t<HasControlTemplate<Custom>>>
+{
+    using Type = typename Custom::template Control<T>;
+};
+
+template<typename Custom, typename T>
+using Control = typename Control_<Custom, T>::Type;
+
+
+template<typename Custom, typename = void>
+struct CheckCustom_: std::false_type {};
+
+template<typename Custom>
+struct CheckCustom_
+<
+    Custom,
+    std::enable_if_t
+    <
+        (
+            HasPlainTemplate<Custom>
+            || HasPlain<Custom>
+            || HasModelTemplate<Custom>
+            || HasControlTemplate<Custom>)
+    >
+>: std::true_type {};
+
+
+template<typename Custom>
+inline constexpr bool CheckCustom = CheckCustom_<Custom>::value;
+
+
+} // end namespace detail
+
+
+#if 1
+template<template<typename> typename T>
+struct PlainU
+{
+    template<typename U>
+    using Plain = T<U>;
+};
+
+template<typename T>
+struct PlainT
+{
+    using Plain = T;
+};
+#endif
+
+
+template
+<
+    template<template<typename> typename> typename Template
+>
+class ControlMembers_
+    :
+    public Template<ControlSelector>
+{
+protected:
+    ControlMembers_() = default;
+};
+
+
 template
 <
     template<typename> typename Fields_,
     template<template<typename> typename> typename Template_,
-    typename Plain_ = void
+    typename Custom = void
 >
 struct Group
 {
@@ -75,28 +193,11 @@ struct Group
     template<template<typename> typename T>
     using Template = Template_<T>;
 
-    template<typename P, typename = void>
-    struct PlainHelper
-    {
-        using Type = P;
-    };
+    static_assert(
+        std::is_void_v<Custom> || detail::CheckCustom<Custom>,
+        "Expected at least one customization");
 
-    template<typename P>
-    struct PlainHelper
-    <
-        P,
-        std::enable_if_t<std::is_same_v<P, void>>
-    >
-    {
-        struct Plain: public Template<pex::Identity>
-        {
-
-        };
-
-        using Type = Plain;
-    };
-
-    using Plain = typename PlainHelper<Plain_>::Type;
+    using Plain = detail::Plain<Custom, Template<pex::Identity>>;
     using Type = Plain;
 
     template<template<typename> typename Selector, typename Upstream>
@@ -104,7 +205,6 @@ struct Group
 
     template<template<typename> typename Selector>
     using DeferredGroup = detail::DeferredGroup<Fields, Template, Selector>;
-
 
     template<typename Derived>
     using ModelAccessors = GroupAccessors
@@ -116,31 +216,31 @@ struct Group
             Derived
         >;
 
-    struct Control;
+    struct Control_;
 
-    struct Model:
+    struct Model_:
         public Template_<ModelSelector>,
         public detail::MuteOwner,
         public detail::Mute,
-        public ModelAccessors<Model>
+        public ModelAccessors<Model_>
     {
     public:
         static constexpr bool isGroupModel = true;
 
-        using ControlType = Control;
+        using ControlType = typename detail::Control<Custom, Control_>;
         using Plain = typename Group::Plain;
         using Type = Plain;
-        using Defer = DeferGroup<ModelSelector, Model>;
+        using Defer = DeferGroup<ModelSelector, Model_>;
 
         template<typename T>
         using Pex = pex::ModelSelector<T>;
 
-        Model()
+        Model_()
             :
             Template<ModelSelector>(),
             detail::MuteOwner(),
             detail::Mute(this->GetMuteControl()),
-            ModelAccessors<Model>()
+            ModelAccessors<Model_>()
         {
             if constexpr (HasDefault<Plain>)
             {
@@ -148,23 +248,25 @@ struct Group
             }
         }
 
-        Model(const Plain &plain)
+        Model_(const Plain &plain)
             :
             Template<ModelSelector>(),
             detail::MuteOwner(),
             detail::Mute(this->GetMuteControl()),
-            ModelAccessors<Model>()
+            ModelAccessors<Model_>()
         {
             this->SetWithoutNotify_(plain);
         }
 
-        Model(const Model &) = delete;
-        Model(Model &&) = delete;
-        Model & operator=(const Model &) = delete;
-        Model & operator=(Model &&) = delete;
+        Model_(const Model_ &) = delete;
+        Model_(Model_ &&) = delete;
+        Model_ & operator=(const Model_ &) = delete;
+        Model_ & operator=(Model_ &&) = delete;
 
         bool HasModel() const { return true; }
     };
+
+    using Model = typename detail::Model<Custom, Model_>;
 
     template<typename Derived>
     using ControlAccessors = GroupAccessors
@@ -176,14 +278,18 @@ struct Group
             Derived
         >;
 
-    struct Control:
+    using ControlMembers = ControlMembers_<Template_>;
+
+    struct Control_:
         public detail::Mute,
-        public Template<ControlSelector>,
-        public ControlAccessors<Control>
+        public ControlMembers,
+        public ControlAccessors<Control_>
     {
         static constexpr bool isGroupControl = true;
 
-        using AccessorsBase = ControlAccessors<Control>;
+        using Aggregate = detail::Aggregate<Plain, Fields, Template_>;
+
+        using AccessorsBase = ControlAccessors<Control_>;
 
         // using Plain = typename Group::Plain;
         using Type = Plain;
@@ -193,7 +299,7 @@ struct Group
         using Defer = DeferGroup
             <
                 ControlSelector,
-                Control
+                Control_
             >;
 
         // UpstreamType could be the type returned by a filter.
@@ -208,53 +314,39 @@ struct Group
         using Pex =
             typename pex::ControlSelector<T>;
 
-        Control()
+        Control_()
             :
             detail::Mute(),
+            ControlMembers(),
             AccessorsBase()
         {
 
         }
 
-        Control(Model &model)
+        Control_(Model &model)
             :
             detail::Mute(model.GetMuteControl()),
+            ControlMembers(),
             AccessorsBase()
         {
             fields::AssignConvert<Fields>(*this, model);
         }
 
-        Control(const Control &other)
+        Control_(const Control_ &other)
             :
             detail::Mute(other),
+            ControlMembers(),
             AccessorsBase()
         {
             fields::Assign<Fields>(*this, other);
         }
 
-        Control & operator=(const Control &other)
+        Control_ & operator=(const Control_ &other)
         {
             this->detail::Mute::operator=(other);
             fields::Assign<Fields>(*this, other);
 
             return *this;
-        }
-
-        ~Control()
-        {
-#ifdef ENABLE_PEX_LOG
-            if (!this->connections_.empty())
-            {
-                for (auto &connection: this->connections_)
-                {
-                    PEX_LOG(
-                        "Warning: ",
-                        connection.GetObserver(),
-                        " is still connected to Control group ",
-                        this);
-                }
-            }
-#endif
         }
 
         bool HasModel() const
@@ -263,7 +355,9 @@ struct Group
         }
     };
 
-    using Aggregate = detail::Aggregate<Plain, Fields, Template_>;
+    using Control = typename detail::Control<Custom, Control_>;
+
+    using Aggregate = typename Control_::Aggregate;
 
     static typename Model::Defer MakeDefer(Model &model)
     {

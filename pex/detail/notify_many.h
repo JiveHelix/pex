@@ -127,6 +127,22 @@ public:
     {
         THROW_IF_NOTIFYING
 
+#ifdef USE_OBSERVER_NAME
+        if constexpr (std::is_void_v<Observer>)
+        {
+            PEX_LOG("void (", observer, ") disconnecting from ", this);
+        }
+        else
+        {
+            PEX_LOG(
+                Observer::observerName,
+                " (",
+                observer,
+                ") disconnecting from ",
+                this);
+        }
+#endif
+
         std::erase(
             this->connections_,
             ConnectionType(observer));

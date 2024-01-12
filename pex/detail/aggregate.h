@@ -105,12 +105,6 @@ struct AggregateSelector_
 };
 
 template<typename T>
-struct AggregateSelector_<T, std::enable_if_t<IsMakeGroup<T>>>
-{
-    using Type = typename T::Group::Aggregate;
-};
-
-template<typename T>
 struct AggregateSelector_<T, std::enable_if_t<IsGroup<T>>>
 {
     using Type = typename T::Aggregate;

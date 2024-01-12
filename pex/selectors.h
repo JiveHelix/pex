@@ -101,7 +101,13 @@ struct ModelSelector_<T, std::enable_if_t<IsMakeSignal<T>>>
 template<typename T>
 struct ModelSelector_<T, std::enable_if_t<IsFiltered<T>>>
 {
-    using Type = model::Value_<typename T::Type, typename T::ModelFilter>;
+    using Type =
+        model::Value_
+        <
+            typename T::Type,
+            typename T::ModelFilter,
+            typename T::Access
+        >;
 };
 
 template<typename T>
@@ -123,7 +129,7 @@ struct ModelSelector_<T, std::enable_if_t<IsMakeCustom<T>>>
 };
 
 template<typename T>
-struct ModelSelector_<T, std::enable_if_t<(IsMakeGroup<T> || IsGroup<T>)>>
+struct ModelSelector_<T, std::enable_if_t<(IsGroup<T>)>>
 {
     using Type = typename T::Model;
 };
@@ -147,7 +153,7 @@ struct ModelSelector_<T, std::enable_if_t<IsMakePolyList<T>>>
         ListModel
         <
             T,
-            poly::Model<typename T::MemberType>
+            poly::Model<typename T::MemberType, typename T::PreBases>
         >;
 };
 
@@ -171,7 +177,7 @@ struct ControlSelector_<T, std::enable_if_t<IsFiltered<T>>>
     <
         typename ModelSelector_<T>::Type,
         NoFilter,
-        typename T::ControlAccess
+        typename T::Access
     >;
 };
 
@@ -194,7 +200,7 @@ struct ControlSelector_<T, std::enable_if_t<IsMakeCustom<T>>>
 };
 
 template<typename T>
-struct ControlSelector_<T, std::enable_if_t<(IsMakeGroup<T> || IsGroup<T>)>>
+struct ControlSelector_<T, std::enable_if_t<(IsGroup<T>)>>
 {
     using Type = typename T::Control;
 };
@@ -219,8 +225,8 @@ struct ControlSelector_<T, std::enable_if_t<IsMakePolyList<T>>>
         ListControl
         <
             T,
-            poly::Model<typename T::MemberType>,
-            poly::Control<typename T::MemberType>
+            poly::Model<typename T::MemberType, typename T::PreBases>,
+            poly::Control<typename T::MemberType, typename T::PreBases>
         >;
 };
 

@@ -2,6 +2,7 @@
 #include <pex/group.h>
 #include <fields/fields.h>
 #include <pex/endpoint.h>
+#include <pex/identity.h>
 
 
 template<typename T>
@@ -66,11 +67,11 @@ using GpsControl = typename GpsGroup::Control;
 
 inline GpsPlain DefaultGps()
 {
-    return {{
+    return GpsPlain{
         1334706453,
         40.56923581063791,
         -111.63928609736942,
-        3322.0}};
+        3322.0};
 }
 
 

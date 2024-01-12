@@ -33,46 +33,53 @@ struct PointTemplate
 };
 
 
-static_assert(pex::IsMakeSelect<pex::MakeSelect<std::string>>);
-
-
-using PointGroup = pex::Group<PointFields, PointTemplate>;
-using PointControl = typename PointGroup::Control;
 using ModelSelectString = pex::model::Select<std::string>;
 using ControlSelectString = pex::control::Select<ModelSelectString>;
 
 
-// Define a customized model
-struct PointModel: public PointGroup::Model
+struct PointGroupTemplates_
 {
-    static_assert(
-        std::is_same_v
-        <
-            decltype(PointGroup::Model::units),
-            ModelSelectString
-        >);
-
-    static_assert(
-        std::is_same_v
-        <
-            decltype(PointModel::units),
-            ModelSelectString
-        >);
-
-    PointModel()
-        :
-        PointGroup::Model()
+    // Define a customized model
+    template<typename GroupBase>
+    struct Model: public GroupBase
     {
-        this->units.SetChoices({"meters", "feet", "furlongs"});
-    }
+        static_assert(
+            std::is_same_v
+            <
+                decltype(Model::units),
+                ModelSelectString
+            >);
 
-    double GetLength() const
-    {
-        auto xValue = this->x.Get();
-        auto yValue = this->y.Get();
-        return std::sqrt(xValue * xValue + yValue * yValue);
-    }
+        static_assert(
+            std::is_same_v
+            <
+                decltype(Model::units),
+                ModelSelectString
+            >);
+
+        Model()
+            :
+            GroupBase()
+        {
+            this->units.SetChoices({"meters", "feet", "furlongs"});
+        }
+
+        double GetLength() const
+        {
+            auto xValue = this->x.Get();
+            auto yValue = this->y.Get();
+            return std::sqrt(xValue * xValue + yValue * yValue);
+        }
+    };
 };
+
+
+static_assert(pex::IsMakeSelect<pex::MakeSelect<std::string>>);
+
+
+using PointGroup = pex::Group<PointFields, PointTemplate, PointGroupTemplates_>;
+using PointModel = typename PointGroup::Model;
+using PointControl = typename PointGroup::Control;
 
 
 static_assert(
@@ -95,7 +102,7 @@ struct CircleFields
 template<template<typename> typename T>
 struct CircleTemplate
 {
-    T<pex::MakeGroup<PointGroup, PointModel>> center;
+    T<PointGroup> center;
     T<double> radius;
 
     static constexpr auto fields = CircleFields<CircleTemplate<T>>::fields;
@@ -397,7 +404,7 @@ struct CircleWithSignalFields
 template<template<typename> typename T>
 struct CircleWithSignalTemplate
 {
-    T<pex::MakeGroup<groups::CircleGroup>> circle;
+    T<groups::CircleGroup> circle;
     T<pex::MakeSignal> redraw;
 
     static constexpr auto fields =

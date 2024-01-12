@@ -37,11 +37,11 @@ struct ConnectableSelector_
     using Type = typename MakeControl<T>::Control;
 };
 
-// template<typename T>
-// struct ConnectableSelector_<T, std::enable_if_t<IsGroupModel<T>>>
-// {
-//     using Type = GroupConnect<void, typename T::ControlType>
-// };
+template<typename T>
+struct ConnectableSelector_<T, std::enable_if_t<IsGroupModel<T>>>
+{
+    using Type = GroupConnect<void, typename T::ControlType>;
+};
 
 template<typename T>
 struct ConnectableSelector_<T, std::enable_if_t<IsGroupControl<T>>>
@@ -70,7 +70,7 @@ public:
 
     using ListControl = typename MakeControl<Upstream_>::Control;
     using Connectable = ConnectableSelector<typename ListControl::ItemControl>;
-    using Vector = std::vector<Connectable>;
+    using Connectables = std::vector<Connectable>;
 
     using UpstreamControl = ListControl;
     using Upstream = typename MakeControl<Upstream_>::Upstream;
@@ -410,7 +410,7 @@ private:
     bool isMuted_;
     bool hasListConnections_;
     ListControl listControl_;
-    Vector connectables_;
+    Connectables connectables_;
     Observer *observer_;
     std::optional<ValueConnection> valueConnection_;
     CountWillChangeTerminus countWillChange_;

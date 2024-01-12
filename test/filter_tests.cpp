@@ -217,7 +217,7 @@ TEST_CASE("Use ReadOnly interface to create read-only control", "[filters]")
 
     Model model{};
     Control control(model);
-    model.id.Set(42);
+    pex::SetOverride(model.id, 42u);
 
     REQUIRE(control.id.Get() == 42);
 }
@@ -237,6 +237,13 @@ TEST_CASE(
     Coffee coffee{42, 12.99};
 
     model.Set(coffee);
+
+    // Aggregate set should have skipped setting the id.
+    REQUIRE(model.id.Get() == 0);
+
+    // Set the id.
+    pex::SetOverride(model.id, 42u);
+    REQUIRE(model.id.Get() == 42);
 
     REQUIRE(model.price.Get() == 12.99);
 

@@ -106,19 +106,19 @@ TEST_CASE("Setting Aggregate does not repeat notifications", "[aggregate]")
 
     TestObserver observer(control);
 
-    aggregate::Circle leftCircle{{
-        {{400.0, 800.0}},
-        42.0}};
+    aggregate::Circle leftCircle{
+        {400.0, 800.0},
+        42.0};
 
-    aggregate::Circle rightCircle{{
-        {{900.0, 800.0}},
-        36.0}};
+    aggregate::Circle rightCircle{
+        {900.0, 800.0},
+        36.0};
 
-    aggregate::Stuff stuff{{
+    aggregate::Stuff stuff{
         leftCircle,
         rightCircle,
-        {{42.0, 42.0}},
-        3.1415926}};
+        {42.0, 42.0},
+        3.1415926};
 
     REQUIRE(observer.GetCount() == 0);
     model.Set(stuff);
@@ -135,19 +135,19 @@ TEST_CASE("Deferred Aggregate does not repeat notifications", "[aggregate]")
 
     TestObserver observer(control);
 
-    aggregate::Circle leftCircle{{
-        {{400.0, 800.0}},
-        42.0}};
+    aggregate::Circle leftCircle{
+        {400.0, 800.0},
+        42.0};
 
-    aggregate::Circle rightCircle{{
-        {{900.0, 800.0}},
-        36.0}};
+    aggregate::Circle rightCircle{
+        {900.0, 800.0},
+        36.0};
 
-    aggregate::Stuff stuff{{
+    aggregate::Stuff stuff{
         leftCircle,
         rightCircle,
-        {{42.0, 42.0}},
-        3.1415926}};
+        {42.0, 42.0},
+        3.1415926};
 
     REQUIRE(observer.GetCount() == 0);
 
@@ -173,9 +173,9 @@ TEST_CASE("Deferred member struct does not repeat notifications", "[aggregate]")
 
     aggregate::Stuff stuff{};
 
-    aggregate::Circle rightCircle{{
-        {{900.0, 800.0}},
-        36.0}};
+    aggregate::Circle rightCircle{
+        {900.0, 800.0},
+        36.0};
 
     stuff.rightCircle = rightCircle;
 

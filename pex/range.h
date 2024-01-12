@@ -160,7 +160,7 @@ template
     // Defaults to numeric_limits<T>::lowest() and ::max()
     typename initialMinimum = void,
     typename initialMaximum = void,
-    template<typename, typename> typename ValueTemplate = Value_
+    template<typename, typename, typename> typename ValueTemplate = Value_
 >
 class Range
 {
@@ -171,10 +171,12 @@ public:
         std::is_arithmetic_v<Type>,
         "Designed only for arithmetic types.");
 
-    using Value = ValueTemplate<T, RangeFilter<T>>;
+    // TODO: Make Access a template parameter.
+    using Access = GetAndSetTag;
+
+    using Value = ValueTemplate<T, RangeFilter<T>, Access>;
     using Limit = typename ::pex::model::Value<Type>;
     using Callable = typename Value::Callable;
-    using Access = GetAndSetTag;
 
 public:
     Range()
@@ -347,7 +349,8 @@ public:
         }
     }
 
-    void Set(Argument<Type> value)
+    std::enable_if_t<HasAccess<SetTag, Access>>
+    Set(Argument<Type> value)
     {
         this->value_.Set(value);
     }
@@ -589,7 +592,7 @@ template
     typename T,
     typename U,
     typename V,
-    template<typename, typename> typename W
+    template<typename, typename, typename> typename W
 >
 struct IsModelRange_<model::Range<T, U, V, W>>: std::true_type {};
 

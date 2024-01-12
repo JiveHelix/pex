@@ -49,18 +49,6 @@ struct IsMakeCustom_
 
 
 template<typename ...T>
-struct IsMakeGroup_: std::false_type {};
-
-template
-<
-    typename G,
-    typename M,
-    typename C
->
-struct IsMakeGroup_<MakeGroup<G, M, C>>: std::true_type {};
-
-
-template<typename ...T>
 struct IsFiltered_: std::false_type {};
 
 template<typename ...T>
@@ -74,7 +62,7 @@ template
     typename T,
     typename U,
     typename V,
-    template<typename, typename> typename W
+    template<typename, typename, typename> typename W
 >
 struct IsMakeRange_<MakeRange<T, U, V, W>>: std::true_type {};
 
