@@ -5,6 +5,9 @@ project(pex CXX)
 include(${CMAKE_CURRENT_LIST_DIR}/cmake_includes/setup_project.cmake)
 setup_project()
 
+if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fconcepts")
+endif ()
 
 add_subdirectory(pex)
 

@@ -7,6 +7,28 @@
 #include "pex/detail/log.h"
 
 
+#if defined(__GNUG__) && !defined(__clang__) && !defined(_WIN32)
+// Avoid bogus -Werror=maybe-uninitialized
+#ifndef DO_PRAGMA
+#define DO_PRAGMA_(arg) _Pragma (#arg)
+#define DO_PRAGMA(arg) DO_PRAGMA_(arg)
+#endif
+
+#define GNU_IGNORE_MAYBE_UNINITIALIZED \
+    DO_PRAGMA(GCC diagnostic push) \
+    DO_PRAGMA(GCC diagnostic ignored "-Wmaybe-uninitialized")
+
+#define GNU_IGNORE_MAYBE_UNINITIALIZED_POP \
+    DO_PRAGMA(GCC diagnostic pop)
+
+#else
+
+#define GNU_IGNORE_MAYBE_UNINITIALIZED
+#define GNU_IGNORE_MAYBE_UNINITIALIZED_POP
+
+#endif // defined __GNUG__
+
+
 namespace pex
 {
 
@@ -109,7 +131,9 @@ public:
             return false;
         }
 
+        GNU_IGNORE_MAYBE_UNINITIALIZED
         return (this->connection_->GetObserver() == observer);
+        GNU_IGNORE_MAYBE_UNINITIALIZED_POP
     }
 
     bool HasConnection() const

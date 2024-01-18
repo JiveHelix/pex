@@ -137,8 +137,8 @@ struct RocketTemplate
 using RocketGroup = pex::Group<RocketFields, RocketTemplate>;
 using Rocket = typename RocketGroup::Plain;
 
-DECLARE_OUTPUT_STREAM_OPERATOR(Rocket);
-DECLARE_EQUALITY_OPERATORS(Rocket);
+DECLARE_OUTPUT_STREAM_OPERATOR(Rocket)
+DECLARE_EQUALITY_OPERATORS(Rocket)
 
 
 template<typename T>
@@ -163,7 +163,7 @@ struct DraxTemplate
 using DraxGroup = pex::Group<DraxFields, DraxTemplate>;
 using Drax = typename DraxGroup::Plain;
 
-DECLARE_EQUALITY_OPERATORS(Drax);
+DECLARE_EQUALITY_OPERATORS(Drax)
 
 
 TEST_CASE("List of groups", "[List]")
@@ -341,7 +341,7 @@ struct GamoraTemplate
 using GamoraGroup = pex::Group<GamoraFields, GamoraTemplate>;
 using Gamora = typename GamoraGroup::Plain;
 
-DECLARE_EQUALITY_OPERATORS(Gamora);
+DECLARE_EQUALITY_OPERATORS(Gamora)
 
 
 class GamoraObserver

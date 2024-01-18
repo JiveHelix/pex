@@ -233,7 +233,7 @@ public:
             auto result = std::make_unique<Model>();
             result->Set(this->template RequireDerived<Derived>());
 
-            return std::move(result);
+            return result;
         }
 
         PolyValue()
@@ -282,7 +282,7 @@ template
 template<typename GroupBase>
 std::shared_ptr<detail::MakeControlBase<Custom, PolyValue_>>
 PolyGroup<Fields_, Template_, PolyValue_, Custom>::GroupTemplates_
-    ::template Model<GroupBase>::MakeControl()
+    ::Model<GroupBase>::MakeControl()
 {
     using This = std::remove_cvref_t<decltype(*this)>;
 
@@ -304,6 +304,29 @@ PolyGroup<Fields_, Template_, PolyValue_, Custom>::GroupTemplates_
     return std::make_shared<Control>(*derivedModel);
 }
 
+#if defined(__GNUG__) && !defined(__clang__) && !defined(_WIN32)
+// Avoid bogus -Wpedantic
+#ifndef DO_PRAGMA
+#define DO_PRAGMA_(arg) _Pragma (#arg)
+#define DO_PRAGMA(arg) DO_PRAGMA_(arg)
+#endif
+
+#define GNU_NO_PEDANTIC_PUSH \
+    DO_PRAGMA(GCC diagnostic push) \
+    DO_PRAGMA(GCC diagnostic ignored "-Wpedantic")
+
+#define GNU_NO_PEDANTIC_POP \
+    DO_PRAGMA(GCC diagnostic pop)
+
+#else
+
+#define GNU_NO_PEDANTIC_PUSH
+#define GNU_NO_PEDANTIC_POP
+
+#endif // defined __GNUG__
+
+
+GNU_NO_PEDANTIC_PUSH
 
 template
 <
@@ -317,17 +340,17 @@ std::shared_ptr<detail::MakeControlBase<Custom, PolyValue_>>
 PolyGroup<Fields_, Template_, PolyValue_, Custom>::GroupTemplates_
     ::template Control<GroupBase>::Copy() const
 {
-    using Control =
+    using DerivedControl =
         typename PolyGroup<Fields_, Template_, PolyValue_, Custom>::Control;
 
-    auto derivedControl = dynamic_cast<const Control *>(this);
+    auto derivedControl = dynamic_cast<const DerivedControl *>(this);
 
     if (!derivedControl)
     {
         throw std::logic_error("Expected this class to be a base");
     }
 
-    return std::make_shared<Control>(*derivedControl);
+    return std::make_shared<DerivedControl>(*derivedControl);
 }
 
 
@@ -345,11 +368,10 @@ PolyGroup<Fields_, Template_, PolyValue_, Custom>::GroupTemplates_
     :
     GroupBase()
 {
-    using Control =
+    using DerivedControl =
         typename PolyGroup<Fields_, Template_, PolyValue_, Custom>::Control;
 
     auto base = model.GetModelBase();
-
     auto upcast = dynamic_cast<Upstream *>(base);
 
     if (!upcast)
@@ -357,7 +379,7 @@ PolyGroup<Fields_, Template_, PolyValue_, Custom>::GroupTemplates_
         throw PolyError("Mismatched polymorphic value");
     }
 
-    *this = Control(*upcast);
+    *this = DerivedControl(*upcast);
 }
 
 
@@ -375,12 +397,11 @@ PolyGroup<Fields_, Template_, PolyValue_, Custom>::GroupTemplates_
     :
     GroupBase()
 {
-    using Control =
+    using DerivedControl =
         typename PolyGroup<Fields_, Template_, PolyValue_, Custom>::Control;
 
     auto base = control.GetControlBase();
-
-    auto upcast = dynamic_cast<const Control *>(base);
+    auto upcast = dynamic_cast<const DerivedControl *>(base);
 
     if (!upcast)
     {
@@ -389,6 +410,8 @@ PolyGroup<Fields_, Template_, PolyValue_, Custom>::GroupTemplates_
 
     *this = *upcast;
 }
+
+GNU_NO_PEDANTIC_POP
 
 
 } // end namespace poly
