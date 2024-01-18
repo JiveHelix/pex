@@ -109,7 +109,7 @@ public:
     Endpoint_()
         :
         observer_(nullptr),
-        connector_()
+        connector()
     {
 
     }
@@ -117,7 +117,7 @@ public:
     Endpoint_(Observer *observer)
         :
         observer_(observer),
-        connector_()
+        connector()
     {
 
     }
@@ -125,7 +125,7 @@ public:
     Endpoint_(Observer *observer, UpstreamControl upstream)
         :
         observer_(observer),
-        connector_(observer, upstream)
+        connector(observer, upstream)
     {
 
     }
@@ -133,7 +133,7 @@ public:
     Endpoint_(Observer *observer, UpstreamControl upstream, Callable callable)
         :
         observer_(observer),
-        connector_(observer, upstream, callable)
+        connector(observer, upstream, callable)
     {
 
     }
@@ -141,7 +141,7 @@ public:
     Endpoint_(Observer *observer, typename UpstreamControl::Upstream &model)
         :
         observer_(observer),
-        connector_(observer, UpstreamControl(model))
+        connector(observer, UpstreamControl(model))
     {
 
     }
@@ -152,7 +152,7 @@ public:
         Callable callable)
         :
         observer_(observer),
-        connector_(observer, UpstreamControl(model), callable)
+        connector(observer, UpstreamControl(model), callable)
     {
 
     }
@@ -160,7 +160,15 @@ public:
     Endpoint_(const Endpoint_ &other)
         :
         observer_(other.observer_),
-        connector_(other.observer_, other.connector_)
+        connector(other.observer_, other.connector)
+    {
+
+    }
+
+    Endpoint_(Observer *observer, const Endpoint_ &other)
+        :
+        observer_(observer),
+        connector(observer, other.connector)
     {
 
     }
@@ -168,30 +176,32 @@ public:
     Endpoint_ & operator=(const Endpoint_ &other)
     {
         this->observer_ = other.observer_;
-        this->connector_.Assign(other.observer_, other.connector_);
+        this->connector.Assign(other.observer_, other.connector);
         return *this;
     }
 
     void ConnectUpstream(UpstreamControl upstream, Callable callable)
     {
-        this->connector_.Assign(
+        this->connector.Assign(
             this->observer_,
             Connector(this->observer_, upstream, callable));
     }
 
     void Connect(Callable callable)
     {
-        this->connector_.Connect(callable);
+        this->connector.Connect(callable);
     }
 
     explicit operator UpstreamControl () const
     {
-        return static_cast<UpstreamControl>(this->connector_);
+        return static_cast<UpstreamControl>(this->connector);
     }
 
 protected:
     Observer *observer_;
-    Connector connector_;
+
+public:
+    Connector connector;
 };
 
 
@@ -207,12 +217,12 @@ public:
 
     Type Get() const
     {
-        return this->connector_.Get();
+        return this->connector.Get();
     }
 
     void Set(Argument<Type> value)
     {
-        this->connector_.Set(value);
+        this->connector.Set(value);
     }
 };
 

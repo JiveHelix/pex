@@ -238,7 +238,7 @@ public:
 using AirportGroup = pex::Group<AirportFields, AirportTemplate>;
 using Airport = typename AirportGroup::Plain;
 using Model = typename AirportGroup::Model;
-using Control = typename AirportGroup::Control;
+using AirportControl = typename AirportGroup::Control;
 
 template<typename T, typename = void>
 struct IsAircraftCustom_: std::false_type {};
@@ -261,7 +261,7 @@ DECLARE_EQUALITY_OPERATORS(Airport)
 TEST_CASE("List of polymorphic values", "[poly]")
 {
     Model model;
-    Control control(model);
+    AirportControl control(model);
 
     control.aircraft.Append(RotorWingValue({10000, 175, 25}));
     control.aircraft.Append(RotorWingValue({15000, 300, 34}));
@@ -287,7 +287,7 @@ TEST_CASE("List of polymorphic values", "[poly]")
 TEST_CASE("List of polymorphic values can be unstructured", "[poly]")
 {
     Model model;
-    Control control(model);
+    AirportControl control(model);
 
     control.aircraft.Append(RotorWingValue({10000, 175, 25}));
     control.aircraft.Append(FixedWingValue({20000, 800, 50}));
@@ -360,7 +360,7 @@ static_assert(std::is_same_v<TestControl, SelectedTestControl>);
 class AircraftObserver
 {
 public:
-    using AircraftListControl = decltype(Control::aircraft);
+    using AircraftListControl = decltype(AirportControl::aircraft);
     static_assert(pex::IsListControl<AircraftListControl>);
 
     using AircraftEndpoint =
@@ -418,10 +418,49 @@ private:
 };
 
 
+class AirportObserver
+{
+public:
+    using AirportEndpoint =
+        pex::Endpoint<AirportObserver, AirportControl>;
+
+    AirportObserver(AirportControl airportControl)
+        :
+        endpoint_(this, airportControl, &AirportObserver::OnAirport_),
+        airport_(airportControl.Get()),
+        notificationCount_()
+    {
+
+    }
+
+    void OnAirport_(const Airport &airport)
+    {
+        this->airport_ = airport;
+        ++this->notificationCount_;
+    }
+
+    size_t GetNotificationCount() const
+    {
+        return this->notificationCount_;
+    }
+
+    const Airport & GetAirport() const
+    {
+        return this->airport_;
+    }
+
+private:
+    AirportEndpoint endpoint_;
+    Airport airport_;
+    size_t notificationCount_;
+};
+
+
 TEST_CASE("Poly list of groups implements virtual bases.", "[List]")
 {
     Model model;
-    Control control(model);
+    AirportControl control(model);
+    AircraftObserver observer(control.aircraft);
 
     auto values = GENERATE(
         take(
@@ -430,8 +469,12 @@ TEST_CASE("Poly list of groups implements virtual bases.", "[List]")
                 15,
                 random(-1000.0, 1000.0))));
 
+    REQUIRE(observer.GetNotificationCount() == 0);
+
     control.aircraft.Append(
         RotorWingValue({values.at(0), values.at(1), values.at(2)}));
+
+    REQUIRE(observer.GetNotificationCount() == 1);
 
     control.aircraft.Append(
         FixedWingValue({values.at(3), values.at(4), values.at(5)}));
@@ -442,11 +485,110 @@ TEST_CASE("Poly list of groups implements virtual bases.", "[List]")
     control.aircraft.Append(
         RotorWingValue({values.at(9), values.at(10), values.at(11)}));
 
+    AirportObserver airportObserver(control);
+    REQUIRE(airportObserver.GetNotificationCount() == 0);
+
     control.aircraft.Append(
         RotorWingValue({values.at(12), values.at(13), values.at(14)}));
 
+    REQUIRE(airportObserver.GetNotificationCount() == 1);
+
     control.aircraft[2].GetControlBase()->GetRange().Set(42.0);
+
+    REQUIRE(airportObserver.GetNotificationCount() == 2);
+
+    REQUIRE(observer.GetNotificationCount() == 6);
 
     REQUIRE(
         model.aircraft[2].Get().RequireDerived<FixedWing>().range == 42.0);
+
+    REQUIRE(
+        observer.GetAircraft()[2].RequireDerived<FixedWing>().range == 42.0);
+
+    auto &airport = airportObserver.GetAirport();
+
+    REQUIRE(airport.aircraft.size() == 5);
+    REQUIRE(airport.aircraft[2].RequireDerived<FixedWing>().range == 42.0);
+
+    auto aircraft = model.aircraft[2].Get().RequireDerived<FixedWing>();
+    aircraft.range = 43.0;
+    control.aircraft[2].GetControlBase()->SetValueBase(aircraft);
+
+    REQUIRE(airportObserver.GetNotificationCount() == 3);
+
+    REQUIRE(
+        airportObserver.GetAirport().aircraft[2]
+            .RequireDerived<FixedWing>().range
+        == 43.0);
+}
+
+
+TEST_CASE("Poly list is observed after going to size 0.", "[List]")
+{
+    Model model;
+    AirportControl control(model);
+
+    AircraftObserver aircraftObserver(control.aircraft);
+    REQUIRE(aircraftObserver.GetNotificationCount() == 0);
+
+    AirportObserver airportObserver(control);
+    REQUIRE(airportObserver.GetNotificationCount() == 0);
+
+    auto values = GENERATE(
+        take(
+            3,
+            chunk(
+                6,
+                random(-1000.0, 1000.0))));
+
+
+    control.aircraft.Append(
+        RotorWingValue({values.at(0), values.at(1), values.at(2)}));
+
+    REQUIRE(aircraftObserver.GetNotificationCount() == 1);
+    REQUIRE(airportObserver.GetNotificationCount() == 1);
+
+    control.aircraft.count.Set(0);
+
+    REQUIRE(aircraftObserver.GetNotificationCount() == 2);
+    REQUIRE(airportObserver.GetNotificationCount() == 2);
+
+    control.aircraft.Append(
+        FixedWingValue({values.at(3), values.at(4), values.at(5)}));
+
+    REQUIRE(aircraftObserver.GetNotificationCount() == 3);
+    REQUIRE(airportObserver.GetNotificationCount() == 3);
+
+    control.aircraft[0].GetControlBase()->GetRange().Set(42.0);
+
+    REQUIRE(aircraftObserver.GetNotificationCount() == 4);
+    REQUIRE(airportObserver.GetNotificationCount() == 4);
+
+    REQUIRE(
+        model.aircraft[0].Get().RequireDerived<FixedWing>().range == 42.0);
+
+#if 0
+    REQUIRE(
+        aircraftObserver.GetAircraft()[0]
+            .RequireDerived<FixedWing>().range
+        == 42.0);
+#endif
+
+    auto &airport = airportObserver.GetAirport();
+
+    REQUIRE(airport.aircraft.size() == 1);
+    REQUIRE(airport.aircraft[0].RequireDerived<FixedWing>().range == 42.0);
+
+    auto aircraft = model.aircraft[0].Get().RequireDerived<FixedWing>();
+    aircraft.range = 43.0;
+    control.aircraft[0].GetControlBase()->SetValueBase(aircraft);
+
+    REQUIRE(aircraftObserver.GetNotificationCount() == 5);
+
+    REQUIRE(
+        airportObserver.GetAirport().aircraft[0]
+            .RequireDerived<FixedWing>().range
+        == 43.0);
+
+    REQUIRE(airportObserver.GetNotificationCount() == 5);
 }

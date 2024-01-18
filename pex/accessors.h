@@ -51,6 +51,21 @@ SetWithoutNotify(Target &, const Source &)
 }
 
 
+template<typename Target>
+std::enable_if_t<detail::CanBeSet<Target>>
+DoNotify(Target &target)
+{
+    detail::AccessReference<Target>(target).DoNotify();
+}
+
+template<typename Target>
+std::enable_if_t<!detail::CanBeSet<Target>>
+DoNotify(Target &)
+{
+
+}
+
+
 template<typename T, typename Enable = void>
 struct HasMute: std::false_type {};
 
@@ -179,12 +194,7 @@ protected:
 
         auto doNotify = [derived] (auto thisField)
         {
-            using Member = typename std::remove_reference_t<
-                decltype(derived->*(thisField.member))>;
-
-            detail::AccessReference<Member>(
-                (derived->*(thisField.member)))
-                    .DoNotify();
+            DoNotify(derived->*(thisField.member));
         };
 
         jive::ForEach(

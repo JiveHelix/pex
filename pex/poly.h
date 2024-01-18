@@ -368,6 +368,19 @@ public:
         return this->base_.get();
     }
 
+// TODO: Add this to pex::Reference
+// protected:
+    void SetWithoutNotify_(const Value &value)
+    {
+        this->base_->SetValueWithoutNotify(value);
+    }
+
+    void DoNotify_()
+    {
+        this->base_->DoValueNotify();
+    }
+
+
 private:
     std::unique_ptr<ModelBase> base_;
     pex::model::Signal baseCreated_;
@@ -516,6 +529,28 @@ public:
     {
         assert(this->base_);
         this->base_->Disconnect(observer);
+    }
+
+    bool HasModel() const
+    {
+        if (!this->upstream_)
+        {
+            return false;
+        }
+
+        return (this->upstream_->GetModelBase() != nullptr);
+    }
+
+// TODO: Add this to pex::Reference
+// protected:
+    void SetWithoutNotify_(const Value &value)
+    {
+        this->base_->SetValueWithoutNotify(value);
+    }
+
+    void DoNotify_()
+    {
+        this->base_->DoValueNotify();
     }
 
 private:

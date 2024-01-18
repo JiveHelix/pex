@@ -245,7 +245,6 @@ public:
         this->muteTerminus_.Assign(this, other.muteTerminus_);
         this->isMuted_ = other.isMuted_;
         this->ClearListConnections_();
-        this->cached_ = other.cached_;
 
         this->listControl_ = other.listControl_;
         this->observer_ = observer;
@@ -258,6 +257,10 @@ public:
 
             this->MakeListConnections_();
         }
+
+        this->countWillChange_.Assign(this, other.countWillChange_);
+        this->count_.Assign(this, other.count_);
+        this->cached_ = other.cached_;
 
         return *this;
     }

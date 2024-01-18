@@ -58,6 +58,9 @@ public:
         this->SetValue(value);
     }
 
+    virtual void SetValueWithoutNotify(const Value &) = 0;
+    virtual void DoValueNotify() = 0;
+
     virtual std::shared_ptr<ControlBase_> Copy() const = 0;
 };
 
@@ -80,6 +83,8 @@ public:
     virtual void SetValue(const Value &) = 0;
     virtual std::string_view GetTypeName() const = 0;
     virtual ControlPtr MakeControl() = 0;
+    virtual void SetValueWithoutNotify(const Value &) = 0;
+    virtual void DoValueNotify() = 0;
 
     void SetValueBase(const ValueBase &value) override
     {

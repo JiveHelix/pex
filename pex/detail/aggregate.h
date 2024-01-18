@@ -111,7 +111,11 @@ struct AggregateSelector_<T, std::enable_if_t<IsGroup<T>>>
 };
 
 template<typename T>
-struct AggregateSelector_<T, std::enable_if_t<IsMakeList<T>>>
+struct AggregateSelector_
+<
+    T,
+    std::enable_if_t<IsMakeList<T> || IsMakePolyList<T>>
+>
 {
     using Type = ListConnect<void, ControlSelector<T>>;
 };

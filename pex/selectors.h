@@ -33,9 +33,6 @@ struct RangeTypes
         >;
 
     using Control = pex::control::Range<Model>;
-
-    // template<typename Observer>
-    // using Terminus = RangeTerminus<Observer, Model>;
 };
 
 

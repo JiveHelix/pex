@@ -67,6 +67,17 @@ struct PolyGroup
             {
                 return std::make_shared<Derived>(this->Get());
             }
+
+            void SetValueWithoutNotify(const PolyValue_ &value) override
+            {
+                this->SetWithoutNotify_(
+                    value.template RequireDerived<Derived>());
+            }
+
+            void DoValueNotify() override
+            {
+                this->DoNotify_();
+            }
         };
 
         template<typename GroupBase>
@@ -155,6 +166,17 @@ struct PolyGroup
             }
 
             std::shared_ptr<ControlBase> Copy() const override;
+
+            void SetValueWithoutNotify(const PolyValue_ &value) override
+            {
+                this->SetWithoutNotify_(
+                    value.template RequireDerived<Derived>());
+            }
+
+            void DoValueNotify() override
+            {
+                this->DoNotify_();
+            }
 
         private:
             static void OnAggregate_(void * context, const Derived &derived)
