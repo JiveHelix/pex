@@ -117,8 +117,8 @@ public:
             return false;
         }
 
-        return (fields::ComparisonTuple(*this, PolyDerived_::fields)
-            == fields::ComparisonTuple(*otherPolyBase, PolyDerived_::fields));
+        return (fields::ComparisonTuple(*this)
+            == fields::ComparisonTuple(*otherPolyBase));
     }
 
     std::string_view GetTypeName() const override

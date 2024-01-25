@@ -318,10 +318,15 @@ PolyGroup<Fields_, Template_, PolyValue_, Custom>::GroupTemplates_
 #define GNU_NO_PEDANTIC_POP \
     DO_PRAGMA(GCC diagnostic pop)
 
+// GNU compiler needs the template keyword to parse these definitions
+// correctly.
+#define TEMPLATE
+
 #else
 
 #define GNU_NO_PEDANTIC_PUSH
 #define GNU_NO_PEDANTIC_POP
+#define TEMPLATE
 
 #endif // defined __GNUG__
 
@@ -338,7 +343,7 @@ template
 template<typename GroupBase>
 std::shared_ptr<detail::MakeControlBase<Custom, PolyValue_>>
 PolyGroup<Fields_, Template_, PolyValue_, Custom>::GroupTemplates_
-    ::template Control<GroupBase>::Copy() const
+    ::TEMPLATE Control<GroupBase>::Copy() const
 {
     using DerivedControl =
         typename PolyGroup<Fields_, Template_, PolyValue_, Custom>::Control;
@@ -363,7 +368,7 @@ template
 >
 template<typename GroupBase>
 PolyGroup<Fields_, Template_, PolyValue_, Custom>::GroupTemplates_
-    ::template Control<GroupBase>::Control(
+    ::TEMPLATE Control<GroupBase>::Control(
         ::pex::poly::Model<PolyValue_, Custom> &model)
     :
     GroupBase()
@@ -392,7 +397,7 @@ template
 >
 template<typename GroupBase>
 PolyGroup<Fields_, Template_, PolyValue_, Custom>::GroupTemplates_
-    ::template Control<GroupBase>::Control(
+    ::TEMPLATE Control<GroupBase>::Control(
         const ::pex::poly::Control<PolyValue_, Custom> &control)
     :
     GroupBase()
@@ -411,7 +416,10 @@ PolyGroup<Fields_, Template_, PolyValue_, Custom>::GroupTemplates_
     *this = *upcast;
 }
 
+#if defined(__GNUG__) && !defined(__clang__) && !defined(_WIN32)
 GNU_NO_PEDANTIC_POP
+#undef TEMPLATE
+#endif
 
 
 } // end namespace poly
