@@ -320,7 +320,7 @@ PolyGroup<Fields_, Template_, PolyValue_, Custom>::GroupTemplates_
 
 // GNU compiler needs the template keyword to parse these definitions
 // correctly.
-#define TEMPLATE
+#define TEMPLATE template
 
 #else
 
