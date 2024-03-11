@@ -41,6 +41,9 @@ class PexConan(ConanFile):
     def package_info(self):
         self.cpp_info.libs = ["pex"]
 
+        if self.settings.os == "Linux":
+            self.cpp_info.cxxflags.append("-fconcepts")
+
     def build_requirements(self):
         self.test_requires("catch2/2.13.8")
         self.test_requires("nlohmann_json/[~3.11]")
