@@ -332,12 +332,25 @@ class EndpointGroup
         template GroupTemplate<EndpointSelector<Observer>::template Type>
 {
 public:
+    using Callable = typename Endpoint<Observer, Control>::Callable;
+
     EndpointGroup() = delete;
 
     EndpointGroup(Observer *observer, const Control &control_)
         :
         control(control_),
         group(observer, control_)
+    {
+        InitializeEndpoints(observer, *this, control);
+    }
+
+    EndpointGroup(
+        Observer *observer,
+        const Control &control_,
+        Callable callable)
+        :
+        control(control_),
+        group(observer, control_, callable)
     {
         InitializeEndpoints(observer, *this, control);
     }

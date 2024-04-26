@@ -90,6 +90,11 @@ public:
         return this->muteControl_;
     }
 
+    MuteControl & GetMuteControlReference()
+    {
+        return this->muteControl_;
+    }
+
     bool IsMuted() const
     {
         return this->muteControl_.Get();

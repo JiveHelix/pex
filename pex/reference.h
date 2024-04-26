@@ -425,7 +425,7 @@ public:
         if (this->isMuted_)
         {
             assert(this->upstream_);
-            this->upstream_->CloneMuteControl().Set(false);
+            this->upstream_->GetMuteControlReference().Set(false);
         }
     }
 
@@ -436,7 +436,7 @@ public:
             throw std::logic_error("MuteDeferred is uninitialized");
         }
 
-        this->upstream_->CloneMuteControl().Set(true);
+        this->upstream_->GetMuteControlReference().Set(true);
         this->isMuted_ = true;
     }
 
