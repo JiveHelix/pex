@@ -4,6 +4,7 @@
 #include <pex/interface.h>
 #include <pex/group.h>
 #include <pex/range.h>
+#include <pex/selectors.h>
 
 
 namespace pex
@@ -48,11 +49,13 @@ struct LinkedRanges
     template<typename T>
     using Fields = LinkedRangesFields<T>;
 
+    using RangeMaker = MakeRange<Type, LowLimit, HighLimit>;
+
     template<template<typename> typename T>
     struct Template
     {
-        T<pex::MakeRange<Type, LowLimit, HighLimit>> low;
-        T<pex::MakeRange<Type, LowLimit, HighLimit>> high;
+        T<RangeMaker> low;
+        T<RangeMaker> high;
 
         static constexpr auto fields = LinkedRangesFields<Template>::fields;
         static constexpr auto fieldsTypeName = "LinkedRanges";
@@ -74,11 +77,11 @@ struct LinkedRanges
         struct Model: public Base
         {
         private:
-            using Low = decltype(Model::low);
+            using Low = ControlSelector<RangeMaker>;
 
             using LowTerminus = pex::RangeTerminus<Model, Low>;
 
-            using High = decltype(Model::high);
+            using High = ControlSelector<RangeMaker>;
 
             using HighTerminus = pex::RangeTerminus<Model, High>;
 
@@ -91,16 +94,26 @@ struct LinkedRanges
             Model()
                 :
                 Base(),
-                lowTerminus_(this, this->low),
-                highTerminus_(this, this->high)
+                lowTerminus_(),
+                highTerminus_()
             {
-                this->low.TrimMaximum(this->high.Get());
-                this->high.TrimMinimum(this->low.Get());
+                if constexpr (!std::is_empty_v<Base>)
+                {
+                    this->low.TrimMaximum(this->high.Get());
+                    this->high.TrimMinimum(this->low.Get());
 
-                PEX_LOG("Connecting LinkedRanges::Model as observer: ", this);
+                    PEX_LOG(
+                        "Connecting LinkedRanges::Model as observer: ",
+                        this);
 
-                this->lowTerminus_.Connect(&Model::OnLow_);
-                this->highTerminus_.Connect(&Model::OnHigh_);
+                    this->lowTerminus_.Assign(
+                        this,
+                        LowTerminus(this, this->low, &Model::OnLow_));
+
+                    this->highTerminus_.Assign(
+                        this,
+                        HighTerminus(this, this->high, &Model::OnHigh_));
+                }
             }
 
             void SetMaximumValue(Type maximumValue)
@@ -108,18 +121,28 @@ struct LinkedRanges
                 // The maximum allowed value of "low" is high.
                 // If the value of high is above the new maximumValue,
                 // it will be reduced, trimming low.maximum with it.
-                this->high.SetMaximum(maximumValue);
+
+                if constexpr (!std::is_empty_v<Base>)
+                {
+                    this->high.SetMaximum(maximumValue);
+                }
             }
 
         private:
             void OnLow_(Type value)
             {
-                this->high.TrimMinimum(value);
+                if constexpr (!std::is_empty_v<Base>)
+                {
+                    this->high.TrimMinimum(value);
+                }
             }
 
             void OnHigh_(Type value)
             {
-                this->low.TrimMaximum(value);
+                if constexpr (!std::is_empty_v<Base>)
+                {
+                    this->low.TrimMaximum(value);
+                }
             }
         };
     };

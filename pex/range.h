@@ -26,6 +26,9 @@
 #include "pex/terminus.h"
 
 
+#undef max
+#undef min
+
 namespace pex
 {
 

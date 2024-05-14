@@ -14,6 +14,7 @@ add_executable(
     select_tests.cpp
     signal_tests.cpp
     terminus_tests.cpp
+    traits_tests.cpp
     value_tests.cpp)
 
 target_link_libraries(

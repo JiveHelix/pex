@@ -80,7 +80,15 @@ struct Plain_<Custom, T, std::enable_if_t<HasPlainTemplate<Custom>>>
 
 
 template<typename Custom, typename T>
-struct Plain_<Custom, T, std::enable_if_t<HasPlain<Custom>>>
+struct Plain_
+<
+    Custom,
+    T,
+    std::enable_if_t
+    <
+        HasPlain<Custom> && !HasPlainTemplate<Custom>
+    >
+>
 {
     using Type = typename Custom::Plain;
 };
