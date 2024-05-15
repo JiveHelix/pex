@@ -131,27 +131,49 @@ template<typename Custom, typename T>
 using Control = typename Control_<Custom, T>::Type;
 
 
-template<typename Custom, typename Base, typename = void>
+template
+<
+    typename Custom,
+    typename PlainBase,
+    typename ModelBase,
+    typename ControlBase,
+    typename = void
+>
 struct CheckCustom_: std::false_type {};
 
-template<typename Custom, typename Base>
+template
+<
+    typename Custom,
+    typename PlainBase,
+    typename ModelBase,
+    typename ControlBase
+>
 struct CheckCustom_
 <
     Custom,
-    Base,
+    PlainBase,
+    ModelBase,
+    ControlBase,
     std::enable_if_t
     <
         (
-            HasPlainTemplate<Custom, Base>
+            HasPlainTemplate<Custom, PlainBase>
             || HasPlain<Custom>
-            || HasModelTemplate<Custom, Base>
-            || HasControlTemplate<Custom, Base>)
+            || HasModelTemplate<Custom, ModelBase>
+            || HasControlTemplate<Custom, ControlBase>)
     >
 >: std::true_type {};
 
 
-template<typename Custom, typename Base>
-inline constexpr bool CheckCustom = CheckCustom_<Custom, Base>::value;
+template
+<
+    typename Custom,
+    typename PlainBase,
+    typename ModelBase,
+    typename ControlBase
+>
+inline constexpr bool CheckCustom =
+    CheckCustom_<Custom, PlainBase, ModelBase, ControlBase>::value;
 
 
 } // end namespace detail
@@ -204,7 +226,13 @@ struct Group
 
     static_assert(
         std::is_void_v<Custom>
-            || detail::CheckCustom<Custom, Template<pex::Identity>>,
+            || detail::CheckCustom
+                <
+                    Custom,
+                    Template<pex::Identity>,
+                    Template<ModelSelector>,
+                    Template<ControlSelector>
+                >,
         "Expected at least one customization");
 
     using Plain = detail::Plain<Custom, Template<pex::Identity>>;
