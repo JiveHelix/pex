@@ -27,34 +27,36 @@ template<typename T>
 inline constexpr bool HasImpl = HasImpl_<T>::value;
 
 
-template<typename T, typename = void>
+template<typename T, typename Base, typename = void>
 struct HasModelTemplate_: std::false_type {};
 
-template<typename T>
+template<typename T, typename Base>
 struct HasModelTemplate_
 <
     T,
-    std::void_t<typename T::template Model<TraitsTest>>
+    Base,
+    std::void_t<typename T::template Model<Base>>
 >
 : std::true_type {};
 
-template<typename T>
-inline constexpr bool HasModelTemplate = HasModelTemplate_<T>::value;
+template<typename T, typename Base>
+inline constexpr bool HasModelTemplate = HasModelTemplate_<T, Base>::value;
 
 
-template<typename T, typename = void>
+template<typename T, typename Base, typename = void>
 struct HasControlTemplate_: std::false_type {};
 
-template<typename T>
+template<typename T, typename Base>
 struct HasControlTemplate_
 <
     T,
-    std::void_t<typename T::template Control<TraitsTest>>
+    Base,
+    std::void_t<typename T::template Control<Base>>
 >
 : std::true_type {};
 
-template<typename T>
-inline constexpr bool HasControlTemplate = HasControlTemplate_<T>::value;
+template<typename T, typename Base>
+inline constexpr bool HasControlTemplate = HasControlTemplate_<T, Base>::value;
 
 
 template<typename T, typename = void>
@@ -89,19 +91,20 @@ inline constexpr bool HasControlUserBaseTemplate =
     HasControlUserBaseTemplate_<T>::value;
 
 
-template<typename T, typename = void>
+template<typename T, typename Base, typename = void>
 struct HasPlainTemplate_: std::false_type {};
 
-template<typename T>
+template<typename T, typename Base>
 struct HasPlainTemplate_
 <
     T,
-    std::void_t<typename T::template Plain<TraitsTest>>
+    Base,
+    std::void_t<typename T::template Plain<Base>>
 >
 : std::true_type {};
 
-template<typename T>
-inline constexpr bool HasPlainTemplate = HasPlainTemplate_<T>::value;
+template<typename T, typename Base>
+inline constexpr bool HasPlainTemplate = HasPlainTemplate_<T, Base>::value;
 
 
 template<typename T, typename = void>

@@ -73,7 +73,7 @@ struct Plain_
 
 
 template<typename Custom, typename T>
-struct Plain_<Custom, T, std::enable_if_t<HasPlainTemplate<Custom>>>
+struct Plain_<Custom, T, std::enable_if_t<HasPlainTemplate<Custom, T>>>
 {
     using Type = typename Custom::template Plain<T>;
 };
@@ -86,7 +86,7 @@ struct Plain_
     T,
     std::enable_if_t
     <
-        HasPlain<Custom> && !HasPlainTemplate<Custom>
+        HasPlain<Custom> && !HasPlainTemplate<Custom, T>
     >
 >
 {
@@ -106,7 +106,7 @@ struct Model_
 
 
 template<typename Custom, typename T>
-struct Model_<Custom, T, std::enable_if_t<HasModelTemplate<Custom>>>
+struct Model_<Custom, T, std::enable_if_t<HasModelTemplate<Custom, T>>>
 {
     using Type = typename Custom::template Model<T>;
 };
@@ -122,7 +122,7 @@ struct Control_
 };
 
 template<typename Custom, typename T>
-struct Control_<Custom, T, std::enable_if_t<HasControlTemplate<Custom>>>
+struct Control_<Custom, T, std::enable_if_t<HasControlTemplate<Custom, T>>>
 {
     using Type = typename Custom::template Control<T>;
 };
@@ -131,26 +131,27 @@ template<typename Custom, typename T>
 using Control = typename Control_<Custom, T>::Type;
 
 
-template<typename Custom, typename = void>
+template<typename Custom, typename Base, typename = void>
 struct CheckCustom_: std::false_type {};
 
-template<typename Custom>
+template<typename Custom, typename Base>
 struct CheckCustom_
 <
     Custom,
+    Base,
     std::enable_if_t
     <
         (
-            HasPlainTemplate<Custom>
+            HasPlainTemplate<Custom, Base>
             || HasPlain<Custom>
-            || HasModelTemplate<Custom>
-            || HasControlTemplate<Custom>)
+            || HasModelTemplate<Custom, Base>
+            || HasControlTemplate<Custom, Base>)
     >
 >: std::true_type {};
 
 
-template<typename Custom>
-inline constexpr bool CheckCustom = CheckCustom_<Custom>::value;
+template<typename Custom, typename Base>
+inline constexpr bool CheckCustom = CheckCustom_<Custom, Base>::value;
 
 
 } // end namespace detail
@@ -202,7 +203,8 @@ struct Group
     using Template = Template_<T>;
 
     static_assert(
-        std::is_void_v<Custom> || detail::CheckCustom<Custom>,
+        std::is_void_v<Custom>
+            || detail::CheckCustom<Custom, Template<pex::Identity>>,
         "Expected at least one customization");
 
     using Plain = detail::Plain<Custom, Template<pex::Identity>>;

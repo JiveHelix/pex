@@ -73,7 +73,8 @@ TEST_CASE("Test HasPlain, HasModel, HasControl", "[traits]")
     STATIC_REQUIRE(
         pex::detail::HasModelTemplate
         <
-            typename traits_tests::TesterRanges<double>::GroupTypes_
+            typename traits_tests::TesterRanges<double>::GroupTypes_,
+            traits_tests::TesterTemplate<pex::Identity>
         >);
 
     STATIC_REQUIRE(

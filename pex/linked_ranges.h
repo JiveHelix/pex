@@ -97,23 +97,20 @@ struct LinkedRanges
                 lowTerminus_(),
                 highTerminus_()
             {
-                if constexpr (!std::is_empty_v<Base>)
-                {
-                    this->low.TrimMaximum(this->high.Get());
-                    this->high.TrimMinimum(this->low.Get());
+                this->low.TrimMaximum(this->high.Get());
+                this->high.TrimMinimum(this->low.Get());
 
-                    PEX_LOG(
-                        "Connecting LinkedRanges::Model as observer: ",
-                        this);
+                PEX_LOG(
+                    "Connecting LinkedRanges::Model as observer: ",
+                    this);
 
-                    this->lowTerminus_.Assign(
-                        this,
-                        LowTerminus(this, this->low, &Model::OnLow_));
+                this->lowTerminus_.Assign(
+                    this,
+                    LowTerminus(this, this->low, &Model::OnLow_));
 
-                    this->highTerminus_.Assign(
-                        this,
-                        HighTerminus(this, this->high, &Model::OnHigh_));
-                }
+                this->highTerminus_.Assign(
+                    this,
+                    HighTerminus(this, this->high, &Model::OnHigh_));
             }
 
             void SetMaximumValue(Type maximumValue)
@@ -121,28 +118,18 @@ struct LinkedRanges
                 // The maximum allowed value of "low" is high.
                 // If the value of high is above the new maximumValue,
                 // it will be reduced, trimming low.maximum with it.
-
-                if constexpr (!std::is_empty_v<Base>)
-                {
-                    this->high.SetMaximum(maximumValue);
-                }
+                this->high.SetMaximum(maximumValue);
             }
 
         private:
             void OnLow_(Type value)
             {
-                if constexpr (!std::is_empty_v<Base>)
-                {
-                    this->high.TrimMinimum(value);
-                }
+                this->high.TrimMinimum(value);
             }
 
             void OnHigh_(Type value)
             {
-                if constexpr (!std::is_empty_v<Base>)
-                {
-                    this->low.TrimMaximum(value);
-                }
+                this->low.TrimMaximum(value);
             }
         };
     };

@@ -181,8 +181,34 @@ struct AircraftCustom
 
 
 static_assert(pex::detail::HasControlUserBaseTemplate<AircraftCustom>);
-static_assert(pex::detail::HasControlTemplate<AircraftCustom>);
-static_assert(pex::detail::HasModelTemplate<AircraftCustom>);
+
+static_assert(
+    pex::detail::HasControlTemplate
+    <
+        AircraftCustom,
+        FixedWingTemplate<pex::Identity>
+    >);
+
+static_assert(
+    pex::detail::HasControlTemplate
+    <
+        AircraftCustom,
+        RotorWingTemplate<pex::Identity>
+    >);
+
+static_assert(
+    pex::detail::HasModelTemplate
+    <
+        AircraftCustom,
+        FixedWingTemplate<pex::Identity>
+    >);
+
+static_assert(
+    pex::detail::HasModelTemplate
+    <
+        AircraftCustom,
+        RotorWingTemplate<pex::Identity>
+    >);
 
 
 using RotorWingGroup =
