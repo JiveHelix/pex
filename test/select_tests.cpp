@@ -9,7 +9,8 @@
 
 TEST_CASE("Select::Get returns value, not index", "[select]")
 {
-    using Select = pex::model::Select<double>;
+    using Select =
+        pex::model::Select<double, pex::model::DefaultChoices<double>>;
 
     Select select({1.0, 2.78, 3.14, 42.0});
     REQUIRE(select.Get() == Approx(1.0));
@@ -119,4 +120,57 @@ TEST_CASE("Select observer is notified.", "[select]")
 
     model.rate.SetSelection(3);
     REQUIRE(observer.observedRate == Approx(42.0));
+}
+
+
+template<typename T>
+struct AnotherFields
+{
+    static constexpr auto fields = std::make_tuple(
+        fields::Field(&T::x, "x"),
+        fields::Field(&T::y, "y"),
+        fields::Field(&T::rate, "rate"));
+};
+
+
+struct RateSelect
+{
+    using Type = double;
+
+    static std::vector<double> GetChoices()
+    {
+        return {1.0, 2.78, 3.14, 42.0};
+    }
+};
+
+
+template<template<typename> typename T>
+struct AnotherTemplate
+{
+    T<double> x;
+    T<double> y;
+    T<pex::MakeSelect<RateSelect>> rate;
+
+    static constexpr auto fields = AnotherFields<AnotherTemplate>::fields;
+};
+
+using AnotherGroup = pex::Group<AnotherFields, AnotherTemplate>;
+using AnotherModel = typename AnotherGroup::Model;
+using AnotherControl = typename AnotherGroup::Control;
+using AnotherPlain = typename AnotherGroup::Plain;
+
+static_assert(pex::IsModelSelect<decltype(AnotherModel::rate)>);
+
+
+TEST_CASE("Rate has default choices.", "[select]")
+{
+    AnotherModel model{};
+
+    REQUIRE(model.rate.Get() == Approx(1.0));
+    REQUIRE(AnotherControl(model).rate.value.Get() == Approx(1.0));
+
+    REQUIRE(model.rate.GetChoices().size() == 4);
+    AnotherControl(model).rate.selection.Set(3);
+    // model.rate.SetSelection(3);
+    REQUIRE(model.rate.Get() == Approx(42.0));
 }

@@ -53,6 +53,57 @@ struct MakeRange
 };
 
 
+template<typename T, typename = void>
+struct HasGetChoices_: std::false_type {};
+
+template<typename T>
+struct HasGetChoices_
+<
+    T,
+    std::enable_if_t
+    <
+        std::is_same_v
+        <
+            std::vector<typename T::Type>,
+            decltype(T::GetChoices())
+        >
+    >
+>
+: std::true_type {};
+
+
+template<typename T>
+inline constexpr bool HasGetChoices = HasGetChoices_<T>::value;
+
+
+template<typename T, typename = void>
+struct SelectType
+{
+    using Type = T;
+
+    static std::vector<Type> GetChoices()
+    {
+        return {Type{}};
+    }
+};
+
+
+template<typename T>
+struct SelectType
+<
+    T,
+    std::enable_if_t<HasGetChoices<T>>
+>
+{
+    using Type = typename T::Type;
+
+    static std::vector<Type> GetChoices()
+    {
+        return T::GetChoices();
+    }
+};
+
+
 template
 <
     typename T,
@@ -60,7 +111,7 @@ template
 >
 struct MakeSelect
 {
-    using Type = T;
+    using Type = SelectType<T>;
     using Access = Access_;
 };
 

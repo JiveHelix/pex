@@ -85,7 +85,22 @@ private:
 };
 
 
-template<typename T, typename ChoicesAccess_ = GetAndSetTag>
+template<typename T>
+struct DefaultChoices
+{
+    static std::vector<T> GetChoices()
+    {
+        return std::vector<T>(T{});
+    }
+};
+
+
+template
+<
+    typename T,
+    typename ChoiceMaker,
+    typename ChoicesAccess_ = GetAndSetTag
+>
 class Select
 {
 public:
@@ -122,16 +137,9 @@ private:
 public:
     Select()
         :
-        value_(Type{}),
-        choices_(std::vector<Type>{this->value_.Get()}),
-        selection_(
-            static_cast<size_t>(0),
-            SelectFilter(this->choices_.Get())),
-        terminus_(
-            this,
-            this->selection_)
+        Select(ChoiceMaker::GetChoices())
     {
-        this->terminus_.Connect(&Select::OnSelection_);
+
     }
 
     Select(pex::Argument<Type> value)
@@ -334,8 +342,9 @@ private:
 template<typename T>
 struct IsModelSelect_: std::false_type {};
 
-template<typename T, typename Access>
-struct IsModelSelect_<pex::model::Select<T, Access>>: std::true_type {};
+template<typename T, typename Choices, typename Access>
+struct IsModelSelect_<pex::model::Select<T, Choices, Access>>
+    : std::true_type {};
 
 template<typename T>
 inline constexpr bool IsModelSelect = IsModelSelect_<T>::value;

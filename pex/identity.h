@@ -28,7 +28,6 @@ struct Identity_
         || IsMakeCustom<T>
         || IsGroup<T>
         || IsMakeRange<T>
-        || IsMakeSelect<T>
     >
 >
 {
@@ -55,6 +54,20 @@ struct Identity_
 {
     // Recursively look up the list type.
     using Type = std::vector<typename Identity_<typename T::MemberType>::Type>;
+};
+
+
+template<typename T>
+struct Identity_
+<
+    T,
+    std::enable_if_t
+    <
+        IsMakeSelect<T>
+    >
+>
+{
+    using Type = typename T::Type::Type;
 };
 
 

@@ -21,19 +21,32 @@ struct PointFields
 };
 
 
+struct Units
+{
+    using Type = std::string;
+
+    static std::vector<Type> GetChoices()
+    {
+        return {"meters", "feet", "furlongs"};
+    }
+};
+
+
 template<template<typename> typename T>
 struct PointTemplate
 {
     T<double> x;
     T<double> y;
-    T<pex::MakeSelect<std::string>> units;
+    T<pex::MakeSelect<Units>> units;
 
     static constexpr auto fields = PointFields<PointTemplate<T>>::fields;
     static constexpr auto fieldsTypeName = "Point";
 };
 
 
-using ModelSelectString = pex::model::Select<std::string>;
+using ModelSelectString =
+    pex::model::Select<std::string, pex::SelectType<Units>>;
+
 using ControlSelectString = pex::control::Select<ModelSelectString>;
 
 
@@ -50,18 +63,11 @@ struct PointGroupTemplates_
                 ModelSelectString
             >);
 
-        static_assert(
-            std::is_same_v
-            <
-                decltype(Model::units),
-                ModelSelectString
-            >);
-
         Model()
             :
             GroupBase()
         {
-            this->units.SetChoices({"meters", "feet", "furlongs"});
+
         }
 
         double GetLength() const

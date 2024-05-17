@@ -39,19 +39,18 @@ struct RangeTypes
 template<typename SelectMaker>
 struct SelectTypes
 {
-    using Type = typename SelectMaker::Type;
+    using SelectType = typename SelectMaker::Type;
+    using Type = typename SelectType::Type;
 
     using Model =
         pex::model::Select
         <
             Type,
+            SelectType,
             typename SelectMaker::Access
         >;
 
     using Control = pex::control::Select<Model>;
-
-    // template<typename Observer>
-    // using Terminus = SelectTerminus<Observer, Model>;
 };
 
 
