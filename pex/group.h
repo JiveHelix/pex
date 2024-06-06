@@ -66,21 +66,21 @@ namespace detail
 
 
 template<typename Custom, typename T, typename = void>
-struct Plain_
+struct CustomizePlain_
 {
     using Type = T;
 };
 
 
 template<typename Custom, typename T>
-struct Plain_<Custom, T, std::enable_if_t<HasPlainTemplate<Custom, T>>>
+struct CustomizePlain_<Custom, T, std::enable_if_t<HasPlainTemplate<Custom, T>>>
 {
     using Type = typename Custom::template Plain<T>;
 };
 
 
 template<typename Custom, typename T>
-struct Plain_
+struct CustomizePlain_
 <
     Custom,
     T,
@@ -95,40 +95,45 @@ struct Plain_
 
 
 template<typename Custom, typename T>
-using Plain = typename Plain_<Custom, T>::Type;
+using CustomizePlain = typename CustomizePlain_<Custom, T>::Type;
 
 
 template<typename Custom, typename T, typename = void>
-struct Model_
+struct CustomizeModel_
 {
     using Type = T;
 };
 
 
 template<typename Custom, typename T>
-struct Model_<Custom, T, std::enable_if_t<HasModelTemplate<Custom, T>>>
+struct CustomizeModel_<Custom, T, std::enable_if_t<HasModelTemplate<Custom, T>>>
 {
     using Type = typename Custom::template Model<T>;
 };
 
 template<typename Custom, typename T>
-using Model = typename Model_<Custom, T>::Type;
+using CustomizeModel = typename CustomizeModel_<Custom, T>::Type;
 
 
 template<typename Custom, typename T, typename = void>
-struct Control_
+struct CustomizeControl_
 {
     using Type = T;
 };
 
 template<typename Custom, typename T>
-struct Control_<Custom, T, std::enable_if_t<HasControlTemplate<Custom, T>>>
+struct CustomizeControl_
+<
+    Custom,
+    T,
+    std::enable_if_t<HasControlTemplate<Custom, T>>
+>
 {
     using Type = typename Custom::template Control<T>;
 };
 
 template<typename Custom, typename T>
-using Control = typename Control_<Custom, T>::Type;
+using CustomizeControl = typename CustomizeControl_<Custom, T>::Type;
 
 
 template
@@ -235,7 +240,7 @@ struct Group
                 >,
         "Expected at least one customization");
 
-    using Plain = detail::Plain<Custom, Template<pex::Identity>>;
+    using Plain = detail::CustomizePlain<Custom, Template<pex::Identity>>;
     using Type = Plain;
 
     template<template<typename> typename Selector, typename Upstream>
@@ -265,7 +270,7 @@ struct Group
     public:
         static constexpr bool isGroupModel = true;
 
-        using ControlType = typename detail::Control<Custom, Control_>;
+        using ControlType = typename detail::CustomizeControl<Custom, Control_>;
         using Plain = typename Group::Plain;
         using Type = Plain;
         using Defer = DeferGroup<ModelSelector, Model_>;
@@ -304,7 +309,7 @@ struct Group
         bool HasModel() const { return true; }
     };
 
-    using Model = typename detail::Model<Custom, Model_>;
+    using Model = typename detail::CustomizeModel<Custom, Model_>;
 
     template<typename Derived>
     using ControlAccessors = GroupAccessors
@@ -393,7 +398,7 @@ struct Group
         }
     };
 
-    using Control = typename detail::Control<Custom, Control_>;
+    using Control = typename detail::CustomizeControl<Custom, Control_>;
 
     using Aggregate = typename Control_::Aggregate;
 

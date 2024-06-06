@@ -519,7 +519,7 @@ TEST_CASE("Poly list of groups implements virtual bases.", "[List]")
 
     REQUIRE(airportObserver.GetNotificationCount() == 1);
 
-    control.aircraft[2].GetControlBase()->GetRange().Set(42.0);
+    control.aircraft[2].GetVirtual()->GetRange().Set(42.0);
 
     REQUIRE(airportObserver.GetNotificationCount() == 2);
 
@@ -538,7 +538,7 @@ TEST_CASE("Poly list of groups implements virtual bases.", "[List]")
 
     auto aircraft = model.aircraft[2].Get().RequireDerived<FixedWing>();
     aircraft.range = 43.0;
-    control.aircraft[2].GetControlBase()->SetValueBase(aircraft);
+    control.aircraft[2].GetVirtual()->SetValueBase(aircraft);
 
     REQUIRE(airportObserver.GetNotificationCount() == 3);
 
@@ -585,7 +585,7 @@ TEST_CASE("Poly list is observed after going to size 0.", "[List]")
     REQUIRE(aircraftObserver.GetNotificationCount() == 3);
     REQUIRE(airportObserver.GetNotificationCount() == 3);
 
-    control.aircraft[0].GetControlBase()->GetRange().Set(42.0);
+    control.aircraft[0].GetVirtual()->GetRange().Set(42.0);
 
     REQUIRE(aircraftObserver.GetNotificationCount() == 4);
     REQUIRE(airportObserver.GetNotificationCount() == 4);
@@ -607,7 +607,7 @@ TEST_CASE("Poly list is observed after going to size 0.", "[List]")
 
     auto aircraft = model.aircraft[0].Get().RequireDerived<FixedWing>();
     aircraft.range = 43.0;
-    control.aircraft[0].GetControlBase()->SetValueBase(aircraft);
+    control.aircraft[0].GetVirtual()->SetValueBase(aircraft);
 
     REQUIRE(aircraftObserver.GetNotificationCount() == 5);
 

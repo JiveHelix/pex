@@ -215,10 +215,19 @@ private:
 
 public:
     // Allow the Customized types to inherit from Group::Model and Control.
-    using Model = typename ::pex::detail::Model<Custom, typename Group_::Model>;
+    using Model =
+        typename ::pex::detail::CustomizeModel
+        <
+            Custom,
+            typename Group_::Model
+        >;
 
     using Control =
-        typename ::pex::detail::Control<Custom, typename Group_::Control>;
+        typename ::pex::detail::CustomizeControl
+        <
+            Custom,
+            typename Group_::Control
+        >;
 
     using ControlMembers = typename Group_::ControlMembers;
 
@@ -376,7 +385,7 @@ PolyGroup<Fields_, Template_, PolyValue_, Custom>::GroupTemplates_
     using DerivedControl =
         typename PolyGroup<Fields_, Template_, PolyValue_, Custom>::Control;
 
-    auto base = model.GetModelBase();
+    auto base = model.GetVirtual();
     auto upcast = dynamic_cast<Upstream *>(base);
 
     if (!upcast)
@@ -405,7 +414,7 @@ PolyGroup<Fields_, Template_, PolyValue_, Custom>::GroupTemplates_
     using DerivedControl =
         typename PolyGroup<Fields_, Template_, PolyValue_, Custom>::Control;
 
-    auto base = control.GetControlBase();
+    auto base = control.GetVirtual();
     auto upcast = dynamic_cast<const DerivedControl *>(base);
 
     if (!upcast)

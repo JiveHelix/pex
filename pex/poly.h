@@ -363,7 +363,7 @@ public:
         return this->base_->GetTypeName();
     }
 
-    ModelBase * GetModelBase()
+    ModelBase * GetVirtual()
     {
         return this->base_.get();
     }
@@ -420,7 +420,7 @@ public:
             this->upstream_->baseCreated_,
             &Control::OnBaseCreated_)
     {
-        auto modelBase = upstream.GetModelBase();
+        auto modelBase = upstream.GetVirtual();
 
         if (modelBase)
         {
@@ -449,7 +449,7 @@ public:
             this->upstream_->baseCreated_,
             &Control::OnBaseCreated_)
     {
-        auto modelBase = upstream.GetModelBase();
+        auto modelBase = upstream.GetVirtual();
 
         if (modelBase)
         {
@@ -496,13 +496,13 @@ public:
         return this->base_->GetTypeName();
     }
 
-    const ControlBase * GetControlBase() const
+    const ControlBase * GetVirtual() const
     {
         assert(this->base_);
         return this->base_.get();
     }
 
-    ControlBase * GetControlBase()
+    ControlBase * GetVirtual()
     {
         assert(this->base_);
         return this->base_.get();
@@ -538,7 +538,7 @@ public:
             return false;
         }
 
-        return (this->upstream_->GetModelBase() != nullptr);
+        return (this->upstream_->GetVirtual() != nullptr);
     }
 
 // TODO: Add this to pex::Reference
@@ -556,7 +556,7 @@ public:
 private:
     void OnBaseCreated_()
     {
-        auto modelBase = this->upstream_->GetModelBase();
+        auto modelBase = this->upstream_->GetVirtual();
 
         if (modelBase)
         {
