@@ -87,7 +87,7 @@ public:
     Value_()
         :
         filter_{},
-        value_{}
+        value_{this->FilterOnSet_(Type{})}
     {
         PEX_LOG(this);
     }
@@ -111,7 +111,7 @@ public:
     Value_(Filter filter)
         :
         filter_{filter},
-        value_{}
+        value_{this->FilterOnSet_(Type{})}
     {
         PEX_LOG(this);
     }

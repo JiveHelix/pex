@@ -1,9 +1,9 @@
 #pragma once
 
 
+#include <fields/fields.h>
 #include "pex/model_value.h"
 #include "pex/control_value.h"
-#include "pex/terminus.h"
 
 
 namespace pex
@@ -13,11 +13,38 @@ namespace detail
 {
 
 
-using MuteModel = typename ::pex::model::Value<bool>;
-using MuteControl = typename ::pex::control::Value<MuteModel>;
+template<typename T>
+struct MuteFields
+{
+    static constexpr auto fields = std::make_tuple(
+        fields::Field(&T::isMuted, "isMuted"),
+        fields::Field(&T::isSilenced, "isSilenced"));
+};
 
-template<typename Observer>
-using MuteTerminus = ::pex::Terminus<Observer, MuteModel>;
+
+struct Mute_
+{
+    bool isMuted;
+    bool isSilenced;
+
+    static Mute_ Default()
+    {
+        return {false, false};
+    }
+
+    operator bool () const
+    {
+        return this->isMuted;
+    }
+
+    static constexpr auto fields = std::make_tuple(
+        fields::Field(&Mute_::isMuted, "isMuted"),
+        fields::Field(&Mute_::isSilenced, "isSilenced"));
+};
+
+
+using MuteModel = typename ::pex::model::Value<Mute_>;
+using MuteControl = typename ::pex::control::Value<MuteModel>;
 
 
 class MuteOwner
@@ -25,7 +52,7 @@ class MuteOwner
 public:
     MuteOwner()
         :
-        mute_(false)
+        mute_(Mute_::Default())
     {
 
     }
@@ -40,14 +67,19 @@ public:
         return MuteControl(this->mute_);
     }
 
-    void DoMute()
+    void DoMute(bool isSilenced)
     {
-        this->mute_.Set(true);
+        this->mute_.Set({true, isSilenced});
     }
 
     void DoUnmute()
     {
-        this->mute_.Set(false);
+        Mute_ muteState = this->mute_.Get();
+
+        // Leave isSilenced unchanged.
+        muteState.isMuted = false;
+
+        this->mute_.Set(muteState);
     }
 
 private:
@@ -100,18 +132,89 @@ public:
         return this->muteControl_.Get();
     }
 
-    void DoMute()
+    bool IsSilenced() const
     {
-        this->muteControl_.Set(true);
+        return this->muteControl_.Get().isSilenced;
+    }
+
+    void DoMute(bool isSilenced)
+    {
+        this->muteControl_.Set({true, isSilenced});
     }
 
     void DoUnmute()
     {
-        this->muteControl_.Set(false);
+        Mute_ muteState = this->muteControl_.Get();
+
+        // Leave isSilenced unchanged.
+        muteState.isMuted = false;
+
+        this->muteControl_.Set(muteState);
     }
 
 private:
     MuteControl muteControl_;
+};
+
+
+template<typename Upstream>
+class ScopeMute
+{
+public:
+    ScopeMute()
+        :
+        upstream_(nullptr),
+        isMuted_(false)
+    {
+
+    }
+
+    ScopeMute(Upstream &upstream, bool isSilenced)
+        :
+        upstream_(&upstream),
+        isMuted_(false)
+    {
+        this->Mute(isSilenced);
+    }
+
+    ~ScopeMute()
+    {
+        this->Unmute();
+    }
+
+    void Mute(bool isSilenced)
+    {
+        if (!this->upstream_)
+        {
+            throw std::logic_error("ScopeMute is uninitialized");
+        }
+
+        this->upstream_->GetMuteControlReference().Set({true, isSilenced});
+        this->isMuted_ = true;
+    }
+
+    void Unmute()
+    {
+        if (this->isMuted_)
+        {
+            assert(this->upstream_);
+
+            auto &muteControl =
+                this->upstream_->GetMuteControlReference();
+
+            Mute_ muteState = muteControl.Get();
+
+            // Leave isSilenced unchanged.
+            muteState.isMuted = false;
+
+            muteControl.Set(muteState);
+            this->isMuted_ = false;
+        }
+    }
+
+private:
+    Upstream *upstream_;
+    bool isMuted_;
 };
 
 

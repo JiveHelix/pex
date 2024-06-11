@@ -71,7 +71,7 @@ public:
     {
         if (this->connection_)
         {
-            std::cout << "ERROR: Active connections destroyed: ";
+            std::cout << "ERROR: Active connection destroyed: ";
 
 #ifdef USE_OBSERVER_NAME
             if constexpr (std::is_void_v<Observer>)
@@ -90,6 +90,8 @@ public:
                 << std::endl;
 
             std::cout << "  " << this->connection_->GetObserver() << std::endl;
+
+            assert(false);
         }
     }
 

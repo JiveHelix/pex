@@ -19,6 +19,7 @@
 #include "pex/control_value.h"
 #include "pex/signal.h"
 #include "pex/interface.h"
+#include "pex/detail/mute.h"
 
 
 namespace pex
@@ -400,52 +401,6 @@ public:
 };
 
 
-template<typename Upstream>
-class MuteDeferred
-{
-public:
-    MuteDeferred()
-        :
-        upstream_(nullptr),
-        isMuted_(false)
-    {
-
-    }
-
-    MuteDeferred(Upstream &upstream)
-        :
-        upstream_(&upstream),
-        isMuted_(false)
-    {
-        this->Mute();
-    }
-
-    ~MuteDeferred()
-    {
-        if (this->isMuted_)
-        {
-            assert(this->upstream_);
-            this->upstream_->GetMuteControlReference().Set(false);
-        }
-    }
-
-    void Mute()
-    {
-        if (!this->upstream_)
-        {
-            throw std::logic_error("MuteDeferred is uninitialized");
-        }
-
-        this->upstream_->GetMuteControlReference().Set(true);
-        this->isMuted_ = true;
-    }
-
-private:
-    Upstream *upstream_;
-    bool isMuted_;
-};
-
-
 } // end namespace detail
 
 
@@ -463,10 +418,10 @@ public:
 
     DeferGroup(Upstream &upstream)
         :
-        muteDeferred_(upstream),
+        scopeMute_(upstream, false),
         members(upstream)
     {
-        // this->muteDeferred_.Mute();
+
     }
 
     template<typename Plain>
@@ -478,7 +433,7 @@ public:
 private:
     // Destruction order guarantees that the group will be unmuted only after
     // the deferred members have finished notifying.
-    detail::MuteDeferred<Upstream> muteDeferred_;
+    detail::ScopeMute<Upstream> scopeMute_;
 
 public:
     detail::DeferredGroup<Fields, Template, Selector> members;

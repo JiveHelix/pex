@@ -401,6 +401,7 @@ public:
     using Upstream = Model<Value, Custom>;
 
     static constexpr bool isPexCopyable = true;
+    static constexpr auto observerName = "pex::poly::Control";
 
     Control()
         :

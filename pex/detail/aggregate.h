@@ -153,7 +153,7 @@ public:
 
     Aggregate()
         :
-        isMuted_(false)
+        isMuted_()
     {
 
     }
@@ -161,7 +161,7 @@ public:
     template<typename Upstream>
     Aggregate(Upstream &upstream)
         :
-        isMuted_(false)
+        isMuted_()
     {
         this->AssignUpstream(upstream);
     }
@@ -173,7 +173,7 @@ public:
 
         this->muteTerminus_.Assign(
             this,
-            MuteTerminus<Aggregate>(this, upstream.CloneMuteControl()));
+            MuteTerminus(this, upstream.CloneMuteControl()));
 
         this->muteTerminus_.Connect(&Aggregate::OnMute_);
 
@@ -210,27 +210,6 @@ public:
         // Clears downstream connections.
         this->ClearConnections_();
     }
-
-    // template<typename Member>
-    // static void MuteMember_(Member &member, bool isMuted)
-    // {
-    //     if constexpr (IsAggregate<Member>)
-    //     {
-    //         member.SetMuted(isMuted);
-    //     }
-    // }
-
-    // void SetMuted(bool isMuted)
-    // {
-    //     this->isMuted_ = isMuted;
-
-    //     auto doMute = [this, isMuted](const auto &field) -> void
-    //     {
-    //         MuteMember_(this->*(field.member), isMuted);
-    //     };
-
-    //     jive::ForEach(Fields<Aggregate>::fields, doMute);
-    // }
 
     void Notify(const Plain &plain)
     {
@@ -306,20 +285,22 @@ private:
         self->Notify_(self->Get());
     }
 
-    void OnMute_(bool isMuted)
+    void OnMute_(const Mute_ &muteState)
     {
-        if (!isMuted)
+        if (!muteState.isMuted && !muteState.isSilenced)
         {
             // Notify group observers when unmuted.
             this->Notify_(this->Get());
         }
 
-        this->isMuted_ = isMuted;
+        this->isMuted_ = muteState;
     }
 
 private:
-    bool isMuted_;
-    MuteTerminus<Aggregate> muteTerminus_;
+    Mute_ isMuted_;
+
+    using MuteTerminus = pex::Terminus<Aggregate, MuteModel>;
+    MuteTerminus muteTerminus_;
 };
 
 

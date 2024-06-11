@@ -289,6 +289,10 @@ struct Group
             {
                 this->SetWithoutNotify_(Plain::Default());
             }
+
+            // Note: There is no need for Plain to define Default() if all of
+            // its members are default initialized. Each pex::model::Value_ is
+            // already default initialized.
         }
 
         Model_(const Plain &plain)

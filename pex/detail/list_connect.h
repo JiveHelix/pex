@@ -95,7 +95,7 @@ public:
     ListConnect()
         :
         muteTerminus_(),
-        isMuted_(false),
+        muteState_(),
         hasListConnections_(false),
         listControl_(),
         connectables_(),
@@ -116,7 +116,7 @@ public:
             this,
             listControl.CloneMuteControl(),
             &ListConnect::OnMute_),
-        isMuted_(listControl.CloneMuteControl().Get()),
+        muteState_(listControl.CloneMuteControl().Get()),
         hasListConnections_(false),
         listControl_(listControl),
         connectables_(),
@@ -128,7 +128,7 @@ public:
             &ListConnect::OnCountWillChange_),
         count_(
             this,
-            this->listControl_.count,
+            this->listControl_.GetInternalCount_(),
             &ListConnect::OnCount_),
         cached_(this->listControl_.Get())
     {
@@ -144,7 +144,7 @@ public:
             this,
             listControl.CloneMuteControl(),
             &ListConnect::OnMute_),
-        isMuted_(listControl.CloneMuteControl().Get()),
+        muteState_(listControl.CloneMuteControl().Get()),
         hasListConnections_(false),
         listControl_(listControl),
         connectables_(),
@@ -156,7 +156,7 @@ public:
             &ListConnect::OnCountWillChange_),
         count_(
             this,
-            this->listControl_.count,
+            this->listControl_.GetInternalCount_(),
             &ListConnect::OnCount_),
         cached_(this->listControl_.Get())
     {
@@ -200,11 +200,11 @@ public:
         :
         muteTerminus_(
             this,
-            other.CloneMuteControl(),
+            other.listControl_.CloneMuteControl(),
             &ListConnect::OnMute_),
-        isMuted_(other.isMuted_),
+        muteState_(other.muteState_),
         hasListConnections_(false),
-        listControl_(other.listControl),
+        listControl_(other.listControl_),
         connectables_(),
         observer_(observer),
         valueConnection_(),
@@ -214,7 +214,7 @@ public:
             &ListConnect::OnCountWillChange_),
         count_(
             this,
-            this->listControl_.count,
+            this->listControl_.GetInternalCount_(),
             &ListConnect::OnCount_),
         cached_(this->listControl_.Get())
     {
@@ -243,7 +243,7 @@ public:
     ListConnect & Assign(Observer *observer, const ListConnect &other)
     {
         this->muteTerminus_.Assign(this, other.muteTerminus_);
-        this->isMuted_ = other.isMuted_;
+        this->muteState_ = other.muteState_;
         this->ClearListConnections_();
 
         this->listControl_ = other.listControl_;
@@ -318,15 +318,18 @@ public:
     }
 
 private:
-    void OnMute_(bool isMuted)
+    void OnMute_(const Mute_ &muteState)
     {
-        if (!isMuted && this->valueConnection_.has_value())
+        if (
+            !muteState.isMuted
+            && !muteState.isSilenced
+            && this->valueConnection_.has_value())
         {
             // Notify group observers when unmuted.
             (*this->valueConnection_)(this->cached_);
         }
 
-        this->isMuted_ = isMuted;
+        this->muteState_ = muteState;
     }
 
     static void OnItemChanged_(
@@ -337,7 +340,7 @@ private:
         auto self = static_cast<ListConnect *>(context);
         self->cached_.at(index) = item;
 
-        if (self->isMuted_)
+        if (self->muteState_)
         {
             return;
         }
@@ -401,7 +404,10 @@ private:
             this->MakeListConnections_();
         }
 
-        if (!this->isMuted_ && this->valueConnection_.has_value())
+        if (
+            !this->muteState_.isMuted
+            && !this->muteState_.isSilenced
+            && this->valueConnection_.has_value())
         {
             (*this->valueConnection_)(this->cached_);
         }
@@ -409,8 +415,9 @@ private:
 
 
 private:
-    MuteTerminus<ListConnect> muteTerminus_;
-    bool isMuted_;
+    using MuteTerminus = pex::Terminus<ListConnect, MuteModel>;
+    MuteTerminus muteTerminus_;
+    Mute_ muteState_;
     bool hasListConnections_;
     ListControl listControl_;
     Connectables connectables_;

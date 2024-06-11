@@ -3,6 +3,7 @@
 
 #include <vector>
 
+#include <jive/scope_flag.h>
 #include "pex/model_value.h"
 #include "pex/control_value.h"
 #include "pex/terminus.h"
@@ -22,12 +23,42 @@ namespace control
 }
 
 
+namespace detail
+{
+
+
+template<typename, typename>
+class ListConnect;
+
+
+} // end namespace detail
+
+
 namespace model
 {
 
 
 using ListCount = Value<size_t>;
 using ListSelected = Value<std::optional<size_t>>;
+
+
+} // namespace model
+
+
+namespace control
+{
+
+
+using ListCount = Value<::pex::model::ListCount>;
+using ListSelected = Value<::pex::model::ListSelected>;
+using ListCountWillChange = Signal<GetTag>;
+
+
+} // end namespace control
+
+
+namespace model
+{
 
 
 template<typename Model_, size_t initialCount>
@@ -52,8 +83,13 @@ public:
     template<typename, typename, typename>
     friend class ::pex::control::List;
 
+    template<typename, typename>
+    friend class ::pex::detail::ListConnect;
+
 private:
     Signal internalCountWillChange_;
+    Count internalCount_;
+    bool ignoreCount_;
 
 public:
     Signal countWillChange;
@@ -65,6 +101,8 @@ public:
         detail::MuteOwner(),
         detail::Mute(this->GetMuteControl()),
         internalCountWillChange_(),
+        internalCount_(initialCount),
+        ignoreCount_(false),
         countWillChange(),
         count(initialCount),
         selected(),
@@ -132,8 +170,7 @@ public:
     void Set(const Type &values)
     {
         // Mute while setting item values.
-        auto muteDeferred = detail::MuteDeferred<List>(*this);
-        muteDeferred.Mute();
+        auto scopeMute = detail::ScopeMute<List>(*this, false);
 
         if (values.size() != this->items_.size())
         {
@@ -152,37 +189,69 @@ public:
     size_t Append(const Derived &item)
     {
         // Mute while setting item values.
-        // TODO: Rename MuteDeferred. It unmutes at end of scope.
-        auto muteDeferred = detail::MuteDeferred<List>(*this);
-        muteDeferred.Mute();
+        auto scopeMute = detail::ScopeMute<List>(*this, false);
 
         size_t newIndex = this->count.Get();
+
+        // count observers will be notified at the end of this function.
         auto deferCount = pex::MakeDefer(this->count);
         deferCount.Set(newIndex + 1);
-        this->OnCount_(newIndex + 1);
+
+        // ChangeCount_ will adjust the size of items_.
+        this->ChangeCount_(newIndex + 1);
+
+        // Add the new item at the back of the list.
         this->items_.back()->Set(item);
 
+        this->internalCount_.Set(newIndex + 1);
+
         return newIndex;
+    }
+
+    void ResizeWithoutNotify(size_t newSize)
+    {
+        if (newSize == this->items_.size())
+        {
+            assert(this->count.Get() == newSize);
+            return;
+        }
+
+        detail::AccessReference<Count>(this->count)
+            .SetWithoutNotify(newSize);
+
+        this->ChangeCount_(newSize);
+        this->internalCount_.Set(newSize);
     }
 
 private:
     void DoNotify_()
     {
+        detail::AccessReference<Count>(this->count).DoNotify();
+
         for (auto &item: this->items_)
         {
             detail::AccessReference<Model>(*item).DoNotify();
         }
+
+        // SetWithoutNotify_ already called OnCount_
+        jive::ScopeFlag ignoreCount(this->ignoreCount_);
+        detail::AccessReference<Count>(this->count).DoNotify();
     }
 
     void SetWithoutNotify_(const Type &values)
     {
         // Mute while setting item values.
-        auto muteDeferred = detail::MuteDeferred<List>(*this);
-        muteDeferred.Mute();
+        auto scopeMute = detail::ScopeMute<List>(*this, true);
+
+        bool countChanged = false;
 
         if (values.size() != this->items_.size())
         {
-            this->count.Set(values.size());
+            detail::AccessReference<Count>(this->count)
+                .SetWithoutNotify(values.size());
+
+            this->ChangeCount_(values.size());
+            countChanged = true;
         }
 
         assert(this->items_.size() == values.size());
@@ -192,9 +261,14 @@ private:
             detail::AccessReference<Model>(*this->items_[index])
                 .SetWithoutNotify(values[index]);
         }
+
+        if (countChanged)
+        {
+            this->internalCount_.Set(values.size());
+        }
     }
 
-    void OnCount_(size_t count_)
+    void ChangeCount_(size_t count_)
     {
         // Signal all listening controls to disconnect.
         this->countWillChange.Trigger();
@@ -204,7 +278,7 @@ private:
 
         auto wasSelected = this->selected.Get();
 
-        this->selected.Set({});
+        detail::AccessReference<Selected>(this->selected).SetWithoutNotify({});
 
         if (count_ < this->items_.size())
         {
@@ -212,8 +286,10 @@ private:
             // No new elements need to be created.
             this->items_.resize(count_);
         }
-        else if (count_ != this->items_.size())
+        else
         {
+            assert(count_ > this->items_.size());
+
             size_t toInitialize = count_ - this->items_.size();
 
             while (toInitialize--)
@@ -224,12 +300,35 @@ private:
 
         if (wasSelected && *wasSelected < count_)
         {
-            this->selected.Set(wasSelected);
+            detail::AccessReference<Selected>(this->selected)
+                .SetWithoutNotify(wasSelected);
         }
     }
 
+    void OnCount_(size_t count_)
+    {
+        if (this->ignoreCount_)
+        {
+            return;
+        }
+
+        if (count_ == this->items_.size())
+        {
+            assert(count_ == this->count.Get());
+
+            return;
+        }
+
+        this->ChangeCount_(count_);
+        this->internalCount_.Set(count_);
+    }
+
+    ::pex::control::ListCount GetInternalCount_()
+    {
+        return this->internalCount_;
+    }
+
 private:
-    ::pex::detail::MuteOwner mute_;
     std::vector<std::unique_ptr<Model>> items_;
     ::pex::Terminus<List, Count> countTerminus_;
 };
@@ -254,6 +353,7 @@ namespace control
 
 using ListCount = Value<::pex::model::ListCount>;
 using ListSelected = Value<::pex::model::ListSelected>;
+using ListCountWillChange = Signal<GetTag>;
 
 
 template
@@ -279,7 +379,7 @@ public:
     using ItemControl = ItemControl_;
     using Count = ListCount;
     using Selected = ListSelected;
-    using CountWillChange = Signal<GetTag>;
+    using CountWillChange = ListCountWillChange;
     using CountWillChangeTerminus = ::pex::Terminus<List, CountWillChange>;
     using CountTerminus = ::pex::Terminus<List, Count>;
     using Vector = std::vector<ItemControl>;
@@ -288,6 +388,9 @@ public:
 
     template<typename>
     friend class ::pex::Reference;
+
+    template<typename, typename>
+    friend class ::pex::detail::ListConnect;
 
     CountWillChange countWillChange;
     Count count;
@@ -319,7 +422,7 @@ public:
             this->upstream_->internalCountWillChange_,
             &List::OnCountWillChange_),
 
-        countTerminus_(this, this->count, &List::OnCount_),
+        countTerminus_(this, this->upstream_->internalCount_, &List::OnCount_),
         items_()
     {
         for (size_t index = 0; index < this->count.Get(); ++index)
@@ -341,7 +444,7 @@ public:
             this->upstream_->internalCountWillChange_,
             &List::OnCountWillChange_),
 
-        countTerminus_(this, this->count, &List::OnCount_),
+        countTerminus_(this, this->upstream_->internalCount_, &List::OnCount_),
         items_(other.items_)
     {
 
@@ -458,10 +561,13 @@ public:
 private:
     void DoNotify_()
     {
-        for (auto &item: this->items_)
+#ifndef NDEBUG
+        if (!this->upstream_)
         {
-            detail::AccessReference<ItemControl>(item).DoNotify();
+            throw std::logic_error("control::List is uninitialized");
         }
+#endif
+        this->upstream_->DoNotify_();
     }
 
     void SetWithoutNotify_(const Type &values)
@@ -482,8 +588,10 @@ private:
 
     void OnCount_(size_t count_)
     {
-        if (this->items_.size())
+        if (!this->items_.empty())
         {
+            // items_ should have been cleared by an earlier call to
+            // OnCountWillChange_.
             throw std::logic_error("items must be empty");
         }
 
@@ -495,6 +603,13 @@ private:
         }
 
         this->items_.swap(updatedItems);
+    }
+
+    Count GetInternalCount_()
+    {
+        assert(this->upstream_);
+
+        return Count(this->upstream_->internalCount_);
     }
 
 private:

@@ -157,14 +157,6 @@ public:
 
     }
 
-    Endpoint_(const Endpoint_ &other)
-        :
-        observer_(other.observer_),
-        connector(other.observer_, other.connector)
-    {
-
-    }
-
     Endpoint_(Observer *observer, const Endpoint_ &other)
         :
         observer_(observer),
@@ -173,10 +165,19 @@ public:
 
     }
 
-    Endpoint_ & operator=(const Endpoint_ &other)
+    Endpoint_ & Assign(Observer *observer, const Endpoint_ &other)
+    {
+        this->observer_ = observer;
+        this->connector.Assign(observer, other.connector);
+
+        return *this;
+    }
+
+    Endpoint_ & operator=(Endpoint_ &&other)
     {
         this->observer_ = other.observer_;
-        this->connector.Assign(other.observer_, other.connector);
+        this->connector.Assign(this->observer_, other.connector);
+
         return *this;
     }
 

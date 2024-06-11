@@ -89,6 +89,8 @@ public:
             {
                 std::cout << "  " << connection.GetObserver() << std::endl;
             }
+
+            assert(false);
         }
 
         assert(this->connections_.empty());
