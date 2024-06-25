@@ -6,6 +6,7 @@ add_executable(
     pex_tests
     aggregate_tests.cpp
     assign_tests.cpp
+    endpoint_tests.cpp
     filter_tests.cpp
     group_tests.cpp
     list_tests.cpp

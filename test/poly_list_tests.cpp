@@ -7,6 +7,9 @@
 #include <nlohmann/json.hpp>
 
 
+// #define LOG_POLY_LIST_TESTS
+
+
 /*
     Create a polymorphic list
 */
@@ -101,7 +104,6 @@ public:
     static constexpr auto fields = RotorWingFields<RotorWingTemplate>::fields;
     static constexpr auto fieldsTypeName = "RotorWing";
 
-#if 0
     template<typename Base>
     class Impl: public Base
     {
@@ -114,7 +116,6 @@ public:
                 << " rotorRadius: " << this->rotorRadius << std::endl;
         }
     };
-#endif
 };
 
 
@@ -302,7 +303,9 @@ TEST_CASE("List of polymorphic values", "[poly]")
     someControl.wingspan.Set(151);
     REQUIRE(anotherControl.wingspan.Get() == 151);
 
-    // std::cout << fields::DescribeColorized(model.Get(), 1) << std::endl;
+#ifdef LOG_POLY_LIST_TESTS
+    std::cout << fields::DescribeColorized(model.Get(), 1) << std::endl;
+#endif
 
     auto fixedWing = control.aircraft[2].Get().RequireDerived<FixedWing>();
 
@@ -324,20 +327,36 @@ TEST_CASE("List of polymorphic values can be unstructured", "[poly]")
 
     auto unstructured = fields::Unstructure<nlohmann::json>(model.Get());
 
-    // std::cout << "\nunstructured:\n" << std::setw(4) << unstructured
-        // << std::endl;
+#ifdef LOG_POLY_LIST_TESTS
+    std::cout << "\nunstructured:\n" << std::setw(4) << unstructured
+        << std::endl;
+#endif
 
-    auto asString = unstructured.dump();
+    auto asString = unstructured.dump(4);
 
-    // std::cout << "asString:\n" << asString << std::endl;
+#ifdef LOG_POLY_LIST_TESTS
+    std::cout << "asString:\n" << asString << std::endl;
+#endif
 
     auto recoveredUnstructured = nlohmann::json::parse(asString);
     auto recovered = fields::Structure<Airport>(recoveredUnstructured);
 
-    // std::cout << "recovered\n" << fields::DescribeColorized(recovered, 1)
-    //     << std::endl;
+#ifdef LOG_POLY_LIST_TESTS
+    std::cout << "recovered\n" << fields::DescribeColorized(recovered, 1)
+        << std::endl;
+#endif
 
     REQUIRE(recovered == model.Get());
+
+#ifdef LOG_POLY_LIST_TESTS
+    std::cout << "aircraft count: " << control.aircraft.count.Get()
+        << std::endl;
+
+    for (auto &craft: control.aircraft)
+    {
+        craft.Get().GetValueBase()->SayHello();
+    }
+#endif
 }
 
 

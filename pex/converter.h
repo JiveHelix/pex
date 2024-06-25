@@ -184,6 +184,36 @@ struct Converter
 };
 
 
+template<typename T, typename Traits = DefaultConverterTraits>
+struct OptionalConverter
+{
+    using ConvertToString = ValueToString<T, Traits>;
+    using ConvertToValue = StringToValue<T, Traits::base>;
+
+    static std::string ToString(const std::optional<T> &value)
+    {
+        if (value)
+        {
+            return ConvertToString::Call(*value);
+        }
+
+        return {};
+    }
+
+    static std::optional<T> ToValue(const std::string &asString)
+    {
+        try
+        {
+            return ConvertToValue::Call(asString);
+        }
+        catch (std::invalid_argument &)
+        {
+            return {};
+        }
+    }
+};
+
+
 template<typename Converter, typename T, typename = void>
 struct HasToString_: std::false_type {};
 

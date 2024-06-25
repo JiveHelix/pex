@@ -9,7 +9,7 @@
 namespace pex
 {
 
-//
+
 // Specializations of MakeControl for List.
 template<typename P>
 struct MakeControl<P, std::enable_if_t<IsListModel<P>>>
@@ -25,6 +25,7 @@ struct MakeControl<P, std::enable_if_t<IsListControl<P>>>
     using Control = P;
     using Upstream = typename P::Upstream;
 };
+
 
 
 namespace detail

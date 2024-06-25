@@ -173,6 +173,14 @@ public:
         return *this;
     }
 
+    Endpoint_(Endpoint_ &&other)
+        :
+        observer_(other.observer_),
+        connector(other.observer_, other.connector)
+    {
+
+    }
+
     Endpoint_ & operator=(Endpoint_ &&other)
     {
         this->observer_ = other.observer_;
@@ -360,6 +368,196 @@ public:
     Endpoint<Observer, Control> group;
 };
 
+
+template<typename T>
+struct ClassHelper {};
+
+
+template<typename T, typename U>
+struct ClassHelper<T U::*>
+{
+    using Type = U;
+};
+
+template<typename T>
+struct Class_: ClassHelper<std::remove_cv_t<T>> {};
+
+template<typename T>
+using Class = typename Class_<T>::Type;
+
+
+template<typename Upstream, typename MemberFunction, typename ...Args>
+class BoundEndpoint
+{
+public:
+    using Observer = Class<MemberFunction>;
+
+    using InternalEndpoint = Endpoint<BoundEndpoint, Upstream>;
+    using Connector = typename InternalEndpoint::Connector;
+    using UpstreamControl = typename InternalEndpoint::UpstreamControl;
+
+    BoundEndpoint()
+        :
+        endpoint(this),
+        observer_(nullptr),
+        memberFunction_(),
+        args_()
+    {
+
+    }
+
+    BoundEndpoint(Observer *observer)
+        :
+        endpoint(this),
+        observer_(observer),
+        memberFunction_(),
+        args_()
+    {
+
+    }
+
+    BoundEndpoint(Observer *observer, UpstreamControl upstream)
+        :
+        endpoint(this, upstream),
+        observer_(observer),
+        memberFunction_(),
+        args_()
+    {
+
+    }
+
+    // Uses helper type ...T to allow forwarding the bound arguments.
+    template<typename ...T>
+    BoundEndpoint(
+        Observer *observer,
+        UpstreamControl upstream,
+        MemberFunction memberFunction,
+        T &&...args)
+        :
+        endpoint(this, upstream, &BoundEndpoint::OnInternal_),
+        observer_(observer),
+        memberFunction_(memberFunction),
+        args_(std::make_tuple(std::forward<T>(args)...))
+    {
+
+    }
+
+    BoundEndpoint(Observer *observer, typename UpstreamControl::Upstream &model)
+        :
+        endpoint(this, UpstreamControl(model)),
+        observer_(observer),
+        memberFunction_(),
+        args_()
+    {
+
+    }
+
+    // Uses helper type ...T to allow forwarding the bound arguments.
+    template<typename ...T>
+    BoundEndpoint(
+        Observer *observer,
+        typename UpstreamControl::Upstream &model,
+        MemberFunction memberFunction,
+        T &&...args)
+        :
+        endpoint(this, UpstreamControl(model), &BoundEndpoint::OnInternal_),
+        observer_(observer),
+        memberFunction_(memberFunction),
+        args_(std::make_tuple(std::forward<T>(args)...))
+    {
+
+    }
+
+    BoundEndpoint(Observer *observer, const BoundEndpoint &other)
+        :
+        endpoint(this, other.endpoint),
+        observer_(observer),
+        memberFunction_(other.memberFunction_),
+        args_(other.args_)
+    {
+
+    }
+
+    BoundEndpoint & Assign(Observer *observer, const BoundEndpoint &other)
+    {
+        this->endpoint.Assign(this, other.endpoint);
+        this->observer_ = observer;
+        this->memberFunction_ = other.memberFunction_;
+        this->args_ = other.args_;
+
+        return *this;
+    }
+
+    BoundEndpoint(BoundEndpoint &&other)
+        :
+        endpoint(this, other.endpoint),
+        observer_(other.observer_),
+        memberFunction_(other.memberFunction_),
+        args_(other.args_)
+    {
+
+    }
+
+    BoundEndpoint & operator=(BoundEndpoint &&other)
+    {
+        this->endpoint.Assign(this, other.endpoint);
+        this->observer_ = other.observer_;
+        this->memberFunction_ = other.memberFunction_;
+        this->args_ = other.args_;
+
+        return *this;
+    }
+
+    // Uses helper type ...T to allow forwarding the bound arguments.
+    template<typename ...T>
+    void ConnectUpstream(
+        UpstreamControl upstream,
+        MemberFunction memberFunction,
+        T &&...args)
+    {
+        this->endpoint.ConnectUpstream(upstream, &BoundEndpoint::OnInternal_);
+        this->memberFunction_ = memberFunction;
+        this->args_ = std::make_tuple(std::forward<T>(args)...);
+    }
+
+    // Uses helper type ...T to allow forwarding the bound arguments.
+    template<typename ...T>
+    void Connect(MemberFunction memberFunction, T &&...args)
+    {
+        this->endpoint.Connect(&BoundEndpoint::OnInternal_);
+        this->memberFunction_ = memberFunction;
+        this->args_ = std::make_tuple(std::forward<T>(args)...);
+    }
+
+    explicit operator UpstreamControl () const
+    {
+        return static_cast<UpstreamControl>(this->endpoint);
+    }
+private:
+    static void Notify_(
+        Observer *observer,
+        MemberFunction memberFunction,
+        pex::Argument<typename UpstreamControl::Type> value,
+        Args ...args)
+    {
+        (observer->*memberFunction)(value, (args)...);
+    }
+
+    void OnInternal_(pex::Argument<typename UpstreamControl::Type> value)
+    {
+        std::apply(
+            BoundEndpoint::Notify_,
+            std::tuple_cat(
+                std::make_tuple(this->observer_, this->memberFunction_, value),
+                this->args_));
+    }
+
+private:
+    InternalEndpoint endpoint;
+    Observer *observer_;
+    MemberFunction memberFunction_;
+    std::tuple<Args...> args_;
+};
 
 
 } // end namespace pex
