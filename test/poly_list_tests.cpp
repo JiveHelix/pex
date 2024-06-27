@@ -14,12 +14,6 @@
     Create a polymorphic list
 */
 
-#if 0
-struct Aircraft: public pex::poly::PolyBase<nlohmann::json>
-{
-    static constexpr auto polyTypeName = "Aircraft";
-};
-#else
 
 struct Foo: public pex::poly::PolyBase<nlohmann::json, Foo>
 {
@@ -41,8 +35,6 @@ public:
 
     static constexpr auto polyTypeName = "Aircraft";
 };
-
-#endif
 
 
 template<typename T>
@@ -119,8 +111,7 @@ public:
 };
 
 
-using AircraftValue =
-    pex::poly::Value<Aircraft, FixedWingTemplate, RotorWingTemplate>;
+using AircraftValue = pex::poly::Value<Aircraft>;
 
 
 struct AircraftCustom
@@ -369,16 +360,14 @@ using TestListControl =
             <
                 pex::poly::Value
                 <
-                    Aircraft,
-                    FixedWingTemplate,
-                    RotorWingTemplate
+                    Aircraft
                 >
             >,
             0
         >,
         pex::poly::Control
         <
-            pex::poly::Value<Aircraft, FixedWingTemplate, RotorWingTemplate>
+            pex::poly::Value<Aircraft>
         >
     >;
 
@@ -389,9 +378,7 @@ using TestControl =
     <
         pex::poly::Value
         <
-            Aircraft,
-            FixedWingTemplate,
-            RotorWingTemplate
+            Aircraft
         >
     >;
 
@@ -557,7 +544,7 @@ TEST_CASE("Poly list of groups implements virtual bases.", "[List]")
 
     auto aircraft = model.aircraft[2].Get().RequireDerived<FixedWing>();
     aircraft.range = 43.0;
-    control.aircraft[2].GetVirtual()->SetValueBase(aircraft);
+    control.aircraft[2].GetVirtual()->SetValue(aircraft);
 
     REQUIRE(airportObserver.GetNotificationCount() == 3);
 
@@ -626,7 +613,7 @@ TEST_CASE("Poly list is observed after going to size 0.", "[List]")
 
     auto aircraft = model.aircraft[0].Get().RequireDerived<FixedWing>();
     aircraft.range = 43.0;
-    control.aircraft[0].GetVirtual()->SetValueBase(aircraft);
+    control.aircraft[0].GetVirtual()->SetValue(aircraft);
 
     REQUIRE(aircraftObserver.GetNotificationCount() == 5);
 

@@ -229,8 +229,7 @@ public:
             typename Group_::Control
         >;
 
-    using ControlMembers = typename Group_::ControlMembers;
-
+    // Inherit the ability to CreateModel().
     class PolyValue: public PolyValue_
     {
     public:
@@ -278,6 +277,18 @@ public:
             }
         }
     };
+
+private:
+    // Register the Derived type so that it can be structured from json.
+    static const inline bool once =
+        []()
+        {
+            ValueBase::template RegisterDerived<Derived>();
+            return true;
+        }();
+
+    template<const bool &> struct ForceStaticInitialization {};
+    using Force = ForceStaticInitialization<once>;
 };
 
 
