@@ -2,6 +2,7 @@
 
 
 #include "pex/interface.h"
+#include "pex/poly.h"
 
 
 namespace pex
@@ -48,12 +49,27 @@ struct Identity_
     T,
     std::enable_if_t
     <
-        IsMakeList<T> || IsMakePolyList<T>
+        IsMakeList<T>
     >
 >
 {
     // Recursively look up the list type.
     using Type = std::vector<typename Identity_<typename T::MemberType>::Type>;
+};
+
+
+template<typename T>
+struct Identity_
+<
+    T,
+    std::enable_if_t
+    <
+        IsMakePolyList<T>
+    >
+>
+{
+    // Recursively look up the list type.
+    using Type = std::vector<::pex::poly::Value<typename T::MemberType>>;
 };
 
 

@@ -3,6 +3,7 @@
 
 #include <fields/fields.h>
 
+#include "pex/identity.h"
 #include "pex/selectors.h"
 #include "pex/accessors.h"
 #include "pex/traits.h"

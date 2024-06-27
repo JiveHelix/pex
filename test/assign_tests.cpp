@@ -5,6 +5,7 @@
 #include <string>
 #include <optional>
 
+#include "pex/identity.h"
 #include "pex/selectors.h"
 
 

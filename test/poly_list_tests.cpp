@@ -208,7 +208,7 @@ using RotorWingGroup =
     <
         RotorWingFields,
         RotorWingTemplate,
-        AircraftValue,
+        Aircraft,
         AircraftCustom
     >;
 
@@ -221,7 +221,7 @@ using FixedWingGroup =
     <
         FixedWingFields,
         FixedWingTemplate,
-        AircraftValue,
+        Aircraft,
         AircraftCustom
     >;
 
@@ -246,7 +246,7 @@ class AirportTemplate
 public:
     T<size_t> runwayCount;
     T<size_t> dailyPassengerCount;
-    T<pex::MakePolyList<AircraftValue, AircraftCustom>> aircraft;
+    T<pex::MakePolyList<Aircraft, AircraftCustom>> aircraft;
 
     static constexpr auto fields = AirportFields<AirportTemplate>::fields;
     static constexpr auto fieldsTypeName = "Airport";
@@ -354,33 +354,14 @@ TEST_CASE("List of polymorphic values can be unstructured", "[poly]")
 using TestListControl =
     pex::control::List
     <
-        pex::model::List
-        <
-            pex::poly::Model
-            <
-                pex::poly::Value
-                <
-                    Aircraft
-                >
-            >,
-            0
-        >,
-        pex::poly::Control
-        <
-            pex::poly::Value<Aircraft>
-        >
+        pex::model::List<pex::poly::Model<Aircraft>, 0>,
+        pex::poly::Control<Aircraft>
     >;
 
 static_assert(pex::IsListControl<TestListControl>);
 
 using TestControl =
-    pex::poly::Control
-    <
-        pex::poly::Value
-        <
-            Aircraft
-        >
-    >;
+    pex::poly::Control<Aircraft>;
 
 static_assert(pex::IsControl<TestControl>);
 

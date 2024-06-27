@@ -5,8 +5,6 @@
 #include <fields/fields.h>
 #include "pex/signal.h"
 #include "pex/terminus.h"
-#include "pex/identity.h"
-#include "pex/detail/choose_not_void.h"
 #include "pex/detail/poly_detail.h"
 #include "pex/detail/traits.h"
 
@@ -110,135 +108,6 @@ private:
         return map_;
     }
 };
-
-
-template
-<
-    typename PolyBase_,
-    template<template<typename> typename> typename Template_
->
-class PolyDerived_: public PolyBase_, public Template_<pex::Identity>
-{
-public:
-    static_assert(
-        detail::IsCompatibleBase<PolyBase_>,
-        "Expected virtual functions to be overloaded in this class");
-
-    using Base = PolyBase_;
-    using VirtualBase = typename detail::VirtualBase_<Base>::Type;
-    using Json = typename Base::Json;
-    using TemplateBase = Template_<pex::Identity>;
-
-    PolyDerived_()
-        :
-        Base(),
-        TemplateBase()
-    {
-
-    }
-
-    PolyDerived_(const TemplateBase &other)
-        :
-        Base(),
-        TemplateBase(other)
-    {
-
-    }
-
-    std::ostream & Describe(
-        std::ostream &outputStream,
-        const fields::Style &style,
-        int indent) const override
-    {
-        return fields::DescribeFields(
-            outputStream,
-            *this,
-            PolyDerived_::fields,
-            style,
-            indent);
-    }
-
-    Json Unstructure() const override
-    {
-        return pex::poly::PolyUnstructure<Json>(*this);
-    }
-
-    bool operator==(const VirtualBase &other) const override
-    {
-        auto otherPolyBase = dynamic_cast<const PolyDerived_ *>(&other);
-
-        if (!otherPolyBase)
-        {
-            return false;
-        }
-
-        return (fields::ComparisonTuple(*this)
-            == fields::ComparisonTuple(*otherPolyBase));
-    }
-
-    std::string_view GetTypeName() const override
-    {
-        return PolyDerived_::fieldsTypeName;
-    }
-
-    std::shared_ptr<Base> Copy() const override
-    {
-        if constexpr (::pex::detail::HasImpl<Template_<pex::Identity>>)
-        {
-            using Type = Template_<pex::Identity>::template Impl<PolyDerived_>;
-            auto self = dynamic_cast<const Type *>(this);
-
-            if (!self)
-            {
-                throw std::logic_error(
-                    "This is not the class you are looking for.");
-            }
-
-            return std::make_shared<Type>(*self);
-        }
-        else
-        {
-            return std::make_shared<PolyDerived_>(*this);
-        }
-    }
-};
-
-
-template
-<
-    typename Base,
-    template<template<typename> typename> typename Template_,
-    typename = void
->
-struct MakePolyDerived
-{
-    using Type = PolyDerived_<Base, Template_>;
-};
-
-
-template
-<
-    typename Base,
-    template<template<typename> typename> typename Template_
->
-struct MakePolyDerived
-<
-    Base,
-    Template_,
-    std::enable_if_t<::pex::detail::HasImpl<Template_<pex::Identity>>>
->
-{
-    using Type =
-        Template_<pex::Identity>::template Impl<PolyDerived_<Base, Template_>>;
-};
-
-
-template
-<
-    typename Base,
-    template<template<typename> typename> typename Template_
->
-using PolyDerived = typename MakePolyDerived<Base, Template_>::Type;
 
 
 template<typename ValueBase_>
@@ -372,14 +241,14 @@ template<typename T, typename Custom = void>
 class Control;
 
 
-template<typename Value_, typename Custom = void>
+template<typename ValueBase_, typename Custom = void>
 class Model
 {
 public:
-    using Value = Value_;
+    using Value = ::pex::poly::Value<ValueBase_>;
     using Type = Value;
     using ModelBase = detail::MakeModelBase<Custom, Value>;
-    using ControlType = Control<Value_, Custom>;
+    using ControlType = Control<ValueBase_, Custom>;
 
     template<typename, typename>
     friend class Control;
@@ -434,18 +303,18 @@ private:
 };
 
 
-template<typename Value_, typename Custom>
+template<typename ValueBase_, typename Custom>
 class Control
 {
 public:
-    using Value = Value_;
+    using Value = ::pex::poly::Value<ValueBase_>;
     using Type = Value;
     using Plain = Type;
 
     using ControlBase = detail::MakeControlBase<Custom, Value>;
 
     using Callable = typename ControlBase::Callable;
-    using Upstream = Model<Value, Custom>;
+    using Upstream = Model<ValueBase_, Custom>;
 
     static constexpr bool isPexCopyable = true;
     static constexpr auto observerName = "pex::poly::Control";
