@@ -143,14 +143,6 @@ template
 using PolyDerived = typename MakePolyDerived<Base, Template_>::Type;
 
 
-
-
-
-template<typename ValueBase, typename Custom>
-using MakeControlBase =
-    detail::MakeControlBase<Custom, Value<ValueBase>>;
-
-
 template
 <
     template<typename> typename Fields_,
@@ -163,10 +155,10 @@ struct PolyGroup
     using ValueBase = ValueBase_;
     using PolyValue_ = Value<ValueBase>;
 
-    using ControlBase = MakeControlBase<ValueBase, Custom>;
+    using ControlBase = detail::MakeControlBase<Custom, ValueBase>;
 
     using ModelBase =
-        detail::MakeModelBase<Custom, PolyValue_>;
+        detail::MakeModelBase<Custom, ValueBase>;
 
     using Derived = PolyDerived<ValueBase, Template_>;
     using DerivedBase = typename Derived::TemplateBase;
@@ -202,11 +194,6 @@ struct PolyGroup
             }
 
             std::shared_ptr<ControlBase> MakeControl() override;
-
-            std::shared_ptr<ValueBase> GetValueBase() const override
-            {
-                return std::make_shared<Derived>(this->Get());
-            }
 
             void SetValueWithoutNotify(const PolyValue_ &value) override
             {
@@ -262,14 +249,9 @@ struct PolyGroup
                 return *this;
             }
 
-            std::shared_ptr<ValueBase> GetValueBase() const override
-            {
-                return std::make_shared<Derived>(this->Get());
-            }
-
             PolyValue_ GetValue() const override
             {
-                return PolyValue_(this->GetValueBase());
+                return PolyValue_(std::make_shared<Derived>(this->Get()));
             }
 
             void SetValue(const PolyValue_ &value) override
@@ -440,7 +422,7 @@ template
     typename Custom
 >
 template<typename GroupBase>
-std::shared_ptr<MakeControlBase<ValueBase_, Custom>>
+std::shared_ptr<detail::MakeControlBase<Custom, ValueBase_>>
 PolyGroup<Fields_, Template_, ValueBase_, Custom>::GroupTemplates_
     ::Model<GroupBase>::MakeControl()
 {
@@ -501,7 +483,7 @@ template
     typename Custom
 >
 template<typename GroupBase>
-std::shared_ptr<MakeControlBase<ValueBase_, Custom>>
+std::shared_ptr<detail::MakeControlBase<Custom, ValueBase_>>
 PolyGroup<Fields_, Template_, ValueBase_, Custom>::GroupTemplates_
     ::TEMPLATE Control<GroupBase>::Copy() const
 {

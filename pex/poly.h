@@ -234,8 +234,49 @@ private:
 };
 
 
+
 TEMPLATE_OUTPUT_STREAM(Value)
 TEMPLATE_COMPARISON_OPERATORS(Value)
+
+
+namespace detail
+{
+
+
+template<typename Custom, typename ValueBase>
+struct MakeControlBase_
+{
+    using Type =
+        ControlBase_
+        <
+            ::pex::poly::Value<ValueBase>,
+            MakeControlUserBase<Custom, ValueBase>
+        >;
+};
+
+template<typename Custom, typename ValueBase>
+using MakeControlBase = typename MakeControlBase_<Custom, ValueBase>::Type;
+
+
+template <typename Custom, typename ValueBase>
+struct MakeModelBase_
+{
+    using Type =
+        ModelBase_
+        <
+            ::pex::poly::Value<ValueBase>,
+            MakeModelUserBase<Custom, ValueBase>,
+            MakeControlBase<Custom, ValueBase>
+        >;
+};
+
+
+template <typename Custom, typename ValueBase>
+using MakeModelBase = typename MakeModelBase_<Custom, ValueBase>::Type;
+
+
+} // end namespace detail
+
 
 template<typename T, typename Custom = void>
 class Control;
@@ -247,7 +288,7 @@ class Model
 public:
     using Value = ::pex::poly::Value<ValueBase_>;
     using Type = Value;
-    using ModelBase = detail::MakeModelBase<Custom, Value>;
+    using ModelBase = detail::MakeModelBase<Custom, ValueBase_>;
     using ControlType = Control<ValueBase_, Custom>;
 
     template<typename, typename>
@@ -311,7 +352,7 @@ public:
     using Type = Value;
     using Plain = Type;
 
-    using ControlBase = detail::MakeControlBase<Custom, Value>;
+    using ControlBase = detail::MakeControlBase<Custom, ValueBase_>;
 
     using Callable = typename ControlBase::Callable;
     using Upstream = Model<ValueBase_, Custom>;

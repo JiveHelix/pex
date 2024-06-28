@@ -119,12 +119,10 @@ struct AircraftCustom
     using ValueControl = pex::control::Value<pex::model::Value<double>>;
 
     // Define the abstract control class
-    template<typename Base>
-    class ControlUserBase: public Base
+    class ControlUserBase
     {
     public:
-        using Base::Base;
-
+        virtual ~ControlUserBase() {}
         virtual ValueControl & GetRange() = 0;
         virtual ValueControl & GetMaximumAltitude() = 0;
     };
@@ -172,7 +170,7 @@ struct AircraftCustom
 };
 
 
-static_assert(pex::detail::HasControlUserBaseTemplate<AircraftCustom>);
+static_assert(pex::detail::HasControlUserBase<AircraftCustom>);
 
 static_assert(
     pex::detail::HasControlTemplate

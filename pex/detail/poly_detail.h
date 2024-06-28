@@ -17,19 +17,6 @@ namespace detail
 {
 
 
-template<typename ValueBase_>
-class GetSetBase
-{
-public:
-    using ValueBase = ValueBase_;
-
-    virtual ~GetSetBase() {}
-
-    virtual std::shared_ptr<ValueBase> GetValueBase() const = 0;
-    virtual void SetValueBase(const ValueBase &value) = 0;
-};
-
-
 /**
  ** ControlBase_ declares virtual methods that allow its derived classes to be
  ** in a pex::List. (These are mostly used internally by pex.)
@@ -42,8 +29,6 @@ public:
     using Value = Value_;
     using ValueBase = typename Value_::ValueBase;
 
-    static_assert(std::is_base_of_v<GetSetBase<ValueBase>, ControlUserBase>);
-
     virtual ~ControlBase_() {}
     virtual Value GetValue() const = 0;
     virtual void SetValue(const Value &) = 0;
@@ -52,11 +37,6 @@ public:
     using Callable = std::function<void(void *, const Value &)>;
     virtual void Connect(void *observer, Callable callable) = 0;
     virtual void Disconnect(void *observer) = 0;
-
-    void SetValueBase(const ValueBase &value) override
-    {
-        this->SetValue(value);
-    }
 
     virtual void SetValueWithoutNotify(const Value &) = 0;
     virtual void DoValueNotify() = 0;
@@ -85,11 +65,6 @@ public:
     virtual ControlPtr MakeControl() = 0;
     virtual void SetValueWithoutNotify(const Value &) = 0;
     virtual void DoValueNotify() = 0;
-
-    void SetValueBase(const ValueBase &value) override
-    {
-        this->SetValue(value);
-    }
 };
 
 
@@ -226,10 +201,13 @@ struct VirtualBase_<T, std::void_t<typename T::Base>>
 };
 
 
+struct Empty {};
+
+
 template<typename Custom, typename ValueBase, typename = void>
 struct MakeControlUserBase_
 {
-    using Type = GetSetBase<ValueBase>;
+    using Type = Empty;
 };
 
 
@@ -238,10 +216,10 @@ struct MakeControlUserBase_
 <
     Custom,
     ValueBase,
-    std::enable_if_t<::pex::detail::HasControlUserBaseTemplate<Custom>>
+    std::enable_if_t<::pex::detail::HasControlUserBase<Custom>>
 >
 {
-    using Type = Custom::template ControlUserBase<GetSetBase<ValueBase>>;
+    using Type = Custom::ControlUserBase;
 };
 
 
@@ -253,7 +231,7 @@ using MakeControlUserBase =
 template<typename Custom, typename ValueBase, typename = void>
 struct MakeModelUserBase_
 {
-    using Type = GetSetBase<ValueBase>;
+    using Type = Empty;
 };
 
 
@@ -262,48 +240,16 @@ struct MakeModelUserBase_
 <
     Custom,
     ValueBase,
-    std::enable_if_t<::pex::detail::HasModelUserBaseTemplate<Custom>>
+    std::enable_if_t<::pex::detail::HasModelUserBase<Custom>>
 >
 {
-    using Type = Custom::template ModelUserBase<GetSetBase<ValueBase>>;
+    using Type = Custom::ModelUserBase;
 };
 
 
 template<typename Custom, typename ValueBase>
 using MakeModelUserBase =
     typename MakeModelUserBase_<Custom, ValueBase>::Type;
-
-
-template<typename Custom, typename Value>
-struct MakeControlBase_
-{
-    using Type =
-        ControlBase_
-        <
-            Value,
-            MakeControlUserBase<Custom, typename Value::ValueBase>
-        >;
-};
-
-template<typename Custom, typename Value>
-using MakeControlBase = typename MakeControlBase_<Custom, Value>::Type;
-
-
-template <typename Custom, typename Value>
-struct MakeModelBase_
-{
-    using Type =
-        ModelBase_
-        <
-            Value,
-            MakeModelUserBase<Custom, typename Value::ValueBase>,
-            MakeControlBase<Custom, Value>
-        >;
-};
-
-
-template <typename Custom, typename Value>
-using MakeModelBase = typename MakeModelBase_<Custom, Value>::Type;
 
 
 } // end namespace detail
