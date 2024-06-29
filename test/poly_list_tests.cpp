@@ -22,6 +22,7 @@ struct Foo: public pex::poly::PolyBase<nlohmann::json, Foo>
 
 static_assert(pex::poly::detail::IsCompatibleBase<Foo>);
 
+
 // Make our own base class
 class Aircraft: public pex::poly::PolyBase<nlohmann::json, Aircraft>
 {
@@ -37,86 +38,12 @@ public:
 };
 
 
-template<typename T>
-class FixedWingFields
+using ValueControl = pex::control::Value<pex::model::Value<double>>;
+
+
+struct AircraftSupers
 {
-public:
-    static constexpr auto fields = std::make_tuple(
-        fields::Field(&T::maximumAltitude, "maximumAltitude"),
-        fields::Field(&T::range, "range"),
-        fields::Field(&T::wingspan, "wingspan"));
-};
-
-
-template<template<typename> typename T>
-class FixedWingTemplate
-{
-public:
-    T<double> maximumAltitude;
-    T<double> range;
-    T<double> wingspan;
-
-    static constexpr auto fields = FixedWingFields<FixedWingTemplate>::fields;
-    static constexpr auto fieldsTypeName = "FixedWing";
-
-    template<typename Base>
-    class Impl: public Base
-    {
-    public:
-        using Base::Base;
-
-        void SayHello() const override
-        {
-            std::cout << "Hello, I am " << this->GetTypeName()
-                << " wingspan: " << this->wingspan << std::endl;
-        }
-    };
-};
-
-
-template<typename T>
-class RotorWingFields
-{
-public:
-    static constexpr auto fields = std::make_tuple(
-        fields::Field(&T::maximumAltitude, "maximumAltitude"),
-        fields::Field(&T::range, "range"),
-        fields::Field(&T::rotorRadius, "rotorRadius"));
-};
-
-
-template<template<typename> typename T>
-class RotorWingTemplate
-{
-public:
-    T<double> maximumAltitude;
-    T<double> range;
-    T<double> rotorRadius;
-
-    static constexpr auto fields = RotorWingFields<RotorWingTemplate>::fields;
-    static constexpr auto fieldsTypeName = "RotorWing";
-
-    template<typename Base>
-    class Impl: public Base
-    {
-    public:
-        using Base::Base;
-
-        void SayHello() const override
-        {
-            std::cout << "Hello, I am " << this->GetTypeName()
-                << " rotorRadius: " << this->rotorRadius << std::endl;
-        }
-    };
-};
-
-
-using AircraftValue = pex::poly::Value<Aircraft>;
-
-
-struct AircraftCustom
-{
-    using ValueControl = pex::control::Value<pex::model::Value<double>>;
+    using ValueBase = Aircraft;
 
     // Define the abstract control class
     class ControlUserBase
@@ -126,6 +53,13 @@ struct AircraftCustom
         virtual ValueControl & GetRange() = 0;
         virtual ValueControl & GetMaximumAltitude() = 0;
     };
+
+};
+
+
+struct CommonTemplates
+{
+    using Supers = AircraftSupers;
 
     template<typename Base>
     class Model: public Base
@@ -170,58 +104,130 @@ struct AircraftCustom
 };
 
 
-static_assert(pex::detail::HasControlUserBase<AircraftCustom>);
+template<typename T>
+class FixedWingFields
+{
+public:
+    static constexpr auto fields = std::make_tuple(
+        fields::Field(&T::maximumAltitude, "maximumAltitude"),
+        fields::Field(&T::range, "range"),
+        fields::Field(&T::wingspan, "wingspan"));
+};
+
+
+struct FixedWingTemplates: public CommonTemplates
+{
+    template<template<typename> typename T>
+    class Template
+    {
+    public:
+        T<double> maximumAltitude;
+        T<double> range;
+        T<double> wingspan;
+
+        static constexpr auto fields = FixedWingFields<Template>::fields;
+        static constexpr auto fieldsTypeName = "FixedWing";
+    };
+
+    template<typename Base>
+    class Impl: public Base
+    {
+    public:
+        using Base::Base;
+
+        void SayHello() const override
+        {
+            std::cout << "Hello, I am " << this->GetTypeName()
+                << " wingspan: " << this->wingspan << std::endl;
+        }
+    };
+};
+
+
+template<typename T>
+class RotorWingFields
+{
+public:
+    static constexpr auto fields = std::make_tuple(
+        fields::Field(&T::maximumAltitude, "maximumAltitude"),
+        fields::Field(&T::range, "range"),
+        fields::Field(&T::rotorRadius, "rotorRadius"));
+};
+
+
+struct RotorWingTemplates: public CommonTemplates
+{
+    template<template<typename> typename T>
+    class Template
+    {
+    public:
+        T<double> maximumAltitude;
+        T<double> range;
+        T<double> rotorRadius;
+
+        static constexpr auto fields = RotorWingFields<Template>::fields;
+
+        static constexpr auto fieldsTypeName = "RotorWing";
+    };
+
+    template<typename Base>
+    class Impl: public Base
+    {
+    public:
+        using Base::Base;
+
+        void SayHello() const override
+        {
+            std::cout << "Hello, I am " << this->GetTypeName()
+                << " rotorRadius: " << this->rotorRadius << std::endl;
+        }
+    };
+};
+
+
+using AircraftValue = pex::poly::Value<Aircraft>;
+
+
+static_assert(pex::detail::HasControlUserBase<AircraftSupers>);
 
 static_assert(
     pex::detail::HasControlTemplate
     <
-        AircraftCustom,
-        FixedWingTemplate<pex::Identity>
+        FixedWingTemplates,
+        FixedWingTemplates::template Template<pex::Identity>
     >);
 
 static_assert(
     pex::detail::HasControlTemplate
     <
-        AircraftCustom,
-        RotorWingTemplate<pex::Identity>
+        RotorWingTemplates,
+        RotorWingTemplates::template Template<pex::Identity>
     >);
 
 static_assert(
     pex::detail::HasModelTemplate
     <
-        AircraftCustom,
-        FixedWingTemplate<pex::Identity>
+        FixedWingTemplates,
+        FixedWingTemplates::template Template<pex::Identity>
     >);
 
 static_assert(
     pex::detail::HasModelTemplate
     <
-        AircraftCustom,
-        RotorWingTemplate<pex::Identity>
+        RotorWingTemplates,
+        RotorWingTemplates::template Template<pex::Identity>
     >);
 
 
 using RotorWingGroup =
-    pex::poly::PolyGroup
-    <
-        RotorWingFields,
-        RotorWingTemplate,
-        Aircraft,
-        AircraftCustom
-    >;
+    pex::poly::PolyGroup<RotorWingFields, RotorWingTemplates>;
 
 using RotorWing = typename RotorWingGroup::Derived;
 using RotorWingValue = typename RotorWingGroup::PolyValue;
 
 
 using FixedWingGroup =
-    pex::poly::PolyGroup
-    <
-        FixedWingFields,
-        FixedWingTemplate,
-        Aircraft,
-        AircraftCustom
-    >;
+    pex::poly::PolyGroup<FixedWingFields, FixedWingTemplates>;
 
 using FixedWing = typename FixedWingGroup::Derived;
 using FixedWingValue = typename FixedWingGroup::PolyValue;
@@ -244,7 +250,7 @@ class AirportTemplate
 public:
     T<size_t> runwayCount;
     T<size_t> dailyPassengerCount;
-    T<pex::MakePolyList<Aircraft, AircraftCustom>> aircraft;
+    T<pex::MakePolyList<AircraftSupers>> aircraft;
 
     static constexpr auto fields = AirportFields<AirportTemplate>::fields;
     static constexpr auto fieldsTypeName = "Airport";
@@ -352,14 +358,13 @@ TEST_CASE("List of polymorphic values can be unstructured", "[poly]")
 using TestListControl =
     pex::control::List
     <
-        pex::model::List<pex::poly::Model<Aircraft>, 0>,
-        pex::poly::Control<Aircraft>
+        pex::model::List<pex::poly::Model<AircraftSupers>, 0>,
+        pex::poly::Control<AircraftSupers>
     >;
 
 static_assert(pex::IsListControl<TestListControl>);
 
-using TestControl =
-    pex::poly::Control<Aircraft>;
+using TestControl = pex::poly::Control<AircraftSupers>;
 
 static_assert(pex::IsControl<TestControl>);
 

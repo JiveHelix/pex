@@ -204,52 +204,48 @@ struct VirtualBase_<T, std::void_t<typename T::Base>>
 struct Empty {};
 
 
-template<typename Custom, typename ValueBase, typename = void>
+template<typename Supers, typename = void>
 struct MakeControlUserBase_
 {
     using Type = Empty;
 };
 
 
-template<typename Custom, typename ValueBase>
+template<typename Supers>
 struct MakeControlUserBase_
 <
-    Custom,
-    ValueBase,
-    std::enable_if_t<::pex::detail::HasControlUserBase<Custom>>
+    Supers,
+    std::enable_if_t<::pex::detail::HasControlUserBase<Supers>>
 >
 {
-    using Type = Custom::ControlUserBase;
+    using Type = Supers::ControlUserBase;
 };
 
 
-template<typename Custom, typename ValueBase>
-using MakeControlUserBase =
-    typename MakeControlUserBase_<Custom, ValueBase>::Type;
+template<typename Supers>
+using MakeControlUserBase = typename MakeControlUserBase_<Supers>::Type;
 
 
-template<typename Custom, typename ValueBase, typename = void>
+template<typename Supers, typename = void>
 struct MakeModelUserBase_
 {
     using Type = Empty;
 };
 
 
-template<typename Custom, typename ValueBase>
+template<typename Supers>
 struct MakeModelUserBase_
 <
-    Custom,
-    ValueBase,
-    std::enable_if_t<::pex::detail::HasModelUserBase<Custom>>
+    Supers,
+    std::enable_if_t<::pex::detail::HasModelUserBase<Supers>>
 >
 {
-    using Type = Custom::ModelUserBase;
+    using Type = Supers::ModelUserBase;
 };
 
 
-template<typename Custom, typename ValueBase>
-using MakeModelUserBase =
-    typename MakeModelUserBase_<Custom, ValueBase>::Type;
+template<typename Supers>
+using MakeModelUserBase = typename MakeModelUserBase_<Supers>::Type;
 
 
 } // end namespace detail

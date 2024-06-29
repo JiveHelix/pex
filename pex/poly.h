@@ -243,55 +243,56 @@ namespace detail
 {
 
 
-template<typename Custom, typename ValueBase>
+template<typename Supers>
 struct MakeControlBase_
 {
     using Type =
         ControlBase_
         <
-            ::pex::poly::Value<ValueBase>,
-            MakeControlUserBase<Custom, ValueBase>
+            ::pex::poly::Value<typename Supers::ValueBase>,
+            MakeControlUserBase<Supers>
         >;
 };
 
-template<typename Custom, typename ValueBase>
-using MakeControlBase = typename MakeControlBase_<Custom, ValueBase>::Type;
+template<typename Supers>
+using MakeControlBase = typename MakeControlBase_<Supers>::Type;
 
 
-template <typename Custom, typename ValueBase>
+template <typename Supers>
 struct MakeModelBase_
 {
     using Type =
         ModelBase_
         <
-            ::pex::poly::Value<ValueBase>,
-            MakeModelUserBase<Custom, ValueBase>,
-            MakeControlBase<Custom, ValueBase>
+            ::pex::poly::Value<typename Supers::ValueBase>,
+            MakeModelUserBase<Supers>,
+            MakeControlBase<Supers>
         >;
 };
 
 
-template <typename Custom, typename ValueBase>
-using MakeModelBase = typename MakeModelBase_<Custom, ValueBase>::Type;
+template <typename Supers>
+using MakeModelBase = typename MakeModelBase_<Supers>::Type;
 
 
 } // end namespace detail
 
 
-template<typename T, typename Custom = void>
+template<HasValueBase Supers>
 class Control;
 
 
-template<typename ValueBase_, typename Custom = void>
+template<HasValueBase Supers>
 class Model
 {
 public:
-    using Value = ::pex::poly::Value<ValueBase_>;
+    using ValueBase = typename Supers::ValueBase;
+    using Value = ::pex::poly::Value<ValueBase>;
     using Type = Value;
-    using ModelBase = detail::MakeModelBase<Custom, ValueBase_>;
-    using ControlType = Control<ValueBase_, Custom>;
+    using ModelBase = detail::MakeModelBase<Supers>;
+    using ControlType = Control<Supers>;
 
-    template<typename, typename>
+    template<HasValueBase>
     friend class Control;
 
     Value Get() const
@@ -344,18 +345,19 @@ private:
 };
 
 
-template<typename ValueBase_, typename Custom>
+template<HasValueBase Supers>
 class Control
 {
 public:
-    using Value = ::pex::poly::Value<ValueBase_>;
+    using ValueBase = typename Supers::ValueBase;
+    using Value = ::pex::poly::Value<ValueBase>;
     using Type = Value;
     using Plain = Type;
 
-    using ControlBase = detail::MakeControlBase<Custom, ValueBase_>;
+    using ControlBase = detail::MakeControlBase<Supers>;
 
     using Callable = typename ControlBase::Callable;
-    using Upstream = Model<ValueBase_, Custom>;
+    using Upstream = Model<Supers>;
 
     static constexpr bool isPexCopyable = true;
     static constexpr auto observerName = "pex::poly::Control";
@@ -532,17 +534,14 @@ private:
 };
 
 
-template<typename ...T>
+template<typename Supers>
 struct IsPolyControl_: std::false_type {};
 
-template<typename T, typename Custom>
-struct IsPolyControl_<Control<T, Custom>>: std::true_type {};
+template<typename Supers>
+struct IsPolyControl_<Control<Supers>>: std::true_type {};
 
-template<typename T>
-struct IsPolyControl_<Control<T>>: std::true_type {};
-
-template<typename T>
-inline constexpr bool IsPolyControl = IsPolyControl_<T>::value;
+template<typename Supers>
+inline constexpr bool IsPolyControl = IsPolyControl_<Supers>::value;
 
 
 } // end namespace poly

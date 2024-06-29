@@ -128,15 +128,10 @@ struct MakeList
 };
 
 
-template
-<
-    typename T,
-    typename UserBases_ = void
->
+template <typename Supers_>
 struct MakePolyList
 {
-    using MemberType = T;
-    using UserBases = UserBases_;
+    using Supers = Supers_;
     inline static constexpr size_t initialCount = 0;
 };
 

@@ -146,11 +146,7 @@ template<typename T>
 struct ModelSelector_<T, std::enable_if_t<IsMakePolyList<T>>>
 {
     using Type =
-        ListModel
-        <
-            T,
-            poly::Model<typename T::MemberType, typename T::UserBases>
-        >;
+        ListModel<T, poly::Model<typename T::Supers>>;
 };
 
 /***** ControlSelector *****/
@@ -221,8 +217,8 @@ struct ControlSelector_<T, std::enable_if_t<IsMakePolyList<T>>>
         ListControl
         <
             T,
-            poly::Model<typename T::MemberType, typename T::UserBases>,
-            poly::Control<typename T::MemberType, typename T::UserBases>
+            poly::Model<typename T::Supers>,
+            poly::Control<typename T::Supers>
         >;
 };
 

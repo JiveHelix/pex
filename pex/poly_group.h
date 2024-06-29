@@ -16,24 +16,28 @@ namespace poly
 
 template
 <
-    typename PolyBase_,
-    template<template<typename> typename> typename Template_
+    typename Templates
 >
-class PolyDerived_: public PolyBase_, public Template_<pex::Identity>
+requires ::pex::HasMinimalSupers<Templates>
+class PolyDerived_
+    :
+    public Templates::Supers::ValueBase,
+    public Templates::template Template<pex::Identity>
 {
 public:
+    using ValueBase = typename Templates::Supers::ValueBase;
+
     static_assert(
-        detail::IsCompatibleBase<PolyBase_>,
+        detail::IsCompatibleBase<ValueBase>,
         "Expected virtual functions to be overloaded in this class");
 
-    using Base = PolyBase_;
-    using VirtualBase = typename detail::VirtualBase_<Base>::Type;
-    using Json = typename Base::Json;
-    using TemplateBase = Template_<pex::Identity>;
+    using VirtualBase = typename detail::VirtualBase_<ValueBase>::Type;
+    using Json = typename ValueBase::Json;
+    using TemplateBase = typename Templates::template Template<pex::Identity>;
 
     PolyDerived_()
         :
-        Base(),
+        ValueBase(),
         TemplateBase()
     {
 
@@ -41,7 +45,7 @@ public:
 
     PolyDerived_(const TemplateBase &other)
         :
-        Base(),
+        ValueBase(),
         TemplateBase(other)
     {
 
@@ -83,11 +87,11 @@ public:
         return PolyDerived_::fieldsTypeName;
     }
 
-    std::shared_ptr<Base> Copy() const override
+    std::shared_ptr<ValueBase> Copy() const override
     {
-        if constexpr (::pex::detail::HasImpl<Template_<pex::Identity>>)
+        if constexpr (::pex::detail::HasImpl<Templates>)
         {
-            using Type = Template_<pex::Identity>::template Impl<PolyDerived_>;
+            using Type = Templates::template Impl<PolyDerived_>;
             auto self = dynamic_cast<const Type *>(this);
 
             if (!self)
@@ -108,59 +112,48 @@ public:
 
 template
 <
-    typename Base,
-    template<template<typename> typename> typename Template_,
+    typename Templates,
     typename = void
 >
 struct MakePolyDerived
 {
-    using Type = PolyDerived_<Base, Template_>;
+    using Type = PolyDerived_<Templates>;
 };
 
 
-template
-<
-    typename Base,
-    template<template<typename> typename> typename Template_
->
+template<typename Templates>
 struct MakePolyDerived
 <
-    Base,
-    Template_,
-    std::enable_if_t<::pex::detail::HasImpl<Template_<pex::Identity>>>
+    Templates,
+    std::enable_if_t<::pex::detail::HasImpl<Templates>>
 >
 {
     using Type =
-        Template_<pex::Identity>::template Impl<PolyDerived_<Base, Template_>>;
+        Templates::template Impl<PolyDerived_<Templates>>;
 };
 
 
-template
-<
-    typename Base,
-    template<template<typename> typename> typename Template_
->
-using PolyDerived = typename MakePolyDerived<Base, Template_>::Type;
+template<typename Templates>
+using PolyDerived = typename MakePolyDerived<Templates>::Type;
 
 
 template
 <
-    template<typename> typename Fields_,
-    template<template<typename> typename> typename Template_,
-    typename ValueBase_,
-    typename Custom = void
+    template<typename> typename Fields,
+    ::pex::HasMinimalSupers Templates
 >
 struct PolyGroup
 {
-    using ValueBase = ValueBase_;
+    using Supers = typename Templates::Supers;
+    using ValueBase = typename Supers::ValueBase;
     using PolyValue_ = Value<ValueBase>;
 
-    using ControlBase = detail::MakeControlBase<Custom, ValueBase>;
+    using ControlBase = detail::MakeControlBase<Supers>;
 
     using ModelBase =
-        detail::MakeModelBase<Custom, ValueBase>;
+        detail::MakeModelBase<Supers>;
 
-    using Derived = PolyDerived<ValueBase, Template_>;
+    using Derived = PolyDerived<Templates>;
     using DerivedBase = typename Derived::TemplateBase;
 
     struct GroupTemplates_
@@ -218,9 +211,9 @@ struct PolyGroup
             using Upstream = typename GroupBase::Upstream;
             using Aggregate = typename GroupBase::Aggregate;
 
-            Control(::pex::poly::Model<ValueBase, Custom> &model);
+            Control(::pex::poly::Model<Supers> &model);
 
-            Control(const ::pex::poly::Control<ValueBase, Custom> &control);
+            Control(const ::pex::poly::Control<Supers> &control);
 
             Control(const Control &other)
                 :
@@ -333,21 +326,22 @@ struct PolyGroup
     };
 
 private:
-    using Group_ = ::pex::Group<Fields_, Template_, GroupTemplates_>;
+    using Group_ =
+        ::pex::Group<Fields, Templates::template Template, GroupTemplates_>;
 
 public:
     // Allow the Customized types to inherit from Group::Model and Control.
     using Model =
         typename ::pex::detail::CustomizeModel
         <
-            Custom,
+            Templates,
             typename Group_::Model
         >;
 
     using Control =
         typename ::pex::detail::CustomizeControl
         <
-            Custom,
+            Templates,
             typename Group_::Control
         >;
 
@@ -416,25 +410,23 @@ private:
 
 template
 <
-    template<typename> typename Fields_,
-    template<template<typename> typename> typename Template_,
-    typename ValueBase_,
-    typename Custom
+    template<typename> typename Fields,
+    ::pex::HasMinimalSupers Templates
 >
 template<typename GroupBase>
-std::shared_ptr<detail::MakeControlBase<Custom, ValueBase_>>
-PolyGroup<Fields_, Template_, ValueBase_, Custom>::GroupTemplates_
+std::shared_ptr<detail::MakeControlBase<typename Templates::Supers>>
+PolyGroup<Fields, Templates>::GroupTemplates_
     ::Model<GroupBase>::MakeControl()
 {
     using This = std::remove_cvref_t<decltype(*this)>;
 
     using DerivedModel =
-        typename PolyGroup<Fields_, Template_, ValueBase_, Custom>::Model;
+        typename PolyGroup<Fields, Templates>::Model;
 
     static_assert(std::is_base_of_v<This, DerivedModel>);
 
     using Control =
-        typename PolyGroup<Fields_, Template_, ValueBase_, Custom>::Control;
+        typename PolyGroup<Fields, Templates>::Control;
 
     auto derivedModel = dynamic_cast<DerivedModel *>(this);
 
@@ -477,18 +469,15 @@ GNU_NO_PEDANTIC_PUSH
 
 template
 <
-    template<typename> typename Fields_,
-    template<template<typename> typename> typename Template_,
-    typename ValueBase_,
-    typename Custom
+    template<typename> typename Fields,
+    ::pex::HasMinimalSupers Templates
 >
 template<typename GroupBase>
-std::shared_ptr<detail::MakeControlBase<Custom, ValueBase_>>
-PolyGroup<Fields_, Template_, ValueBase_, Custom>::GroupTemplates_
+std::shared_ptr<detail::MakeControlBase<typename Templates::Supers>>
+PolyGroup<Fields, Templates>::GroupTemplates_
     ::TEMPLATE Control<GroupBase>::Copy() const
 {
-    using DerivedControl =
-        typename PolyGroup<Fields_, Template_, ValueBase_, Custom>::Control;
+    using DerivedControl = typename PolyGroup<Fields, Templates>::Control;
 
     auto derivedControl = dynamic_cast<const DerivedControl *>(this);
 
@@ -503,20 +492,17 @@ PolyGroup<Fields_, Template_, ValueBase_, Custom>::GroupTemplates_
 
 template
 <
-    template<typename> typename Fields_,
-    template<template<typename> typename> typename Template_,
-    typename ValueBase_,
-    typename Custom
+    template<typename> typename Fields,
+    ::pex::HasMinimalSupers Templates
 >
 template<typename GroupBase>
-PolyGroup<Fields_, Template_, ValueBase_, Custom>::GroupTemplates_
+PolyGroup<Fields, Templates>::GroupTemplates_
     ::TEMPLATE Control<GroupBase>::Control(
-        ::pex::poly::Model<ValueBase_, Custom> &model)
+        ::pex::poly::Model<typename Templates::Supers> &model)
     :
     GroupBase()
 {
-    using DerivedControl =
-        typename PolyGroup<Fields_, Template_, ValueBase_, Custom>::Control;
+    using DerivedControl = typename PolyGroup<Fields, Templates>::Control;
 
     auto base = model.GetVirtual();
     auto upcast = dynamic_cast<Upstream *>(base);
@@ -532,20 +518,17 @@ PolyGroup<Fields_, Template_, ValueBase_, Custom>::GroupTemplates_
 
 template
 <
-    template<typename> typename Fields_,
-    template<template<typename> typename> typename Template_,
-    typename ValueBase_,
-    typename Custom
+    template<typename> typename Fields,
+    ::pex::HasMinimalSupers Templates
 >
 template<typename GroupBase>
-PolyGroup<Fields_, Template_, ValueBase_, Custom>::GroupTemplates_
+PolyGroup<Fields, Templates>::GroupTemplates_
     ::TEMPLATE Control<GroupBase>::Control(
-        const ::pex::poly::Control<ValueBase_, Custom> &control)
+        const ::pex::poly::Control<typename Templates::Supers> &control)
     :
     GroupBase()
 {
-    using DerivedControl =
-        typename PolyGroup<Fields_, Template_, ValueBase_, Custom>::Control;
+    using DerivedControl = typename PolyGroup<Fields, Templates>::Control;
 
     auto base = control.GetVirtual();
     auto upcast = dynamic_cast<const DerivedControl *>(base);

@@ -346,4 +346,15 @@ template<typename T>
 inline constexpr bool IsGroup = IsGroup_<T>::value;
 
 
+template<typename T>
+concept HasValueBase = requires { typename T::ValueBase; };
+
+template<typename T>
+concept HasSupers = requires { typename T::Supers; };
+
+
+template<typename T>
+concept HasMinimalSupers = HasSupers<T> && HasValueBase<typename T::Supers>;
+
+
 } // end namespace pex

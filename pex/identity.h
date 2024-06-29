@@ -69,7 +69,7 @@ struct Identity_
 >
 {
     // Recursively look up the list type.
-    using Type = std::vector<::pex::poly::Value<typename T::MemberType>>;
+    using Type = std::vector<::pex::poly::Value<typename T::Supers::ValueBase>>;
 };
 
 
