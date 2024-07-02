@@ -234,11 +234,6 @@ private:
 };
 
 
-
-TEMPLATE_OUTPUT_STREAM(Value)
-TEMPLATE_COMPARISON_OPERATORS(Value)
-
-
 template<typename ValueBase, typename ControlUserBase>
 using ControlBase =
     detail::ControlBase_<::pex::poly::Value<ValueBase>, ControlUserBase>;

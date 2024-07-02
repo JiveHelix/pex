@@ -325,7 +325,7 @@ private:
 
     ::pex::control::ListCount GetInternalCount_()
     {
-        return this->internalCount_;
+        return {this->internalCount_};
     }
 
 private:
