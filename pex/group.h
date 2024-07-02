@@ -205,12 +205,12 @@ template
 <
     template<template<typename> typename> typename Template
 >
-class ControlMembers_
+class MakeControlMembers
     :
     public Template<ControlSelector>
 {
 protected:
-    ControlMembers_() = default;
+    MakeControlMembers() = default;
 };
 
 
@@ -326,7 +326,7 @@ struct Group
             Derived
         >;
 
-    using ControlMembers = ControlMembers_<Template_>;
+    using ControlMembers = MakeControlMembers<Template_>;
 
     struct Control_:
         public detail::Mute,

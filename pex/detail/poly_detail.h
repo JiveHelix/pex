@@ -62,7 +62,7 @@ public:
     virtual Value GetValue() const = 0;
     virtual void SetValue(const Value &) = 0;
     virtual std::string_view GetTypeName() const = 0;
-    virtual ControlPtr MakeControl() = 0;
+    virtual ControlPtr CreateControl() = 0;
     virtual void SetValueWithoutNotify(const Value &) = 0;
     virtual void DoValueNotify() = 0;
 };

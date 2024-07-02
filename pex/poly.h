@@ -239,18 +239,19 @@ TEMPLATE_OUTPUT_STREAM(Value)
 TEMPLATE_COMPARISON_OPERATORS(Value)
 
 
-namespace detail
-{
+template<typename ValueBase, typename ControlUserBase>
+using ControlBase =
+    detail::ControlBase_<::pex::poly::Value<ValueBase>, ControlUserBase>;
 
 
 template<typename Supers>
 struct MakeControlBase_
 {
     using Type =
-        ControlBase_
+        ControlBase
         <
-            ::pex::poly::Value<typename Supers::ValueBase>,
-            MakeControlUserBase<Supers>
+            typename Supers::ValueBase,
+            detail::MakeControlUserBase<Supers>
         >;
 };
 
@@ -258,14 +259,29 @@ template<typename Supers>
 using MakeControlBase = typename MakeControlBase_<Supers>::Type;
 
 
+template
+<
+    typename ValueBase,
+    typename ModelUserBase,
+    typename ControlUserBase
+>
+using ModelBase =
+    detail::ModelBase_
+    <
+        ::pex::poly::Value<ValueBase>,
+        ModelUserBase,
+        ControlBase<ValueBase, ControlUserBase>
+    >;
+
+
 template <typename Supers>
 struct MakeModelBase_
 {
     using Type =
-        ModelBase_
+        detail::ModelBase_
         <
             ::pex::poly::Value<typename Supers::ValueBase>,
-            MakeModelUserBase<Supers>,
+            detail::MakeModelUserBase<Supers>,
             MakeControlBase<Supers>
         >;
 };
@@ -273,9 +289,6 @@ struct MakeModelBase_
 
 template <typename Supers>
 using MakeModelBase = typename MakeModelBase_<Supers>::Type;
-
-
-} // end namespace detail
 
 
 template<HasValueBase Supers>
@@ -289,7 +302,7 @@ public:
     using ValueBase = typename Supers::ValueBase;
     using Value = ::pex::poly::Value<ValueBase>;
     using Type = Value;
-    using ModelBase = detail::MakeModelBase<Supers>;
+    using ModelBase = MakeModelBase<Supers>;
     using ControlType = Control<Supers>;
 
     template<HasValueBase>
@@ -354,7 +367,7 @@ public:
     using Type = Value;
     using Plain = Type;
 
-    using ControlBase = detail::MakeControlBase<Supers>;
+    using ControlBase = MakeControlBase<Supers>;
 
     using Callable = typename ControlBase::Callable;
     using Upstream = Model<Supers>;
@@ -384,7 +397,7 @@ public:
 
         if (modelBase)
         {
-            this->base_ = modelBase->MakeControl();
+            this->base_ = modelBase->CreateControl();
         }
     }
 
@@ -413,7 +426,7 @@ public:
 
         if (modelBase)
         {
-            this->base_ = modelBase->MakeControl();
+            this->base_ = modelBase->CreateControl();
             this->Connect(observer, callable);
         }
     }
@@ -520,7 +533,7 @@ private:
 
         if (modelBase)
         {
-            this->base_ = modelBase->MakeControl();
+            this->base_ = modelBase->CreateControl();
         }
     }
 

@@ -148,10 +148,9 @@ struct PolyGroup
     using ValueBase = typename Supers::ValueBase;
     using PolyValue_ = Value<ValueBase>;
 
-    using ControlBase = detail::MakeControlBase<Supers>;
+    using ControlBase = MakeControlBase<Supers>;
 
-    using ModelBase =
-        detail::MakeModelBase<Supers>;
+    using ModelBase = MakeModelBase<Supers>;
 
     using Derived = PolyDerived<Templates>;
     using DerivedBase = typename Derived::TemplateBase;
@@ -186,7 +185,7 @@ struct PolyGroup
                 return Derived::fieldsTypeName;
             }
 
-            std::shared_ptr<ControlBase> MakeControl() override;
+            std::shared_ptr<ControlBase> CreateControl() override;
 
             void SetValueWithoutNotify(const PolyValue_ &value) override
             {
@@ -414,9 +413,9 @@ template
     ::pex::HasMinimalSupers Templates
 >
 template<typename GroupBase>
-std::shared_ptr<detail::MakeControlBase<typename Templates::Supers>>
+std::shared_ptr<MakeControlBase<typename Templates::Supers>>
 PolyGroup<Fields, Templates>::GroupTemplates_
-    ::Model<GroupBase>::MakeControl()
+    ::Model<GroupBase>::CreateControl()
 {
     using This = std::remove_cvref_t<decltype(*this)>;
 
@@ -473,7 +472,7 @@ template
     ::pex::HasMinimalSupers Templates
 >
 template<typename GroupBase>
-std::shared_ptr<detail::MakeControlBase<typename Templates::Supers>>
+std::shared_ptr<MakeControlBase<typename Templates::Supers>>
 PolyGroup<Fields, Templates>::GroupTemplates_
     ::TEMPLATE Control<GroupBase>::Copy() const
 {
