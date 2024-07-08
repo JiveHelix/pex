@@ -464,6 +464,7 @@ public:
         return *this;
     }
 
+    // Implement a std::vector-like interface.
     const ItemControl & operator[](size_t index) const
     {
         return this->items_[index];
@@ -502,6 +503,16 @@ public:
     ConstIterator end() const
     {
         return std::end(this->items_);
+    }
+
+    size_t size() const
+    {
+        return this->items_.size();
+    }
+
+    bool empty() const
+    {
+        return this->items_.empty();
     }
 
     Type Get() const

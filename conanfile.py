@@ -4,7 +4,7 @@ from conans import ConanFile, CMake, tools
 
 class PexConan(ConanFile):
     name = "pex"
-    version = "0.9.9"
+    version = "0.9.10"
 
     scm = {
         "type": "git",
