@@ -8,7 +8,8 @@
 #include "pex/signal.h"
 #include "pex/interface.h"
 #include "pex/list.h"
-#include "pex/poly.h"
+#include "pex/poly_model.h"
+#include "pex/poly_control.h"
 
 
 namespace pex

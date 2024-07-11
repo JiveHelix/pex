@@ -1,12 +1,11 @@
 #pragma once
 
 
-#include <memory>
-#include <fields/fields.h>
-#include "pex/signal.h"
-#include "pex/terminus.h"
-#include "pex/detail/poly_detail.h"
-#include "pex/detail/traits.h"
+#include "pex/identity.h"
+#include "pex/poly_derived.h"
+#include "pex/poly_model.h"
+#include "pex/group.h"
+#include "pex/interface.h"
 
 
 namespace pex
@@ -17,550 +16,282 @@ namespace poly
 {
 
 
-CREATE_EXCEPTION(PolyError, PexError);
-
-
-template<typename Json, typename T>
-Json PolyUnstructure(const T &object)
-{
-    auto jsonValues = fields::Unstructure<Json>(object);
-    jsonValues["type"] = T::fieldsTypeName;
-
-    return jsonValues;
-}
-
-
-// Interface that will be implemented for us in PolyDerived.
-template<typename Json_, typename Base>
-class PolyBase
-{
-public:
-    using Json = Json_;
-
-    virtual ~PolyBase() {}
-
-    virtual std::ostream & Describe(
-        std::ostream &outputStream,
-        const fields::Style &style,
-        int indent) const = 0;
-
-    virtual Json Unstructure() const = 0;
-    virtual bool operator==(const Base &) const = 0;
-    virtual std::string_view GetTypeName() const = 0;
-    virtual std::shared_ptr<Base> Copy() const = 0;
-
-    static std::shared_ptr<Base> Structure(const Json &jsonValues)
-    {
-        std::string typeName = jsonValues["type"];
-
-        auto & creatorsByTypeName = PolyBase::CreatorsByTypeName_();
-
-        if (1 != creatorsByTypeName.count(typeName))
-        {
-            throw std::runtime_error("Unregistered derived type: " + typeName);
-        }
-
-        return creatorsByTypeName[typeName](jsonValues);
-    }
-
-    static constexpr auto polyTypeName = "PolyBase";
-
-    using CreatorFunction =
-        std::function<std::shared_ptr<Base> (const Json &jsonValues)>;
-
-    template<typename Derived>
-    static void RegisterDerived()
-    {
-        static_assert(
-            fields::HasFieldsTypeName<Derived>,
-            "Derived types must define a unique fieldsTypeName");
-
-        auto key = std::string(Derived::fieldsTypeName);
-
-        if (key.empty())
-        {
-            throw std::logic_error("fieldsTypeName is empty");
-        }
-
-        auto & creatorsByTypeName = PolyBase::CreatorsByTypeName_();
-
-        if (1 == creatorsByTypeName.count(key))
-        {
-            throw std::logic_error(
-                "Each Derived type must be registered only once.");
-        }
-
-        creatorsByTypeName[key] =
-            [](const Json &jsonValues) -> std::shared_ptr<Base>
-            {
-                return std::make_shared<Derived>(
-                    fields::StructureFromFields<Derived>(jsonValues));
-            };
-    }
-
-private:
-    using CreatorMap = std::map<std::string, CreatorFunction>;
-
-    // Construct On First Use Idiom
-    static CreatorMap & CreatorsByTypeName_()
-    {
-        static CreatorMap map_;
-        return map_;
-    }
-};
-
-
-template<typename ValueBase_>
-class Value
-{
-public:
-    using ValueBase = ValueBase_;
-    static constexpr auto fieldsTypeName = ValueBase::polyTypeName;
-
-    Value()
-        :
-        value_{}
-    {
-
-    }
-
-    Value(const std::shared_ptr<ValueBase> &value)
-        :
-        value_(value)
-    {
-
-    }
-
-    Value(const ValueBase &value)
-        :
-        value_(value.Copy())
-    {
-
-    }
-
-    std::ostream & Describe(
-        std::ostream &outputStream,
-        const fields::Style &style,
-        int indent) const
-    {
-        if (!this->value_)
-        {
-            throw std::logic_error("Unitialized member");
-        }
-
-        return this->value_->Describe(outputStream, style, indent);
-    }
-
-    template<typename Json>
-    Json Unstructure() const
-    {
-        static_assert(
-            std::is_same_v<Json, typename ValueBase::Json>,
-            "Must match PolyBase Json type");
-
-        if (!this->value_)
-        {
-            throw std::logic_error("Unitialized member");
-        }
-
-        return this->value_->Unstructure();
-    }
-
-    template<typename Json>
-    static Value Structure(const Json &jsonValues)
-    {
-        return {ValueBase::Structure(jsonValues)};
-    }
-
-    template<typename Derived, typename ...Args>
-    void Initialize(Args &&...args)
-    {
-        this->value_ = std::make_shared<Derived>(std::forward<Args>(args)...);
-    }
-
-    Value & operator=(std::shared_ptr<ValueBase> value)
-    {
-        this->value_ = value;
-        return *this;
-    }
-
-    operator bool () const
-    {
-        return !!this->value_;
-    }
-
-    std::shared_ptr<const ValueBase> GetValueBase() const
-    {
-        return this->value_;
-    }
-
-    std::shared_ptr<ValueBase> GetValueBase()
-    {
-        return this->value_;
-    }
-
-    bool operator==(const Value &other) const
-    {
-        if (!(this->value_ && other.value_))
-        {
-            return false;
-        }
-
-        return this->value_->operator==(*other.value_);
-    }
-
-    template<typename Derived>
-    const Derived * GetDerived() const
-    {
-        const auto base = this->value_.get();
-        return dynamic_cast<const Derived *>(base);
-    }
-
-    template<typename Derived>
-    const Derived & RequireDerived() const
-    {
-        auto derived = this->template GetDerived<Derived>();
-
-        if (!derived)
-        {
-            throw PolyError("Mismatched polymorphic value");
-        }
-
-        return *derived;
-    }
-
-private:
-    std::shared_ptr<ValueBase> value_;
-};
-
-
-template<typename ValueBase, typename ControlUserBase>
-using ControlBase =
-    detail::ControlBase_<::pex::poly::Value<ValueBase>, ControlUserBase>;
-
-
-template<typename Supers>
-struct MakeControlBase_
-{
-    using Type =
-        ControlBase
-        <
-            typename Supers::ValueBase,
-            detail::MakeControlUserBase<Supers>
-        >;
-};
-
-template<typename Supers>
-using MakeControlBase = typename MakeControlBase_<Supers>::Type;
-
-
 template
 <
-    typename ValueBase,
-    typename ModelUserBase,
-    typename ControlUserBase
+    template<typename> typename Fields,
+    ::pex::HasMinimalSupers Templates
 >
-using ModelBase =
-    detail::ModelBase_
-    <
-        ::pex::poly::Value<ValueBase>,
-        ModelUserBase,
-        ControlBase<ValueBase, ControlUserBase>
-    >;
-
-
-template <typename Supers>
-struct MakeModelBase_
+struct Poly
 {
-    using Type =
-        detail::ModelBase_
-        <
-            ::pex::poly::Value<typename Supers::ValueBase>,
-            detail::MakeModelUserBase<Supers>,
-            MakeControlBase<Supers>
-        >;
-};
-
-
-template <typename Supers>
-using MakeModelBase = typename MakeModelBase_<Supers>::Type;
-
-
-template<HasValueBase Supers>
-class Control;
-
-
-template<HasValueBase Supers>
-class Model
-{
-public:
+    using Supers = typename Templates::Supers;
     using ValueBase = typename Supers::ValueBase;
-    using Value = ::pex::poly::Value<ValueBase>;
-    using Type = Value;
-    using ModelBase = MakeModelBase<Supers>;
-    using ControlType = Control<Supers>;
-
-    template<HasValueBase>
-    friend class Control;
-
-    Value Get() const
-    {
-        return this->base_->GetValue();
-    }
-
-    template<typename Derived>
-    void Set(const Derived &derived)
-    {
-        if (!this->base_)
-        {
-            // Create the right kind of ModelBase for this value.
-            this->base_ = derived.CreateModel();
-            this->base_->SetValue(derived);
-            this->baseCreated_.Trigger();
-        }
-        else
-        {
-            this->base_->SetValue(derived);
-        }
-    }
-
-    std::string_view GetTypeName() const
-    {
-        return this->base_->GetTypeName();
-    }
-
-    ModelBase * GetVirtual()
-    {
-        return this->base_.get();
-    }
-
-// TODO: Add this to pex::Reference
-// protected:
-    void SetWithoutNotify_(const Value &value)
-    {
-        this->base_->SetValueWithoutNotify(value);
-    }
-
-    void DoNotify_()
-    {
-        this->base_->DoValueNotify();
-    }
-
-
-private:
-    std::unique_ptr<ModelBase> base_;
-    pex::model::Signal baseCreated_;
-};
-
-
-template<HasValueBase Supers>
-class Control
-{
-public:
-    using ValueBase = typename Supers::ValueBase;
-    using Value = ::pex::poly::Value<ValueBase>;
-    using Type = Value;
-    using Plain = Type;
+    using PolyValue_ = Value<ValueBase>;
 
     using ControlBase = MakeControlBase<Supers>;
 
-    using Callable = typename ControlBase::Callable;
-    using Upstream = Model<Supers>;
+    using ModelBase = MakeModelBase<Supers>;
 
-    static constexpr bool isPexCopyable = true;
-    static constexpr auto observerName = "pex::poly::Control";
+    using Derived = PolyDerived<Templates>;
+    using DerivedBase = typename Derived::TemplateBase;
 
-    Control()
-        :
-        upstream_(),
-        base_(),
-        baseCreated_()
+    static constexpr bool isPolyGroup = true;
+
+    struct GroupTemplates_
     {
+        using Plain = Derived;
 
-    }
-
-    Control(Upstream &upstream)
-        :
-        upstream_(&upstream),
-        base_(),
-        baseCreated_(
-            this,
-            this->upstream_->baseCreated_,
-            &Control::OnBaseCreated_)
-    {
-        auto modelBase = upstream.GetVirtual();
-
-        if (modelBase)
+        template<typename GroupBase>
+        class Model
+            :
+            public ModelBase,
+            public GroupBase
         {
-            this->base_ = modelBase->CreateControl();
-        }
-    }
+        public:
+            using GroupPlain = Derived;
 
-    Control(const Control &other)
-        :
-        upstream_(other.upstream_),
-        base_(other.base_),
-        baseCreated_(
-            this,
-            this->upstream_->baseCreated_,
-            &Control::OnBaseCreated_)
-    {
+            using GroupBase::GroupBase;
 
-    }
+            PolyValue_ GetValue() const override
+            {
+                return PolyValue_(std::make_shared<Derived>(this->Get()));
+            }
 
-    Control(void *observer, Upstream &upstream, Callable callable)
-        :
-        upstream_(upstream),
-        base_(),
-        baseCreated_(
-            this,
-            this->upstream_->baseCreated_,
-            &Control::OnBaseCreated_)
-    {
-        auto modelBase = upstream.GetVirtual();
+            void SetValue(const PolyValue_ &value) override
+            {
+                this->Set(value.template RequireDerived<Derived>());
+            }
 
-        if (modelBase)
+            std::string_view GetTypeName() const override
+            {
+                return Derived::fieldsTypeName;
+            }
+
+            std::shared_ptr<ControlBase> CreateControl() override;
+
+            void SetValueWithoutNotify(const PolyValue_ &value) override
+            {
+                this->SetWithoutNotify_(
+                    value.template RequireDerived<Derived>());
+            }
+
+            void DoValueNotify() override
+            {
+                this->DoNotify_();
+            }
+        };
+
+        template<typename GroupBase>
+        class Control
+            :
+            public ControlBase,
+            public GroupBase
         {
-            this->base_ = modelBase->CreateControl();
-            this->Connect(observer, callable);
-        }
-    }
+        public:
+            using GroupBase::GroupBase;
+            using Upstream = typename GroupBase::Upstream;
+            using Aggregate = typename GroupBase::Aggregate;
 
-    Control(void *observer, const Control &other, Callable callable)
-        :
-        upstream_(other.upstream_),
-        base_(other.base_),
-        baseCreated_(
-            this,
-            this->upstream_->baseCreated_,
-            &Control::OnBaseCreated_)
-    {
-        if (!this->base_)
-        {
-            throw std::logic_error("Cannot connect without a valid object.");
-        }
+            Control(::pex::poly::Model<Supers> &model);
 
-        this->Connect(observer, callable);
-    }
+            Control(const ::pex::poly::Control<Supers> &control);
 
-    Control & operator=(const Control &other)
-    {
-        this->upstream_ = other.upstream_;
-        this->base_ = other.base_;
-        this->baseCreated_.Assign(this, other.baseCreated_);
+            Control(const Control &other)
+                :
+                GroupBase(other),
+                aggregate_(),
+                baseNotifier_(other.baseNotifier_)
+            {
+                if (this->baseNotifier_.HasConnections())
+                {
+                    this->aggregate_.AssignUpstream(*this);
+                    this->aggregate_.Connect(this, &Control::OnAggregate_);
+                }
+            }
 
-        return *this;
-    }
+            Control & operator=(const Control &other)
+            {
+                this->GroupBase::operator=(other);
+                this->baseNotifier_ = other.baseNotifier_;
 
-    Value Get() const
-    {
-        assert(this->base_);
-        return this->base_->GetValue();
-    }
+                if (this->baseNotifier_.HasConnections())
+                {
+                    this->aggregate_.AssignUpstream(*this);
+                    this->aggregate_.Connect(this, &Control::OnAggregate_);
+                }
 
-    std::string_view GetTypeName() const
-    {
-        assert(this->base_);
-        return this->base_->GetTypeName();
-    }
+                return *this;
+            }
 
-    const ControlBase * GetVirtual() const
-    {
-        assert(this->base_);
-        return this->base_.get();
-    }
+            PolyValue_ GetValue() const override
+            {
+                return PolyValue_(std::make_shared<Derived>(this->Get()));
+            }
 
-    ControlBase * GetVirtual()
-    {
-        assert(this->base_);
-        return this->base_.get();
-    }
+            void SetValue(const PolyValue_ &value) override
+            {
+                this->Set(value.template RequireDerived<Derived>());
+            }
 
-    void Set(const Value &value)
-    {
-        assert(this->base_);
-        this->base_->SetValue(value);
-    }
+            std::string_view GetTypeName() const override
+            {
+                return Derived::fieldsTypeName;
+            }
 
-    operator bool () const
-    {
-        return (this->base_);
-    }
+            using BaseCallable = typename ControlBase::Callable;
 
-    void Connect(void *observer, Callable callable)
-    {
-        assert(this->base_);
-        this->base_->Connect(observer, callable);
-    }
+            void Connect(void *observer, BaseCallable callable) override
+            {
+                if (!this->baseNotifier_.HasConnections())
+                {
+                    this->aggregate_.AssignUpstream(*this);
+                    this->aggregate_.Connect(this, &Control::OnAggregate_);
+                }
 
-    void Disconnect(void *observer)
-    {
-        assert(this->base_);
-        this->base_->Disconnect(observer);
-    }
+                this->baseNotifier_.ConnectOnce(observer, callable);
+            }
 
-    bool HasModel() const
-    {
-        if (!this->upstream_)
-        {
-            return false;
-        }
+            void Disconnect(void *observer) override
+            {
+                this->baseNotifier_.Disconnect(observer);
 
-        return (this->upstream_->GetVirtual() != nullptr);
-    }
+                if (!this->baseNotifier_.HasConnections())
+                {
+                    this->aggregate_.Disconnect(this);
+                }
+            }
 
-// TODO: Add this to pex::Reference
-// protected:
-    void SetWithoutNotify_(const Value &value)
-    {
-        this->base_->SetValueWithoutNotify(value);
-    }
+            std::shared_ptr<ControlBase> Copy() const override;
 
-    void DoNotify_()
-    {
-        this->base_->DoValueNotify();
-    }
+            void SetValueWithoutNotify(const PolyValue_ &value) override
+            {
+                this->SetWithoutNotify_(
+                    value.template RequireDerived<Derived>());
+            }
+
+            void DoValueNotify() override
+            {
+                this->DoNotify_();
+            }
+
+        private:
+            static void OnAggregate_(void * context, const Derived &derived)
+            {
+                auto self = static_cast<Control *>(context);
+
+                if (self->baseNotifier_.HasConnections())
+                {
+                    self->baseNotifier_.Notify(
+                        PolyValue_(std::make_shared<Derived>(derived)));
+                }
+            }
+
+        private:
+            class BaseNotifier
+                : public ::pex::detail::NotifyMany
+                <
+                    ::pex::detail::ValueConnection<void, PolyValue_>,
+                    ::pex::GetAndSetTag
+                >
+            {
+            public:
+                void Notify(const PolyValue_ &value)
+                {
+                    this->Notify_(value);
+                }
+            };
+
+            Aggregate aggregate_;
+            BaseNotifier baseNotifier_;
+        };
+    };
 
 private:
-    void OnBaseCreated_()
-    {
-        auto modelBase = this->upstream_->GetVirtual();
+    using Group_ =
+        ::pex::Group<Fields, Templates::template Template, GroupTemplates_>;
 
-        if (modelBase)
+public:
+    // Allow the Customized types to inherit from Group::Model and Control.
+    using Model =
+        typename ::pex::detail::CustomizeModel
+        <
+            Templates,
+            typename Group_::Model
+        >;
+
+    using Control =
+        typename ::pex::detail::CustomizeControl
+        <
+            Templates,
+            typename Group_::Control
+        >;
+
+    // Inherit the ability to CreateModel().
+    class PolyValue: public PolyValue_
+    {
+    public:
+        using PolyValue_::PolyValue_;
+        using DerivedControl = Control;
+
+        std::unique_ptr<ModelBase> CreateModel() const
         {
-            this->base_ = modelBase->CreateControl();
+            auto result = std::make_unique<Model>();
+            result->Set(this->template RequireDerived<Derived>());
+
+            return result;
         }
-    }
+
+        PolyValue()
+            :
+            PolyValue_()
+        {
+
+        }
+
+        PolyValue(DerivedBase &&base)
+            :
+            PolyValue_{std::make_shared<Derived>(std::move(base))}
+        {
+
+        }
+
+        PolyValue(Derived &&derived)
+            :
+            PolyValue_{std::make_shared<Derived>(std::move(derived))}
+        {
+
+        }
+
+        static PolyValue Default()
+        {
+            if constexpr (HasDefault<Derived>)
+            {
+                return PolyValue(Derived::Default());
+            }
+            else
+            {
+                return PolyValue(Derived{});
+            }
+        }
+    };
 
 private:
-    using BaseCreatedTerminus =
-        ::pex::Terminus<Control, pex::control::Signal<>>;
+    // Register the Derived type so that it can be structured from json.
+    static const inline bool once =
+        []()
+        {
+            ValueBase::template RegisterDerived<Derived>();
+            return true;
+        }();
 
-    Upstream *upstream_;
-    std::shared_ptr<ControlBase> base_;
-    BaseCreatedTerminus baseCreated_;
+    template<const bool &> struct ForceStaticInitialization {};
+    using Force = ForceStaticInitialization<once>;
 };
-
-
-template<typename Supers>
-struct IsPolyControl_: std::false_type {};
-
-template<typename Supers>
-struct IsPolyControl_<Control<Supers>>: std::true_type {};
-
-template<typename Supers>
-inline constexpr bool IsPolyControl = IsPolyControl_<Supers>::value;
 
 
 } // end namespace poly
 
 
-template<typename T>
-struct IsControl_
-<
-    T,
-    std::enable_if_t<poly::IsPolyControl<T>>
->: std::true_type {};
-
-
 } // end namespace pex
+
+
+#include "pex/detail/poly_impl.h"

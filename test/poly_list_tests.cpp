@@ -2,7 +2,6 @@
 #include <pex/list.h>
 #include <pex/group.h>
 #include <pex/poly.h>
-#include <pex/poly_group.h>
 #include <pex/endpoint.h>
 #include <nlohmann/json.hpp>
 
@@ -130,7 +129,7 @@ struct FixedWingTemplates: public CommonTemplates
     };
 
     template<typename Base>
-    class Impl: public Base
+    class Derived: public Base
     {
     public:
         using Base::Base;
@@ -171,7 +170,7 @@ struct RotorWingTemplates: public CommonTemplates
     };
 
     template<typename Base>
-    class Impl: public Base
+    class Derived: public Base
     {
     public:
         using Base::Base;
@@ -219,19 +218,19 @@ static_assert(
     >);
 
 
-using RotorWingGroup =
-    pex::poly::PolyGroup<RotorWingFields, RotorWingTemplates>;
+using RotorWingPoly =
+    pex::poly::Poly<RotorWingFields, RotorWingTemplates>;
 
-using RotorWing = typename RotorWingGroup::Derived;
-using RotorWingValue = typename RotorWingGroup::PolyValue;
+using RotorWing = typename RotorWingPoly::Derived;
+using RotorWingValue = typename RotorWingPoly::PolyValue;
 
 
-using FixedWingGroup =
-    pex::poly::PolyGroup<FixedWingFields, FixedWingTemplates>;
+using FixedWingPoly =
+    pex::poly::Poly<FixedWingFields, FixedWingTemplates>;
 
-using FixedWing = typename FixedWingGroup::Derived;
-using FixedWingValue = typename FixedWingGroup::PolyValue;
-using FixedWingControl = typename FixedWingGroup::Control;
+using FixedWing = typename FixedWingPoly::Derived;
+using FixedWingValue = typename FixedWingPoly::PolyValue;
+using FixedWingControl = typename FixedWingPoly::Control;
 
 
 template<typename T>
@@ -273,8 +272,8 @@ template<typename T>
 inline constexpr bool IsAircraftCustom = IsAircraftCustom_<T>::value;
 
 
-static_assert(IsAircraftCustom<typename RotorWingGroup::Model>);
-static_assert(IsAircraftCustom<typename FixedWingGroup::Model>);
+static_assert(IsAircraftCustom<typename RotorWingPoly::Model>);
+static_assert(IsAircraftCustom<typename FixedWingPoly::Model>);
 
 
 DECLARE_EQUALITY_OPERATORS(Airport)
@@ -623,21 +622,21 @@ struct SinglePolyFields
 template<template<typename> typename T>
 struct SinglePolyTemplate
 {
-    T<FixedWingGroup> fixedWing;
-    T<RotorWingGroup> rotorWing;
+    T<FixedWingPoly> fixedWing;
+    T<RotorWingPoly> rotorWing;
 
     static constexpr auto fields =
         SinglePolyFields<SinglePolyTemplate>::fields;
 };
 
 
-using SinglePolyGroup = pex::Group<SinglePolyFields, SinglePolyTemplate>;
-using SinglePolyModel = typename SinglePolyGroup::Model;
-using SinglePolyControl = typename SinglePolyGroup::Control;
-using SinglePolyPlain = typename SinglePolyGroup::Plain;
+using SinglePoly = pex::Group<SinglePolyFields, SinglePolyTemplate>;
+using SinglePolyModel = typename SinglePoly::Model;
+using SinglePolyControl = typename SinglePoly::Control;
+using SinglePolyPlain = typename SinglePoly::Plain;
 
 
-TEST_CASE("Use PolyGroup like a regular group", "[poly]")
+TEST_CASE("Use Poly in a pex::Group", "[poly]")
 {
     SinglePolyModel model;
     SinglePolyControl control(model);

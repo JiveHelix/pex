@@ -13,18 +13,18 @@ struct TraitsTest {};
 
 
 template<typename T, typename = void>
-struct HasImpl_: std::false_type {};
+struct HasDerived_: std::false_type {};
 
 template<typename T>
-struct HasImpl_
+struct HasDerived_
 <
     T,
-    std::void_t<typename T::template Impl<TraitsTest>>
+    std::void_t<typename T::template Derived<TraitsTest>>
 >
 : std::true_type {};
 
 template<typename T>
-inline constexpr bool HasImpl = HasImpl_<T>::value;
+inline constexpr bool HasDerived = HasDerived_<T>::value;
 
 
 template<typename T, typename Base, typename = void>

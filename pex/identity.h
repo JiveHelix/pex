@@ -2,7 +2,8 @@
 
 
 #include "pex/interface.h"
-#include "pex/poly.h"
+#include "pex/traits.h"
+#include "pex/poly_value.h"
 
 
 namespace pex

@@ -7,7 +7,6 @@
 #include <iostream>
 #include <atomic>
 
-#include <jive/create_exception.h>
 
 #ifndef NDEBUG
 #include <jive/scope_flag.h>
@@ -15,14 +14,12 @@
 
 #include "pex/access_tag.h"
 #include "pex/argument.h"
+#include "pex/error.h"
 #include "pex/detail/log.h"
 
 
 namespace pex
 {
-
-
-CREATE_EXCEPTION(PexError, std::runtime_error);
 
 
 namespace detail
