@@ -131,6 +131,12 @@ struct ModelSelector_<T, std::enable_if_t<(IsGroup<T>)>>
 };
 
 template<typename T>
+struct ModelSelector_<T, std::enable_if_t<(IsPolyGroup<T>)>>
+{
+    using Type = typename T::Model;
+};
+
+template<typename T>
 struct ModelSelector_<T, std::enable_if_t<IsMakeList<T>>>
 {
     using Type =
@@ -193,6 +199,12 @@ struct ControlSelector_<T, std::enable_if_t<IsMakeCustom<T>>>
 
 template<typename T>
 struct ControlSelector_<T, std::enable_if_t<(IsGroup<T>)>>
+{
+    using Type = typename T::Control;
+};
+
+template<typename T>
+struct ControlSelector_<T, std::enable_if_t<(IsPolyGroup<T>)>>
 {
     using Type = typename T::Control;
 };

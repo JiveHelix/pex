@@ -37,6 +37,14 @@ struct Identity_
 
 
 template<typename T>
+struct Identity_<T, std::enable_if_t<IsPolyGroup<T>>
+>
+{
+    using Type = typename T::PolyValue;
+};
+
+
+template<typename T>
 struct Identity_<T, std::enable_if_t<IsMakeSignal<T>>>
 {
     using Type = pex::DescribeSignal;

@@ -330,7 +330,7 @@ inline constexpr bool IsGroupControl = IsGroupControl_<T>::value;
 template<typename T>
 inline constexpr bool IsGroupNode = IsGroupModel<T> || IsGroupControl<T>;
 
-
+#if 0
 template<typename T, typename = void>
 struct IsGroup_: std::false_type {};
 
@@ -344,6 +344,14 @@ struct IsGroup_<T, std::enable_if_t<T::isGroup>>
 
 template<typename T>
 inline constexpr bool IsGroup = IsGroup_<T>::value;
+#endif
+
+template<typename T>
+concept IsGroup = T::isGroup;
+
+
+template<typename T>
+concept IsPolyGroup = T::isPolyGroup;
 
 
 template<typename T>

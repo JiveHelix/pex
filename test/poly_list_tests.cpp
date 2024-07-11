@@ -608,3 +608,60 @@ TEST_CASE("Poly list is observed after going to size 0.", "[List]")
 
     REQUIRE(airportObserver.GetNotificationCount() == 5);
 }
+
+
+#if 1
+template<typename T>
+struct SinglePolyFields
+{
+    static constexpr auto fields = std::make_tuple(
+        fields::Field(&T::fixedWing, "fixedWing"),
+        fields::Field(&T::rotorWing, "rotorWing"));
+};
+
+
+template<template<typename> typename T>
+struct SinglePolyTemplate
+{
+    T<FixedWingGroup> fixedWing;
+    T<RotorWingGroup> rotorWing;
+
+    static constexpr auto fields =
+        SinglePolyFields<SinglePolyTemplate>::fields;
+};
+
+
+using SinglePolyGroup = pex::Group<SinglePolyFields, SinglePolyTemplate>;
+using SinglePolyModel = typename SinglePolyGroup::Model;
+using SinglePolyControl = typename SinglePolyGroup::Control;
+using SinglePolyPlain = typename SinglePolyGroup::Plain;
+
+
+TEST_CASE("Use PolyGroup like a regular group", "[poly]")
+{
+    SinglePolyModel model;
+    SinglePolyControl control(model);
+
+    auto values = GENERATE(
+        take(
+            3,
+            chunk(
+                6,
+                random(-1000.0, 1000.0))));
+
+    auto rotorWing =
+        RotorWingValue({values.at(0), values.at(1), values.at(2)});
+
+    control.rotorWing.SetValue(rotorWing);
+
+    auto fixedWing =
+        FixedWingValue({values.at(0), values.at(1), values.at(2)});
+
+    control.fixedWing.SetValue(fixedWing);
+
+    // std::cout << fields::Describe(model.Get(), 1) << std::endl;
+
+    REQUIRE(fixedWing == model.fixedWing.GetValue());
+    REQUIRE(rotorWing == model.rotorWing.GetValue());
+}
+#endif

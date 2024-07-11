@@ -155,6 +155,8 @@ struct PolyGroup
     using Derived = PolyDerived<Templates>;
     using DerivedBase = typename Derived::TemplateBase;
 
+    static constexpr bool isPolyGroup = true;
+
     struct GroupTemplates_
     {
         using Plain = Derived;
