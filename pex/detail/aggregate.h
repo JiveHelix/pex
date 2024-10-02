@@ -1,5 +1,9 @@
 #pragma once
 
+#ifdef ENABLE_PEX_LOG
+#include <fmt/core.h>
+#endif
+
 #include <fields/assign.h>
 #include <fields/describe.h>
 #include "pex/selectors.h"
@@ -114,7 +118,7 @@ template<typename T>
 struct AggregateSelector_
 <
     T,
-    std::enable_if_t<IsMakeList<T> || IsMakePolyList<T>>
+    std::enable_if_t<IsList<T>>
 >
 {
     using Type = ListConnect<void, ControlSelector<T>>;
@@ -125,6 +129,13 @@ template<typename T>
 using AggregateSelector = typename AggregateSelector_<T>::Type;
 
 
+#ifdef ENABLE_PEX_LOG
+struct Separator
+{
+    uint8_t garbage;
+};
+#endif
+
 // Internal helper to allow observation of aggregate types.
 template
 <
@@ -133,6 +144,9 @@ template
     template<template<typename> typename> typename Template
 >
 struct Aggregate:
+#ifdef ENABLE_PEX_LOG
+    public Separator,
+#endif
     public Template<AggregateSelector>,
     public Getter<Plain, Fields, Aggregate<Plain, Fields, Template>>,
     public detail::NotifyOne
@@ -151,11 +165,46 @@ public:
             GetAndSetTag
         >;
 
+#ifdef ENABLE_PEX_LOG
+    void RegisterPexNames()
+    {
+        // Iterate over members, and register names and addresses.
+        auto doRegisterNames = [this] (auto thisField)
+        {
+            RegisterPexName(
+                &(this->*(thisField.member)),
+                this,
+                fmt::format("Aggregate::{}", thisField.name));
+        };
+
+        jive::ForEach(
+            Fields<Aggregate>::fields,
+            doRegisterNames);
+    }
+
+    void UnregisterPexNames()
+    {
+        // Iterate over members, and register names and addresses.
+        auto doUnregisterNames = [this] (auto thisField)
+        {
+            UnregisterPexName(
+                &(this->*(thisField.member)),
+                fmt::format("Aggregate::{}", thisField.name));
+        };
+
+        jive::ForEach(
+            Fields<Aggregate>::fields,
+            doUnregisterNames);
+    }
+#endif
+
     Aggregate()
         :
         isMuted_()
     {
-
+#ifdef ENABLE_PEX_LOG
+        this->RegisterPexNames();
+#endif
     }
 
     template<typename Upstream>
@@ -163,6 +212,9 @@ public:
         :
         isMuted_()
     {
+#ifdef ENABLE_PEX_LOG
+        this->RegisterPexNames();
+#endif
         this->AssignUpstream(upstream);
     }
 
@@ -203,6 +255,10 @@ public:
     {
         this->UnmakeConnections_();
         this->ClearConnections();
+
+#ifdef ENABLE_PEX_LOG
+        this->UnregisterPexNames();
+#endif
     }
 
     void ClearConnections()

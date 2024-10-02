@@ -21,7 +21,7 @@ struct TestFields
 template<template<typename> typename T>
 struct TestTemplate
 {
-    T<pex::MakeList<int, 0>> values;
+    T<pex::List<int, 0>> values;
 
     static constexpr auto fields = TestFields<TestTemplate>::fields;
 };
@@ -80,9 +80,8 @@ public:
     using BoundEndpoint =
         pex::BoundEndpoint
         <
-            typename ListObserver::ItemControl,
-            decltype(&TestObserver::OnValue_),
-            size_t
+            typename ListObserver::ListItem,
+            decltype(&TestObserver::OnValue_)
         >;
 
     ListControl listControl;

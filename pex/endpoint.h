@@ -52,7 +52,7 @@ struct MakeConnector_<T, std::enable_if_t<IsSelect<T>>>
 
 
 template<typename T>
-struct MakeConnector_<T, std::enable_if_t<::pex::IsList<T>>>
+struct MakeConnector_<T, std::enable_if_t<::pex::IsListNode<T>>>
 {
     template<typename Observer>
     using Type = ListConnect<Observer, T>;
@@ -106,12 +106,17 @@ public:
     using UpstreamControl = typename Connector::UpstreamControl;
     using Callable = typename Connector::Callable;
 
+    ~Endpoint_()
+    {
+        UNREGISTER_PEX_NAME(&this->connector, "connector");
+    }
+
     Endpoint_()
         :
         observer_(nullptr),
         connector()
     {
-
+        REGISTER_PEX_NAME_WITH_PARENT(&this->connector, this, "connector");
     }
 
     Endpoint_(Observer *observer)
@@ -119,7 +124,7 @@ public:
         observer_(observer),
         connector()
     {
-
+        REGISTER_PEX_NAME_WITH_PARENT(&this->connector, this, "connector");
     }
 
     Endpoint_(Observer *observer, UpstreamControl upstream)
@@ -127,7 +132,7 @@ public:
         observer_(observer),
         connector(observer, upstream)
     {
-
+        REGISTER_PEX_NAME_WITH_PARENT(&this->connector, this, "connector");
     }
 
     Endpoint_(Observer *observer, UpstreamControl upstream, Callable callable)
@@ -135,7 +140,7 @@ public:
         observer_(observer),
         connector(observer, upstream, callable)
     {
-
+        REGISTER_PEX_NAME_WITH_PARENT(&this->connector, this, "connector");
     }
 
     Endpoint_(Observer *observer, typename UpstreamControl::Upstream &model)
@@ -143,7 +148,7 @@ public:
         observer_(observer),
         connector(observer, UpstreamControl(model))
     {
-
+        REGISTER_PEX_NAME_WITH_PARENT(&this->connector, this, "connector");
     }
 
     Endpoint_(
@@ -154,7 +159,7 @@ public:
         observer_(observer),
         connector(observer, UpstreamControl(model), callable)
     {
-
+        REGISTER_PEX_NAME_WITH_PARENT(&this->connector, this, "connector");
     }
 
     Endpoint_(Observer *observer, const Endpoint_ &other)
@@ -162,7 +167,7 @@ public:
         observer_(observer),
         connector(observer, other.connector)
     {
-
+        REGISTER_PEX_NAME_WITH_PARENT(&this->connector, this, "connector");
     }
 
     Endpoint_ & Assign(Observer *observer, const Endpoint_ &other)
@@ -178,7 +183,7 @@ public:
         observer_(other.observer_),
         connector(other.observer_, other.connector)
     {
-
+        REGISTER_PEX_NAME_WITH_PARENT(&this->connector, this, "connector");
     }
 
     Endpoint_ & operator=(Endpoint_ &&other)
@@ -199,6 +204,16 @@ public:
     void Connect(Callable callable)
     {
         this->connector.Connect(callable);
+    }
+
+    void Disconnect(Observer *)
+    {
+        this->connector.Disconnect();
+    }
+
+    void Disconnect()
+    {
+        this->connector.Disconnect();
     }
 
     explicit operator UpstreamControl () const
@@ -369,32 +384,97 @@ public:
 };
 
 
-template<typename T>
-struct ClassHelper {};
-
-
-template<typename T, typename U>
-struct ClassHelper<T U::*>
+namespace detail
 {
-    using Type = U;
+
+
+template<typename First_, typename ... TheRest_>
+struct ArgsHelper
+{
+    using First = First_;
+    using TheRest = std::tuple<TheRest_...>;
 };
 
-template<typename T>
-struct Class_: ClassHelper<std::remove_cv_t<T>> {};
 
 template<typename T>
-using Class = typename Class_<T>::Type;
+struct SignatureHelper {};
 
 
-template<typename Upstream, typename MemberFunction, typename ...Args>
+template<typename T, typename U, typename ...Args_>
+struct SignatureHelper<T (U::*)(Args_...)>
+{
+    using Return = T;
+    using Class = U;
+    using Args = std::tuple<std::decay_t<Args_>...>;
+    using First = std::decay_t<std::tuple_element_t<0, Args>>;
+    using TheRest = typename ArgsHelper<std::decay_t<Args_>...>::TheRest;
+};
+
+
+template<typename T>
+struct Signature: SignatureHelper<std::remove_cv_t<T>> {};
+
+
+template<typename Signature, typename Upstream, typename Enable = void>
+struct BoundArgs_
+{
+    using Type = typename Signature::TheRest;
+};
+
+template<typename Signature, typename Upstream>
+struct BoundArgs_
+<
+    Signature,
+    Upstream,
+    std::enable_if_t<IsSignal<Upstream>>
+>
+{
+    // Signals have no args of their own.
+    // All of the function args are the bound args.
+    using Type = typename Signature::Args;
+};
+
+
+template<typename Signature, typename Upstream>
+using BoundArgs = typename BoundArgs_<Signature, Upstream>::Type;
+
+
+template<typename Upstream, typename Enable = void>
+struct InternalType_
+{
+    using Type = int;
+};
+
+template<typename Upstream>
+struct InternalType_
+<
+    Upstream,
+    std::enable_if_t<!IsSignal<Upstream>>
+>
+{
+    using Type = pex::Argument<typename Upstream::Type>;
+};
+
+template<typename Upstream>
+using InternalType = typename InternalType_<Upstream>::Type;
+
+
+} // end namespace detail
+
+
+template<typename Upstream, typename MemberFunction>
 class BoundEndpoint
 {
 public:
-    using Observer = Class<MemberFunction>;
+    using Signature = detail::Signature<MemberFunction>;
+    using Observer = typename Signature::Class;
+    using Args = detail::BoundArgs<Signature, Upstream>;
 
     using InternalEndpoint = Endpoint<BoundEndpoint, Upstream>;
     using Connector = typename InternalEndpoint::Connector;
     using UpstreamControl = typename InternalEndpoint::UpstreamControl;
+
+    static constexpr auto observerName = "BoundEndpoint";
 
     BoundEndpoint()
         :
@@ -434,12 +514,12 @@ public:
         MemberFunction memberFunction,
         T &&...args)
         :
-        endpoint(this, upstream, &BoundEndpoint::OnInternal_),
+        endpoint(this, upstream),
         observer_(observer),
         memberFunction_(memberFunction),
         args_(std::make_tuple(std::forward<T>(args)...))
     {
-
+        this->ConnectInternal_();
     }
 
     BoundEndpoint(Observer *observer, typename UpstreamControl::Upstream &model)
@@ -452,6 +532,18 @@ public:
 
     }
 
+    void ConnectInternal_()
+    {
+        if constexpr (IsSignal<Upstream>)
+        {
+            this->endpoint.Connect(&BoundEndpoint::OnInternalSignal_);
+        }
+        else
+        {
+            this->endpoint.Connect(&BoundEndpoint::OnInternal_);
+        }
+    }
+
     // Uses helper type ...T to allow forwarding the bound arguments.
     template<typename ...T>
     BoundEndpoint(
@@ -460,12 +552,14 @@ public:
         MemberFunction memberFunction,
         T &&...args)
         :
-        endpoint(this, UpstreamControl(model), &BoundEndpoint::OnInternal_),
+        endpoint(
+            this,
+            UpstreamControl(model)),
         observer_(observer),
         memberFunction_(memberFunction),
         args_(std::make_tuple(std::forward<T>(args)...))
     {
-
+        this->ConnectInternal_();
     }
 
     BoundEndpoint(Observer *observer, const BoundEndpoint &other)
@@ -515,7 +609,19 @@ public:
         MemberFunction memberFunction,
         T &&...args)
     {
-        this->endpoint.ConnectUpstream(upstream, &BoundEndpoint::OnInternal_);
+        if constexpr (IsSignal<Upstream>)
+        {
+            this->endpoint.ConnectUpstream(
+                upstream,
+                &BoundEndpoint::OnInternalSignal_);
+        }
+        else
+        {
+            this->endpoint.ConnectUpstream(
+                upstream,
+                &BoundEndpoint::OnInternal_);
+        }
+
         this->memberFunction_ = memberFunction;
         this->args_ = std::make_tuple(std::forward<T>(args)...);
     }
@@ -524,39 +630,52 @@ public:
     template<typename ...T>
     void Connect(MemberFunction memberFunction, T &&...args)
     {
-        this->endpoint.Connect(&BoundEndpoint::OnInternal_);
+        this->ConnectInternal_();
         this->memberFunction_ = memberFunction;
         this->args_ = std::make_tuple(std::forward<T>(args)...);
+    }
+
+    void Disconnect(Observer *)
+    {
+        this->endpoint.Disconnect();
+    }
+
+    void Disconnect()
+    {
+        this->endpoint.Disconnect();
     }
 
     explicit operator UpstreamControl () const
     {
         return static_cast<UpstreamControl>(this->endpoint);
     }
-private:
-    static void Notify_(
-        Observer *observer,
-        MemberFunction memberFunction,
-        pex::Argument<typename UpstreamControl::Type> value,
-        Args ...args)
-    {
-        (observer->*memberFunction)(value, (args)...);
-    }
 
-    void OnInternal_(pex::Argument<typename UpstreamControl::Type> value)
+private:
+    void OnInternalSignal_()
     {
         std::apply(
-            BoundEndpoint::Notify_,
-            std::tuple_cat(
-                std::make_tuple(this->observer_, this->memberFunction_, value),
-                this->args_));
+            [this](auto &...args)
+            {
+                (this->observer_->*this->memberFunction_)((args)...);
+            },
+            this->args_);
+    }
+
+    void OnInternal_(detail::InternalType<Upstream> value)
+    {
+        std::apply(
+            [this, &value](auto &...args)
+            {
+                (this->observer_->*this->memberFunction_)(value, (args)...);
+            },
+            this->args_);
     }
 
 private:
     InternalEndpoint endpoint;
     Observer *observer_;
     MemberFunction memberFunction_;
-    std::tuple<Args...> args_;
+    Args args_;
 };
 
 

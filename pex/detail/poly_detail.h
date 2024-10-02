@@ -17,57 +17,6 @@ namespace detail
 {
 
 
-/**
- ** ControlBase_ declares virtual methods that allow its derived classes to be
- ** in a pex::List. (These are mostly used internally by pex.)
- ** A user can add their own virtual interface with ControlUserBase.
- **/
-template<typename Value_, typename ControlUserBase>
-class ControlBase_: public ControlUserBase
-{
-public:
-    using Value = Value_;
-    using ValueBase = typename Value_::ValueBase;
-
-    virtual ~ControlBase_() {}
-    virtual Value GetValue() const = 0;
-    virtual void SetValue(const Value &) = 0;
-    virtual std::string_view GetTypeName() const = 0;
-
-    using Callable = std::function<void(void *, const Value &)>;
-    virtual void Connect(void *observer, Callable callable) = 0;
-    virtual void Disconnect(void *observer) = 0;
-
-    virtual void SetValueWithoutNotify(const Value &) = 0;
-    virtual void DoValueNotify() = 0;
-
-    virtual std::shared_ptr<ControlBase_> Copy() const = 0;
-};
-
-
-/**
- ** ModelBase_ declares virtual methods that allow its derived classes to be
- ** in a pex::List. (These are mostly used internally by pex.)
- ** A user can add their own virtual interface with ModelUserBase.
- **/
-template<typename Value_, typename ModelUserBase, typename ControlBase>
-class ModelBase_: public ModelUserBase
-{
-public:
-    using Value = Value_;
-    using ValueBase = typename Value_::ValueBase;
-    using ControlPtr = std::shared_ptr<ControlBase>;
-
-    virtual ~ModelBase_() {}
-    virtual Value GetValue() const = 0;
-    virtual void SetValue(const Value &) = 0;
-    virtual std::string_view GetTypeName() const = 0;
-    virtual ControlPtr CreateControl() = 0;
-    virtual void SetValueWithoutNotify(const Value &) = 0;
-    virtual void DoValueNotify() = 0;
-};
-
-
 template<typename T, typename = void>
 struct BaseHasDescribe_: std::false_type {};
 
@@ -201,7 +150,17 @@ struct VirtualBase_<T, std::void_t<typename T::Base>>
 };
 
 
-struct Empty {};
+class Empty
+{
+
+};
+
+
+class DefaultModelBase
+{
+public:
+    virtual ~DefaultModelBase() {}
+};
 
 
 template<typename Supers, typename = void>
@@ -229,7 +188,7 @@ using MakeControlUserBase = typename MakeControlUserBase_<Supers>::Type;
 template<typename Supers, typename = void>
 struct MakeModelUserBase_
 {
-    using Type = Empty;
+    using Type = DefaultModelBase;
 };
 
 

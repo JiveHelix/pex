@@ -26,6 +26,40 @@ namespace pex
 {
 
 
+class NestedLog
+{
+private:
+    static size_t depth_;
+
+public:
+    NestedLog()
+    {
+        ++depth_;
+    }
+
+    NestedLog(const std::string &message)
+        :
+        NestedLog()
+    {
+        this->operator<<(message) << std::endl;
+    }
+
+    ~NestedLog()
+    {
+        --depth_;
+    }
+
+    template<typename T>
+    std::ostream & operator<<(T &&object)
+    {
+        return std::cout << std::string(depth_ * 2, ' ') << object;
+    }
+};
+
+
+inline size_t NestedLog::depth_ = 0;
+
+
 /**
  ** While the Reference exists, the model's value has been changed, but not
  ** published.
@@ -185,6 +219,14 @@ public:
 };
 
 
+} // end namespace detail
+
+
+// For template argument deduction.
+template<typename Pex>
+detail::AccessReference<Pex> AccessReference(Pex &pex)
+{
+    return detail::AccessReference<Pex>(pex);
 }
 
 
@@ -253,6 +295,59 @@ public:
             this->DoNotify_();
         }
     }
+
+    void DoNotify()
+    {
+        if (this->pex_)
+        {
+            this->DoNotify_();
+            this->pex_ = nullptr;
+        }
+    }
+};
+
+
+template<typename Pex, typename Super>
+class PolyDefer: public Defer<Pex>
+{
+public:
+    using Base = Defer<Pex>;
+    using Type = typename Base::Type;
+    using Access = typename Pex::Access;
+
+    using Base::Base;
+
+    PolyDefer(PolyDefer &&other)
+        :
+        Base(std::move(other))
+    {
+
+    }
+
+    PolyDefer & operator=(PolyDefer &&other)
+    {
+        if (this->pex_)
+        {
+            this->DoNotify_();
+        }
+
+        Base::operator=(std::move(other));
+
+        return *this;
+    }
+
+    PolyDefer & operator=(Argument<Type> value)
+    {
+        this->SetWithoutNotify_(value);
+        return *this;
+    }
+
+    Super * GetVirtual()
+    {
+        assert(this->pex_);
+
+        return this->pex_->GetVirtual();
+    }
 };
 
 
@@ -274,8 +369,44 @@ struct DeferSelector
     >
     {
         // This member expands to a group.
-        // Choose the appropriate DeferredGroup
-        using Type = typename T::template DeferredGroup<Selector>;
+        // Choose the appropriate DeferGroup
+        using Type = typename Selector<T>::Defer;
+    };
+
+    template<typename T>
+    struct DeferHelper_
+    <
+        T,
+        std::enable_if_t<IsList<T>>
+    >
+    {
+        // This member expands to a list.
+        // Choose the appropriate DeferList
+        using Type = typename Selector<T>::Defer;
+    };
+
+    template<typename T>
+    struct DeferHelper_
+    <
+        T,
+        std::enable_if_t<IsPolyModel<Selector<T>>>
+    >
+    {
+        // This member expands to a list.
+        // Choose the appropriate DeferList
+        using Type = PolyDefer<Selector<T>, typename Selector<T>::SuperModel>;
+    };
+
+    template<typename T>
+    struct DeferHelper_
+    <
+        T,
+        std::enable_if_t<IsPolyControl<Selector<T>>>
+    >
+    {
+        // This member expands to a list.
+        // Choose PolyDefer
+        using Type = PolyDefer<Selector<T>, typename Selector<T>::SuperControl>;
     };
 
     template<typename T>
@@ -341,22 +472,35 @@ SetByAccess(Target &, const Source &)
 }
 
 
+} // end namespace detail
+
+
 template
 <
     template<typename> typename Fields,
     template<template<typename> typename> typename Template,
-    template<typename> typename Selector
+    template<typename> typename Selector,
+    typename Upstream
 >
-class DeferredGroup:
+class DeferGroup
+    :
     public Template<DeferSelector<Selector>::template Type>
 {
 public:
-    using Upstream = Template<Selector>;
-    using This = DeferredGroup<Fields, Template, Selector>;
+    using This = DeferGroup<Fields, Template, Selector, Upstream>;
 
-    DeferredGroup() = default;
+    DeferGroup()
+        :
+        upstream_(nullptr),
+        scopeMute_()
+    {
 
-    DeferredGroup(Upstream &upstream)
+    }
+
+    DeferGroup(Upstream &upstream)
+        :
+        upstream_(&upstream),
+        scopeMute_(upstream, false)
     {
         auto initialize = [this, &upstream]
             (auto deferField, auto upstreamField)
@@ -377,6 +521,86 @@ public:
             Fields<Upstream>::fields);
     }
 
+    DeferGroup(const DeferGroup &) = delete;
+    DeferGroup & operator=(const DeferGroup &) = delete;
+
+    DeferGroup(DeferGroup &&other)
+        :
+        upstream_(other.upstream_),
+        scopeMute_(std::move(other.scopeMute_))
+    {
+        auto doMove = [this, &other] (auto deferField)
+        {
+            using MemberType = typename std::remove_reference_t<
+                decltype(this->*(deferField.member))>;
+
+            if constexpr (!std::is_same_v<DescribeSignal, MemberType>)
+            {
+                this->*(deferField.member) =
+                    std::move(other.*(deferField.member));
+            }
+        };
+
+        jive::ForEach(Fields<This>::fields, doMove);
+        other.upstream_ = nullptr;
+    }
+
+    DeferGroup & operator=(DeferGroup &&other)
+    {
+        this->upstream_ = other.upstream_;
+        this->scopeMute_ = std::move(other.scopeMute_);
+
+        auto doMove = [this, &other] (auto deferField)
+        {
+            using MemberType = typename std::remove_reference_t<
+                decltype(this->*(deferField.member))>;
+
+            if constexpr (!std::is_same_v<DescribeSignal, MemberType>)
+            {
+                this->*(deferField.member) =
+                    std::move(other.*(deferField.member));
+            }
+        };
+
+        jive::ForEach(Fields<This>::fields, doMove);
+        other.upstream_ = nullptr;
+
+        return *this;
+    }
+
+    ~DeferGroup()
+    {
+        // The DoNotify calls will only send notifications if they haven't
+        // already.
+        this->DoNotify();
+    }
+
+    using Plain = typename Upstream::Plain;
+
+    Plain Get() const
+    {
+        return this->upstream_->Get();
+    }
+
+    void DoNotify()
+    {
+        // Notify all members before unmuting the aggregate observer.
+        auto doNotify = [this](auto deferField)
+        {
+            using MemberType = typename std::remove_reference_t<
+                decltype(this->*(deferField.member))>;
+
+            if constexpr (!std::is_same_v<DescribeSignal, MemberType>)
+            {
+                (this->*(deferField.member)).DoNotify();
+            }
+        };
+
+        jive::ForEach(Fields<This>::fields, doNotify);
+
+        this->scopeMute_.Unmute();
+    }
+
     template<typename Plain>
     void Set(const Plain &plain)
     {
@@ -387,7 +611,7 @@ public:
 
             if constexpr (!std::is_same_v<DescribeSignal, MemberType>)
             {
-                SetByAccess(
+                detail::SetByAccess(
                     this->*(deferField.member),
                     plain.*(plainField.member));
             }
@@ -398,45 +622,263 @@ public:
             Fields<This>::fields,
             Fields<Plain>::fields);
     }
+
+    void Clear()
+    {
+        auto clear = [this](auto deferField)
+        {
+            using MemberType = typename std::remove_reference_t<
+                decltype(this->*(deferField.member))>;
+
+            if constexpr (!std::is_same_v<DescribeSignal, MemberType>)
+            {
+                (this->*(deferField.member)).Clear();
+            }
+        };
+
+        jive::ForEach(Fields<This>::fields, clear);
+
+        this->scopeMute_.Clear();
+    }
+
+private:
+    Upstream *upstream_;
+    detail::ScopeMute<Upstream> scopeMute_;
 };
-
-
-} // end namespace detail
 
 
 template
 <
-    template<typename> typename Fields,
-    template<template<typename> typename> typename Template,
+    typename MemberType,
     template<typename> typename Selector,
     typename Upstream
 >
-class DeferGroup
+class DeferList
 {
 public:
-    DeferGroup() = default;
+    using DeferredMember = DeferSelector<Selector>::template Type<MemberType>;
+    using Items = std::vector<DeferredMember>;
 
-    DeferGroup(Upstream &upstream)
+    using DeferredCount = DeferSelector<Selector>::template Type<size_t>;
+
+    using DeferredSelected =
+        DeferSelector<Selector>::template Type<std::optional<size_t>>;
+
+    using Iterator = typename Items::iterator;
+    using ConstIterator = typename Items::const_iterator;
+
+    using ReverseIterator = typename Items::reverse_iterator;
+    using ConstReverseIterator = typename Items::const_reverse_iterator;
+
+    DeferList()
         :
-        scopeMute_(upstream, false),
-        members(upstream)
+        scopeMute_(),
+        upstream_(nullptr),
+        items_(),
+        count(),
+        selected()
     {
 
+    }
+
+    DeferList(Upstream &upstream)
+        :
+        scopeMute_(upstream, false),
+        upstream_(&upstream),
+        items_(upstream.count.Get()),
+        count(upstream.count),
+        selected(upstream.selected)
+    {
+        size_t itemCount = items_.size();
+
+        for (size_t i = 0; i < itemCount; ++i)
+        {
+            this->items_[i] = DeferredMember(upstream[i]);
+        }
+    }
+
+    ~DeferList()
+    {
+        this->DoNotify();
+    }
+
+    DeferList(DeferList &&other)
+        :
+        scopeMute_(std::move(other.scopeMute_)),
+        upstream_(other.upstream_),
+        items_(std::move(other.items_)),
+        count(std::move(other.count)),
+        selected(std::move(other.selected))
+    {
+        assert(other.items_.size() == 0);
+        other.upstream_ = nullptr;
+    }
+
+    DeferList & operator=(DeferList &&other)
+    {
+        if (this->items_.size())
+        {
+            throw std::logic_error("Assign to armed DeferList");
+        }
+
+        this->scopeMute_ = std::move(other.scopeMute_);
+        this->upstream_ = other.upstream_;
+
+        this->items_ = std::move(other.items_);
+        this->count = std::move(other.count);
+        this->selected = std::move(other.selected);
+
+        assert(other.items_.size() == 0);
+
+        other.upstream_ = nullptr;
+
+        return *this;
+    }
+
+    using Type = typename Upstream::Type;
+
+    Type Get() const
+    {
+        return this->upstream_->Get();
+    }
+
+    void DoNotify()
+    {
+        for (auto &item: this->items_)
+        {
+            item.DoNotify();
+        }
+
+        this->count.DoNotify();
+        this->selected.DoNotify();
+
+        this->scopeMute_.Unmute();
     }
 
     template<typename Plain>
     void Set(const Plain &plain)
     {
-        this->members.Set(plain);
+        assert(this->upstream_);
+
+        auto itemCount = plain.size();
+
+        if (itemCount != this->items_.size())
+        {
+            // Clear the existing deferred members so they do not notify.
+
+            this->ClearItems();
+
+            detail::AccessReference<Upstream>(*this->upstream_)
+                .SetWithoutNotify(plain);
+
+            // SetWithoutNotify will call Unmute.
+            // TODO: Consider turning mute/unmute into a push/pop LIFO to
+            // prevent nested calls modifying the state.
+            this->scopeMute_.Mute(false);
+
+            this->items_.resize(itemCount);
+
+            for (size_t i = 0; i < itemCount; ++i)
+            {
+                this->items_[i] = DeferredMember((*this->upstream_)[i]);
+            }
+        }
+
+        for (size_t i = 0; i < itemCount; ++i)
+        {
+            this->items_[i].Set(plain[i]);
+        }
+    }
+
+    void ClearItems()
+    {
+        for (auto &item: this->items_)
+        {
+            item.Clear();
+        }
+
+        this->items_.clear();
+    }
+
+    void Clear()
+    {
+        this->ClearItems();
+        this->count.Clear();
+        this->selected.Clear();
+        this->scopeMute_.Clear();
+    }
+
+    Iterator begin()
+    {
+        return std::begin(this->items_);
+    }
+
+    Iterator end()
+    {
+        return std::end(this->items_);
+    }
+
+    ConstIterator begin() const
+    {
+        return std::begin(this->items_);
+    }
+
+    ConstIterator end() const
+    {
+        return std::end(this->items_);
+    }
+
+    ReverseIterator rbegin()
+    {
+        return std::rbegin(this->items_);
+    }
+
+    ReverseIterator rend()
+    {
+        return std::rend(this->items_);
+    }
+
+    ConstReverseIterator rbegin() const
+    {
+        return std::rbegin(this->items_);
+    }
+
+    ConstReverseIterator rend() const
+    {
+        return std::rend(this->items_);
+    }
+
+    DeferredMember & operator[](size_t index)
+    {
+        return this->items_[index];
+    }
+
+    const DeferredMember & operator[](size_t index) const
+    {
+        return this->items_[index];
+    }
+
+    size_t size() const
+    {
+        return this->items_.size();
+    }
+
+    bool empty() const
+    {
+        return this->items_.empty();
     }
 
 private:
     // Destruction order guarantees that the group will be unmuted only after
     // the deferred members have finished notifying.
     detail::ScopeMute<Upstream> scopeMute_;
+    Upstream * upstream_;
+
+    Items items_;
 
 public:
-    detail::DeferredGroup<Fields, Template, Selector> members;
+    DeferredCount count;
+    DeferredSelected selected;
 };
 
 
@@ -524,6 +966,14 @@ auto MakeDefer(Pex &pex)
     {
         // Group types define a Defer type.
         return typename Pex::Defer(pex);
+    }
+    else if constexpr (IsPolyModel<Pex>)
+    {
+        return PolyDefer<Pex, typename Pex::SuperModel>(pex);
+    }
+    else if constexpr (IsPolyControl<Pex>)
+    {
+        return PolyDefer<Pex, typename Pex::SuperControl>(pex);
     }
     else
     {

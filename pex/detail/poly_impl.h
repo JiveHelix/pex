@@ -15,7 +15,7 @@ template
     ::pex::HasMinimalSupers Templates
 >
 template<typename GroupBase>
-std::shared_ptr<MakeControlBase<typename Templates::Supers>>
+std::shared_ptr<MakeControlSuper<typename Templates::Supers>>
 Poly<Fields, Templates>::GroupTemplates_
     ::Model<GroupBase>::CreateControl()
 {
@@ -74,7 +74,7 @@ template
     ::pex::HasMinimalSupers Templates
 >
 template<typename GroupBase>
-std::shared_ptr<MakeControlBase<typename Templates::Supers>>
+std::shared_ptr<MakeControlSuper<typename Templates::Supers>>
 Poly<Fields, Templates>::GroupTemplates_
     ::TEMPLATE Control<GroupBase>::Copy() const
 {

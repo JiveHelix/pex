@@ -264,9 +264,9 @@ public:
         PEX_LOG(
             this,
             " calling connect on ",
-            &this->value_,
+            LookupPexName(&this->value_),
             " with ",
-            context);
+            LookupPexName(context));
 
         this->value_.Connect(context, callable);
     }
@@ -276,9 +276,9 @@ public:
         PEX_LOG(
             this,
             " calling Disconnect on ",
-            &this->value_,
+            LookupPexName(&this->value_),
             " with ",
-            context);
+            LookupPexName(context));
 
         this->value_.Disconnect(context);
     }
@@ -630,6 +630,18 @@ public:
         value(observer, std::move(other.value))
     {
 
+    }
+
+    void Disconnect(Observer *)
+    {
+        this->Disconnect();
+    }
+
+    void Disconnect()
+    {
+        this->choices.Disconnect();
+        this->selection.Disconnect();
+        this->value.Disconnect();
     }
 
     // Copy assign

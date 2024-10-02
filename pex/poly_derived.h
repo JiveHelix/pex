@@ -6,6 +6,7 @@
 #include "pex/poly_base.h"
 #include "pex/detail/traits.h"
 #include "pex/detail/poly_detail.h"
+#include "pex/get_type_name.h"
 
 
 namespace pex
@@ -14,6 +15,26 @@ namespace pex
 
 namespace poly
 {
+
+
+template<typename Json, typename Templates, typename T>
+Json PolyUnstructure(const T &object)
+{
+    auto jsonValues = fields::Unstructure<Json>(object);
+    jsonValues["type"] = std::string(GetTypeName<Templates>());
+
+    return jsonValues;
+}
+
+template<typename Json, typename T>
+requires ::fields::HasFieldsTypeName<T>
+Json PolyUnstructure(const T &object, const std::string &typeName)
+{
+    auto jsonValues = fields::Unstructure<Json>(object);
+    jsonValues["type"] = typeName;
+
+    return jsonValues;
+}
 
 
 template
@@ -42,7 +63,7 @@ public:
         ValueBase(),
         TemplateBase()
     {
-
+        // this->ReportAddress("PolyDerived_()");
     }
 
     PolyDerived_(const TemplateBase &other)
@@ -50,7 +71,7 @@ public:
         ValueBase(),
         TemplateBase(other)
     {
-
+        // this->ReportAddress("PolyDerived_(const TemplateBase &)");
     }
 
     std::ostream & Describe(
@@ -68,7 +89,7 @@ public:
 
     Json Unstructure() const override
     {
-        return pex::poly::PolyUnstructure<Json>(*this);
+        return pex::poly::PolyUnstructure<Json, Templates>(*this);
     }
 
     bool operator==(const VirtualBase &other) const override
@@ -84,11 +105,18 @@ public:
             == fields::ComparisonTuple(*otherPolyBase));
     }
 
-    std::string_view GetTypeName() const override
+    static std::string_view DoGetTypeName()
     {
-        return PolyDerived_::fieldsTypeName;
+        return ::pex::poly::GetTypeName<Templates>();
     }
 
+    std::string_view GetTypeName() const override
+    {
+        return ::pex::poly::GetTypeName<Templates>();
+    }
+
+    // Finds the most "Derived" class provided in Templates to ensure
+    // everything is copied.
     std::shared_ptr<ValueBase> Copy() const override
     {
         if constexpr (::pex::detail::HasDerived<Templates>)

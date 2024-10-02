@@ -10,11 +10,36 @@ namespace pex
 {
 
 
+template<typename T>
+concept HasControlType = requires
+{
+    typename T::ControlType;
+};
+
+
+template<typename T, typename Enable = void>
+struct GetControlType_
+{
+    using Type = pex::control::Value<T>;
+};
+
+
+template<typename T>
+struct GetControlType_<T, std::enable_if_t<HasControlType<T>>>
+{
+    using Type = typename T::ControlType;
+};
+
+
+template<typename T>
+using GetControlType = typename GetControlType_<T>::Type;
+
+
 // Specializations of MakeControl for List.
 template<typename P>
 struct MakeControl<P, std::enable_if_t<IsListModel<P>>>
 {
-    using Control = ::pex::control::List<P, typename P::Model::ControlType>;
+    using Control = typename P::ControlType;
     using Upstream = P;
 };
 
@@ -27,10 +52,8 @@ struct MakeControl<P, std::enable_if_t<IsListControl<P>>>
 };
 
 
-
 namespace detail
 {
-
 
 template<typename T, typename Enable = void>
 struct ConnectableSelector_
@@ -65,12 +88,16 @@ template<typename Observer, typename Upstream_>
 class ListConnect
 {
 public:
-    static_assert(::pex::IsList<Upstream_>);
+    static_assert(::pex::IsListNode<Upstream_>);
 
-    static constexpr auto observerName = "pex::detail::ListConnect";
+    static constexpr auto observerName = "pex::ListConnect";
+    static constexpr bool isListConnect = true;
 
     using ListControl = typename MakeControl<Upstream_>::Control;
-    using Connectable = ConnectableSelector<typename ListControl::ItemControl>;
+
+    using Connectable =
+        ConnectableSelector<typename ListControl::ListItem>;
+
     using Connectables = std::vector<Connectable>;
 
     using UpstreamControl = ListControl;
@@ -88,8 +115,12 @@ public:
     using Count = typename ListControl::Count;
     using CountTerminus = ::pex::Terminus<ListConnect, Count>;
 
-    using ValueConnection = detail::ValueConnection<Observer, ListType>;
-    using Callable = typename ValueConnection::Callable;
+    using ValueConnection = ValueConnection<Observer, ListType>;
+    using ValueCallable = typename ValueConnection::Callable;
+    using Callable = ValueCallable;
+
+    using SignalConnection = SignalConnection<Observer>;
+    using SignalCallable = typename SignalConnection::Callable;
 
     static_assert(std::is_same_v<Item, typename Connectable::Plain>);
 
@@ -102,7 +133,9 @@ public:
         connectables_(),
         observer_(nullptr),
         valueConnection_(),
+        signalConnection_(),
         countWillChange_(),
+        internalCount_(),
         count_(),
         cached_()
     {
@@ -123,14 +156,23 @@ public:
         connectables_(),
         observer_(observer),
         valueConnection_(),
+        signalConnection_(),
+
         countWillChange_(
             this,
             this->listControl_.countWillChange,
             &ListConnect::OnCountWillChange_),
-        count_(
+
+        internalCount_(
             this,
             this->listControl_.GetInternalCount_(),
+            &ListConnect::OnInternalCount_),
+
+        count_(
+            this,
+            this->listControl_.count,
             &ListConnect::OnCount_),
+
         cached_(this->listControl_.Get())
     {
 
@@ -139,7 +181,7 @@ public:
     ListConnect(
         Observer *observer,
         const ListControl &listControl,
-        Callable callable)
+        ValueCallable callable)
         :
         muteTerminus_(
             this,
@@ -151,14 +193,60 @@ public:
         connectables_(),
         observer_(observer),
         valueConnection_(std::in_place_t{}, observer, callable),
+        signalConnection_(),
+
         countWillChange_(
             this,
             this->listControl_.countWillChange,
             &ListConnect::OnCountWillChange_),
-        count_(
+
+        internalCount_(
             this,
             this->listControl_.GetInternalCount_(),
+            &ListConnect::OnInternalCount_),
+
+        count_(
+            this,
+            this->listControl_.count,
             &ListConnect::OnCount_),
+
+        cached_(this->listControl_.Get())
+    {
+        this->MakeListConnections_();
+    }
+
+    ListConnect(
+        Observer *observer,
+        const ListControl &listControl,
+        SignalCallable callable)
+        :
+        muteTerminus_(
+            this,
+            listControl.CloneMuteControl(),
+            &ListConnect::OnMute_),
+        muteState_(listControl.CloneMuteControl().Get()),
+        hasListConnections_(false),
+        listControl_(listControl),
+        connectables_(),
+        observer_(observer),
+        valueConnection_(),
+        signalConnection_(std::in_place_t{}, observer, callable),
+
+        countWillChange_(
+            this,
+            this->listControl_.countWillChange,
+            &ListConnect::OnCountWillChange_),
+
+        internalCount_(
+            this,
+            this->listControl_.GetInternalCount_(),
+            &ListConnect::OnInternalCount_),
+
+        count_(
+            this,
+            this->listControl_.count,
+            &ListConnect::OnCount_),
+
         cached_(this->listControl_.Get())
     {
         this->MakeListConnections_();
@@ -190,7 +278,17 @@ public:
     ListConnect(
         Observer *observer,
         Upstream &upstream,
-        Callable callable)
+        ValueCallable callable)
+        :
+        ListConnect(observer, ListControl(upstream), callable)
+    {
+
+    }
+
+    ListConnect(
+        Observer *observer,
+        Upstream &upstream,
+        SignalCallable callable)
         :
         ListConnect(observer, ListControl(upstream), callable)
     {
@@ -209,14 +307,22 @@ public:
         connectables_(),
         observer_(observer),
         valueConnection_(),
+        signalConnection_(),
         countWillChange_(
             this,
             this->listControl_.countWillChange,
             &ListConnect::OnCountWillChange_),
-        count_(
+
+        internalCount_(
             this,
             this->listControl_.GetInternalCount_(),
+            &ListConnect::OnInternalCount_),
+
+        count_(
+            this,
+            this->listControl_.count,
             &ListConnect::OnCount_),
+
         cached_(this->listControl_.Get())
     {
         if (other.valueConnection_)
@@ -224,7 +330,17 @@ public:
             this->valueConnection_.emplace(
                 observer,
                 other.valueConnection_->GetCallable());
+        }
 
+        if (other.signalConnection_)
+        {
+            this->signalConnection_.emplace(
+                observer,
+                other.signalConnection_->GetCallable());
+        }
+
+        if (other.valueConnection_ || other.signalConnection_)
+        {
             this->MakeListConnections_();
         }
     }
@@ -255,18 +371,29 @@ public:
             this->valueConnection_.emplace(
                 observer,
                 other.valueConnection_->GetCallable());
+        }
 
+        if (other.signalConnection_)
+        {
+            this->signalConnection_.emplace(
+                observer,
+                other.signalConnection_->GetCallable());
+        }
+
+        if (other.valueConnection_ || other.signalConnection_)
+        {
             this->MakeListConnections_();
         }
 
         this->countWillChange_.Assign(this, other.countWillChange_);
+        this->internalCount_.Assign(this, other.internalCount_);
         this->count_.Assign(this, other.count_);
         this->cached_ = other.cached_;
 
         return *this;
     }
 
-    void Connect(Callable callable)
+    void Connect(ValueCallable callable)
     {
         if (!this->observer_)
         {
@@ -281,7 +408,28 @@ public:
         }
     }
 
-    void Connect(Observer *observer, Callable callable)
+    void Connect(Observer *observer, ValueCallable callable)
+    {
+        this->observer_ = observer;
+        this->Connect(callable);
+    }
+
+    void Connect(SignalCallable callable)
+    {
+        if (!this->observer_)
+        {
+            throw std::runtime_error("ListConnect has no observer.");
+        }
+
+        this->signalConnection_.emplace(this->observer_, callable);
+
+        if (!this->hasListConnections_)
+        {
+            this->MakeListConnections_();
+        }
+    }
+
+    void Connect(Observer *observer, SignalCallable callable)
     {
         this->observer_ = observer;
         this->Connect(callable);
@@ -309,7 +457,13 @@ public:
 
     void Disconnect(Observer *)
     {
+        this->Disconnect();
+    }
+
+    void Disconnect()
+    {
         this->valueConnection_.reset();
+        this->signalConnection_.reset();
         this->ClearListConnections_();
     }
 
@@ -321,13 +475,18 @@ public:
 private:
     void OnMute_(const Mute_ &muteState)
     {
-        if (
-            !muteState.isMuted
-            && !muteState.isSilenced
-            && this->valueConnection_.has_value())
+        if (!muteState.isMuted && !muteState.isSilenced)
         {
-            // Notify group observers when unmuted.
-            (*this->valueConnection_)(this->cached_);
+            if (this->valueConnection_.has_value())
+            {
+                // Notify list observers when unmuted.
+                (*this->valueConnection_)(this->cached_);
+            }
+
+            if (this->signalConnection_.has_value())
+            {
+                (*this->signalConnection_)();
+            }
         }
 
         this->muteState_ = muteState;
@@ -339,6 +498,7 @@ private:
         ::pex::Argument<Item> item)
     {
         auto self = static_cast<ListConnect *>(context);
+
         self->cached_.at(index) = item;
 
         if (self->muteState_)
@@ -346,8 +506,14 @@ private:
             return;
         }
 
-        assert(self->valueConnection_.has_value());
-        (*self->valueConnection_)(self->cached_);
+        if (self->valueConnection_.has_value())
+        {
+            (*self->valueConnection_)(self->cached_);
+        }
+        else if (self->signalConnection_.has_value())
+        {
+            (*self->signalConnection_)();
+        }
     }
 
     void MakeListConnections_()
@@ -396,24 +562,33 @@ private:
         this->ClearListConnections_();
     }
 
-    void OnCount_(size_t)
+    void OnInternalCount_(size_t)
     {
         this->cached_ = this->listControl_.Get();
 
-        if (this->valueConnection_.has_value())
+        if (
+            this->valueConnection_.has_value()
+            || this->signalConnection_.has_value())
         {
             this->MakeListConnections_();
         }
-
-        if (
-            !this->muteState_.isMuted
-            && !this->muteState_.isSilenced
-            && this->valueConnection_.has_value())
-        {
-            (*this->valueConnection_)(this->cached_);
-        }
     }
 
+    void OnCount_(size_t)
+    {
+        if (!this->muteState_.isMuted && !this->muteState_.isSilenced)
+        {
+            if (this->valueConnection_.has_value())
+            {
+                (*this->valueConnection_)(this->cached_);
+            }
+
+            if (this->signalConnection_.has_value())
+            {
+                (*this->signalConnection_)();
+            }
+        }
+    }
 
 private:
     using MuteTerminus = pex::Terminus<ListConnect, MuteModel>;
@@ -424,13 +599,19 @@ private:
     Connectables connectables_;
     Observer *observer_;
     std::optional<ValueConnection> valueConnection_;
+    std::optional<SignalConnection> signalConnection_;
     CountWillChangeTerminus countWillChange_;
+    CountTerminus internalCount_;
     CountTerminus count_;
     ListType cached_;
 };
 
 
 } // end namespace detail
+
+
+template<typename T>
+concept IsListConnect = requires { T::isListConnect; };
 
 
 } // end namespace pex

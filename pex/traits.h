@@ -4,6 +4,7 @@
 #include <type_traits>
 #include "pex/model_value.h"
 #include "pex/signal.h"
+#include "pex/access_tag.h"
 
 
 namespace pex
@@ -330,28 +331,31 @@ inline constexpr bool IsGroupControl = IsGroupControl_<T>::value;
 template<typename T>
 inline constexpr bool IsGroupNode = IsGroupModel<T> || IsGroupControl<T>;
 
-#if 0
-template<typename T, typename = void>
-struct IsGroup_: std::false_type {};
-
-template<typename T>
-struct IsGroup_<T, std::enable_if_t<T::isGroup>>
-    :
-    std::true_type
-{
-
-};
-
-template<typename T>
-inline constexpr bool IsGroup = IsGroup_<T>::value;
-#endif
-
 template<typename T>
 concept IsGroup = T::isGroup;
 
 
 template<typename T>
+concept IsList = T::isList;
+
+template<typename T>
+concept IsListControl = T::isListControl;
+
+template<typename T>
+concept IsListModel = T::isListModel;
+
+template<typename T>
+concept IsListNode = IsListModel<T> || IsListControl<T>;
+
+
+template<typename T>
 concept IsPolyGroup = T::isPolyGroup;
+
+template<typename T>
+concept IsPolyControl = T::isPolyControl;
+
+template<typename T>
+concept IsPolyModel = T::isPolyModel;
 
 
 template<typename T>
@@ -363,6 +367,53 @@ concept HasSupers = requires { typename T::Supers; };
 
 template<typename T>
 concept HasMinimalSupers = HasSupers<T> && HasValueBase<typename T::Supers>;
+
+
+template<typename T>
+concept IsAccess = std::is_base_of_v<AccessTag, T>;
+
+
+template<typename T>
+concept DefinesAccess =
+    requires { typename T::Access; } && IsAccess<typename T::Access>;;
+
+
+template<typename T, typename Enable = void>
+struct GetAccess_
+{
+    using Type = GetAndSetTag;
+};
+
+
+template<typename T>
+struct GetAccess_
+<
+    T,
+    std::enable_if_t<DefinesAccess<T>>
+>
+{
+    using Type = typename T::Access;
+};
+
+
+template<typename T>
+using GetAccess = typename GetAccess_<T>::Type;
+
+
+template<typename T>
+concept IsPointer = std::is_pointer_v<T>;
+
+
+template<typename T>
+concept IsPolymorphic = std::is_polymorphic_v<std::remove_pointer_t<T>>;
+
+
+template<typename T>
+concept HasGetVirtual = requires(T t)
+{
+    { t.GetVirtual() } -> IsPointer;
+    { t.GetVirtual() } -> IsPolymorphic;
+};
 
 
 } // end namespace pex

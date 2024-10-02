@@ -2,7 +2,6 @@
 
 
 #include "pex/endpoint.h"
-#include "pex/detail/list_connect.h"
 
 
 namespace pex
@@ -14,7 +13,7 @@ class ListObserver
 {
 public:
     using ListControl = typename MakeControl<Upstream_>::Control;
-    using ItemControl = typename ListControl::ItemControl;
+    using ListItem = typename ListControl::ListItem;
     using Upstream = typename MakeControl<Upstream_>::Upstream;
 
     using CountWillChangeEndpoint =

@@ -31,8 +31,7 @@ struct BoundField
     using Endpoint = pex::BoundEndpoint
         <
             SourceType,
-            void (Observer::*)(pex::Argument<Value>, const TargetField &),
-            TargetField
+            void (Observer::*)(pex::Argument<Value>, const TargetField &)
         >;
 };
 
@@ -53,26 +52,19 @@ using BoundFields =
                 <
                     BoundField<Fields, Observer, Source, Target, I>
                 >()...);
-        }(std::make_index_sequence<std::tuple_size_v<pex::Fields<Source>>>{}));
+        }(
+            std::make_index_sequence
+            <
+                std::tuple_size_v
+                <
+                    pex::Fields<Fields<Source>>
+                >
+            >{}));
 
 
 template<typename T>
 using EndpointType = typename T::Endpoint;
 
-
-#if 0
-
-template<typename T>
-using EndpointsTuple =
-    decltype(
-        std::apply(
-            []<typename ...Ts>(Ts &&...)
-            {
-                return std::make_tuple(std::declval<EndpointType<Ts>>()...);
-            },
-            std::declval<T>()));
-
-#else
 
 template<typename>
 struct EndpointsTuple_ {};
@@ -86,7 +78,6 @@ struct EndpointsTuple_<std::tuple<Ts...>>
 template<typename T>
 using EndpointsTuple = typename EndpointsTuple_<T>::Type;
 
-#endif
 
 template<typename T>
 using EndpointsVariant = TupleToVariant<EndpointsTuple<T>>;

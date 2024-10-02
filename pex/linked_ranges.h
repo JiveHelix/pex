@@ -102,7 +102,7 @@ struct LinkedRanges
 
                 PEX_LOG(
                     "Connecting LinkedRanges::Model as observer: ",
-                    this);
+                    LookupPexName(this));
 
                 this->lowTerminus_.Assign(
                     this,

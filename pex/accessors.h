@@ -102,6 +102,41 @@ public:
     using GroupTemplate = Template_<T>;
 
 public:
+    void RegisterPexNames(void *groupAddress)
+    {
+        auto derived = static_cast<Derived *>(this);
+
+        // Iterate over members, and register names and addresses.
+        auto doRegisterNames = [derived, groupAddress] (auto thisField)
+        {
+            RegisterPexName(
+                &(derived->*(thisField.member)),
+                groupAddress,
+                thisField.name);
+        };
+
+        jive::ForEach(
+            Fields<Derived>::fields,
+            doRegisterNames);
+    }
+
+    void UnregisterPexNames()
+    {
+        auto derived = static_cast<Derived *>(this);
+
+        // Iterate over members, and register names and addresses.
+        auto doUnregisterNames = [derived] (auto thisField)
+        {
+            UnregisterPexName(
+                &(derived->*(thisField.member)),
+                thisField.name);
+        };
+
+        jive::ForEach(
+            Fields<Derived>::fields,
+            doUnregisterNames);
+    }
+
     void Mute()
     {
         auto derived = static_cast<Derived *>(this);
@@ -139,7 +174,7 @@ public:
             return;
         }
 
-        // Iterate over members, muting those that support it.
+        // Iterate over members, unmuting those that support it.
         auto doUnmute = [derived] (auto thisField)
         {
             using Member = typename std::remove_reference_t<
@@ -202,6 +237,19 @@ protected:
             doNotify);
     }
 };
+
+
+#ifdef ENABLE_PEX_LOG
+
+#define REGISTER_PEX_NAMES(groupAddress) this->RegisterPexNames(groupAddress)
+#define UNREGISTER_PEX_NAMES() this->UnregisterPexNames()
+
+#else
+
+#define REGISTER_PEX_NAMES(groupAddress)
+#define UNREGISTER_PEX_NAMES()
+
+#endif
 
 
 } // end namespace pex

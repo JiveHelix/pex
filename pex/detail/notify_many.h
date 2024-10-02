@@ -104,16 +104,20 @@ public:
 #ifdef USE_OBSERVER_NAME
         if constexpr (std::is_void_v<Observer>)
         {
-            PEX_LOG("void (", observer, ") connecting to ", this);
+            PEX_LOG(
+                "void (",
+                LookupPexName(observer),
+                ") connecting to ",
+                LookupPexName(this));
         }
         else
         {
             PEX_LOG(
                 Observer::observerName,
                 " (",
-                observer,
+                LookupPexName(observer),
                 ") connecting to ",
-                this);
+                LookupPexName(this));
         }
 #endif
 
@@ -129,16 +133,20 @@ public:
 #ifdef USE_OBSERVER_NAME
         if constexpr (std::is_void_v<Observer>)
         {
-            PEX_LOG("void (", observer, ") disconnecting from ", this);
+            PEX_LOG(
+                "void (",
+                LookupPexName(observer),
+                ") disconnecting from ",
+                LookupPexName(this));
         }
         else
         {
             PEX_LOG(
                 Observer::observerName,
                 " (",
-                observer,
+                LookupPexName(observer),
                 ") disconnecting from ",
-                this);
+                LookupPexName(this));
         }
 #endif
 

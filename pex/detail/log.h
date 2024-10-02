@@ -1,5 +1,7 @@
 #pragma once
 
+// #define ENABLE_PEX_LOG
+
 #include <mutex>
 #include <memory>
 #include <jive/path.h>
@@ -31,6 +33,15 @@ void ToStream(T && ... args)
 }
 
 
+void RegisterPexName(void *address, const std::string &name);
+
+void RegisterPexName(void *address, void *parent, const std::string &name);
+
+void UnregisterPexName(void *address, const std::string &name);
+
+std::string LookupPexName(void *address);
+
+
 } // end namespace pex
 
 
@@ -53,10 +64,21 @@ void ToStream(T && ... args)
         "] ", \
         __VA_ARGS__); assert(std::cout.good())
 
+#define REGISTER_PEX_NAME(address, name) pex::RegisterPexName(address, name)
+
+#define UNREGISTER_PEX_NAME(address, name) pex::UnregisterPexName(address, name)
+
+#define REGISTER_PEX_NAME_WITH_PARENT(address, parent, name) \
+    pex::RegisterPexName(address, parent, name)
+
 #else
 
 
 #define PEX_LOG(...)
+
+#define REGISTER_PEX_NAME(address, name)
+#define REGISTER_PEX_NAME_WITH_PARENT(address, parent, name)
+#define UNREGISTER_PEX_NAME(address, name)
 
 
 #endif // ENABLE_PEX_LOG

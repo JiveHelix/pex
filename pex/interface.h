@@ -14,6 +14,7 @@
 #include "pex/no_filter.h"
 #include "pex/access_tag.h"
 #include "pex/model_value.h"
+#include "pex/traits.h"
 
 namespace pex
 {
@@ -116,23 +117,10 @@ struct MakeSelect
 };
 
 
-template
-<
-    typename T,
-    size_t initialCount_
->
-struct MakeList
-{
-    using MemberType = T;
-    inline static constexpr size_t initialCount = initialCount_;
-};
-
-
-template <typename Supers_>
-struct MakePolyList
+template<HasValueBase Supers_>
+struct MakePoly
 {
     using Supers = Supers_;
-    inline static constexpr size_t initialCount = 0;
 };
 
 
@@ -178,13 +166,7 @@ template<typename ...T>
 inline constexpr bool IsMakeSelect = detail::IsMakeSelect_<T...>::value;
 
 template<typename ...T>
-inline constexpr bool IsMakeList = detail::IsMakeList_<T...>::value;
-
-template<typename ...T>
-inline constexpr bool IsMakePolyList = detail::IsMakePolyList_<T...>::value;
-
-template<typename ...T>
-inline constexpr bool IsListMaker = IsMakeList<T...> || IsMakePolyList<T...>;
+inline constexpr bool IsMakePoly = detail::IsMakePoly_<T...>::value;
 
 
 } // end namespace pex

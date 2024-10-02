@@ -1,8 +1,8 @@
 #pragma once
 
 
-#include "pex/poly_value.h"
-#include "pex/detail/poly_detail.h"
+#include "pex/poly_supers.h"
+#include "pex/traits.h"
 
 
 namespace pex
@@ -13,56 +13,36 @@ namespace poly
 {
 
 
-template<typename ValueBase, typename ControlUserBase>
-using ControlBase =
-    detail::ControlBase_<::pex::poly::Value<ValueBase>, ControlUserBase>;
-
-
-template<typename Supers>
-struct MakeControlBase_
+template<HasValueBase Supers>
+struct MakeControlSuper_
 {
     using Type =
-        ControlBase
+        ControlSuper
         <
             typename Supers::ValueBase,
             detail::MakeControlUserBase<Supers>
         >;
 };
 
-template<typename Supers>
-using MakeControlBase = typename MakeControlBase_<Supers>::Type;
+template<HasValueBase Supers>
+using MakeControlSuper = typename MakeControlSuper_<Supers>::Type;
 
 
-template
-<
-    typename ValueBase,
-    typename ModelUserBase,
-    typename ControlUserBase
->
-using ModelBase =
-    detail::ModelBase_
-    <
-        ::pex::poly::Value<ValueBase>,
-        ModelUserBase,
-        ControlBase<ValueBase, ControlUserBase>
-    >;
-
-
-template <typename Supers>
-struct MakeModelBase_
+template <HasValueBase Supers>
+struct MakeModelSuper_
 {
     using Type =
-        detail::ModelBase_
+        ModelSuper
         <
-            ::pex::poly::Value<typename Supers::ValueBase>,
+            typename Supers::ValueBase,
             detail::MakeModelUserBase<Supers>,
-            MakeControlBase<Supers>
+            MakeControlSuper<Supers>
         >;
 };
 
 
-template <typename Supers>
-using MakeModelBase = typename MakeModelBase_<Supers>::Type;
+template <HasValueBase Supers>
+using MakeModelSuper = typename MakeModelSuper_<Supers>::Type;
 
 
 template<HasValueBase Supers>
@@ -73,10 +53,16 @@ template<HasValueBase Supers>
 class Model
 {
 public:
+    using Access = GetAccess<Supers>;
     using ValueBase = typename Supers::ValueBase;
     using Value = ::pex::poly::Value<ValueBase>;
     using Type = Value;
-    using ModelBase = MakeModelBase<Supers>;
+    using ModelBase = typename Value::ModelBase;
+    using SuperModel = MakeModelSuper<Supers>;
+
+    static constexpr bool isPolyModel = true;
+    static_assert(std::is_base_of_v<ModelBase, SuperModel>);
+
     using ControlType = Control<Supers>;
 
     template<HasValueBase>
@@ -84,23 +70,7 @@ public:
 
     Value Get() const
     {
-        return this->base_->GetValue();
-    }
-
-    template<typename Derived>
-    void Set(const Derived &derived)
-    {
-        if (!this->base_)
-        {
-            // Create the right kind of ModelBase for this value.
-            this->base_ = derived.CreateModel();
-            this->base_->SetValue(derived);
-            this->baseCreated_.Trigger();
-        }
-        else
-        {
-            this->base_->SetValue(derived);
-        }
+        return this->superModel_->GetValue();
     }
 
     std::string_view GetTypeName() const
@@ -108,31 +78,84 @@ public:
         return this->base_->GetTypeName();
     }
 
-    ModelBase * GetVirtual()
+    SuperModel * GetVirtual()
     {
-        return this->base_.get();
+        return this->superModel_;
+    }
+
+    template<typename DerivedModel>
+    DerivedModel & RequireDerived()
+    {
+        auto result = dynamic_cast<DerivedModel *>(this->base_.get());
+
+        if (!result)
+        {
+            throw PolyError("Mismatched polymorphic value");
+        }
+
+        return *result;
+    }
+
+    void Set(const Value &value)
+    {
+        if (!value.CheckModel(this->base_.get()))
+        {
+            // Create the right kind of ModelBase for this value.
+            this->base_ = value.CreateModel();
+
+            this->superModel_ = dynamic_cast<SuperModel *>(this->base_.get());
+
+            if (!this->superModel_)
+            {
+                throw std::logic_error(
+                    "SuperModel must be derived from ModelBase");
+            }
+
+            this->superModel_->SetValue(value);
+            this->baseCreated_.Trigger();
+        }
+        else
+        {
+            this->superModel_->SetValue(value);
+        }
     }
 
 // TODO: Add this to pex::Reference
 // protected:
     void SetWithoutNotify_(const Value &value)
     {
-        this->base_->SetValueWithoutNotify(value);
+        if (!value.CheckModel(this->base_.get()))
+        {
+            // Create the right kind of ModelBase for this value.
+            this->base_ = value.CreateModel();
+            this->superModel_ = dynamic_cast<SuperModel *>(this->base_.get());
+
+            if (!this->superModel_)
+            {
+                throw std::logic_error(
+                    "SuperModel must be derived from ModelBase");
+            }
+
+            this->superModel_->SetValueWithoutNotify(value);
+            this->baseCreated_.Trigger();
+        }
+        else
+        {
+            this->superModel_->SetValueWithoutNotify(value);
+        }
     }
 
     void DoNotify_()
     {
-        this->base_->DoValueNotify();
+        this->superModel_->DoValueNotify();
     }
 
 
 private:
     std::unique_ptr<ModelBase> base_;
+    SuperModel *superModel_;
     pex::model::Signal baseCreated_;
 };
-
-
-
 
 
 } // end namespace poly

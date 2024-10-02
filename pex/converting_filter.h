@@ -3,6 +3,7 @@
 #include <cmath>
 #include <jive/overflow.h>
 #include <jive/platform.h>
+#include <jive/optional.h>
 #include "pex/control_value.h"
 
 
@@ -30,16 +31,19 @@ void RequireConvertible(Source value)
 #endif
 
 
-template<typename SetType, typename GetType>
+template<typename SetType_, typename GetType_>
 struct ConvertingFilter
 {
-    static GetType Get(SetType value)
+    using GetType = jive::RemoveOptional<GetType_>;
+    using SetType = jive::RemoveOptional<SetType_>;
+
+    static GetType Get(Argument<SetType> value)
     {
         CHECK_RANGE(GetType, value);
         return static_cast<GetType>(value);
     }
 
-    static SetType Set(GetType value)
+    static SetType Set(Argument<GetType> value)
     {
         CHECK_RANGE(SetType, value);
         return static_cast<SetType>(value);
@@ -128,13 +132,14 @@ template<typename T, ssize_t slope>
 struct LinearFilter
 {
     static_assert(slope != 0, "Cannot divide by zero!");
-    static_assert(std::is_floating_point_v<T>);
+    using Type = jive::RemoveOptional<T>;
+    static_assert(std::is_floating_point_v<Type>);
 
-    static int Get(T value)
+    static int Get(Type value)
     {
-        T result = value * static_cast<T>(slope);
+        Type result = value * static_cast<Type>(slope);
 
-        if constexpr (std::is_floating_point_v<T>)
+        if constexpr (std::is_floating_point_v<Type>)
         {
             result = round(result);
         }
@@ -142,9 +147,9 @@ struct LinearFilter
         return static_cast<int>(result);
     }
 
-    static T Set(int value)
+    static Type Set(int value)
     {
-        return static_cast<T>(value) / static_cast<T>(slope);
+        return static_cast<Type>(value) / static_cast<Type>(slope);
     }
 };
 

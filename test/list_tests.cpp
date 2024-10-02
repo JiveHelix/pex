@@ -1,5 +1,8 @@
 #include <catch2/catch.hpp>
 #include <pex/list.h>
+
+#include <pex/ordered_list.h>
+
 #include <pex/group.h>
 #include <pex/endpoint.h>
 #include <nlohmann/json.hpp>
@@ -9,13 +12,15 @@
 using json = nlohmann::json;
 
 
+#define TEST_WITH_ORDERED_LIST
+
+
+
 TEST_CASE("List can change size", "[List]")
 {
-    using Model = pex::model::Value<int>;
-    using Control = pex::control::Value<Model>;
-
-    using ListModel = pex::model::List<Model, 4>;
-    using ListControl = pex::control::List<ListModel, Control>;
+    using List = pex::List<int, 4>;
+    using ListModel = typename List::Model;
+    using ListControl = typename List::Control;
 
     ListModel listModel;
     ListControl listControl(listModel);
@@ -53,7 +58,7 @@ template<template<typename> typename T>
 struct GrootTemplate
 {
     T<std::string> name;
-    T<pex::MakeList<double, 4>> values;
+    T<pex::List<double, 4>> values;
 
     static constexpr auto fields = GrootFields<GrootTemplate>::fields;
     static constexpr auto fieldsTypeName = "Groot";
@@ -82,7 +87,7 @@ DECLARE_EQUALITY_OPERATORS(GrootTemplate<pex::Identity>)
 
 TEST_CASE("List as group member", "[List]")
 {
-    STATIC_REQUIRE(pex::IsMakeList<pex::MakeList<double, 4>>);
+    STATIC_REQUIRE(pex::IsList<pex::List<double, 4>>);
 
     using Model = typename GrootGroup::Model;
     using Control = typename GrootGroup::Control;
@@ -136,6 +141,7 @@ struct RocketTemplate
 
 using RocketGroup = pex::Group<RocketFields, RocketTemplate>;
 using Rocket = typename RocketGroup::Plain;
+using RocketControl = typename RocketGroup::Control;
 
 DECLARE_OUTPUT_STREAM_OPERATOR(Rocket)
 DECLARE_EQUALITY_OPERATORS(Rocket)
@@ -149,11 +155,17 @@ struct DraxFields
         fields::Field(&T::rockets, "rockets"));
 };
 
+
 template<template<typename> typename T>
 struct DraxTemplate
 {
     T<std::string> name;
-    T<pex::MakeList<RocketGroup, 4>> rockets;
+
+#ifdef TEST_WITH_ORDERED_LIST
+    T<pex::OrderedListGroup<pex::List<RocketGroup, 4>>> rockets;
+#else
+    T<pex::List<RocketGroup, 4>> rockets;
+#endif
 
     static constexpr auto fields = DraxFields<DraxTemplate>::fields;
     static constexpr auto fieldsTypeName = "Drax";
@@ -174,6 +186,16 @@ TEST_CASE("List of groups", "[List]")
     using Control = typename DraxGroup::Control;
 
     Model model;
+
+#ifdef TEST_WITH_ORDERED_LIST
+    REQUIRE(model.rockets.list.count.Get() == 4);
+    REQUIRE(model.rockets.indices.Get().size() == 4);
+#else
+    REQUIRE(model.rockets.count.Get() == 4);
+#endif
+
+    REQUIRE(model.rockets.count.Get() == 4);
+
     model.name.Set("I am Drax");
     Control control(model);
     Control another(model);
@@ -197,6 +219,16 @@ TEST_CASE("List of groups can be unstructured", "[List]")
     model.name.Set("I am Drax");
     Control control(model);
 
+
+#ifdef TEST_WITH_ORDERED_LIST
+    REQUIRE(model.rockets.list.count.Get() == 4);
+    REQUIRE(model.rockets.indices.Get().size() == 4);
+#else
+    REQUIRE(model.rockets.count.Get() == 4);
+#endif
+
+    REQUIRE(model.rockets.count.Get() == 4);
+
     for (size_t i = 1; i < 5; ++i)
     {
         control.rockets[i - 1].x.Set(static_cast<double>(i * i));
@@ -215,16 +247,18 @@ TEST_CASE("List of groups can be unstructured", "[List]")
 }
 
 
-class RocketObserver
+class RocketListObserver
 {
 public:
     using RocketListControl = decltype(DraxGroup::Control::rockets);
-    using RocketsEndpoint = pex::Endpoint<RocketObserver, RocketListControl>;
+    using RocketsEndpoint =
+        pex::Endpoint<RocketListObserver, RocketListControl>;
+
     using RocketList = typename RocketListControl::Type;
 
-    RocketObserver(RocketListControl rocketListControl)
+    RocketListObserver(RocketListControl rocketListControl)
         :
-        endpoint_(this, rocketListControl, &RocketObserver::OnRockets_),
+        endpoint_(this, rocketListControl, &RocketListObserver::OnRockets_),
         rocketList_(rocketListControl.Get()),
         notificationCount_()
     {
@@ -265,11 +299,32 @@ public:
         return true;
     }
 
+#ifdef TEST_WITH_ORDERED_LIST
+    bool operator==(const std::vector<Rocket> &rocketList) const
+    {
+        if (rocketList.size() != this->rocketList_.size())
+        {
+            return false;
+        }
+
+        for (size_t i = 0; i < rocketList.size(); ++i)
+        {
+            if (rocketList[i] != this->rocketList_[i])
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+#endif
+
 private:
     RocketsEndpoint endpoint_;
     RocketList rocketList_;
     size_t notificationCount_;
 };
+
 
 
 TEST_CASE("List of groups can be observed", "[List]")
@@ -280,7 +335,7 @@ TEST_CASE("List of groups can be observed", "[List]")
     Model model;
     model.name.Set("I am Drax");
     Control control(model);
-    RocketObserver observer(control.rockets);
+    RocketListObserver observer(control.rockets);
 
     auto values = GENERATE(
         take(
@@ -312,6 +367,7 @@ TEST_CASE("List of groups can be observed", "[List]")
     REQUIRE(observer.GetNotificationCount() == 2);
 
     control.rockets.count.Set(3);
+    REQUIRE(model.rockets.count.Get() == 3);
     REQUIRE(observer.GetRockets().size() == 3);
 }
 
@@ -331,8 +387,8 @@ template<template<typename> typename T>
 struct GamoraTemplate
 {
     T<std::string> name;
-    T<pex::MakeList<DraxGroup, 1>> draxes;
-    T<pex::MakeList<GrootGroup, 1>> groots;
+    T<pex::List<DraxGroup, 1>> draxes;
+    T<pex::List<GrootGroup, 1>> groots;
 
     static constexpr auto fields = GamoraFields<GamoraTemplate>::fields;
     static constexpr auto fieldsTypeName = "Gamora";
@@ -411,7 +467,12 @@ TEST_CASE("List of groups with member lists can be observed", "[List]")
 
     control.draxes.at(0).rockets.Set(rockets);
 
+#ifdef TEST_WITH_ORDERED_LIST
+    REQUIRE(observer.GetGamora().draxes.at(0).rockets.list == rockets);
+#else
     REQUIRE(observer.GetGamora().draxes.at(0).rockets == rockets);
+#endif
+
     REQUIRE(observer.GetNotificationCount() == 1);
 
     // Add another rocket.
@@ -420,20 +481,86 @@ TEST_CASE("List of groups with member lists can be observed", "[List]")
 
     control.draxes.at(0).rockets.Set(rockets);
 
+#ifdef TEST_WITH_ORDERED_LIST
+    REQUIRE(observer.GetGamora().draxes.at(0).rockets.list == rockets);
+#else
     REQUIRE(observer.GetGamora().draxes.at(0).rockets == rockets);
+#endif
+
     REQUIRE(observer.GetNotificationCount() == 2);
 
     // Change the number of draxes without affecting existing values.
     control.draxes.count.Set(2);
+
+#ifdef TEST_WITH_ORDERED_LIST
+    REQUIRE(observer.GetGamora().draxes.at(0).rockets.list == rockets);
+#else
     REQUIRE(observer.GetGamora().draxes.at(0).rockets == rockets);
+#endif
 
-    control.draxes.at(0).name.Set("I am Drax");
+    // Unstructure/Structure to copy of the model.
+    Model secondModel;
 
-    // std::cout << fields::DescribeColorized(observer.GetGamora(), 1)
-    //     << std::endl;
+    auto unstructured = fields::Unstructure<json>(model.Get());
+    auto asString = unstructured.dump();
+    auto recoveredUnstructured = json::parse(asString);
+    auto recovered = fields::Structure<Gamora>(recoveredUnstructured);
+
+    secondModel.Set(recovered);
+
+    REQUIRE(secondModel.Get() == model.Get());
 }
 
 
+class RocketSignalObserver
+{
+public:
+#ifdef TEST_WITH_ORDERED_LIST
+    using RocketsControl = decltype(DraxGroup::Control::rockets);
+    using RocketListControl = decltype(RocketsControl::list);
+
+    using RocketsConnect =
+        pex::detail::ListConnect<RocketSignalObserver, RocketListControl>;
+
+    RocketSignalObserver(RocketsControl rocketsControl)
+        :
+        endpoint_(this, rocketsControl.list, &RocketSignalObserver::OnRockets_),
+        notificationCount_()
+    {
+
+    }
+#else
+    using RocketListControl = decltype(DraxGroup::Control::rockets);
+
+    using RocketsConnect =
+        pex::detail::ListConnect<RocketSignalObserver, RocketListControl>;
+
+    RocketSignalObserver(RocketListControl rocketListControl)
+        :
+        endpoint_(this, rocketListControl, &RocketSignalObserver::OnRockets_),
+        notificationCount_()
+    {
+
+    }
+#endif
+
+    void OnRockets_()
+    {
+        ++this->notificationCount_;
+    }
+
+    size_t GetNotificationCount() const
+    {
+        return this->notificationCount_;
+    }
+
+private:
+    RocketsConnect endpoint_;
+    size_t notificationCount_;
+};
+
+
+#ifndef TEST_WITH_ORDERED_LIST
 TEST_CASE("List of groups can be Set", "[List]")
 {
     using Model = typename DraxGroup::Model;
@@ -442,11 +569,12 @@ TEST_CASE("List of groups can be Set", "[List]")
     Model model;
     model.name.Set("I am Drax");
     Control control(model);
-    RocketObserver observer(control.rockets);
+    RocketListObserver observer(control.rockets);
+    RocketSignalObserver signalObserver(control.rockets);
 
     auto values = GENERATE(
         take(
-            3,
+            1,
             chunk(
                 15,
                 random(-1000.0, 1000.0))));
@@ -464,6 +592,7 @@ TEST_CASE("List of groups can be Set", "[List]")
 
     REQUIRE(observer == rockets);
     REQUIRE(observer.GetNotificationCount() == 1);
+    REQUIRE(signalObserver.GetNotificationCount() == 1);
 
     // Add another rocket.
     rockets.push_back({values.at(12), values.at(13), values.at(14)});
@@ -471,8 +600,158 @@ TEST_CASE("List of groups can be Set", "[List]")
     auto drax = control.Get();
     drax.rockets = rockets;
 
+    // We haven't changed the model yet, so the observer should be untouched.
+    REQUIRE(observer.GetNotificationCount() == 1);
+    REQUIRE(signalObserver.GetNotificationCount() == 1);
+
+    REQUIRE(rockets.size() == 5);
+
+    // This call will update the model, and notify the observer.
     control.Set(drax);
 
     REQUIRE(observer == rockets);
-    // REQUIRE(observer.GetNotificationCount() == 2);
+
+    // We updated the list all at once, so we expect only one notification.
+    REQUIRE(observer.GetNotificationCount() == 2);
+    REQUIRE(signalObserver.GetNotificationCount() == 2);
+}
+#endif
+
+
+template<typename T>
+struct StarLordFields
+{
+    static constexpr auto fields = std::make_tuple(
+        fields::Field(&T::name, "name"),
+        fields::Field(&T::rocket, "rocket"));
+};
+
+template<template<typename> typename T>
+struct StarLordTemplate
+{
+    T<std::string> name;
+    T<RocketGroup> rocket;
+
+    static constexpr auto fields = StarLordFields<StarLordTemplate>::fields;
+    static constexpr auto fieldsTypeName = "StarLord";
+};
+
+
+using StarLordGroup = pex::Group<StarLordFields, StarLordTemplate>;
+using StarLord = typename StarLordGroup::Plain;
+
+DECLARE_EQUALITY_OPERATORS(StarLord)
+
+
+class RocketObserver
+{
+public:
+    using RocketsEndpoint =
+        pex::Endpoint<RocketObserver, RocketControl>;
+
+    RocketObserver(RocketControl rocketControl)
+        :
+        endpoint_(this, rocketControl, &RocketObserver::OnRocket_),
+        rocket_(rocketControl.Get()),
+        notificationCount_()
+    {
+
+    }
+
+    void OnRocket_(const Rocket &rocket)
+    {
+        this->rocket_ = rocket;
+        ++this->notificationCount_;
+    }
+
+    size_t GetNotificationCount() const
+    {
+        return this->notificationCount_;
+    }
+
+    const Rocket & GetRocket() const
+    {
+        return this->rocket_;
+    }
+
+    bool operator==(const Rocket &rocket) const
+    {
+        return this->rocket_ == rocket;
+    }
+
+private:
+    RocketsEndpoint endpoint_;
+    Rocket rocket_;
+    size_t notificationCount_;
+};
+
+
+TEST_CASE("Subgroup notification happens once.", "[List]")
+{
+    using Model = typename StarLordGroup::Model;
+    using Control = typename StarLordGroup::Control;
+
+    Model model;
+    model.name.Set("I am Star-Lord");
+    Control control(model);
+    RocketObserver observer(control.rocket);
+
+    auto values = GENERATE(
+        take(
+            1,
+            chunk(
+                6,
+                random(-1000.0, 1000.0))));
+
+    Rocket rocket;
+
+    for (size_t i = 0; i < 3; ++i)
+    {
+        rocket.x = values.at(0);
+        rocket.y = values.at(1);
+        rocket.z = values.at(2);
+    }
+
+    control.rocket.Set(rocket);
+
+    REQUIRE(observer == rocket);
+    REQUIRE(observer.GetNotificationCount() == 1);
+
+    // Change rocket.
+    rocket = Rocket{values.at(3), values.at(4), values.at(5)};
+
+    auto starLord = control.Get();
+    starLord.rocket = rocket;
+
+    // We haven't changed the model yet, so the observer should be untouched.
+    REQUIRE(observer.GetNotificationCount() == 1);
+
+    // This call will update the model, and notify the observer.
+    control.Set(starLord);
+
+    REQUIRE(observer == rocket);
+
+    // We updated the list all at once, so we expect only one notification.
+    REQUIRE(observer.GetNotificationCount() == 2);
+}
+
+
+TEST_CASE("Delete selected.", "[List]")
+{
+    using Model = pex::List<int>::Model;
+    using Control = pex::List<int>::Control;
+
+    Model model;
+    Control control(model);
+
+    model.Set(std::vector<int>({0, 1, 2, 3, 4}));
+    model.selected.Set(2);
+
+    REQUIRE(control[*control.selected.Get()].Get() == 2);
+
+    model.EraseSelected();
+
+    REQUIRE(!control.selected.Get());
+    REQUIRE(control.count.Get() == 4);
+    REQUIRE(control[2].Get() == 3);
 }

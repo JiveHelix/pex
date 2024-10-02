@@ -75,17 +75,10 @@ template<typename ...T> struct IsMakeSelect_: std::false_type {};
 template<typename ...T>
 struct IsMakeSelect_<MakeSelect<T...>>: std::true_type {};
 
-
-template<typename ...T> struct IsMakeList_: std::false_type {};
-
-template<typename T, size_t S>
-struct IsMakeList_<MakeList<T, S>>: std::true_type {};
-
-
-template<typename ...T> struct IsMakePolyList_: std::false_type {};
+template<typename ...T> struct IsMakePoly_: std::false_type {};
 
 template<typename Supers>
-struct IsMakePolyList_<MakePolyList<Supers>>: std::true_type {};
+struct IsMakePoly_<MakePoly<Supers>>: std::true_type {};
 
 
 } // end namespace detail

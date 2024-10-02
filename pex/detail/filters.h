@@ -12,6 +12,7 @@
 #pragma once
 
 #include <type_traits>
+// #include <jive/optional.h>
 #include "pex/access_tag.h"
 
 namespace pex
@@ -37,7 +38,14 @@ struct GetterIsStatic_
 <
     T,
     Filter,
-    std::enable_if_t<std::is_invocable_v<decltype(&Filter::Get), T>>
+    std::enable_if_t
+    <
+        std::is_invocable_v
+        <
+            decltype(&Filter::Get),
+            jive::RemoveOptional<T>
+        >
+    >
 > : std::true_type {};
 
 template<typename T, typename Filter>
@@ -57,7 +65,10 @@ struct GetterIsMember_
     Filter,
     std::enable_if_t
     <
-        std::is_invocable_v<decltype(&Filter::Get), Filter, T>
+        std::is_invocable_v
+        <
+            decltype(&Filter::Get), Filter, jive::RemoveOptional<T>
+        >
     >
 > : std::true_type {};
 
@@ -89,7 +100,17 @@ struct FilteredType_
     Filter,
     std::enable_if_t<GetterIsMember<T, Filter>>>
 {
-    using Type = std::invoke_result_t<decltype(&Filter::Get), Filter, T>;
+    using Type =
+        jive::MatchOptional
+        <
+            T,
+            std::invoke_result_t
+            <
+                decltype(&Filter::Get),
+                Filter,
+                jive::RemoveOptional<T>
+            >
+        >;
 };
 
 template<typename T, typename Filter>
@@ -98,7 +119,15 @@ struct FilteredType_<
     Filter,
     std::enable_if_t<GetterIsStatic<T, Filter>>>
 {
-    using Type = std::invoke_result_t<decltype(&Filter::Get), T>;
+    using Type =
+        jive::MatchOptional
+        <
+            T,
+            std::invoke_result_t
+            <
+                decltype(&Filter::Get), jive::RemoveOptional<T>
+            >
+        >;
 };
 
 template<typename T, typename Filter>
@@ -126,9 +155,9 @@ struct SetterIsStatic_
     <
         std::is_invocable_r_v
         <
-            T,
+            jive::RemoveOptional<T>,
             decltype(&Filter::Set),
-            FilteredType<T, Filter>
+            jive::RemoveOptional<FilteredType<T, Filter>>
         >
     >
 > : std::true_type {};
@@ -152,10 +181,10 @@ struct SetterIsMember_
     <
         std::is_invocable_r_v
         <
-            T,
+            jive::RemoveOptional<T>,
             decltype(&Filter::Set),
             Filter,
-            FilteredType<T, Filter>
+            jive::RemoveOptional<FilteredType<T, Filter>>
         >
     >
 > : std::true_type {};

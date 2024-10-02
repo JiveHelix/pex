@@ -247,8 +247,8 @@ struct Group
     template<template<typename> typename Selector, typename Upstream>
     using DeferGroup = DeferGroup<Fields, Template, Selector, Upstream>;
 
-    template<template<typename> typename Selector>
-    using DeferredGroup = detail::DeferredGroup<Fields, Template, Selector>;
+    // template<template<typename> typename Selector>
+    // using DeferredGroup = detail::DeferredGroup<Fields, Template, Selector>;
 
     template<typename Derived>
     using ModelAccessors = GroupAccessors
@@ -263,9 +263,9 @@ struct Group
     struct Control_;
 
     struct Model_:
-        public Template_<ModelSelector>,
         public detail::MuteOwner,
         public detail::Mute,
+        public Template_<ModelSelector>,
         public ModelAccessors<Model_>
     {
     public:
@@ -281,15 +281,17 @@ struct Group
 
         Model_()
             :
-            Template<ModelSelector>(),
             detail::MuteOwner(),
             detail::Mute(this->GetMuteControl()),
+            Template<ModelSelector>(),
             ModelAccessors<Model_>()
         {
             if constexpr (HasDefault<Plain>)
             {
-                this->SetWithoutNotify_(Plain::Default());
+                this->Set(Plain::Default());
             }
+
+            REGISTER_PEX_NAMES(this);
 
             // Note: There is no need for Plain to define Default() if all of
             // its members are default initialized. Each pex::model::Value_ is
@@ -298,12 +300,19 @@ struct Group
 
         Model_(const Plain &plain)
             :
-            Template<ModelSelector>(),
             detail::MuteOwner(),
             detail::Mute(this->GetMuteControl()),
+            Template<ModelSelector>(),
             ModelAccessors<Model_>()
         {
-            this->SetWithoutNotify_(plain);
+            this->Set(plain);
+
+            REGISTER_PEX_NAMES(this);
+        }
+
+        ~Model_()
+        {
+            UNREGISTER_PEX_NAMES();
         }
 
         Model_(const Model_ &) = delete;
@@ -368,7 +377,7 @@ struct Group
             ControlMembers(),
             AccessorsBase()
         {
-
+            REGISTER_PEX_NAMES(this);
         }
 
         Control_(Model &model)
@@ -378,6 +387,8 @@ struct Group
             AccessorsBase()
         {
             fields::AssignConvert<Fields>(*this, model);
+
+            REGISTER_PEX_NAMES(this);
         }
 
         Control_(const Control_ &other)
@@ -387,6 +398,8 @@ struct Group
             AccessorsBase()
         {
             fields::Assign<Fields>(*this, other);
+
+            REGISTER_PEX_NAMES(this);
         }
 
         Control_ & operator=(const Control_ &other)
@@ -395,6 +408,11 @@ struct Group
             fields::Assign<Fields>(*this, other);
 
             return *this;
+        }
+
+        ~Control_()
+        {
+            UNREGISTER_PEX_NAMES();
         }
 
         bool HasModel() const

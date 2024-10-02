@@ -12,9 +12,9 @@
 #pragma once
 
 #include <string>
-#include <type_traits>
 #include <stdexcept>
-
+#include <jive/optional.h>
+#include "pex/detail/log.h"
 #include "pex/no_filter.h"
 #include "pex/detail/notify_one.h"
 #include "pex/detail/notify_many.h"
@@ -128,9 +128,9 @@ public:
             {
                 PEX_LOG(
                     "Warning: ",
-                    connection.GetObserver(),
+                    LookupPexName(connection.GetObserver()),
                     " is still connected to Model ",
-                    this);
+                    LookupPexName(this));
             }
         }
 #endif
@@ -205,12 +205,37 @@ protected:
         }
         else if constexpr (detail::SetterIsMember<Type, Filter>)
         {
-            return this->filter_.Set(value);
+            if constexpr (jive::IsOptional<Type>)
+            {
+                if (!value)
+                {
+                    return {};
+                }
+
+                return this->filter_.Set(*value);
+            }
+            else
+            {
+                return this->filter_.Set(value);
+            }
         }
         else
         {
-            // The filter uses static Set.
-            return Filter::Set(value);
+            // The filter is not a member function.
+
+            if constexpr (jive::IsOptional<Type>)
+            {
+                if (!value)
+                {
+                    return {};
+                }
+
+                return Filter::Set(*value);
+            }
+            else
+            {
+                return Filter::Set(value);
+            }
         }
     }
 
@@ -222,12 +247,37 @@ protected:
         }
         else if constexpr (detail::GetterIsMember<Type, Filter>)
         {
-            return this->filter_.Get(value);
+            if constexpr (jive::IsOptional<Type>)
+            {
+                if (!value)
+                {
+                    return {};
+                }
+
+                return this->filter_.Get(*value);
+            }
+            else
+            {
+                return this->filter_.Get(value);
+            }
         }
         else
         {
-            // The filter doesn't accept a Filter * argument.
-            return Filter::Get(value);
+            // The filter is not a member function.
+
+            if constexpr (jive::IsOptional<Type>)
+            {
+                if (!value)
+                {
+                    return {};
+                }
+
+                return Filter::Get(*value);
+            }
+            else
+            {
+                return Filter::Get(value);
+            }
         }
     }
 
@@ -374,19 +424,11 @@ public:
         :
         model_(other.model_)
     {
-        if (!other.model_)
-        {
-            throw std::logic_error("other.model_ must be set!");
-        }
+
     }
 
     Direct & operator=(const Direct &other)
     {
-        if (!other.model_)
-        {
-            throw std::logic_error("other.model_ must be set!");
-        }
-
         this->model_ = other.model_;
 
         return *this;
@@ -410,7 +452,12 @@ public:
     {
         if (this->model_)
         {
-            PEX_LOG("Connect ", observer, " to ", this->model_);
+            PEX_LOG(
+                "Connect ",
+                LookupPexName(observer),
+                " to ",
+                LookupPexName(this->model_));
+
             this->model_->Connect(observer, callable);
         }
     }
@@ -419,7 +466,12 @@ public:
     {
         if (this->model_)
         {
-            PEX_LOG("Connect ", observer, " to ", this->model_);
+            PEX_LOG(
+                "Connect ",
+                LookupPexName(observer),
+                " to ",
+                LookupPexName(this->model_));
+
             this->model_->ConnectOnce(observer, callable);
         }
     }
@@ -428,7 +480,7 @@ public:
     {
         if (this->model_)
         {
-            PEX_LOG("Disconnect observer: ", observer);
+            PEX_LOG("Disconnect observer: ", LookupPexName(observer));
             this->model_->Disconnect(observer);
         }
     }

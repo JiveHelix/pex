@@ -35,7 +35,7 @@ public:
     }
 
 private:
-    void Observe_(Type value)
+    void Observe_(pex::Argument<Type> value)
     {
         this->observedValue = value;
     }
@@ -305,14 +305,12 @@ TEST_CASE("Observe filtered value", "[filters]")
 }
 
 
-using WeightRange = pex::model::Range<double>;
-using WeightControl = pex::control::Range<WeightRange>;
-
-using FilteredWeight = pex::control::LinearRange<WeightControl, 1>;
-
-
 TEST_CASE("LinearRange is observable", "[filters]")
 {
+    using WeightRange = pex::model::Range<double>;
+    using WeightControl = pex::control::Range<WeightRange>;
+    using FilteredWeight = pex::control::LinearRange<WeightControl, 1>;
+
     WeightRange weightRange;
     weightRange.SetMinimum(100.0);
     weightRange.SetMaximum(150.0);
@@ -323,4 +321,65 @@ TEST_CASE("LinearRange is observable", "[filters]")
     control.value.Set(125.0);
 
     REQUIRE(observer.observedValue == 125);
+}
+
+
+TEST_CASE("Optional LinearRange is observable", "[filters]")
+{
+    using WeightRange = pex::model::Range<std::optional<double>>;
+    using WeightControl = pex::control::Range<WeightRange>;
+    using FilteredWeight = pex::control::LinearRange<WeightControl, 1>;
+
+    WeightRange weightRange;
+    weightRange.SetMinimum(100.0);
+    weightRange.SetMaximum(150.0);
+
+    WeightControl control(weightRange);
+    REQUIRE(!weightRange.Get());
+
+    auto observer = Observer(FilteredWeight(control).value);
+    control.value.Set(125.0);
+
+    REQUIRE(observer.observedValue.has_value());
+    REQUIRE(*observer.observedValue == 125);
+
+    control.value.Set({});
+
+    REQUIRE(!observer.observedValue);
+}
+
+
+TEST_CASE("Optional ConvertingRange is observable", "[filters]")
+{
+    using WeightRange = pex::model::Range<std::optional<double>>;
+    using WeightControl = pex::control::Range<WeightRange>;
+    using FilteredWeight = pex::control::ConvertingRange<WeightControl, int>;
+
+    WeightRange weightRange;
+    weightRange.SetMinimum(100.0);
+    weightRange.SetMaximum(150.0);
+
+    WeightControl control(weightRange);
+    REQUIRE(!weightRange.Get());
+
+    auto observer = Observer(FilteredWeight(control).value);
+    control.value.Set(125.0);
+
+    REQUIRE(observer.observedValue.has_value());
+    REQUIRE(*observer.observedValue == 125);
+
+    control.value.Set({});
+
+    REQUIRE(!observer.observedValue);
+}
+
+
+TEST_CASE("LogarithmicFilter uses divisor.", "[filters]")
+{
+    using Filter = pex::control::LogarithmicFilter<double, 2, 3>;
+
+    for (int value = 0; value < 10; ++value)
+    {
+        REQUIRE(Filter::Get(Filter::Set(value)) == value);
+    }
 }

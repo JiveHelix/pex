@@ -29,6 +29,7 @@ struct Identity_
         IsFiltered<T>
         || IsMakeCustom<T>
         || IsGroup<T>
+        || IsList<T>
         || IsMakeRange<T>
     >
 >
@@ -49,36 +50,6 @@ template<typename T>
 struct Identity_<T, std::enable_if_t<IsMakeSignal<T>>>
 {
     using Type = pex::DescribeSignal;
-};
-
-
-template<typename T>
-struct Identity_
-<
-    T,
-    std::enable_if_t
-    <
-        IsMakeList<T>
-    >
->
-{
-    // Recursively look up the list type.
-    using Type = std::vector<typename Identity_<typename T::MemberType>::Type>;
-};
-
-
-template<typename T>
-struct Identity_
-<
-    T,
-    std::enable_if_t
-    <
-        IsMakePolyList<T>
-    >
->
-{
-    // Recursively look up the list type.
-    using Type = std::vector<::pex::poly::Value<typename T::Supers::ValueBase>>;
 };
 
 

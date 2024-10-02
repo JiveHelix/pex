@@ -3,6 +3,7 @@
 
 #include "pex/poly_value.h"
 #include "pex/poly_model.h"
+#include "pex/traits.h"
 
 
 namespace pex
@@ -17,24 +18,27 @@ template<HasValueBase Supers>
 class Control
 {
 public:
+    using Access = GetAccess<Supers>;
     using ValueBase = typename Supers::ValueBase;
     using Value = ::pex::poly::Value<ValueBase>;
     using Type = Value;
     using Plain = Type;
 
-    using ControlBase = MakeControlBase<Supers>;
+    using SuperControl = MakeControlSuper<Supers>;
 
-    using Callable = typename ControlBase::Callable;
+    using Callable = typename SuperControl::Callable;
     using Upstream = Model<Supers>;
 
     static constexpr bool isPexCopyable = true;
+    static constexpr bool isPolyControl = true;
     static constexpr auto observerName = "pex::poly::Control";
 
     Control()
         :
         upstream_(),
         base_(),
-        baseCreated_()
+        baseCreated(),
+        baseCreatedTerminus_()
     {
 
     }
@@ -43,7 +47,8 @@ public:
         :
         upstream_(&upstream),
         base_(),
-        baseCreated_(
+        baseCreated(this->upstream_->baseCreated_),
+        baseCreatedTerminus_(
             this,
             this->upstream_->baseCreated_,
             &Control::OnBaseCreated_)
@@ -60,7 +65,8 @@ public:
         :
         upstream_(other.upstream_),
         base_(other.base_),
-        baseCreated_(
+        baseCreated(this->upstream_->baseCreated_),
+        baseCreatedTerminus_(
             this,
             this->upstream_->baseCreated_,
             &Control::OnBaseCreated_)
@@ -72,7 +78,8 @@ public:
         :
         upstream_(upstream),
         base_(),
-        baseCreated_(
+        baseCreated(this->upstream_->baseCreated_),
+        baseCreatedTerminus_(
             this,
             this->upstream_->baseCreated_,
             &Control::OnBaseCreated_)
@@ -90,7 +97,8 @@ public:
         :
         upstream_(other.upstream_),
         base_(other.base_),
-        baseCreated_(
+        baseCreated(this->upstream_->baseCreated_),
+        baseCreatedTerminus_(
             this,
             this->upstream_->baseCreated_,
             &Control::OnBaseCreated_)
@@ -107,7 +115,8 @@ public:
     {
         this->upstream_ = other.upstream_;
         this->base_ = other.base_;
-        this->baseCreated_.Assign(this, other.baseCreated_);
+        this->baseCreated = other.baseCreated;
+        this->baseCreatedTerminus_.Assign(this, other.baseCreatedTerminus_);
 
         return *this;
     }
@@ -124,16 +133,28 @@ public:
         return this->base_->GetTypeName();
     }
 
-    const ControlBase * GetVirtual() const
+    // GetVirtual may return nullptr
+    const SuperControl * GetVirtual() const
     {
-        assert(this->base_);
         return this->base_.get();
     }
 
-    ControlBase * GetVirtual()
+    SuperControl * GetVirtual()
     {
-        assert(this->base_);
         return this->base_.get();
+    }
+
+    template<typename DerivedControl>
+    DerivedControl & RequireDerived()
+    {
+        auto result = dynamic_cast<DerivedControl *>(this->base_.get());
+
+        if (!result)
+        {
+            throw PolyError("Mismatched polymorphic value");
+        }
+
+        return *result;
     }
 
     void Set(const Value &value)
@@ -197,8 +218,14 @@ private:
         ::pex::Terminus<Control, pex::control::Signal<>>;
 
     Upstream *upstream_;
-    std::shared_ptr<ControlBase> base_;
-    BaseCreatedTerminus baseCreated_;
+    std::shared_ptr<SuperControl> base_;
+
+public:
+    using BaseCreatedControl = pex::control::Signal<>;
+    BaseCreatedControl baseCreated;
+
+private:
+    BaseCreatedTerminus baseCreatedTerminus_;
 };
 
 

@@ -25,14 +25,14 @@ struct Poly
 {
     using Supers = typename Templates::Supers;
     using ValueBase = typename Supers::ValueBase;
-    using PolyValue_ = Value<ValueBase>;
+    using PolyValue = Value<ValueBase>;
 
-    using ControlBase = MakeControlBase<Supers>;
+    using ControlBase = MakeControlSuper<Supers>;
 
-    using ModelBase = MakeModelBase<Supers>;
+    using ModelBase = MakeModelSuper<Supers>;
 
     using Derived = PolyDerived<Templates>;
-    using DerivedBase = typename Derived::TemplateBase;
+    using TemplateBase = typename Derived::TemplateBase;
 
     static constexpr bool isPolyGroup = true;
 
@@ -51,24 +51,24 @@ struct Poly
 
             using GroupBase::GroupBase;
 
-            PolyValue_ GetValue() const override
+            PolyValue GetValue() const override
             {
-                return PolyValue_(std::make_shared<Derived>(this->Get()));
+                return PolyValue(std::make_shared<Derived>(this->Get()));
             }
 
-            void SetValue(const PolyValue_ &value) override
+            void SetValue(const PolyValue &value) override
             {
                 this->Set(value.template RequireDerived<Derived>());
             }
 
             std::string_view GetTypeName() const override
             {
-                return Derived::fieldsTypeName;
+                return ::pex::poly::GetTypeName<Templates>();
             }
 
             std::shared_ptr<ControlBase> CreateControl() override;
 
-            void SetValueWithoutNotify(const PolyValue_ &value) override
+            void SetValueWithoutNotify(const PolyValue &value) override
             {
                 this->SetWithoutNotify_(
                     value.template RequireDerived<Derived>());
@@ -122,19 +122,19 @@ struct Poly
                 return *this;
             }
 
-            PolyValue_ GetValue() const override
+            PolyValue GetValue() const override
             {
-                return PolyValue_(std::make_shared<Derived>(this->Get()));
+                return PolyValue(std::make_shared<Derived>(this->Get()));
             }
 
-            void SetValue(const PolyValue_ &value) override
+            void SetValue(const PolyValue &value) override
             {
                 this->Set(value.template RequireDerived<Derived>());
             }
 
             std::string_view GetTypeName() const override
             {
-                return Derived::fieldsTypeName;
+                return ::pex::poly::GetTypeName<Templates>();
             }
 
             using BaseCallable = typename ControlBase::Callable;
@@ -162,7 +162,7 @@ struct Poly
 
             std::shared_ptr<ControlBase> Copy() const override;
 
-            void SetValueWithoutNotify(const PolyValue_ &value) override
+            void SetValueWithoutNotify(const PolyValue &value) override
             {
                 this->SetWithoutNotify_(
                     value.template RequireDerived<Derived>());
@@ -181,7 +181,7 @@ struct Poly
                 if (self->baseNotifier_.HasConnections())
                 {
                     self->baseNotifier_.Notify(
-                        PolyValue_(std::make_shared<Derived>(derived)));
+                        PolyValue(std::make_shared<Derived>(derived)));
                 }
             }
 
@@ -189,12 +189,12 @@ struct Poly
             class BaseNotifier
                 : public ::pex::detail::NotifyMany
                 <
-                    ::pex::detail::ValueConnection<void, PolyValue_>,
+                    ::pex::detail::ValueConnection<void, PolyValue>,
                     ::pex::GetAndSetTag
                 >
             {
             public:
-                void Notify(const PolyValue_ &value)
+                void Notify(const PolyValue &value)
                 {
                     this->Notify_(value);
                 }
@@ -225,19 +225,35 @@ public:
             typename Group_::Control
         >;
 
-    // Inherit the ability to CreateModel().
+#if 0
     class PolyValue: public PolyValue_
     {
     public:
         using PolyValue_::PolyValue_;
         using DerivedControl = Control;
 
+#if 0
         std::unique_ptr<ModelBase> CreateModel() const
         {
             auto result = std::make_unique<Model>();
-            result->Set(this->template RequireDerived<Derived>());
+
+            // I believe that this step is redundant.
+            // result->Set(this->template RequireDerived<Derived>());
 
             return result;
+        }
+
+        static bool CheckModel(ModelBase *modelBase)
+        {
+            auto check = dynamic_cast<Model *>(modelBase);
+
+            return (check != nullptr);
+        }
+#endif
+
+        static std::string_view DoGetTypeName()
+        {
+            return ::pex::poly::GetTypeName<Templates>();
         }
 
         PolyValue()
@@ -247,39 +263,26 @@ public:
 
         }
 
-        PolyValue(DerivedBase &&base)
+        PolyValue(TemplateBase &&base)
             :
             PolyValue_{std::make_shared<Derived>(std::move(base))}
         {
 
         }
-
-        PolyValue(Derived &&derived)
-            :
-            PolyValue_{std::make_shared<Derived>(std::move(derived))}
-        {
-
-        }
-
-        static PolyValue Default()
-        {
-            if constexpr (HasDefault<Derived>)
-            {
-                return PolyValue(Derived::Default());
-            }
-            else
-            {
-                return PolyValue(Derived{});
-            }
-        }
     };
+#endif
 
 private:
     // Register the Derived type so that it can be structured from json.
     static const inline bool once =
         []()
         {
-            ValueBase::template RegisterDerived<Derived>();
+            ValueBase::template RegisterDerived<Derived>(
+                std::string(::pex::poly::GetTypeName<Templates>()));
+
+            ValueBase::template RegisterModel<Model>(
+                std::string(::pex::poly::GetTypeName<Templates>()));
+
             return true;
         }();
 

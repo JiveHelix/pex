@@ -10,6 +10,7 @@ add_executable(
     filter_tests.cpp
     group_tests.cpp
     list_tests.cpp
+    ordered_list_tests.cpp
     poly_list_tests.cpp
     range_tests.cpp
     select_tests.cpp

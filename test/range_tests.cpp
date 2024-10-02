@@ -31,6 +31,37 @@ TEST_CASE("Limits keep value within range.", "[range]")
 }
 
 
+TEST_CASE("Limits keep optional value within range.", "[range]")
+{
+    using OptionalRange = pex::model::Range<std::optional<int>>;
+    using OptionalControl = pex::control::Range<OptionalRange>;
+
+    OptionalRange range;
+    REQUIRE(!range.Get());
+
+    range.SetLimits(0, 20);
+
+    OptionalControl control(range);
+
+    REQUIRE(!range.Get());
+
+    REQUIRE(control.minimum.Get() == 0);
+    REQUIRE(control.maximum.Get() == 20);
+
+    control.value.Set(23);
+    REQUIRE(*range.Get() == 20);
+
+    control.value.Set(-3);
+    REQUIRE(*range.Get() == 0);
+
+    range.SetMinimum(5);
+    REQUIRE(*range.Get() == 5);
+
+    control.value.Set({});
+    REQUIRE(!range.Get());
+}
+
+
 TEST_CASE("Limits filter propagates to controls.", "[range]")
 {
     Range range(18);
@@ -167,4 +198,39 @@ TEST_CASE("Linked ranges has comparison operators", "[range]")
     using TestSettings = typename TestRanges::Settings;
 
     STATIC_REQUIRE(jive::HasEqualTo<TestSettings>);
+}
+
+
+TEST_CASE("Range limits are never optional.", "[range]")
+{
+    using MakeRange =
+        pex::MakeRange<std::optional<double>, pex::Limit<-45>, pex::Limit<45>>;
+
+    using RangeControl = pex::ControlSelector<MakeRange>;
+
+    STATIC_REQUIRE(
+        !jive::IsOptional
+        <
+            decltype(std::declval<RangeControl>().minimum.Get())
+        >);
+
+    STATIC_REQUIRE(
+        !jive::IsOptional
+        <
+            decltype(std::declval<RangeControl>().maximum.Get())
+        >);
+
+    using LinearRange =
+        pex::control::LinearRange
+        <
+            typename RangeControl::Upstream,
+            1000,
+            typename RangeControl::Access
+        >;
+
+    STATIC_REQUIRE(
+        !jive::IsOptional<decltype(std::declval<LinearRange>().minimum.Get())>);
+
+    STATIC_REQUIRE(
+        !jive::IsOptional<decltype(std::declval<LinearRange>().maximum.Get())>);
 }

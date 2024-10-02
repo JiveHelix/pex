@@ -35,6 +35,8 @@ template<typename Observer, typename Upstream_>
 class GroupConnect
 {
 public:
+    static constexpr bool isGroupConnect = true;
+
     static_assert(IsGroupNode<Upstream_>);
 
     using UpstreamControl = typename MakeControl<Upstream_>::Control;
@@ -181,6 +183,11 @@ public:
 
     void Disconnect(Observer *)
     {
+        this->Disconnect();
+    }
+
+    void Disconnect()
+    {
         this->aggregate_.Disconnect(this);
         this->valueConnection_.reset();
     }
@@ -231,6 +238,10 @@ private:
 
 
 } // end namespace detail
+
+
+template<typename T>
+concept IsGroupConnect = requires { T::isGroupConnect; };
 
 
 } // end namespace pex

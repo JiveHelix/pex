@@ -7,7 +7,6 @@
 #include "pex/select.h"
 #include "pex/signal.h"
 #include "pex/interface.h"
-#include "pex/list.h"
 #include "pex/poly_model.h"
 #include "pex/poly_control.h"
 
@@ -53,33 +52,6 @@ struct SelectTypes
 
     using Control = pex::control::Select<Model>;
 };
-
-
-template<typename ListMaker, typename Model>
-struct ListModel_
-{
-    using Type = ::pex::model::List<Model, ListMaker::initialCount>;
-};
-
-
-template<typename ListMaker, typename Model>
-using ListModel = typename ListModel_<ListMaker, Model>::Type;
-
-
-template<typename ListMaker, typename Model, typename Control>
-struct ListControl_
-{
-    using Type =
-        ::pex::control::List
-        <
-            ListModel<ListMaker, Model>,
-            Control
-        >;
-};
-
-
-template<typename ListMaker, typename Model, typename Control>
-using ListControl = typename ListControl_<ListMaker, Model, Control>::Type;
 
 
 /***** ModelSelector *****/
@@ -138,22 +110,16 @@ struct ModelSelector_<T, std::enable_if_t<(IsPolyGroup<T>)>>
 };
 
 template<typename T>
-struct ModelSelector_<T, std::enable_if_t<IsMakeList<T>>>
+struct ModelSelector_<T, std::enable_if_t<IsList<T>>>
 {
-    using Type =
-        ListModel
-        <
-            T,
-            typename ModelSelector_<typename T::MemberType>::Type
-        >;
+    using Type = typename T::Model;
 };
 
 
 template<typename T>
-struct ModelSelector_<T, std::enable_if_t<IsMakePolyList<T>>>
+struct ModelSelector_<T, std::enable_if_t<IsMakePoly<T>>>
 {
-    using Type =
-        ListModel<T, poly::Model<typename T::Supers>>;
+    using Type = poly::Model<typename T::Supers>;
 };
 
 /***** ControlSelector *****/
@@ -211,28 +177,15 @@ struct ControlSelector_<T, std::enable_if_t<(IsPolyGroup<T>)>>
 };
 
 template<typename T>
-struct ControlSelector_<T, std::enable_if_t<IsMakeList<T>>>
+struct ControlSelector_<T, std::enable_if_t<IsList<T>>>
 {
-    using Type =
-        ListControl
-        <
-            T,
-            typename ModelSelector_<typename T::MemberType>::Type,
-            typename ControlSelector_<typename T::MemberType>::Type
-        >;
+    using Type = typename T::Control;
 };
 
-
 template<typename T>
-struct ControlSelector_<T, std::enable_if_t<IsMakePolyList<T>>>
+struct ControlSelector_<T, std::enable_if_t<IsMakePoly<T>>>
 {
-    using Type =
-        ListControl
-        <
-            T,
-            poly::Model<typename T::Supers>,
-            poly::Control<typename T::Supers>
-        >;
+    using Type = poly::Control<typename T::Supers>;
 };
 
 

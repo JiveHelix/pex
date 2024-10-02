@@ -12,7 +12,7 @@
 #pragma once
 
 
-#include <iostream>
+#include <jive/optional.h>
 #include "pex/model_value.h"
 #include "pex/traits.h"
 
@@ -154,9 +154,9 @@ public:
     {
         PEX_LOG(
             "control::Value_::~Value_::Disconnect: ",
-            this,
+            LookupPexName(this),
             " from ",
-            &this->upstream_);
+            LookupPexName(&this->upstream_));
 
         this->upstream_.Disconnect(this);
     }
@@ -368,7 +368,6 @@ public:
         upstream_(std::move(other.upstream_)),
         filter_(std::move(other.filter_))
     {
-        // Yes, this is a move constructor.
         // A control::Value with member-function filter is neither copyable nor
         // move-able.
         static_assert(IsCopyable<Value_>, "This value cannot be moved.");
@@ -600,12 +599,37 @@ private:
         else if constexpr (detail::SetterIsMember<UpstreamType, Filter>)
         {
             REQUIRE_HAS_VALUE(this->filter_);
-            return this->filter_->Set(value);
+
+            if constexpr (jive::IsOptional<Type>)
+            {
+                if (!value)
+                {
+                    return {};
+                }
+
+                return this->filter_->Set(*value);
+            }
+            else
+            {
+                return this->filter_->Set(value);
+            }
         }
         else
         {
             // The filter is not a member function.
-            return Filter::Set(value);
+            if constexpr (jive::IsOptional<Type>)
+            {
+                if (!value)
+                {
+                    return {};
+                }
+
+                return Filter::Set(*value);
+            }
+            else
+            {
+                return Filter::Set(value);
+            }
         }
     }
 
@@ -618,12 +642,38 @@ private:
         else if constexpr (detail::GetterIsMember<UpstreamType, Filter>)
         {
             REQUIRE_HAS_VALUE(this->filter_);
-            return this->filter_->Get(value);
+
+            if constexpr (jive::IsOptional<Type>)
+            {
+                if (!value)
+                {
+                    return {};
+                }
+
+                return this->filter_->Get(*value);
+            }
+            else
+            {
+                return this->filter_->Get(value);
+            }
         }
         else
         {
             // The filter is not a member function.
-            return Filter::Get(value);
+
+            if constexpr (jive::IsOptional<Type>)
+            {
+                if (!value)
+                {
+                    return {};
+                }
+
+                return Filter::Get(*value);
+            }
+            else
+            {
+                return Filter::Get(value);
+            }
         }
     }
 
@@ -727,16 +777,6 @@ extern template class Value_<model::Value_<std::string, NoFilter>>;
 
 
 } // namespace control
-
-
-template<typename ...T>
-struct IsControlBase_: std::false_type {};
-
-template<typename ...T>
-struct IsControlBase_<pex::control::Value_<T...>>: std::true_type {};
-
-template<typename ...T>
-inline constexpr bool IsControlBase = IsControlBase_<T...>::value;
 
 
 template<typename T, typename = void>

@@ -1,5 +1,6 @@
 #include <catch2/catch.hpp>
 #include <pex/list.h>
+#include <pex/ordered_list.h>
 #include <pex/group.h>
 #include <pex/poly.h>
 #include <pex/endpoint.h>
@@ -52,8 +53,14 @@ struct AircraftSupers
         virtual ValueControl & GetRange() = 0;
         virtual ValueControl & GetMaximumAltitude() = 0;
     };
-
 };
+
+
+using ModelSuper = pex::poly::MakeModelSuper<AircraftSupers>;
+
+static_assert(std::is_base_of_v<pex::poly::detail::DefaultModelBase, ModelSuper>);
+
+using PolyValue = pex::poly::Value<typename AircraftSupers::ValueBase>;
 
 
 struct CommonTemplates
@@ -222,14 +229,11 @@ using RotorWingPoly =
     pex::poly::Poly<RotorWingFields, RotorWingTemplates>;
 
 using RotorWing = typename RotorWingPoly::Derived;
-using RotorWingValue = typename RotorWingPoly::PolyValue;
-
 
 using FixedWingPoly =
     pex::poly::Poly<FixedWingFields, FixedWingTemplates>;
 
 using FixedWing = typename FixedWingPoly::Derived;
-using FixedWingValue = typename FixedWingPoly::PolyValue;
 using FixedWingControl = typename FixedWingPoly::Control;
 
 
@@ -249,7 +253,7 @@ class AirportTemplate
 public:
     T<size_t> runwayCount;
     T<size_t> dailyPassengerCount;
-    T<pex::MakePolyList<AircraftSupers>> aircraft;
+    T<pex::List<pex::MakePoly<AircraftSupers>>> aircraft;
 
     static constexpr auto fields = AirportFields<AirportTemplate>::fields;
     static constexpr auto fieldsTypeName = "Airport";
@@ -284,10 +288,10 @@ TEST_CASE("List of polymorphic values", "[poly]")
     Model model;
     AirportControl control(model);
 
-    control.aircraft.Append(RotorWingValue({10000, 175, 25}));
-    control.aircraft.Append(RotorWingValue({15000, 300, 34}));
-    control.aircraft.Append(FixedWingValue({20000, 800, 50}));
-    control.aircraft.Append(FixedWingValue({60000, 7000, 150}));
+    control.aircraft.Append(PolyValue::Create<RotorWing>(10000., 175., 25.));
+    control.aircraft.Append(PolyValue::Create<RotorWing>(15000., 300., 34.));
+    control.aircraft.Append(PolyValue::Create<FixedWing>(20000., 800., 50.));
+    control.aircraft.Append(PolyValue::Create<FixedWing>(60000., 7000., 150.));
 
     REQUIRE(model.aircraft.count.Get() == 4);
 
@@ -307,15 +311,43 @@ TEST_CASE("List of polymorphic values", "[poly]")
 }
 
 
+class CountObserver
+{
+public:
+    CountObserver(pex::control::ListCount count)
+        :
+        countEndpoint_(this, count, &CountObserver::OnCount_),
+        count_(count.Get())
+    {
+
+    }
+
+    void OnCount_(size_t value)
+    {
+        this->count_ = value;
+    }
+
+    size_t GetCount() const
+    {
+        return this->count_;
+    }
+
+    using CountEndpoint = pex::Endpoint<CountObserver, pex::control::ListCount>;
+
+    CountEndpoint countEndpoint_;
+    size_t count_;
+};
+
+
 TEST_CASE("List of polymorphic values can be unstructured", "[poly]")
 {
     Model model;
     AirportControl control(model);
 
-    control.aircraft.Append(RotorWingValue({10000, 175, 25}));
-    control.aircraft.Append(FixedWingValue({20000, 800, 50}));
-    control.aircraft.Append(FixedWingValue({60000, 7000, 150}));
-    control.aircraft.Append(RotorWingValue({15000, 300, 34}));
+    control.aircraft.Append(PolyValue::Create<RotorWing>(10000., 175., 25.));
+    control.aircraft.Append(PolyValue::Create<FixedWing>(20000., 800., 50.));
+    control.aircraft.Append(PolyValue::Create<FixedWing>(60000., 7000., 150.));
+    control.aircraft.Append(PolyValue::Create<RotorWing>(15000., 300., 34.));
 
     REQUIRE(model.aircraft.count.Get() == 4);
 
@@ -351,15 +383,110 @@ TEST_CASE("List of polymorphic values can be unstructured", "[poly]")
         craft.Get().GetValueBase()->SayHello();
     }
 #endif
+
+    Model model2;
+
+    CountObserver countObserver(pex::control::ListCount(model2.aircraft.count));
+
+    REQUIRE(countObserver.GetCount() == 0);
+
+    model2.Set(recovered);
+
+    REQUIRE(model2.Get() == model.Get());
+
+    REQUIRE(countObserver.GetCount() == model2.aircraft.Get().size());
+    REQUIRE(countObserver.GetCount() == model2.aircraft.count.Get());
 }
 
 
+template<template<typename> typename T>
+class OrderedAirportTemplate
+{
+public:
+    T<size_t> runwayCount;
+    T<size_t> dailyPassengerCount;
+    T<pex::OrderedListGroup<pex::List<pex::MakePoly<AircraftSupers>>>> aircraft;
+
+    static constexpr auto fields =
+        AirportFields<OrderedAirportTemplate>::fields;
+
+    static constexpr auto fieldsTypeName = "OrderedAirport";
+};
+
+
+using OrderedAirportGroup = pex::Group<AirportFields, OrderedAirportTemplate>;
+using OrderedAirport = typename OrderedAirportGroup::Plain;
+
+
+DECLARE_EQUALITY_OPERATORS(OrderedAirport)
+
+
+using OrderedModel = typename OrderedAirportGroup::Model;
+using OrderedAirportControl = typename OrderedAirportGroup::Control;
+
+
+TEST_CASE("OrderedList of polymorphic values can be unstructured", "[poly]")
+{
+    OrderedModel model;
+    OrderedAirportControl control(model);
+
+    control.aircraft.Append(PolyValue::Create<RotorWing>(10000., 175., 25.));
+    control.aircraft.Append(PolyValue::Create<FixedWing>(20000., 800., 50.));
+    control.aircraft.Append(PolyValue::Create<FixedWing>(60000., 7000., 150.));
+    control.aircraft.Append(PolyValue::Create<RotorWing>(15000., 300., 34.));
+
+    REQUIRE(model.aircraft.count.Get() == 4);
+
+    auto unstructured = fields::Unstructure<nlohmann::json>(model.Get());
+
+#ifdef LOG_POLY_LIST_TESTS
+    std::cout << "\nunstructured:\n" << std::setw(4) << unstructured
+        << std::endl;
+#endif
+
+    auto asString = unstructured.dump(4);
+
+#ifdef LOG_POLY_LIST_TESTS
+    std::cout << "asString:\n" << asString << std::endl;
+#endif
+
+    auto recoveredUnstructured = nlohmann::json::parse(asString);
+    auto recovered = fields::Structure<OrderedAirport>(recoveredUnstructured);
+
+#ifdef LOG_POLY_LIST_TESTS
+    std::cout << "recovered\n" << fields::DescribeColorized(recovered, 1)
+        << std::endl;
+#endif
+
+    REQUIRE(recovered == model.Get());
+
+#ifdef LOG_POLY_LIST_TESTS
+    std::cout << "aircraft count: " << control.aircraft.count.Get()
+        << std::endl;
+
+    for (auto &craft: control.aircraft)
+    {
+        craft.Get().GetValueBase()->SayHello();
+    }
+#endif
+
+    OrderedModel model2;
+    CountObserver countObserver(model2.aircraft.count);
+    REQUIRE(countObserver.GetCount() == 0);
+
+    model2.Set(recovered);
+
+    REQUIRE(model2.Get() == model.Get());
+
+    REQUIRE(countObserver.GetCount() == model2.aircraft.Get().size());
+    REQUIRE(countObserver.GetCount() == model2.aircraft.count.Get());
+}
+
+
+
+
 using TestListControl =
-    pex::control::List
-    <
-        pex::model::List<pex::poly::Model<AircraftSupers>, 0>,
-        pex::poly::Control<AircraftSupers>
-    >;
+    typename pex::List<pex::MakePoly<AircraftSupers>>::Control;
 
 static_assert(pex::IsListControl<TestListControl>);
 
@@ -439,6 +566,13 @@ public:
     using AirportEndpoint =
         pex::Endpoint<AirportObserver, AirportControl>;
 
+    using EndpointConnector = typename AirportEndpoint::Connector;
+
+    static_assert(pex::IsGroupConnect<EndpointConnector>);
+    using Aggregate = typename EndpointConnector::Aggregate;
+    using AircraftConnector = decltype(Aggregate::aircraft);
+    static_assert(pex::IsListConnect<AircraftConnector>);
+
     AirportObserver(AirportControl airportControl)
         :
         endpoint_(this, airportControl, &AirportObserver::OnAirport_),
@@ -487,24 +621,30 @@ TEST_CASE("Poly list of groups implements virtual bases.", "[List]")
     REQUIRE(observer.GetNotificationCount() == 0);
 
     control.aircraft.Append(
-        RotorWingValue({values.at(0), values.at(1), values.at(2)}));
+        PolyValue::Create<RotorWing>(values.at(0), values.at(1), values.at(2)));
 
     REQUIRE(observer.GetNotificationCount() == 1);
 
     control.aircraft.Append(
-        FixedWingValue({values.at(3), values.at(4), values.at(5)}));
+        PolyValue::Create<FixedWing>(values.at(3), values.at(4), values.at(5)));
 
     control.aircraft.Append(
-        FixedWingValue({values.at(6), values.at(7), values.at(8)}));
+        PolyValue::Create<FixedWing>(values.at(6), values.at(7), values.at(8)));
 
     control.aircraft.Append(
-        RotorWingValue({values.at(9), values.at(10), values.at(11)}));
+        PolyValue::Create<RotorWing>(
+            values.at(9),
+            values.at(10),
+            values.at(11)));
 
     AirportObserver airportObserver(control);
     REQUIRE(airportObserver.GetNotificationCount() == 0);
 
     control.aircraft.Append(
-        RotorWingValue({values.at(12), values.at(13), values.at(14)}));
+        PolyValue::Create<RotorWing>(
+            values.at(12),
+            values.at(13),
+            values.at(14)));
 
     REQUIRE(airportObserver.GetNotificationCount() == 1);
 
@@ -525,9 +665,11 @@ TEST_CASE("Poly list of groups implements virtual bases.", "[List]")
     REQUIRE(airport.aircraft.size() == 5);
     REQUIRE(airport.aircraft[2].RequireDerived<FixedWing>().range == 42.0);
 
+    // 'Get' returns pex::poly::Value<Aircraft>
     auto aircraft = model.aircraft[2].Get().RequireDerived<FixedWing>();
     aircraft.range = 43.0;
-    control.aircraft[2].GetVirtual()->SetValue(aircraft);
+
+    control.aircraft[2].Set(aircraft);
 
     REQUIRE(airportObserver.GetNotificationCount() == 3);
 
@@ -558,18 +700,19 @@ TEST_CASE("Poly list is observed after going to size 0.", "[List]")
 
 
     control.aircraft.Append(
-        RotorWingValue({values.at(0), values.at(1), values.at(2)}));
+        PolyValue::Create<RotorWing>(values.at(0), values.at(1), values.at(2)));
 
     REQUIRE(aircraftObserver.GetNotificationCount() == 1);
     REQUIRE(airportObserver.GetNotificationCount() == 1);
 
     control.aircraft.count.Set(0);
 
+    REQUIRE(airportObserver.GetAirport().aircraft.size() == 0);
     REQUIRE(aircraftObserver.GetNotificationCount() == 2);
     REQUIRE(airportObserver.GetNotificationCount() == 2);
 
     control.aircraft.Append(
-        FixedWingValue({values.at(3), values.at(4), values.at(5)}));
+        PolyValue::Create<FixedWing>(values.at(3), values.at(4), values.at(5)));
 
     REQUIRE(aircraftObserver.GetNotificationCount() == 3);
     REQUIRE(airportObserver.GetNotificationCount() == 3);
@@ -582,12 +725,10 @@ TEST_CASE("Poly list is observed after going to size 0.", "[List]")
     REQUIRE(
         model.aircraft[0].Get().RequireDerived<FixedWing>().range == 42.0);
 
-#if 0
     REQUIRE(
         aircraftObserver.GetAircraft()[0]
             .RequireDerived<FixedWing>().range
         == 42.0);
-#endif
 
     auto &airport = airportObserver.GetAirport();
 
@@ -596,7 +737,7 @@ TEST_CASE("Poly list is observed after going to size 0.", "[List]")
 
     auto aircraft = model.aircraft[0].Get().RequireDerived<FixedWing>();
     aircraft.range = 43.0;
-    control.aircraft[0].GetVirtual()->SetValue(aircraft);
+    control.aircraft[0].Set(aircraft);
 
     REQUIRE(aircraftObserver.GetNotificationCount() == 5);
 
@@ -649,16 +790,14 @@ TEST_CASE("Use Poly in a pex::Group", "[poly]")
                 random(-1000.0, 1000.0))));
 
     auto rotorWing =
-        RotorWingValue({values.at(0), values.at(1), values.at(2)});
+        PolyValue::Create<RotorWing>(values.at(0), values.at(1), values.at(2));
 
     control.rotorWing.SetValue(rotorWing);
 
     auto fixedWing =
-        FixedWingValue({values.at(0), values.at(1), values.at(2)});
+        PolyValue::Create<FixedWing>(values.at(0), values.at(1), values.at(2));
 
     control.fixedWing.SetValue(fixedWing);
-
-    // std::cout << fields::Describe(model.Get(), 1) << std::endl;
 
     REQUIRE(fixedWing == model.fixedWing.GetValue());
     REQUIRE(rotorWing == model.rotorWing.GetValue());

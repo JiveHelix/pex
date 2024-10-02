@@ -43,8 +43,10 @@ class PexConan(ConanFile):
 
     def build_requirements(self):
         self.test_requires("catch2/2.13.8")
-        self.test_requires("nlohmann_json/[~3.11]")
+        # self.test_requires("nlohmann_json/[~3.11]")
 
     def requirements(self):
-        self.requires("jive/[>=1.1.3 < 1.3]")
-        self.requires("fields/[>=1.3.6 < 1.4]")
+        self.requires("jive/[>=1.2.3 < 1.3]")
+        self.requires("fields/[>=1.3.7 < 1.4]")
+        self.requires("fmt/[~10]")
+        self.requires("nlohmann_json/[~3.11]")

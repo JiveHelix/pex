@@ -183,9 +183,9 @@ TEST_CASE("Deferred member struct does not repeat notifications", "[aggregate]")
 
     {
         auto defer = pex::MakeDefer(control.rightCircle);
-        defer.members.radius.Set(36.0);
-        defer.members.center.x.Set(900.0);
-        defer.members.center.y.Set(800.0);
+        defer.radius.Set(36.0);
+        defer.center.x.Set(900.0);
+        defer.center.y.Set(800.0);
         REQUIRE(observer.GetCount() == 0);
     }
 

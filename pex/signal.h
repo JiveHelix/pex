@@ -86,6 +86,7 @@ public:
         model_(&model)
     {
         PEX_LOG("Connect ", this);
+        REGISTER_PEX_NAME(this, "Signal");
         this->model_->Connect(this, &Signal::OnModelSignaled_);
     }
 
@@ -93,9 +94,11 @@ public:
     {
         if (this->model_)
         {
-            PEX_LOG("Disconnect ", this);
+            PEX_LOG("Disconnect ", LookupPexName(this));
             this->model_->Disconnect(this);
         }
+
+        UNREGISTER_PEX_NAME(this, "Signal");
     }
 
     Signal(void *observer, model::Signal &model, Callable callable)
@@ -125,22 +128,15 @@ public:
         :
         model_(other.model_)
     {
-        if (!other.model_)
+        if (other.model_)
         {
-            throw std::logic_error("other.model_ must be set!");
+            PEX_LOG("Connect ", this);
+            this->model_->Connect(this, &Signal::OnModelSignaled_);
         }
-
-        PEX_LOG("Connect ", this);
-        this->model_->Connect(this, &Signal::OnModelSignaled_);
     }
 
     Signal & operator=(const Signal &other)
     {
-        if (!other.model_)
-        {
-            throw std::logic_error("other.model_ must be set!");
-        }
-
         if (this->model_)
         {
             PEX_LOG("Disconnect ", this);
@@ -149,8 +145,11 @@ public:
 
         this->model_ = other.model_;
 
-        PEX_LOG("Connect ", this);
-        this->model_->Connect(this, &Signal::OnModelSignaled_);
+        if (this->model_)
+        {
+            PEX_LOG("Connect ", this);
+            this->model_->Connect(this, &Signal::OnModelSignaled_);
+        }
 
         return *this;
     }

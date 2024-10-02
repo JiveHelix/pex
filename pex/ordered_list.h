@@ -2,8 +2,10 @@
 
 
 #include <fields/fields.h>
-#include <pex/group.h>
-#include <pex/reference.h>
+#include "pex/group.h"
+#include "pex/reference.h"
+#include "pex/endpoint.h"
+#include "pex/traits.h"
 
 
 namespace pex
@@ -34,7 +36,9 @@ public:
 
 
 using OrderGroup = Group<OrderFields, OrderTemplate>;
+using OrderModel = typename OrderGroup::Model;
 using OrderControl = typename OrderGroup::Control;
+using Order = typename OrderGroup::Plain;
 
 
 template<typename T>
@@ -42,11 +46,14 @@ struct OrderedListFields
 {
     static constexpr auto fields = std::make_tuple(
         fields::Field(&T::indices, "indices"),
+        fields::Field(&T::reorder, "reorder"),
         fields::Field(&T::list, "list"));
 };
 
 
-using IndicesListMaker = MakeList<size_t, 0>;
+using IndicesList = List<size_t, 0>;
+
+using OrderedIndicesControl = ControlSelector<IndicesList>;
 
 
 template<typename ListMaker>
@@ -55,7 +62,8 @@ struct OrderedListTemplate
     template<template<typename> typename T>
     struct Template
     {
-        T<IndicesListMaker> indices;
+        T<IndicesList> indices;
+        T<pex::MakeSignal> reorder;
         T<ListMaker> list;
 
         static constexpr auto fields = OrderedListFields<Template>::fields;
@@ -68,69 +76,78 @@ namespace detail
 
 
 template<typename T>
-concept HasItemControl = requires { typename T::ItemControl; };
+concept HasListItem = requires { typename T::ListItem; };
 
 
 template<typename T, typename Enable = void>
-struct ValueType
+struct ListMember_
 {
     using Type = typename T::value_type;
 };
 
 
 template<typename T>
-struct ValueType<T, std::enable_if_t<HasItemControl<T>>>
+struct ListMember_<T, std::enable_if_t<HasListItem<T>>>
 {
-    using Type = typename T::ItemControl;
+    using Type = typename T::ListItem;
 };
+
+template<typename T>
+using ListMember = typename ListMember_<T>::Type;
 
 
 } // end namespace detail
 
 
 template<typename ListMaker>
-using ListModel = typename ModelSelector<ListMaker>::Model;
+using ListModelItem = typename ModelSelector<ListMaker>::ListItem;
 
 
 template<typename ListMaker>
-using ListControl = typename ControlSelector<ListMaker>::ItemControl;
+using ListControlItem = typename ControlSelector<ListMaker>::ListItem;
 
 
-template<typename ListMaker>
-concept HasModelBase =
-    requires { typename ListModel<ListMaker>::ModelBase; };
+template<typename T>
+concept IsOrder =
+    std::is_same_v<std::remove_reference_t<T>, OrderControl>
+    || std::is_same_v<std::remove_reference_t<T>, OrderModel>;
 
 
-template<typename ListMaker>
-concept HasControlBase =
-    requires { typename ListControl<ListMaker>::ControlBase; };
+template<typename T>
+concept HasVirtualGetOrder = requires(T t)
+{
+    { t.GetVirtual()->GetOrder() } -> IsOrder;
+};
 
 
-template<typename ListMaker>
-using ModelBase = typename ListModel<ListMaker>::ModelBase;
+template<typename T>
+concept HasOrderMember = requires (T t)
+{
+    { t.order } -> IsOrder;
+};
 
 
-template<typename ListMaker>
-using ControlBase = typename ListControl<ListMaker>::ControlBase;
-
-
-template<typename ListMaker>
+template<typename T>
 concept HasOrder =
-    HasModelBase<ListMaker>
-    &&
-    HasControlBase<ListMaker>
-    &&
-    std::convertible_to
-    <
-        decltype(std::declval<ModelBase<ListMaker>>().GetOrder()),
-        OrderControl
-    >
-    &&
-    std::convertible_to
-    <
-        decltype(std::declval<ControlBase<ListMaker>>().GetOrder()),
-        OrderControl
-    >;
+    HasOrderMember<T> || HasVirtualGetOrder<T>;
+
+
+template<typename ListMaker>
+concept ListHasOrderMember =
+    HasOrderMember<ListControlItem<ListMaker>>
+    && HasOrderMember<ListModelItem<ListMaker>>;
+
+
+template<typename ListMaker>
+concept ListHasVirtualGetOrder =
+    HasVirtualGetOrder<ListControlItem<ListMaker>>
+    && HasVirtualGetOrder<ListModelItem<ListMaker>>;
+
+
+template<typename ListMaker>
+concept ListHasOrder =
+    ListHasOrderMember<ListMaker> || ListHasVirtualGetOrder<ListMaker>;
+
 
 
 template<typename ListMaker>
@@ -142,27 +159,48 @@ struct OrderedListCustom
         public Base
     {
     public:
-
-        static constexpr bool hasOrder = HasOrder<ListMaker>;
+        static constexpr bool hasOrder = ListHasOrder<ListMaker>;
 
         using Selected = control::ListSelected;
         using CountWillChange = control::ListCountWillChange;
         using Count = control::ListCount;
 
+    private:
+        using CountEndpoint = Endpoint<Model, Count>;
+        using CountWillChangeEndpoint = Endpoint<Model, CountWillChange>;
+
+        CountWillChangeEndpoint countWillChangeEndpoint_;
+        CountEndpoint countEndpoint_;
+
+    public:
         Selected selected;
         CountWillChange countWillChange;
         Count count;
 
-        using Indices = ModelSelector<IndicesListMaker>;
-        using IndicesModel = typename Indices::Model;
+        using Indices = ModelSelector<IndicesList>;
+        using IndicesListItem = typename Indices::ListItem;
+
+        using List = decltype(Base::list);
+        using ListItem = typename List::ListItem;
 
         Model()
             :
             Base(),
+
+            countWillChangeEndpoint_(
+                this,
+                this->list.countWillChange,
+                &Model::OnListCountWillChange_),
+
+            countEndpoint_(this, this->list.count, &Model::OnListCount_),
+
             selected(this->list.selected),
             countWillChange(this->list.countWillChange),
             count(this->list.count),
-            countEndpoint_(this, this->list.count, &Model::OnListCount_)
+            moveDownEndpoints_(),
+            moveUpEndpoints_(),
+            reorderEndpoint_(this, this->indices, &Model::OnReorder_)
+
         {
             this->OnListCount_(this->list.count.Get());
 
@@ -171,9 +209,9 @@ struct OrderedListCustom
             assert(this->list.Get().size() == this->list.count.Get());
         }
 
-        ~Model()
+        ListItem & operator[](size_t index)
         {
-            this->ClearMoveOrderConnections_();
+            return this->list[index];
         }
 
         template<typename Derived>
@@ -182,18 +220,92 @@ struct OrderedListCustom
             return this->list.Append(item);
         }
 
-        void MoveUp(size_t index)
+        void Set(const typename List::Type &listType)
         {
-            // Items last in the list are drawn last, and so appear to be on
-            // the top layer of the drawing.
+            this->list.Set(listType);
+        }
 
-            // Find the requested index in the indices list.
+        void MoveToBottom(size_t storageIndex)
+        {
+            // Find the requested storageIndex in the indices list.
+            auto orderedIndices = this->indices.Get();
+
+            if (orderedIndices.size() < 2)
+            {
+                return;
+            }
+
+            auto found = std::find(
+                std::begin(orderedIndices),
+                std::end(orderedIndices),
+                storageIndex);
+
+            auto end = std::end(orderedIndices);
+
+            if (found == end)
+            {
+                // Not in the list.
+                throw std::out_of_range("Index not in list");
+            }
+
+            --end;
+
+            if (found == end)
+            {
+                // Already at the end of the list.
+                return;
+            }
+
+            auto index = *found;
+            orderedIndices.erase(found);
+            orderedIndices.push_back(index);
+
+            this->indices.Set(orderedIndices);
+        }
+
+        void MoveToTop(size_t storageIndex)
+        {
+            // Find the requested storageIndex in the indices list.
+            auto orderedIndices = this->indices.Get();
+
+            if (orderedIndices.size() < 2)
+            {
+                return;
+            }
+
+            auto found = std::find(
+                std::begin(orderedIndices),
+                std::end(orderedIndices),
+                storageIndex);
+
+            if (found == std::end(orderedIndices))
+            {
+                // Not in the list.
+                throw std::out_of_range("Index not in list");
+            }
+
+            if (found == std::begin(orderedIndices))
+            {
+                // Already at the beginning of the list.
+                return;
+            }
+
+            auto index = *found;
+            orderedIndices.erase(found);
+            orderedIndices.insert(std::begin(orderedIndices), index);
+
+            this->indices.Set(orderedIndices);
+        }
+
+        void MoveDown(size_t storageIndex)
+        {
+            // Find the requested storageIndex in the indices list.
             auto orderedIndices = this->indices.Get();
 
             auto found = std::find(
                 std::begin(orderedIndices),
                 std::end(orderedIndices),
-                index);
+                storageIndex);
 
             auto end = std::end(orderedIndices);
 
@@ -217,18 +329,15 @@ struct OrderedListCustom
             this->indices.Set(orderedIndices);
         }
 
-        void MoveDown(size_t index)
+        void MoveUp(size_t storageIndex)
         {
-            // Items first in the list are drawn first, so appear to be on the
-            // bottom layer of the drawing.
-
-            // Find the requested index in the indices list.
+            // Find the requested storageIndex in the indices list.
             auto orderedIndices = this->indices.Get();
 
             auto found = std::find(
                 std::begin(orderedIndices),
                 std::end(orderedIndices),
-                index);
+                storageIndex);
 
             if (found == std::end(orderedIndices))
             {
@@ -248,17 +357,87 @@ struct OrderedListCustom
             this->indices.Set(orderedIndices);
         }
 
-    private:
-        static void OnMoveUp_(size_t index, void *context)
+        template<typename T>
+        void AssignItem(size_t index, T &&item)
         {
-            auto self = static_cast<Model *>(context);
-            self->MoveUp(index);
+            auto storageIndex = this->indices.at(index).Get();
+
+            // Clear the move endpoints before possibly deleting the list
+            // member they are tracking
+            this->moveDownEndpoints_[storageIndex].Disconnect();
+            this->moveUpEndpoints_[storageIndex].Disconnect();
+
+            this->list.at(storageIndex).Set(std::forward<T>(item));
+
+            if constexpr (hasOrder)
+            {
+                this->MakeOrderConnections_(storageIndex);
+            }
         }
 
-        static void OnMoveDown_(size_t index, void *context)
+        void EraseSelected()
         {
-            auto self = static_cast<Model *>(context);
-            self->MoveDown(index);
+            this->list.EraseSelected();
+        }
+
+    private:
+        void OnReorder_()
+        {
+            this->reorder.Trigger();
+        }
+
+        void RestoreOrderConnections_()
+        {
+            if constexpr (hasOrder)
+            {
+                for (size_t index = 0; index < this->count.Get(); ++index)
+                {
+                    auto storageIndex = this->indices.at(index).Get();
+                    this->MakeOrderConnections_(storageIndex);
+                }
+            }
+        }
+
+        void MakeOrderConnections_([[maybe_unused]] size_t storageIndex)
+        {
+            if constexpr (!hasOrder)
+            {
+                return;
+            }
+
+            OrderControl order;
+
+            if constexpr (ListHasOrderMember<ListMaker>)
+            {
+                order = this->list.at(storageIndex).order;
+            }
+            else
+            {
+                static_assert(ListHasVirtualGetOrder<ListMaker>);
+
+                auto virtualItem = this->list.at(storageIndex).GetVirtual();
+
+                if (!virtualItem)
+                {
+                    return;
+                }
+
+                order = virtualItem->GetOrder();
+            }
+
+            this->moveDownEndpoints_[storageIndex] =
+                MoveOrderEndpoint(
+                    this,
+                    order.moveDown,
+                    &Model::MoveDown,
+                    storageIndex);
+
+            this->moveUpEndpoints_[storageIndex] =
+                MoveOrderEndpoint(
+                    this,
+                    order.moveUp,
+                    &Model::MoveUp,
+                    storageIndex);
         }
 
         void IncreaseSize_(size_t previousSize, size_t newSize)
@@ -276,42 +455,32 @@ struct OrderedListCustom
                 ++newIndex;
             }
 
-            this->ClearMoveOrderConnections_();
-
-            if constexpr (HasOrder<ListMaker>)
+            if constexpr (hasOrder)
             {
-                this->moveDownConnections_.reserve(newSize);
-                this->moveUpConnections_.reserve(newSize);
-
-                for (size_t index = 0; index < newSize; ++index)
-                {
-                    auto order =
-                        this->list[index].GetVirtual()->GetOrder();
-
-                    this->moveDownConnections_.emplace_back(
-                        this,
-                        order.moveDown,
-                        std::bind(
-                            Model::OnMoveDown_,
-                            index,
-                            std::placeholders::_1));
-
-                    this->moveUpConnections_.emplace_back(
-                        this,
-                        order.moveUp,
-                        std::bind(
-                            Model::OnMoveUp_,
-                            index,
-                            std::placeholders::_1));
-                }
+                this->moveDownEndpoints_.resize(newSize);
+                this->moveUpEndpoints_.resize(newSize);
             }
+        }
+
+        void OnListCountWillChange_()
+        {
+            this->moveDownEndpoints_.clear();
+            this->moveUpEndpoints_.clear();
         }
 
         void OnListCount_(size_t value)
         {
             if (value == this->indices.count.Get())
             {
-                // There is no change.
+                // The indices size already matches the new list size.
+                if constexpr (hasOrder)
+                {
+                    // It is still necessary to make the order connections.
+                    this->moveDownEndpoints_.resize(value);
+                    this->moveUpEndpoints_.resize(value);
+                    this->RestoreOrderConnections_();
+                }
+
                 return;
             }
 
@@ -324,11 +493,11 @@ struct OrderedListCustom
             auto previous = this->indices.Get();
             auto previousSize = previous.size();
 
-            this->indices.ResizeWithoutNotify(value);
-
             if (value > previousSize)
             {
+                this->indices.ResizeWithoutNotify(value);
                 this->IncreaseSize_(previousSize, value);
+                this->RestoreOrderConnections_();
 
                 return;
             }
@@ -346,52 +515,33 @@ struct OrderedListCustom
 
             this->indices.Set(previous);
 
-            if constexpr (HasOrder<ListMaker>)
+            if constexpr (hasOrder)
             {
-                assert(this->moveDownConnections_.size() == previousSize);
-                assert(this->moveUpConnections_.size() == previousSize);
-
-                for (
-                    size_t index = value;
-                    index < previousSize;
-                    ++index)
-                {
-                    this->moveDownConnections_[index].Disconnect(this);
-                    this->moveUpConnections_[index].Disconnect(this);
-                }
-
-                this->moveDownConnections_.resize(value);
-                this->moveUpConnections_.resize(value);
-            }
-        }
-
-        void ClearMoveOrderConnections_()
-        {
-            if constexpr (HasOrder<ListMaker>)
-            {
-                for (auto &connection: this->moveDownConnections_)
-                {
-                    connection.Disconnect(this);
-                }
-
-                this->moveDownConnections_.clear();
-
-                for (auto &connection: this->moveUpConnections_)
-                {
-                    connection.Disconnect(this);
-                }
-
-                this->moveUpConnections_.clear();
+                this->moveDownEndpoints_.resize(value);
+                this->moveUpEndpoints_.resize(value);
+                this->RestoreOrderConnections_();
             }
         }
 
     private:
-        using CountEndpoint = Endpoint<Model, model::ListCount>;
-        using MoveOrderControl = control::Signal<>;
 
-        CountEndpoint countEndpoint_;
-        std::vector<MoveOrderControl> moveDownConnections_;
-        std::vector<MoveOrderControl> moveUpConnections_;
+        using MoveOrderEndpoint =
+            pex::BoundEndpoint
+            <
+                control::Signal<>,
+                decltype(&Model::MoveUp)
+            >;
+
+        std::vector<MoveOrderEndpoint> moveDownEndpoints_;
+        std::vector<MoveOrderEndpoint> moveUpEndpoints_;
+
+        // static_assert(
+            // pex::IsControl<pex::GetControlType<decltype(Model::indices)>>);
+
+        using ReorderEndpoint =
+            detail::ListConnect<Model, decltype(Model::indices)>;
+
+        ReorderEndpoint reorderEndpoint_;
     };
 
 
@@ -399,7 +549,7 @@ struct OrderedListCustom
     class OrderedListIterator
     {
     public:
-        using Value = typename detail::ValueType<List>::Type;
+        using ListItem = detail::ListMember<List>;
 
         OrderedListIterator(
             List &list,
@@ -414,25 +564,25 @@ struct OrderedListCustom
                 this->list_.size() == this->indices_.size());
         }
 
-        Value & operator*()
+        ListItem & operator*()
         {
             return this->list_.at(
                 size_t(this->indices_.at(this->index_)));
         }
 
-        Value * operator->()
+        ListItem * operator->()
         {
             return &this->list_.at(
                 size_t(this->indices_.at(this->index_)));
         }
 
-        const Value & operator*() const
+        const ListItem & operator*() const
         {
             return this->list_.at(
                 size_t(this->indices_.at(this->index_)));
         }
 
-        const Value * operator->() const
+        const ListItem * operator->() const
         {
             return &this->list_.at(
                 size_t(this->indices_.at(this->index_)));
@@ -489,51 +639,152 @@ struct OrderedListCustom
     };
 
 
+    template<typename List, typename Indices>
+    class ReverseOrderedListIterator
+    {
+    public:
+        using ListItem = typename detail::ListMember<List>;
+
+        ReverseOrderedListIterator(
+            List &list,
+            const Indices &indices,
+            size_t initialIndex)
+            :
+            list_(list),
+            indices_(indices),
+            index_(initialIndex),
+            count_(indices_.size())
+        {
+            assert(
+                this->list_.size() == this->indices_.size());
+        }
+
+        ListItem & operator*()
+        {
+            return this->list_.at(
+                size_t(this->indices_.at(this->count_ - this->index_ - 1)));
+        }
+
+        ListItem * operator->()
+        {
+            return &this->list_.at(
+                size_t(this->indices_.at(this->count_ - this->index_ - 1)));
+        }
+
+        const ListItem & operator*() const
+        {
+            return this->list_.at(
+                size_t(this->indices_.at(this->count_ - this->index_ - 1)));
+        }
+
+        const ListItem * operator->() const
+        {
+            return &this->list_.at(
+                size_t(this->indices_.at(this->count_ - this->index_ - 1)));
+        }
+
+        // Prefix Increment
+        ReverseOrderedListIterator & operator++()
+        {
+            ++this->index_;
+
+            return *this;
+        }
+
+        // Postfix Increment
+        ReverseOrderedListIterator operator++(int)
+        {
+            ReverseOrderedListIterator old = *this;
+            this->operator++();
+
+            return old;
+        }
+
+        // Prefix Decrement
+        ReverseOrderedListIterator & operator--()
+        {
+            --this->index_;
+
+            return *this;
+        }
+
+        // Postfix Decrement
+        ReverseOrderedListIterator operator--(int)
+        {
+            ReverseOrderedListIterator old = *this;
+            this->operator--();
+
+            return old;
+        }
+
+        bool operator==(const ReverseOrderedListIterator &other) const
+        {
+            return this->index_ == other.index_;
+        }
+
+        bool operator!=(const ReverseOrderedListIterator &other) const
+        {
+            return this->index_ != other.index_;
+        }
+
+    private:
+        List &list_;
+        const Indices &indices_;
+        size_t index_;
+        size_t count_;
+    };
+
+
     template<typename Derived, typename Base>
     class Iterable
     {
     public:
         using List = decltype(Base::list);
         using Indices = decltype(Base::indices);
-        using Value = typename detail::ValueType<List>::Type;
+        using ListItem = typename detail::ListMember<List>;
 
         using Iterator =
             OrderedListIterator<List, Indices>;
 
-        const Value & operator[](size_t index) const
+        using ReverseIterator =
+            ReverseOrderedListIterator<List, Indices>;
+
+        const ListItem & operator[](size_t index) const
+        {
+            auto self = this->GetDerived();
+
+            // Convert to storageIndex using size_t. This works for both
+            // control::Value indices and plain-old size_t indices.
+            return self->list.at(size_t(self->indices.at(index)));
+        }
+
+        ListItem & operator[](size_t index)
         {
             auto self = this->GetDerived();
 
             return self->list.at(size_t(self->indices.at(index)));
         }
 
-        Value & operator[](size_t index)
+        const ListItem & at(size_t index) const
         {
             auto self = this->GetDerived();
 
             return self->list.at(size_t(self->indices.at(index)));
         }
 
-        const Value & at(size_t index) const
+        ListItem & at(size_t index)
         {
             auto self = this->GetDerived();
 
             return self->list.at(size_t(self->indices.at(index)));
         }
 
-        Value & at(size_t index)
-        {
-            auto self = this->GetDerived();
-
-            return self->list.at(size_t(self->indices.at(index)));
-        }
-
-        const Value & GetUnordered(size_t index) const
+        const ListItem & GetUnordered(size_t index) const
         {
             return this->GetDerived()->list.at(index);
         }
 
-        Value & GetUnordered(size_t index)
+        ListItem & GetUnordered(size_t index)
         {
             return this->GetDerived()->list.at(index);
         }
@@ -573,6 +824,41 @@ struct OrderedListCustom
                 self->indices.size());
         }
 
+        ReverseIterator rbegin()
+        {
+            auto self = this->GetDerived();
+
+            return ReverseIterator(self->list, self->indices, 0);
+        }
+
+        ReverseIterator rend()
+        {
+            auto self = this->GetDerived();
+
+            return ReverseIterator(
+                self->list,
+                self->indices,
+                self->indices.size());
+        }
+
+        const ReverseIterator rbegin() const
+        {
+            auto self = this->GetDerived();
+
+            return ReverseIterator(
+                const_cast<List &>(self->list), self->indices, 0);
+        }
+
+        const ReverseIterator rend() const
+        {
+            auto self = this->GetDerived();
+
+            return ReverseIterator(
+                const_cast<List &>(self->list),
+                self->indices,
+                self->indices.size());
+        }
+
         size_t size() const
         {
             auto self = this->GetDerived();
@@ -604,21 +890,44 @@ struct OrderedListCustom
     class Control: public Base, public Iterable<Control<Base>, Base>
     {
     public:
-        using Base::Base;
-
         using List = decltype(Base::list);
         using Selected = typename List::Selected;
         using CountWillChange = typename List::CountWillChange;
         using Count = typename List::Count;
-        using ItemControl = typename List::ItemControl;
+        using ListItem = typename List::ListItem;
+        using Upstream = typename Base::Upstream;
 
+        static_assert(
+            std::is_same_v
+            <
+                typename Iterable<Control<Base>, Base>::ListItem,
+                ListItem
+            >);
+
+    private:
+        // In group customizations, 'Upstream' is always the group's Model.
+        Upstream *upstream_;
+
+    public:
         Selected selected;
         CountWillChange countWillChange;
         Count count;
 
+        Control()
+            :
+            Base(),
+            upstream_(nullptr),
+            selected(),
+            countWillChange(),
+            count()
+        {
+
+        }
+
         Control(typename Base::Upstream &upstream)
             :
             Base(upstream),
+            upstream_(&upstream),
             selected(this->list.selected),
             countWillChange(this->list.countWillChange),
             count(this->list.count)
@@ -633,6 +942,48 @@ struct OrderedListCustom
         {
             return this->list.Append(item);
         }
+
+        void Set(const typename List::Type &listType)
+        {
+            this->list.Set(listType);
+        }
+
+        void MoveToTop(size_t storageIndex)
+        {
+            if (!this->upstream_)
+            {
+                throw std::logic_error("Unitialized control");
+            }
+
+            this->upstream_->MoveToTop(storageIndex);
+        }
+
+        void MoveToBottom(size_t storageIndex)
+        {
+            if (!this->upstream_)
+            {
+                throw std::logic_error("Unitialized control");
+            }
+
+            this->upstream_->MoveToBottom(storageIndex);
+        }
+
+        template<typename T>
+        void AssignItem(size_t index, T &&item)
+        {
+            if (!this->upstream_)
+            {
+                throw std::logic_error("Unitialized control");
+            }
+
+            this->upstream_->AssignItem(index, std::forward<T>(item));
+        }
+
+        void EraseSelected()
+        {
+            assert(this->upstream_);
+            this->upstream_->EraseSelected();
+        }
     };
 
     template<typename Base>
@@ -643,13 +994,70 @@ struct OrderedListCustom
 
         static Plain Default()
         {
-            if constexpr (HasDefault<Base>)
+            using Item = typename ListMaker::Item;
+
+            Plain result{};
+
+            if constexpr (ListMaker::initialCount != 0)
             {
-                return {Base::Default()};
+                result.resize(ListMaker::initialCount);
+
+                if constexpr (HasDefault<Item>)
+                {
+                    for (size_t i = 0; i < ListMaker::initialCount; ++i)
+                    {
+                        result.list[i] = Item::Default();
+                    }
+                }
             }
-            else
+
+            return result;
+        }
+
+        // TODO: Resize eliminates items at the end of the unordered list.
+        // Consider removing the last items as sorted.
+        void resize(size_t size)
+        {
+            size_t previousSize = this->list.size();
+
+            assert(this->indices.size() == previousSize);
+
+            this->list.resize(size);
+
+            if (size > previousSize)
             {
-                return {};
+                this->IncreaseSize_(previousSize, size);
+
+                return;
+            }
+
+            // value < previousSize
+            // Remove references to indices that no longer exist
+            std::erase_if(
+                this->indices,
+                [size](size_t index)
+                {
+                    return index >= size;
+                });
+
+            assert(this->indices.size() == size);
+        }
+
+    private:
+        void IncreaseSize_(size_t previousSize, size_t newSize)
+        {
+            // The size of the list grew.
+            // Add default indices for the new elements.
+            this->indices.resize(newSize);
+            size_t newIndex = previousSize;
+
+            while (newIndex < newSize)
+            {
+                // This function is called while ListConnect has been muted.
+                // Observers of the full list of indices will not be notified
+                // until we are done.
+                this->indices[newIndex] = newIndex;
+                ++newIndex;
             }
         }
     };
@@ -667,8 +1075,6 @@ using OrderedListGroup =
 
 template<typename ListMaker>
 using OrderedListControl = typename OrderedListGroup<ListMaker>::Control;
-
-using OrderedIndicesControl = ControlSelector<IndicesListMaker>;
 
 
 } // end namespace pex

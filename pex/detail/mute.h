@@ -13,6 +13,14 @@ namespace detail
 {
 
 
+// isMuted, when true, will not notify group observers when individual values
+// change.
+// When isMuted is changed to false, each group observer will receive one
+// notification for the whole group unless 'isSilenced' has been set.
+// Use 'isSilenced' carefully as it is the responsibility of the user to notify
+// observers.
+
+
 template<typename T>
 struct MuteFields
 {
@@ -177,6 +185,35 @@ public:
         this->Mute(isSilenced);
     }
 
+    ScopeMute(ScopeMute &&other)
+        :
+        upstream_(other.upstream_),
+        isMuted_(other.isMuted_)
+    {
+        other.upstream_ = nullptr;
+        other.isMuted_ = false;
+    }
+
+    ScopeMute & operator=(ScopeMute &&other)
+    {
+        if (this->upstream_ && this->isMuted_)
+        {
+            throw std::logic_error("Assign to armed ScopeMute");
+        }
+
+        this->upstream_ = other.upstream_;
+        this->isMuted_ = other.isMuted_;
+        other.upstream_ = nullptr;
+        other.isMuted_ = false;
+
+        return *this;
+    }
+
+    bool IsMuted() const
+    {
+        return this->isMuted_;
+    }
+
     ~ScopeMute()
     {
         this->Unmute();
@@ -210,6 +247,27 @@ public:
             muteControl.Set(muteState);
             this->isMuted_ = false;
         }
+    }
+
+    void Clear()
+    {
+        if (!this->upstream_ || !this->isMuted_)
+        {
+            return;
+        }
+
+        auto &muteControl =
+            this->upstream_->GetMuteControlReference();
+
+        Mute_ muteState;
+
+        // Clear the mute without notifying by setting isSilenced to
+        // true.
+        muteState.isMuted = false;
+        muteState.isSilenced = true;
+
+        muteControl.Set(muteState);
+        this->isMuted_ = false;
     }
 
 private:
