@@ -375,7 +375,7 @@ concept IsAccess = std::is_base_of_v<AccessTag, T>;
 
 template<typename T>
 concept DefinesAccess =
-    requires { typename T::Access; } && IsAccess<typename T::Access>;;
+    requires { typename T::Access; } && IsAccess<typename T::Access>;
 
 
 template<typename T, typename Enable = void>

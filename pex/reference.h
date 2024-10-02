@@ -503,7 +503,7 @@ public:
         scopeMute_(upstream, false)
     {
         auto initialize = [this, &upstream]
-            (auto deferField, auto upstreamField)
+            (auto deferField, [[maybe_unused]] auto upstreamField)
         {
             using MemberType = typename std::remove_reference_t<
                 decltype(this->*(deferField.member))>;
@@ -604,7 +604,9 @@ public:
     template<typename Plain>
     void Set(const Plain &plain)
     {
-        auto assign = [this, &plain](auto deferField, auto plainField)
+        auto assign = [this, &plain](
+            auto deferField,
+            [[maybe_unused]] auto plainField)
         {
             using MemberType = typename std::remove_reference_t<
                 decltype(this->*(deferField.member))>;

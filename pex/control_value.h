@@ -665,7 +665,7 @@ private:
             {
                 if (!value)
                 {
-                    return {};
+                    return value;
                 }
 
                 return Filter::Get(*value);

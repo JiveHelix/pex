@@ -115,12 +115,12 @@ public:
     using Count = typename ListControl::Count;
     using CountTerminus = ::pex::Terminus<ListConnect, Count>;
 
-    using ValueConnection = ValueConnection<Observer, ListType>;
-    using ValueCallable = typename ValueConnection::Callable;
+    using ValueConnection_ = ValueConnection<Observer, ListType>;
+    using ValueCallable = typename ValueConnection_::Callable;
     using Callable = ValueCallable;
 
-    using SignalConnection = SignalConnection<Observer>;
-    using SignalCallable = typename SignalConnection::Callable;
+    using SignalConnection_ = SignalConnection<Observer>;
+    using SignalCallable = typename SignalConnection_::Callable;
 
     static_assert(std::is_same_v<Item, typename Connectable::Plain>);
 
@@ -598,8 +598,8 @@ private:
     ListControl listControl_;
     Connectables connectables_;
     Observer *observer_;
-    std::optional<ValueConnection> valueConnection_;
-    std::optional<SignalConnection> signalConnection_;
+    std::optional<ValueConnection_> valueConnection_;
+    std::optional<SignalConnection_> signalConnection_;
     CountWillChangeTerminus countWillChange_;
     CountTerminus internalCount_;
     CountTerminus count_;
