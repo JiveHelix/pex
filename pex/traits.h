@@ -416,4 +416,15 @@ concept HasGetVirtual = requires(T t)
 };
 
 
+template<typename T>
+concept IsVoid = std::is_void_v<T>;
+
+
+template<typename T>
+concept HasSetInitial = requires(T t)
+{
+    { t.SetInitial(std::declval<typename T::Type>()) } -> IsVoid;
+};
+
+
 } // end namespace pex

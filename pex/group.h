@@ -288,7 +288,7 @@ struct Group
         {
             if constexpr (HasDefault<Plain>)
             {
-                this->Set(Plain::Default());
+                this->SetInitial(Plain::Default());
             }
 
             REGISTER_PEX_NAMES(this);
@@ -305,7 +305,7 @@ struct Group
             Template<ModelSelector>(),
             ModelAccessors<Model_>()
         {
-            this->Set(plain);
+            this->SetInitial(plain);
 
             REGISTER_PEX_NAMES(this);
         }

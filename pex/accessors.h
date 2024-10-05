@@ -51,6 +51,20 @@ SetWithoutNotify(Target &, const Source &)
 }
 
 
+template<typename Target, typename Source>
+std::enable_if_t<HasSetInitial<Target>>
+DoSetInitial(Target &target, const Source &source)
+{
+    target.SetInitial(source);
+}
+
+template<typename Target, typename Source>
+std::enable_if_t<!HasSetInitial<Target>>
+DoSetInitial(Target &target, const Source &source)
+{
+    SetWithoutNotify(target, source);
+}
+
 template<typename Target>
 std::enable_if_t<detail::CanBeSet<Target>>
 DoNotify(Target &target)
@@ -199,6 +213,26 @@ public:
             static_cast<Derived &>(*this));
 
         deferGroup.Set(plain);
+    }
+
+    void SetInitial(const Plain &plain)
+    {
+        auto derived = static_cast<Derived *>(this);
+
+        auto setInitial = [derived, &plain]
+            (auto thisField, auto plainField)
+        {
+            DoSetInitial(
+                derived->*(thisField.member),
+                plain.*(plainField.member));
+        };
+
+        jive::ZipApply(
+            setInitial,
+            Fields<Derived>::fields,
+            Fields<Plain>::fields);
+
+        this->DoNotify_();
     }
 
     template<typename>

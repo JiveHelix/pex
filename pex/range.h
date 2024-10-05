@@ -193,7 +193,10 @@ public:
                 Minimum<LimitType, initialMinimum>::value,
                 Maximum<LimitType, initialMaximum>::value)),
         minimum_(Minimum<LimitType, initialMinimum>::value),
-        maximum_(Maximum<LimitType, initialMaximum>::value)
+        maximum_(Maximum<LimitType, initialMaximum>::value),
+        reset_(),
+        defaultValue_(value_.Get()),
+        resetTerminus_(this, this->reset_, &Range::OnReset_)
     {
         REGISTER_PEX_NAME_WITH_PARENT(&this->value_, this, "value_");
         REGISTER_PEX_NAME_WITH_PARENT(&this->minimum_, this, "minimum_");
@@ -208,7 +211,10 @@ public:
                 Minimum<LimitType, initialMinimum>::value,
                 Maximum<LimitType, initialMaximum>::value)),
         minimum_(Minimum<LimitType, initialMinimum>::value),
-        maximum_(Maximum<LimitType, initialMaximum>::value)
+        maximum_(Maximum<LimitType, initialMaximum>::value),
+        reset_(),
+        defaultValue_(value_.Get()),
+        resetTerminus_(this, this->reset_, &Range::OnReset_)
     {
 
     }
@@ -223,6 +229,22 @@ public:
     void Connect(void * observer, Callable callable)
     {
         this->value_.Connect(observer, callable);
+    }
+
+    void SetInitial(pex::Argument<Type> initialValue)
+    {
+        this->SetWithoutNotify_(initialValue);
+        this->defaultValue_ = initialValue;
+    }
+
+    void SetDefault(pex::Argument<Type> defaultValue)
+    {
+        this->defaultValue_ = defaultValue;
+    }
+
+    Type GetDefault() const
+    {
+        return this->defaultValue_;
     }
 
     void SetLimits(LimitType minimum, LimitType maximum)
@@ -313,16 +335,14 @@ public:
         {
             auto value = this->value_.Get();
 
-            if (!value)
+            if (value)
             {
-                return;
-            }
-
-            if (*value < minimum)
-            {
-                // The current value is less than the new minimum.
-                // Adjust the value to the minimum.
-                this->value_.Set(minimum);
+                if (*value < minimum)
+                {
+                    // The current value is less than the new minimum.
+                    // Adjust the value to the minimum.
+                    this->value_.Set(minimum);
+                }
             }
         }
         else
@@ -350,14 +370,12 @@ public:
         {
             auto value = this->value_.Get();
 
-            if (!value)
+            if (value)
             {
-                return;
-            }
-
-            if (*value > maximum)
-            {
-                this->value_.Set(maximum);
+                if (*value > maximum)
+                {
+                    this->value_.Set(maximum);
+                }
             }
         }
         else
@@ -398,16 +416,14 @@ public:
         {
             auto value = this->value_.Get();
 
-            if (!value)
+            if (value)
             {
-                return;
-            }
-
-            if (*value < minimum)
-            {
-                // The current value is less than the new minimum.
-                // Adjust the value to the minimum.
-                this->value_.Set(minimum);
+                if (*value < minimum)
+                {
+                    // The current value is less than the new minimum.
+                    // Adjust the value to the minimum.
+                    this->value_.Set(minimum);
+                }
             }
         }
         else
@@ -446,14 +462,12 @@ public:
         {
             auto value = this->value_.Get();
 
-            if (!value)
+            if (value)
             {
-                return;
-            }
-
-            if (*value > maximum)
-            {
-                this->value_.Set(maximum);
+                if (*value > maximum)
+                {
+                    this->value_.Set(maximum);
+                }
             }
         }
         else
@@ -521,6 +535,11 @@ private:
         detail::AccessReference<Value>(this->value_).DoNotify();
     }
 
+    void OnReset_()
+    {
+        this->value_.Set(this->defaultValue_);
+    }
+
 private:
 
 #ifdef ENABLE_PEX_LOG
@@ -530,6 +549,11 @@ private:
     Value value_;
     Limit minimum_;
     Limit maximum_;
+    Signal reset_;
+    Type defaultValue_;
+
+    using ResetTerminus = pex::Terminus<Range, Signal>;
+    ResetTerminus resetTerminus_;
 };
 
 
@@ -833,12 +857,14 @@ public:
             this->value = Value(upstream.value_);
             this->minimum = Limit(upstream.minimum_);
             this->maximum = Limit(upstream.maximum_);
+            this->reset = Signal<>(upstream.reset_);
         }
         else
         {
             this->value = Value(upstream.value);
             this->minimum = Limit(upstream.minimum);
             this->maximum = Limit(upstream.maximum);
+            this->reset = Signal<>(upstream.reset);
         }
 
         REGISTER_PEX_NAME_WITH_PARENT(&this->value, this, "value");
@@ -858,7 +884,8 @@ public:
         :
         value(other.value),
         minimum(other.minimum),
-        maximum(other.maximum)
+        maximum(other.maximum),
+        reset(other.reset)
     {
 
     }
@@ -870,6 +897,7 @@ public:
         this->value = other.value;
         this->minimum = other.minimum;
         this->maximum = other.maximum;
+        this->reset = other.reset;
 
         return *this;
     }
@@ -940,6 +968,8 @@ public:
     Value value;
     Limit minimum;
     Limit maximum;
+
+    Signal<> reset;
 
     template<typename>
     friend class ::pex::Reference;
