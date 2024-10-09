@@ -50,7 +50,10 @@ def GetUnsubscriptedTypeImpl(
     forwardRef = ForwardRef(type_, is_argument=False)
 
     # pylint: disable=protected-access
-    evaluated = forwardRef._evaluate(GetClassNamespace_(parentClass), None)
+    evaluated = forwardRef._evaluate(
+        GetClassNamespace_(parentClass),
+        None,
+        frozenset())
 
     if evaluated is None:
         raise RuntimeError("Unable to resolve type {}".format(type_))
@@ -76,7 +79,10 @@ def GetFirstTypeArgImpl_(type_: Hashable, parentClass: Type[Any]) -> Type[Any]:
     forwardRef = ForwardRef(type_, is_argument=False)
 
     # pylint: disable=protected-access
-    evaluated = forwardRef._evaluate(GetClassNamespace_(parentClass), None)
+    evaluated = forwardRef._evaluate(
+        GetClassNamespace_(parentClass),
+        None,
+        frozenset())
 
     if evaluated is None:
         raise RuntimeError("Unable to resolve type {}".format(type_))
