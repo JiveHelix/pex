@@ -85,16 +85,6 @@ private:
 };
 
 
-template<typename T>
-struct DefaultChoices
-{
-    static std::vector<T> GetChoices()
-    {
-        return std::vector<T>(T{});
-    }
-};
-
-
 template
 <
     typename T,

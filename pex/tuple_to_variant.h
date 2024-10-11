@@ -10,6 +10,8 @@ namespace pex
 {
 
 
+// UniqueTuple takes in variadic type arguments, and returns a tuple without
+// any repeated types. Every element of the tuple is unique.
 template <typename T, typename... Ts>
 struct UniqueTuple_ : std::type_identity<T> {};
 
@@ -19,7 +21,15 @@ struct UniqueTuple_<std::tuple<Ts...>, U, Us...>
     std::conditional_t
     <
         std::disjunction_v<std::is_same<U, Ts>...>,
+
+        // U is the same as one of the T's.
+        // It will not be included a second time.
+        // Continue checking the remaining U's.
         UniqueTuple_<std::tuple<Ts...>, Us...>,
+
+        // U is not already in the set of T's.
+        // Add it to the unique tuple.
+        // Continue checking the remaining U's.
         UniqueTuple_<std::tuple<Ts..., U>, Us...>
     > {};
 

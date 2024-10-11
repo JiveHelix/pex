@@ -3,14 +3,14 @@
 #include <pex/select.h>
 #include <pex/group.h>
 #include <pex/endpoint.h>
+#include <pex/interface.h>
 
 
 
 
 TEST_CASE("Select::Get returns value, not index", "[select]")
 {
-    using Select =
-        pex::model::Select<double, pex::model::DefaultChoices<double>>;
+    using Select = pex::ModelSelector<pex::MakeSelect<double>>;
 
     Select select({1.0, 2.78, 3.14, 42.0});
     REQUIRE(select.Get() == Approx(1.0));
