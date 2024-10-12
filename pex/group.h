@@ -286,16 +286,9 @@ struct Group
             Template<ModelSelector>(),
             ModelAccessors<Model_>()
         {
-            if constexpr (HasDefault<Plain>)
-            {
-                this->SetInitial(Plain::Default());
-            }
+            this->SetInitial(Plain{});
 
             REGISTER_PEX_NAMES(this);
-
-            // Note: There is no need for Plain to define Default() if all of
-            // its members are default initialized. Each pex::model::Value_ is
-            // already default initialized.
         }
 
         Model_(const Plain &plain)

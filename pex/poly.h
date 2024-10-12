@@ -47,8 +47,6 @@ struct Poly
             public GroupBase
         {
         public:
-            using GroupPlain = Derived;
-
             using GroupBase::GroupBase;
 
             PolyValue GetValue() const override

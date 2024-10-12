@@ -95,7 +95,8 @@ class Select
 {
 public:
     using Type = T;
-    using Value = pex::model::Value<T>;
+
+    using Value = pex::model::Value<Type>;
     static constexpr auto observerName = "pex::model::Select";
 
     // Model always has full access.
@@ -273,6 +274,30 @@ public:
         this->value_.Disconnect(context);
     }
 
+    void SetInitial(pex::Argument<Type> value)
+    {
+        auto choices = this->choices_.Get();
+        auto index = FindIndex(value, choices);
+
+        if (index < 0)
+        {
+            // SetInitial may be the default value for T.
+            // Leave selection_ unchanged.
+
+            return;
+        }
+
+        detail::AccessReference<Selection>(this->selection_)
+            .SetWithoutNotify(
+                RequireIndex(
+                    value,
+                    ConstReference(this->choices_).Get()));
+
+        detail::AccessReference<Value>(this->value_)
+            .SetWithoutNotify(value);
+    }
+
+
 private:
     void OnSelection_(size_t index)
     {
@@ -289,18 +314,9 @@ private:
 
         if (index < 0)
         {
-            if (choices.size() > 1)
-            {
-                // During initialization we expect to receive a value that
-                // isn't in the list of choices. In this case, we make that
-                // value the only choice.
-                // After choices has been set, all values must already be in
-                // choices.
-                throw std::out_of_range("Value not a valid choice.");
-            }
-
-            detail::AccessReference<Choices>(this->choices_)
-                .SetWithoutNotify(std::vector<Type>({value}));
+            // After choices has been set, all values must already be in
+            // choices.
+            throw std::out_of_range("Value not a valid choice.");
         }
 
         detail::AccessReference<Selection>(this->selection_)

@@ -42,7 +42,15 @@ template<typename T>
 struct Identity_<T, std::enable_if_t<IsPolyGroup<T>>
 >
 {
-    using Type = typename T::PolyValue;
+    using Type = typename T::Derived;
+};
+
+
+template<typename T>
+struct Identity_<T, std::enable_if_t<IsMakePoly<T>>
+>
+{
+    using Type = poly::Value<typename T::Supers::ValueBase>;
 };
 
 

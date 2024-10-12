@@ -69,11 +69,13 @@ struct GroupTypes
     template<typename Base>
     struct Plain: public Base
     {
-        static Plain Default()
+        Plain()
+            :
+            Base{
+            "I am Groot",
+            {{1.0, 2.0, 3.0, 4.0}}}
         {
-            return {
-                "I am Groot",
-                {{1.0, 2.0, 3.0, 4.0}}};
+
         }
     };
 };

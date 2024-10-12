@@ -32,12 +32,24 @@ struct SomeFields
         fields::Field(&T::rate, "rate"));
 };
 
+
+struct RateChoices
+{
+    using Type = double;
+
+    static std::vector<Type> GetChoices()
+    {
+        return {42.0};
+    }
+};
+
+
 template<template<typename> typename T>
 struct SomeTemplate
 {
     T<double> x;
     T<double> y;
-    T<pex::MakeSelect<double>> rate;
+    T<pex::MakeSelect<RateChoices>> rate;
 
     static constexpr auto fields = SomeFields<SomeTemplate>::fields;
 };

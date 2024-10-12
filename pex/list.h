@@ -208,6 +208,16 @@ struct List
             return result;
         }
 
+        void SetInitial(const Type &values)
+        {
+            if (values.empty())
+            {
+                return;
+            }
+
+            this->SetWithoutNotify_(values);
+        }
+
         void Set(const Type &values)
         {
             this->SetWithoutNotify_(values);

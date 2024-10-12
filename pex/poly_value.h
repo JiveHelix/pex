@@ -87,25 +87,10 @@ public:
                 TemplateBase{std::forward<Args>(args)...}));
     }
 
-#if 0
-    template<typename Derived, typename ...Args>
-    void Initialize(Args &&...args)
-    {
-        this->value_ = std::make_shared<Derived>(std::forward<Args>(args)...);
-    }
-#endif
-
     template<typename Derived>
     static Value Default()
     {
-        if constexpr (HasDefault<Derived>)
-        {
-            return Value(std::make_shared<Derived>(Derived::Default()));
-        }
-        else
-        {
-            return Value(std::make_shared<Derived>());
-        }
+        return Value(std::make_shared<Derived>());
     }
 
     std::ostream & Describe(
