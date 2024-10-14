@@ -62,7 +62,10 @@ template<typename Target, typename Source>
 std::enable_if_t<!HasSetInitial<Target>>
 DoSetInitial(Target &target, const Source &source)
 {
-    SetWithoutNotify(target, source);
+    if constexpr (!IsSignal<Target>)
+    {
+        detail::AccessReference<Target>(target).SetWithoutNotify(source);
+    }
 }
 
 template<typename Target>
