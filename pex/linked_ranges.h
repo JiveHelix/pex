@@ -61,15 +61,17 @@ struct LinkedRanges
         static constexpr auto fieldsTypeName = "LinkedRanges";
     };
 
-    struct GroupTypes_
+    struct Custom
     {
         struct Plain: public LinkedRangesSettings<Type>
         {
-            static Plain Default()
-            {
-                return {{
+            Plain()
+                :
+                LinkedRangesSettings<Type>{
                     LowValue::template Get<Type>(),
-                    HighValue::template Get<Type>()}};
+                    HighValue::template Get<Type>()}
+            {
+
             }
         };
 
@@ -134,7 +136,7 @@ struct LinkedRanges
         };
     };
 
-    using Group = pex::Group<Fields, Template, GroupTypes_>;
+    using Group = pex::Group<Fields, Template, Custom>;
     using Settings = typename Group::Plain;
     using Control = typename Group::Control;
 };

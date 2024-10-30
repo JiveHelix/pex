@@ -35,9 +35,20 @@ struct Mute_
     bool isMuted;
     bool isSilenced;
 
-    static Mute_ Default()
+    Mute_()
+        :
+        isMuted(false),
+        isSilenced(false)
     {
-        return {false, false};
+
+    }
+
+    Mute_(bool isMuted_, bool isSilenced_)
+        :
+        isMuted(isMuted_),
+        isSilenced(isSilenced_)
+    {
+
     }
 
     operator bool () const
@@ -60,7 +71,7 @@ class MuteOwner
 public:
     MuteOwner()
         :
-        mute_(Mute_::Default())
+        mute_()
     {
 
     }

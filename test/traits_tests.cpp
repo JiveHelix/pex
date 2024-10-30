@@ -52,12 +52,12 @@ struct TesterTemplate
 struct TesterSettings:
     public TesterTemplate<pex::Identity>
 {
-    static TesterSettings Default()
+    TesterSettings()
+        :
+        TesterTemplate<pex::Identity>{
+            TesterRanges<double>::Settings{}}
     {
-        TesterSettings settings{{
-            TesterRanges<double>::Settings::Default()}};
 
-        return settings;
     }
 };
 

@@ -990,28 +990,15 @@ struct OrderedListCustom
     class Plain: public Base, public Iterable<Plain<Base>, Base>
     {
     public:
-        using Base::Base;
-
-        static Plain Default()
+        Plain()
+            :
+            Base{},
+            Iterable<Plain<Base>, Base>{}
         {
-            using Item = typename ListMaker::Item;
-
-            Plain result{};
-
             if constexpr (ListMaker::initialCount != 0)
             {
-                result.resize(ListMaker::initialCount);
-
-                if constexpr (HasDefault<Item>)
-                {
-                    for (size_t i = 0; i < ListMaker::initialCount; ++i)
-                    {
-                        result.list[i] = Item::Default();
-                    }
-                }
+                this->resize(ListMaker::initialCount);
             }
-
-            return result;
         }
 
         // TODO: Resize eliminates items at the end of the unordered list.
