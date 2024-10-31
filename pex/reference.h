@@ -658,13 +658,16 @@ template
 class DeferList
 {
 public:
-    using DeferredMember = DeferSelector<Selector>::template Type<MemberType>;
+    using DeferredMember =
+        typename DeferSelector<Selector>::template Type<MemberType>;
+
     using Items = std::vector<DeferredMember>;
 
-    using DeferredCount = DeferSelector<Selector>::template Type<size_t>;
+    using DeferredCount =
+        typename DeferSelector<Selector>::template Type<size_t>;
 
     using DeferredSelected =
-        DeferSelector<Selector>::template Type<std::optional<size_t>>;
+        typename DeferSelector<Selector>::template Type<std::optional<size_t>>;
 
     using Iterator = typename Items::iterator;
     using ConstIterator = typename Items::const_iterator;

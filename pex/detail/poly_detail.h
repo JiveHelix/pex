@@ -177,7 +177,7 @@ struct MakeControlUserBase_
     std::enable_if_t<::pex::detail::HasControlUserBase<Supers>>
 >
 {
-    using Type = Supers::ControlUserBase;
+    using Type = typename Supers::ControlUserBase;
 };
 
 
@@ -199,7 +199,7 @@ struct MakeModelUserBase_
     std::enable_if_t<::pex::detail::HasModelUserBase<Supers>>
 >
 {
-    using Type = Supers::ModelUserBase;
+    using Type = typename Supers::ModelUserBase;
 };
 
 

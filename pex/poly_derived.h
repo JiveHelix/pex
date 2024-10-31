@@ -121,7 +121,7 @@ public:
     {
         if constexpr (::pex::detail::HasDerived<Templates>)
         {
-            using Type = Templates::template Derived<PolyDerived_>;
+            using Type = typename Templates::template Derived<PolyDerived_>;
             auto self = dynamic_cast<const Type *>(this);
 
             if (!self)
@@ -159,7 +159,7 @@ struct MakePolyDerived
 >
 {
     using Type =
-        Templates::template Derived<PolyDerived_<Templates>>;
+        typename Templates::template Derived<PolyDerived_<Templates>>;
 };
 
 
