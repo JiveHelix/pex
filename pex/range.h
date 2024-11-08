@@ -34,6 +34,9 @@ namespace pex
 {
 
 
+// TODO: Rename Range to Bounded or Clamped
+
+
 // Forward declarations
 // Necessary for the friend declarations in model::Range
 
@@ -182,18 +185,22 @@ public:
 
     using Value = ValueTemplate<T, RangeFilter<T>, Access>;
     using LimitType = jive::RemoveOptional<Type>;
+
+    static constexpr auto defaultMinimum =
+        Minimum<LimitType, initialMinimum>::value;
+
+    static constexpr auto defaultMaximum =
+        Maximum<LimitType, initialMaximum>::value;
+
     using Limit = typename ::pex::model::Value<jive::RemoveOptional<Type>>;
     using Callable = typename Value::Callable;
 
 public:
     Range()
         :
-        value_(
-            RangeFilter<Type>(
-                Minimum<LimitType, initialMinimum>::value,
-                Maximum<LimitType, initialMaximum>::value)),
-        minimum_(Minimum<LimitType, initialMinimum>::value),
-        maximum_(Maximum<LimitType, initialMaximum>::value),
+        value_(RangeFilter<Type>(defaultMinimum, defaultMaximum)),
+        minimum_(defaultMinimum),
+        maximum_(defaultMaximum),
         reset_(),
         defaultValue_(value_.Get()),
         resetTerminus_(this, this->reset_, &Range::OnReset_)

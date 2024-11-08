@@ -10,6 +10,7 @@
 namespace pex
 {
 
+// TODO: Rename LinkedRange to Range
 
 template<typename T>
 struct LinkedRangesFields
@@ -65,6 +66,13 @@ struct LinkedRanges
     {
         struct Plain: public LinkedRangesSettings<Type>
         {
+            Plain(Type low_, Type high_)
+                :
+                LinkedRangesSettings<Type>{low_, high_}
+            {
+
+            }
+
             Plain()
                 :
                 LinkedRangesSettings<Type>{
@@ -72,6 +80,11 @@ struct LinkedRanges
                     HighValue::template Get<Type>()}
             {
 
+            }
+
+            Type GetRange() const
+            {
+                return this->high - this->low;
             }
         };
 
@@ -140,6 +153,24 @@ struct LinkedRanges
     using Settings = typename Group::Plain;
     using Control = typename Group::Control;
 };
+
+
+template<typename Range>
+struct MakeLinkedRanges_
+{
+    using Type = LinkedRanges
+    <
+        typename Range::Type,
+        typename Range::Minimum,
+        typename Range::Minimum,
+        typename Range::Maximum,
+        typename Range::Maximum
+    >;
+};
+
+
+template<typename Range>
+using MakeLinkedRanges = typename MakeLinkedRanges_<Range>::Type;
 
 
 } // end namespace pex
