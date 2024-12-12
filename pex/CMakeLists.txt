@@ -10,6 +10,8 @@ target_include_directories(pex PUBLIC ${PROJECT_SOURCE_DIR})
 target_link_libraries(
     pex
     PUBLIC
+    project_options
+    project_warnings
     CONAN_PKG::jive
     CONAN_PKG::fields
     CONAN_PKG::fmt

@@ -25,9 +25,18 @@ public:
     using Type = typename Control::Type;
     static constexpr auto observerName = "filter_tests::Observer";
 
-    Observer(Control control)
+    Observer(const Control &control)
         :
         terminus_(this, control),
+        observedValue{this->terminus_.Get()}
+    {
+        PEX_LOG("Connect");
+        this->terminus_.Connect(&Observer::Observe_);
+    }
+
+    Observer(Control &&control)
+        :
+        terminus_(this, std::move(control)),
         observedValue{this->terminus_.Get()}
     {
         PEX_LOG("Connect");
@@ -290,14 +299,15 @@ TEST_CASE("Observe filtered value", "[filters]")
     using FilteredControl = pex::control::FilteredValue
     <
         Control,
-        pex::control::LinearFilter<double, 1000>,
+        pex::control::LinearFilter<double>,
         pex::GetAndSetTag
     >;
 
     Model model;
     Control control(model);
 
-    Observer<FilteredControl> observer{FilteredControl(control)};
+    auto observer = Observer(
+        FilteredControl(control, pex::control::LinearFilter<double>(1000)));
 
     model.Set(3.14);
 
@@ -309,7 +319,7 @@ TEST_CASE("LinearRange is observable", "[filters]")
 {
     using WeightRange = pex::model::Range<double>;
     using WeightControl = pex::control::Range<WeightRange>;
-    using FilteredWeight = pex::control::LinearRange<WeightControl, 1>;
+    using FilteredWeight = pex::control::LinearRange<WeightControl>;
 
     WeightRange weightRange;
     weightRange.SetMinimum(100.0);
@@ -318,8 +328,10 @@ TEST_CASE("LinearRange is observable", "[filters]")
     WeightControl control(weightRange);
 
     auto observer = Observer(FilteredWeight(control).value);
+
     control.value.Set(125.0);
 
+    REQUIRE(weightRange.Get() == 125);
     REQUIRE(observer.observedValue == 125);
 }
 
@@ -328,7 +340,8 @@ TEST_CASE("Optional LinearRange is observable", "[filters]")
 {
     using WeightRange = pex::model::Range<std::optional<double>>;
     using WeightControl = pex::control::Range<WeightRange>;
-    using FilteredWeight = pex::control::LinearRange<WeightControl, 1>;
+    using FilteredWeight = pex::control::LinearRange<WeightControl>;
+    using FilteredValue = typename FilteredWeight::Value;
 
     WeightRange weightRange;
     weightRange.SetMinimum(100.0);
@@ -337,7 +350,11 @@ TEST_CASE("Optional LinearRange is observable", "[filters]")
     WeightControl control(weightRange);
     REQUIRE(!weightRange.Get());
 
-    auto observer = Observer(FilteredWeight(control).value);
+    using FilteredCopyable = pex::control::Value<FilteredValue>;
+
+    FilteredWeight filteredWeight(control);
+
+    auto observer = Observer(FilteredCopyable(filteredWeight.value));
     control.value.Set(125.0);
 
     REQUIRE(observer.observedValue.has_value());

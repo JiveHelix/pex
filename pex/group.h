@@ -403,6 +403,25 @@ struct Group
             return *this;
         }
 
+        Control_(Control_ &&other)
+            :
+            detail::Mute(other),
+            ControlMembers(),
+            AccessorsBase()
+        {
+            fields::MoveAssign<Fields>(*this, std::move(other));
+
+            REGISTER_PEX_NAMES(this);
+        }
+
+        Control_ & operator=(Control_ &&other)
+        {
+            this->detail::Mute::operator=(other);
+            fields::MoveAssign<Fields>(*this, std::move(other));
+
+            return *this;
+        }
+
         ~Control_()
         {
             UNREGISTER_PEX_NAMES();

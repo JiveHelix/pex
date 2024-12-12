@@ -198,44 +198,44 @@ public:
 public:
     Range()
         :
-        value_(RangeFilter<Type>(defaultMinimum, defaultMaximum)),
-        minimum_(defaultMinimum),
-        maximum_(defaultMaximum),
-        reset_(),
-        defaultValue_(value_.Get()),
-        resetTerminus_(this, this->reset_, &Range::OnReset_)
+        value(RangeFilter<Type>(defaultMinimum, defaultMaximum)),
+        minimum(defaultMinimum),
+        maximum(defaultMaximum),
+        reset(),
+        defaultValue_(value.Get()),
+        resetTerminus_(this, this->reset, &Range::OnReset_)
     {
-        REGISTER_PEX_NAME_WITH_PARENT(&this->value_, this, "value_");
-        REGISTER_PEX_NAME_WITH_PARENT(&this->minimum_, this, "minimum_");
-        REGISTER_PEX_NAME_WITH_PARENT(&this->maximum_, this, "maximum_");
+        REGISTER_PEX_NAME_WITH_PARENT(&this->value, this, "value");
+        REGISTER_PEX_NAME_WITH_PARENT(&this->minimum, this, "minimum");
+        REGISTER_PEX_NAME_WITH_PARENT(&this->maximum, this, "maximum");
     }
 
-    explicit Range(Type value)
+    explicit Range(Type value_)
         :
-        value_(
-            value,
+        value(
+            value_,
             RangeFilter<Type>(
                 Minimum<LimitType, initialMinimum>::value,
                 Maximum<LimitType, initialMaximum>::value)),
-        minimum_(Minimum<LimitType, initialMinimum>::value),
-        maximum_(Maximum<LimitType, initialMaximum>::value),
-        reset_(),
-        defaultValue_(value_.Get()),
-        resetTerminus_(this, this->reset_, &Range::OnReset_)
+        minimum(Minimum<LimitType, initialMinimum>::value),
+        maximum(Maximum<LimitType, initialMaximum>::value),
+        reset(),
+        defaultValue_(this->value.Get()),
+        resetTerminus_(this, this->reset, &Range::OnReset_)
     {
 
     }
 
     ~Range()
     {
-        UNREGISTER_PEX_NAME(&this->value_, "value_");
-        UNREGISTER_PEX_NAME(&this->minimum_, "minimum_");
-        UNREGISTER_PEX_NAME(&this->maximum_, "maximum_");
+        UNREGISTER_PEX_NAME(&this->value, "value");
+        UNREGISTER_PEX_NAME(&this->minimum, "minimum");
+        UNREGISTER_PEX_NAME(&this->maximum, "maximum");
     }
 
     void Connect(void * observer, Callable callable)
     {
-        this->value_.Connect(observer, callable);
+        this->value.Connect(observer, callable);
     }
 
     void SetInitial(pex::Argument<Type> initialValue)
@@ -254,9 +254,9 @@ public:
         return this->defaultValue_;
     }
 
-    void SetLimits(LimitType minimum, LimitType maximum)
+    void SetLimits(LimitType minimum_, LimitType maximum_)
     {
-        if (maximum < minimum)
+        if (maximum_ < minimum_)
         {
             // maximum may be equal to minimum, even though it doesn't seem
             // very useful.
@@ -266,35 +266,35 @@ public:
         // All model values will be changed, so any request to Get() will
         // return the new value, but notifications will not be sent until we
         // exit this scope.
-        auto changeMinimum = ::pex::Defer<Limit>(this->minimum_);
-        auto changeMaximum = ::pex::Defer<Limit>(this->maximum_);
+        auto changeMinimum = ::pex::Defer<Limit>(this->minimum);
+        auto changeMaximum = ::pex::Defer<Limit>(this->maximum);
 
-        changeMinimum.Set(minimum);
-        changeMaximum.Set(maximum);
+        changeMinimum.Set(minimum_);
+        changeMaximum.Set(maximum_);
 
-        this->value_.SetFilter(
+        this->value.SetFilter(
             RangeFilter<Type>(
-                this->minimum_.Get(),
-                this->maximum_.Get()));
+                this->minimum.Get(),
+                this->maximum.Get()));
 
         if constexpr (jive::IsOptional<T>)
         {
-            auto value = this->value_.Get();
+            auto value_ = this->value.Get();
 
-            if (!value)
+            if (!value_)
             {
                 return;
             }
 
-            auto changeValue = ::pex::Defer<Value>(this->value_);
+            auto changeValue = ::pex::Defer<Value>(this->value);
 
-            if (*value < minimum)
+            if (*value_ < minimum_)
             {
-                changeValue.Set(minimum);
+                changeValue.Set(minimum_);
             }
-            else if (*value > maximum)
+            else if (*value_ > maximum_)
             {
-                changeValue.Set(maximum);
+                changeValue.Set(maximum_);
             }
             else
             {
@@ -305,16 +305,16 @@ public:
         }
         else
         {
-            auto value = this->value_.Get();
-            auto changeValue = ::pex::Defer<Value>(this->value_);
+            auto value_ = this->value.Get();
+            auto changeValue = ::pex::Defer<Value>(this->value);
 
-            if (value < minimum)
+            if (value_ < minimum_)
             {
-                changeValue.Set(minimum);
+                changeValue.Set(minimum_);
             }
-            else if (value > maximum)
+            else if (value_ > maximum_)
             {
-                changeValue.Set(maximum);
+                changeValue.Set(maximum_);
             }
             else
             {
@@ -325,71 +325,71 @@ public:
         }
     }
 
-    void SetMinimum(LimitType minimum)
+    void SetMinimum(LimitType minimum_)
     {
-        minimum = std::min(minimum, this->maximum_.Get());
+        minimum_ = std::min(minimum_, this->maximum.Get());
 
         // Use a pex::Defer to delay notifying of the bounds change until
         // the value has been (maybe) adjusted.
-        auto changeMinimum = ::pex::Defer<Limit>(this->minimum_);
-        changeMinimum.Set(minimum);
+        auto changeMinimum = ::pex::Defer<Limit>(this->minimum);
+        changeMinimum.Set(minimum_);
 
-        this->value_.SetFilter(RangeFilter<Type>(
-            this->minimum_.Get(),
-            this->maximum_.Get()));
+        this->value.SetFilter(RangeFilter<Type>(
+            this->minimum.Get(),
+            this->maximum.Get()));
 
         if constexpr (jive::IsOptional<Type>)
         {
-            auto value = this->value_.Get();
+            auto value_ = this->value.Get();
 
-            if (value)
+            if (value_)
             {
-                if (*value < minimum)
+                if (*value_ < minimum_)
                 {
                     // The current value is less than the new minimum.
                     // Adjust the value to the minimum.
-                    this->value_.Set(minimum);
+                    this->value.Set(minimum_);
                 }
             }
         }
         else
         {
-            if (this->value_.Get() < minimum)
+            if (this->value.Get() < minimum_)
             {
                 // The current value is less than the new minimum.
                 // Adjust the value to the minimum.
-                this->value_.Set(minimum);
+                this->value.Set(minimum_);
             }
         }
     }
 
-    void SetMaximum(LimitType maximum)
+    void SetMaximum(LimitType maximum_)
     {
-        maximum = std::max(maximum, this->minimum_.Get());
-        auto changeMaximum = ::pex::Defer<Limit>(this->maximum_);
-        changeMaximum.Set(maximum);
+        maximum_ = std::max(maximum_, this->minimum.Get());
+        auto changeMaximum = ::pex::Defer<Limit>(this->maximum);
+        changeMaximum.Set(maximum_);
 
-        this->value_.SetFilter(RangeFilter<Type>(
-            this->minimum_.Get(),
-            this->maximum_.Get()));
+        this->value.SetFilter(RangeFilter<Type>(
+            this->minimum.Get(),
+            this->maximum.Get()));
 
         if constexpr (jive::IsOptional<Type>)
         {
-            auto value = this->value_.Get();
+            auto value_ = this->value.Get();
 
-            if (value)
+            if (value_)
             {
-                if (*value > maximum)
+                if (*value_ > maximum_)
                 {
-                    this->value_.Set(maximum);
+                    this->value.Set(maximum_);
                 }
             }
         }
         else
         {
-            if (this->value_.Get() > maximum)
+            if (this->value.Get() > maximum_)
             {
-                this->value_.Set(maximum);
+                this->value.Set(maximum_);
             }
         }
     }
@@ -398,16 +398,16 @@ public:
      * Trim functions adjust the value filter within the limits of minimum and
      * maximum.
      */
-    void TrimMinimum(Type minimum)
+    void TrimMinimum(Type minimum_)
     {
-        auto filterMaximum = this->value_.GetFilter().GetMaximum();
-        minimum = std::min(minimum, filterMaximum);
-        auto changeMinimum = ::pex::Defer<Limit>(this->minimum_);
+        auto filterMaximum = this->value.GetFilter().GetMaximum();
+        minimum_ = std::min(minimum_, filterMaximum);
+        auto changeMinimum = ::pex::Defer<Limit>(this->minimum);
 
-        if (minimum < this->minimum_.Get())
+        if (minimum_ < this->minimum.Get())
         {
             // The new minimum is extending the valid range.
-            changeMinimum.Set(minimum);
+            changeMinimum.Set(minimum_);
         }
         else
         {
@@ -417,43 +417,43 @@ public:
             changeMinimum.Clear();
         }
 
-        this->value_.SetFilter(RangeFilter<Type>(minimum, filterMaximum));
+        this->value.SetFilter(RangeFilter<Type>(minimum_, filterMaximum));
 
         if constexpr (jive::IsOptional<Type>)
         {
-            auto value = this->value_.Get();
+            auto value_ = this->value.Get();
 
-            if (value)
+            if (value_)
             {
-                if (*value < minimum)
+                if (*value_ < minimum_)
                 {
                     // The current value is less than the new minimum.
                     // Adjust the value to the minimum.
-                    this->value_.Set(minimum);
+                    this->value.Set(minimum_);
                 }
             }
         }
         else
         {
-            if (this->value_.Get() < minimum)
+            if (this->value.Get() < minimum_)
             {
                 // The current value is less than the new minimum.
                 // Adjust the value to the minimum.
-                this->value_.Set(minimum);
+                this->value.Set(minimum_);
             }
         }
     }
 
-    void TrimMaximum(Type maximum)
+    void TrimMaximum(Type maximum_)
     {
-        auto filterMinimum = this->value_.GetFilter().GetMinimum();
-        maximum = std::max(maximum, filterMinimum);
-        auto changeMaximum = ::pex::Defer<Limit>(this->maximum_);
+        auto filterMinimum = this->value.GetFilter().GetMinimum();
+        maximum_ = std::max(maximum_, filterMinimum);
+        auto changeMaximum = ::pex::Defer<Limit>(this->maximum);
 
-        if (maximum > this->maximum_.Get())
+        if (maximum_ > this->maximum.Get())
         {
             // The new maximum is extending the valid range.
-            changeMaximum.Set(maximum);
+            changeMaximum.Set(maximum_);
         }
         else
         {
@@ -463,48 +463,48 @@ public:
             changeMaximum.Clear();
         }
 
-        this->value_.SetFilter(RangeFilter<Type>(filterMinimum, maximum));
+        this->value.SetFilter(RangeFilter<Type>(filterMinimum, maximum_));
 
         if constexpr (jive::IsOptional<Type>)
         {
-            auto value = this->value_.Get();
+            auto value_ = this->value.Get();
 
-            if (value)
+            if (value_)
             {
-                if (*value > maximum)
+                if (*value_ > maximum_)
                 {
-                    this->value_.Set(maximum);
+                    this->value.Set(maximum_);
                 }
             }
         }
         else
         {
-            if (this->value_.Get() > maximum)
+            if (this->value.Get() > maximum_)
             {
-                this->value_.Set(maximum);
+                this->value.Set(maximum_);
             }
         }
     }
 
     std::enable_if_t<HasAccess<SetTag, Access>>
-    Set(Argument<Type> value)
+    Set(Argument<Type> value_)
     {
-        this->value_.Set(value);
+        this->value.Set(value_);
     }
 
     Type Get() const
     {
-        return this->value_.Get();
+        return this->value.Get();
     }
 
     explicit operator Type () const
     {
-        return this->value_.Get();
+        return this->value.Get();
     }
 
-    Range & operator=(Argument<Type> value)
+    Range & operator=(Argument<Type> value_)
     {
-        this->Set(value);
+        this->Set(value_);
         return *this;
     }
 
@@ -514,12 +514,12 @@ public:
 
     LimitType GetMaximum() const
     {
-        return this->maximum_.Get();
+        return this->maximum.Get();
     }
 
     LimitType GetMinimum() const
     {
-        return this->minimum_.Get();
+        return this->minimum.Get();
     }
 
     template<typename, typename, typename>
@@ -532,19 +532,19 @@ public:
     friend class ::pex::Reference;
 
 private:
-    void SetWithoutNotify_(Argument<Type> value)
+    void SetWithoutNotify_(Argument<Type> value_)
     {
-        detail::AccessReference<Value>(this->value_).SetWithoutNotify(value);
+        detail::AccessReference<Value>(this->value).SetWithoutNotify(value_);
     }
 
     void DoNotify_()
     {
-        detail::AccessReference<Value>(this->value_).DoNotify();
+        detail::AccessReference<Value>(this->value).DoNotify();
     }
 
     void OnReset_()
     {
-        this->value_.Set(this->defaultValue_);
+        this->value.Set(this->defaultValue_);
     }
 
 private:
@@ -553,10 +553,11 @@ private:
     uint8_t separator_;
 #endif
 
-    Value value_;
-    Limit minimum_;
-    Limit maximum_;
-    Signal reset_;
+public:
+    Value value;
+    Limit minimum;
+    Limit maximum;
+    Signal reset;
     Type defaultValue_;
 
     using ResetTerminus = pex::Terminus<Range, Signal>;
@@ -830,18 +831,17 @@ template
 class Range
 {
 public:
-    static constexpr bool isPexCopyable = true;
-
     using Upstream = Upstream_;
     using Filter = Filter_;
-    using Type = typename Upstream::Value::Type;
+    using Unfiltered = typename Upstream::Value::Type;
     using Access = Access_;
 
-    static_assert(
-        pex::detail::FilterIsNoneOrStatic<Type, Filter, Access>,
-        "This class is designed for free function filters.");
+    static constexpr bool isPexCopyable =
+        pex::detail::FilterIsNoneOrStatic<Unfiltered, Filter, Access>;
 
     using Value = ValueControl<typename Upstream::Value, Filter, Access>;
+
+    using Type = typename Value::Type;
 
     // Read-only Limit type for accessing range bounds.
     using Limit =
@@ -858,25 +858,34 @@ public:
     Range() = default;
 
     Range(Upstream &upstream)
+        :
+        value(upstream.value),
+        minimum(upstream.minimum),
+        maximum(upstream.maximum),
+        reset(upstream.reset)
     {
-        if constexpr (IsModelRange<Upstream>)
-        {
-            this->value = Value(upstream.value_);
-            this->minimum = Limit(upstream.minimum_);
-            this->maximum = Limit(upstream.maximum_);
-            this->reset = Signal<>(upstream.reset_);
-        }
-        else
-        {
-            this->value = Value(upstream.value);
-            this->minimum = Limit(upstream.minimum);
-            this->maximum = Limit(upstream.maximum);
-            this->reset = Signal<>(upstream.reset);
-        }
-
         REGISTER_PEX_NAME_WITH_PARENT(&this->value, this, "value");
         REGISTER_PEX_NAME_WITH_PARENT(&this->minimum, this, "minimum");
         REGISTER_PEX_NAME_WITH_PARENT(&this->maximum, this, "maximum");
+    }
+
+    Range(Upstream &upstream, const Filter &filter)
+        :
+        Range(upstream)
+    {
+        this->SetFilter(filter);
+    }
+
+    void SetFilter(const Filter &filter)
+    {
+        this->value.SetFilter(filter);
+        this->minimum.SetFilter(filter);
+        this->maximum.SetFilter(filter);
+    }
+
+    const Filter & GetFilter() const
+    {
+        return this->value.GetFilter();
     }
 
     ~Range()
@@ -898,6 +907,19 @@ public:
     }
 
     template<typename OtherFilter, typename OtherAccess>
+    Range(
+        const Range<Upstream, OtherFilter, OtherAccess> &other,
+        const Filter &filter)
+        :
+        value(other.value),
+        minimum(other.minimum),
+        maximum(other.maximum),
+        reset(other.reset)
+    {
+        this->SetFilter(filter);
+    }
+
+    template<typename OtherFilter, typename OtherAccess>
     Range & operator=(
         const Range<Upstream, OtherFilter, OtherAccess> &other)
     {
@@ -905,6 +927,46 @@ public:
         this->minimum = other.minimum;
         this->maximum = other.maximum;
         this->reset = other.reset;
+
+        return *this;
+    }
+
+    Range(const Range &other)
+        :
+        value(other.value),
+        minimum(other.minimum),
+        maximum(other.maximum),
+        reset(other.reset)
+    {
+
+    }
+
+    Range & operator=(const Range &other)
+    {
+        this->value = other.value;
+        this->minimum = other.minimum;
+        this->maximum = other.maximum;
+        this->reset = other.reset;
+
+        return *this;
+    }
+
+    Range(Range &&other)
+        :
+        value(std::move(other.value)),
+        minimum(std::move(other.minimum)),
+        maximum(std::move(other.maximum)),
+        reset(std::move(other.reset))
+    {
+
+    }
+
+    Range & operator=(Range &&other)
+    {
+        this->value = std::move(other.value);
+        this->minimum = std::move(other.minimum);
+        this->maximum = std::move(other.maximum);
+        this->reset = std::move(other.reset);
 
         return *this;
     }
@@ -1031,13 +1093,26 @@ auto MakeConvertingRange(Range<Upstream, Filter, Access> range)
 template
 <
     typename Upstream,
-    ssize_t slope,
     typename Access = pex::GetAndSetTag
 >
 using LinearRange = Range
     <
         Upstream,
-        LinearFilter<typename Upstream::Value::Type, slope>,
+        LinearFilter<typename Upstream::Value::Type>,
+        Access
+    >;
+
+
+template
+<
+    typename Upstream,
+    ssize_t slope,
+    typename Access = pex::GetAndSetTag
+>
+using StaticLinearRange = Range
+    <
+        Upstream,
+        StaticLinearFilter<typename Upstream::Value::Type, slope>,
         Access
     >;
 
@@ -1105,7 +1180,7 @@ public:
     Limit minimum;
     Limit maximum;
 
-    static constexpr bool isPexCopyable = true;
+    static constexpr bool isPexCopyable = UpstreamControl::isPexCopyable;
 
     RangeTerminus()
         :

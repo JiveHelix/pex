@@ -128,12 +128,67 @@ using ConvertingValue = Value_<
  ** discrete adjustment steps.
  **
  **/
-template<typename T, ssize_t slope>
+template<typename T>
 struct LinearFilter
 {
-    static_assert(slope != 0, "Cannot divide by zero!");
     using Type = jive::RemoveOptional<T>;
     static_assert(std::is_floating_point_v<Type>);
+
+    LinearFilter()
+        :
+        slope_(1)
+    {
+
+    }
+
+    LinearFilter(T slope)
+        :
+        slope_(slope)
+    {
+        if (slope == 0)
+        {
+            throw std::logic_error("Cannot divide by zero");
+        }
+    }
+
+    int Get(Type value) const
+    {
+        Type result = value * this->slope_;
+
+        if constexpr (std::is_floating_point_v<Type>)
+        {
+            result = round(result);
+        }
+
+        return static_cast<int>(result);
+    }
+
+    Type Set(int value) const
+    {
+        return static_cast<Type>(value) / this->slope_;
+    }
+
+    void SetSlope(Type slope)
+    {
+        this->slope_ = slope;
+    }
+
+    Type GetSlope() const
+    {
+        return this->slope_;
+    }
+
+private:
+    Type slope_;
+};
+
+
+template<typename T, ssize_t slope>
+struct StaticLinearFilter
+{
+    using Type = jive::RemoveOptional<T>;
+    static_assert(std::is_floating_point_v<Type>);
+    static_assert(slope != 0, "Cannot divide by zero");
 
     static int Get(Type value)
     {

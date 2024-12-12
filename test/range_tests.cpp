@@ -224,7 +224,6 @@ TEST_CASE("Range limits are never optional.", "[range]")
         pex::control::LinearRange
         <
             typename RangeControl::Upstream,
-            1000,
             typename RangeControl::Access
         >;
 

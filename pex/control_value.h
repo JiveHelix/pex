@@ -112,9 +112,14 @@ public:
         {
             this->upstream_.ClearConnections();
         }
+
+        if constexpr (detail::FilterIsMember<UpstreamType, Filter>)
+        {
+            this->filter_ = Filter{};
+        }
     }
 
-    explicit Value_(PexArgument<Upstream> pex, Filter filter)
+    explicit Value_(PexArgument<Upstream> pex, const Filter &filter)
         :
         upstream_(pex),
         filter_(filter)
@@ -136,6 +141,11 @@ public:
         }
 
         this->Connect(observer, callable);
+
+        if constexpr (detail::FilterIsMember<UpstreamType, Filter>)
+        {
+            this->filter_ = Filter{};
+        }
     }
 
     Value_(void *observer, const Value_ &pex, Callable callable)
@@ -343,7 +353,7 @@ public:
         :
         Base(other),
         upstream_(other.upstream_),
-        filter_()
+        filter_(other.filter_)
     {
         static_assert(IsCopyable<Value_>, "This value is not copyable.");
 
@@ -368,9 +378,10 @@ public:
         upstream_(std::move(other.upstream_)),
         filter_(std::move(other.filter_))
     {
+        // TODO: I don't think moving a member function filter is a problem.
         // A control::Value with member-function filter is neither copyable nor
         // move-able.
-        static_assert(IsCopyable<Value_>, "This value cannot be moved.");
+        // static_assert(IsCopyable<Value_>, "This value cannot be moved.");
 
         if constexpr (mustClearConnections)
         {
@@ -425,7 +436,10 @@ public:
 
     Value_ & operator=(Value_ &&other)
     {
-        static_assert(IsCopyable<Value_>, "This value cannot be moved.");
+        // TODO: Moving is okay.
+        // The problem with copying instances of filters is that they could be
+        // changed in one copy and not in others.
+        // static_assert(IsCopyable<Value_>, "This value cannot be moved.");
 
         this->Base::operator=(std::move(other));
 
@@ -510,9 +524,19 @@ public:
         return Downstream(*this);
     }
 
-    void SetFilter(Filter filter)
+    void SetFilter(const Filter &filter)
     {
         this->filter_ = filter;
+    }
+
+    const Filter & GetFilter() const
+    {
+        if (!this->filter_)
+        {
+            throw std::logic_error("filter_ has not been set.");
+        }
+
+        return *this->filter_;
     }
 
     Type Get() const
