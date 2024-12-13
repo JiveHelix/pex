@@ -64,7 +64,7 @@ struct Poly
                 return ::pex::poly::GetTypeName<Templates>();
             }
 
-            std::shared_ptr<ControlBase> CreateControl() override;
+            std::shared_ptr<MakeControlSuper<Supers>> CreateControl() override;
 
             void SetValueWithoutNotify(const PolyValue &value) override
             {
@@ -158,7 +158,7 @@ struct Poly
                 }
             }
 
-            std::shared_ptr<ControlBase> Copy() const override;
+            std::shared_ptr<MakeControlSuper<Supers>> Copy() const override;
 
             void SetValueWithoutNotify(const PolyValue &value) override
             {
