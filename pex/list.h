@@ -191,6 +191,18 @@ struct List
             return *pointer;
         }
 
+        const ListItem & at(size_t index) const
+        {
+            const auto &pointer = this->items_.at(index);
+
+            if (!pointer)
+            {
+                throw std::logic_error("item unitialized");
+            }
+
+            return *pointer;
+        }
+
         Type Get() const
         {
             Type result;
