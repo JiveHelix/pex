@@ -7,6 +7,18 @@
 #include "pex/endpoint.h"
 #include "pex/traits.h"
 
+#if defined(__GNUC__) && ((__GNUC__ == 12) || (__GNUC__ == 13))
+    #define SUPPRESS_GCC_NULL_DEREF_WARNING_BEGIN() \
+        _Pragma("GCC diagnostic push")              \
+        _Pragma("GCC diagnostic ignored \"-Wnull-dereference\"")
+
+    #define SUPPRESS_GCC_NULL_DEREF_WARNING_END() \
+        _Pragma("GCC diagnostic pop")
+#else
+    #define SUPPRESS_GCC_NULL_DEREF_WARNING_BEGIN()
+    #define SUPPRESS_GCC_NULL_DEREF_WARNING_END()
+#endif
+
 
 namespace pex
 {
@@ -292,7 +304,9 @@ struct OrderedListCustom
 
             auto index = *found;
             orderedIndices.erase(found);
+            SUPPRESS_GCC_NULL_DEREF_WARNING_BEGIN()
             orderedIndices.insert(std::begin(orderedIndices), index);
+            SUPPRESS_GCC_NULL_DEREF_WARNING_END()
 
             this->indices.Set(orderedIndices);
         }
