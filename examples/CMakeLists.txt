@@ -1,3 +1,5 @@
+find_package(Nlohmann_json REQUIRED)
+
 add_executable(filter_demo filter_demo.cpp)
 
 target_link_libraries(
@@ -36,7 +38,7 @@ target_link_libraries(
     project_warnings
     project_options
     pex
-    CONAN_PKG::nlohmann_json)
+    nlohmann_json::nlohmann_json)
 
 
 add_executable(simple simple.cpp)

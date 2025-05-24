@@ -393,6 +393,7 @@ TEST_CASE("List of polymorphic values can be unstructured", "[poly]")
     model2.Set(recovered);
 
     REQUIRE(model2.Get() == model.Get());
+    REQUIRE(model2.aircraft.count.Get() == 4);
 
     REQUIRE(countObserver.GetCount() == model2.aircraft.Get().size());
     REQUIRE(countObserver.GetCount() == model2.aircraft.count.Get());

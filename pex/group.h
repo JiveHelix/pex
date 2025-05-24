@@ -185,7 +185,6 @@ inline constexpr bool CheckCustom =
 } // end namespace detail
 
 
-#if 1
 template<template<typename> typename T>
 struct PlainU
 {
@@ -193,12 +192,12 @@ struct PlainU
     using Plain = T<U>;
 };
 
+
 template<typename T>
 struct PlainT
 {
     using Plain = T;
 };
-#endif
 
 
 template
@@ -283,8 +282,8 @@ struct Group
             :
             detail::MuteOwner(),
             detail::Mute(this->GetMuteControl()),
-            Template<ModelSelector>(),
-            ModelAccessors<Model_>()
+            Template<ModelSelector>{},
+            ModelAccessors<Model_>{}
         {
             this->SetInitial(Plain{});
 
@@ -295,8 +294,8 @@ struct Group
             :
             detail::MuteOwner(),
             detail::Mute(this->GetMuteControl()),
-            Template<ModelSelector>(),
-            ModelAccessors<Model_>()
+            Template<ModelSelector>{},
+            ModelAccessors<Model_>{}
         {
             this->SetInitial(plain);
 
@@ -367,8 +366,8 @@ struct Group
         Control_()
             :
             detail::Mute(),
-            ControlMembers(),
-            AccessorsBase()
+            ControlMembers{},
+            AccessorsBase{}
         {
             REGISTER_PEX_NAMES(this);
         }
@@ -376,8 +375,8 @@ struct Group
         Control_(Model &model)
             :
             detail::Mute(model.GetMuteControl()),
-            ControlMembers(),
-            AccessorsBase()
+            ControlMembers{},
+            AccessorsBase{}
         {
             fields::AssignConvert<Fields>(*this, model);
 
@@ -387,8 +386,8 @@ struct Group
         Control_(const Control_ &other)
             :
             detail::Mute(other),
-            ControlMembers(),
-            AccessorsBase()
+            ControlMembers{},
+            AccessorsBase{}
         {
             fields::Assign<Fields>(*this, other);
 
@@ -406,8 +405,8 @@ struct Group
         Control_(Control_ &&other)
             :
             detail::Mute(other),
-            ControlMembers(),
-            AccessorsBase()
+            ControlMembers{},
+            AccessorsBase{}
         {
             fields::MoveAssign<Fields>(*this, std::move(other));
 

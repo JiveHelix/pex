@@ -135,20 +135,11 @@ public:
 
     Select(pex::Argument<Type> value)
         :
-        value_(value),
-        choices_(std::vector<Type>{value}),
-        selection_(
-            static_cast<size_t>(0),
-            SelectFilter(this->choices_.Get())),
-        terminus_(
-            this,
-            this->selection_)
+        Select(
+            value,
+            ChoiceMaker::GetChoices())
     {
-        static_assert(
-            HasAccess<SetTag, ChoicesAccess>,
-            "Choices must be set on construction, they are read-only.");
 
-        this->terminus_.Connect(&Select::OnSelection_);
     }
 
     Select(
@@ -274,6 +265,7 @@ public:
         this->value_.Disconnect(context);
     }
 
+    // Initialize values without sending notifications.
     void SetInitial(pex::Argument<Type> value)
     {
         auto choices = this->choices_.Get();
@@ -281,19 +273,22 @@ public:
 
         if (index < 0)
         {
-            // SetInitial may be the default value for T.
-            // Leave selection_ unchanged.
+            // TODO:
+            // During initialization, SetInitial may be called with
+            // the default constructed T.
+            //
+            // Leave selection_ unchanged for now.
 
             return;
         }
 
-        detail::AccessReference<Selection>(this->selection_)
+        detail::AccessReference(this->selection_)
             .SetWithoutNotify(
                 RequireIndex(
                     value,
                     ConstReference(this->choices_).Get()));
 
-        detail::AccessReference<Value>(this->value_)
+        detail::AccessReference(this->value_)
             .SetWithoutNotify(value);
     }
 
@@ -319,19 +314,19 @@ private:
             throw std::out_of_range("Value not a valid choice.");
         }
 
-        detail::AccessReference<Selection>(this->selection_)
+        detail::AccessReference(this->selection_)
             .SetWithoutNotify(
                 RequireIndex(
                     value,
                     ConstReference(this->choices_).Get()));
 
-        detail::AccessReference<Value>(this->value_)
+        detail::AccessReference(this->value_)
             .SetWithoutNotify(value);
     }
 
     void DoNotify_()
     {
-        detail::AccessReference<Selection>(this->selection_).DoNotify();
+        detail::AccessReference(this->selection_).DoNotify();
     }
 
 private:
@@ -458,7 +453,7 @@ public:
 private:
     void SetWithoutNotify_(pex::Argument<Type> value_)
     {
-        detail::AccessReference<Selection>(this->selection).
+        detail::AccessReference(this->selection).
             SetWithoutNotify(
                 RequireIndex(
                     value_,
@@ -467,7 +462,7 @@ private:
 
     void DoNotify_()
     {
-        detail::AccessReference<Selection>(this->selection).DoNotify();
+        detail::AccessReference(this->selection).DoNotify();
     }
 
 public:
@@ -711,7 +706,7 @@ public:
 private:
     void SetWithoutNotify_(pex::Argument<Type> value_)
     {
-        detail::AccessReference<Selection>(this->selection).
+        detail::AccessReference(this->selection).
             SetWithoutNotify(
                 RequireIndex(
                     value_,
@@ -720,7 +715,7 @@ private:
 
     void DoNotify_()
     {
-        detail::AccessReference<Selection>(this->selection).DoNotify();
+        detail::AccessReference(this->selection).DoNotify();
     }
 
 public:

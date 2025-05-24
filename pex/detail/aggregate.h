@@ -10,6 +10,7 @@
 #include "pex/traits.h"
 #include "pex/detail/mute.h"
 #include "pex/detail/forward.h"
+#include "pex/detail/signal_connection.h"
 
 
 namespace pex
@@ -155,6 +156,9 @@ struct Aggregate:
         GetAndSetTag
     >
 {
+    using SignalConnection_ = SignalConnection<void>;
+    using SignalCallable = typename SignalConnection_::Callable;
+
 public:
     static constexpr auto observerName = "Aggregate";
     static constexpr bool isAggregate = true;
@@ -200,7 +204,10 @@ public:
 
     Aggregate()
         :
-        isMuted_()
+        isMuted_(),
+        muteTerminus_(),
+        isModified_(false),
+        memberChanged_()
     {
 #ifdef ENABLE_PEX_LOG
         this->RegisterPexNames();
@@ -210,7 +217,10 @@ public:
     template<typename Upstream>
     Aggregate(Upstream &upstream)
         :
-        isMuted_()
+        isMuted_(),
+        muteTerminus_(),
+        isModified_(false),
+        memberChanged_()
     {
 #ifdef ENABLE_PEX_LOG
         this->RegisterPexNames();
@@ -296,7 +306,19 @@ private:
             member.Connect(
                 this,
                 &Aggregate::template OnMemberChanged_<MemberType>);
+
+            if constexpr (IsAggregate<MemberType>)
+            {
+                member.ConnectAggregate_(
+                    this,
+                    &Aggregate::OnAggregateMemberChanged_);
+            }
         }
+    }
+
+    void ConnectAggregate_(void *observer, SignalCallable callable)
+    {
+        this->memberChanged_.emplace(observer, callable);
     }
 
     void MakeConnections_()
@@ -332,6 +354,20 @@ private:
     static void OnMemberChanged_(void *observer, Argument<T>)
     {
         auto self = static_cast<Aggregate *>(observer);
+        self->isModified_ = true;
+
+        PEX_LOG(
+            LookupPexName(self),
+            " OnMemberChanged_");
+
+        if (self->memberChanged_)
+        {
+            PEX_LOG(
+                LookupPexName(self),
+                " sending member changed notice.");
+
+            (*self->memberChanged_)();
+        }
 
         if (self->isMuted_)
         {
@@ -341,12 +377,56 @@ private:
         self->Notify_(self->Get());
     }
 
+    template<typename T>
+    static void OnAggregateMemberChanged_(void *observer)
+    {
+        auto self = static_cast<Aggregate *>(observer);
+
+        PEX_LOG(
+            LookupPexName(self),
+            " received aggregate member changed notice.");
+
+        self->isModified_ = true;
+
+        if (self->memberChanged_)
+        {
+            PEX_LOG(
+                LookupPexName(self),
+                " sending member changed notice.");
+
+            (*self->memberChanged_)();
+        }
+    }
+
     void OnMute_(const Mute_ &muteState)
     {
         if (!muteState.isMuted && !muteState.isSilenced)
         {
-            // Notify group observers when unmuted.
-            this->Notify_(this->Get());
+            // Notify observers of changed groups when unmuted.
+            if (this->isModified_)
+            {
+                PEX_LOG(
+                    LookupPexName(this),
+                    " is modifified. Notifying.");
+
+                this->isModified_ = false;
+                this->Notify_(this->Get());
+            }
+            else
+            {
+                PEX_LOG(
+                    LookupPexName(this),
+                    " is unchanged. Skipping notification.");
+            }
+        }
+
+        if (muteState.isMuted && !this->isMuted_.isMuted)
+        {
+            // The group has been newly muted.
+
+            // Initialize isModified_ to false so we only notify for members
+            // that have changed.
+            this->isModified_ = false;
         }
 
         this->isMuted_ = muteState;
@@ -357,6 +437,9 @@ private:
 
     using MuteTerminus = pex::Terminus<Aggregate, MuteModel>;
     MuteTerminus muteTerminus_;
+
+    bool isModified_;
+    std::optional<SignalConnection_> memberChanged_;
 };
 
 

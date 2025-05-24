@@ -128,6 +128,45 @@ struct LinkedRanges
                     HighTerminus(this, this->high, &Model::OnHigh_));
             }
 
+            void SetInitial(const Plain &plain)
+            {
+                if (plain.low > plain.high)
+                {
+                    throw std::logic_error("low > high");
+                }
+
+                if (plain.high > this->high.GetMaximum())
+                {
+                    detail::AccessReference(this->high.maximum)
+                        .SetWithoutNotify(plain.high);
+                }
+
+                if (plain.low < this->low.GetMinimum())
+                {
+                    detail::AccessReference(this->low.minimum)
+                        .SetWithoutNotify(plain.low);
+                }
+
+                detail::AccessReference(this->high.minimum)
+                    .SetWithoutNotify(plain.low);
+
+                detail::AccessReference(this->low.maximum)
+                    .SetWithoutNotify(plain.high);
+
+                this->high.value.SetFilter(
+                    pex::model::RangeFilter<Type>(
+                        this->high.minimum.Get(),
+                        this->high.maximum.Get()));
+
+                this->low.value.SetFilter(
+                    pex::model::RangeFilter<Type>(
+                        this->low.minimum.Get(),
+                        this->low.maximum.Get()));
+
+                this->high.SetInitial(plain.high);
+                this->low.SetInitial(plain.low);
+            }
+
             void SetMaximumValue(Type maximumValue)
             {
                 // The maximum allowed value of "low" is high.

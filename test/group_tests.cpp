@@ -3,6 +3,7 @@
 #include <pex/group.h>
 #include <pex/endpoint.h>
 #include <pex/select.h>
+#include "test_observer.h"
 
 
 // Place types used by this translation unit in a namespace to avoid conflicts
@@ -398,6 +399,81 @@ TEST_CASE("Setting a group value propagates to model and observer.", "[groups]")
 }
 
 
+template<typename Object>
+class CenterObserver
+{
+public:
+    static constexpr auto observerName = "CenterObserver";
+
+    using Type = typename Object::Type;
+
+    CenterObserver(Object &object)
+        :
+        connect_(this, object, &CenterObserver::Observe_),
+        count_(0),
+        observedValue{object.Get()}
+    {
+
+    }
+
+    void Set(pex::Argument<Type> value)
+    {
+        this->connect_.Set(value);
+    }
+
+    CenterObserver(CenterObserver &&) = delete;
+    CenterObserver & operator=(CenterObserver &&) = delete;
+    CenterObserver(const CenterObserver &) = delete;
+    CenterObserver & operator=(const CenterObserver &) = delete;
+
+    size_t GetCount() const
+    {
+        return this->count_;
+    }
+
+private:
+    void Observe_(pex::Argument<Type> value)
+    {
+        this->observedValue = value;
+        ++this->count_;
+    }
+
+    pex::MakeConnector<CenterObserver<Object>, Object> connect_;
+    size_t count_;
+
+public:
+    Type observedValue;
+};
+
+
+TEST_CASE(
+    "Deferring a group only notifies members that were changed.", "[groups]")
+{
+    using Model = typename groups::CircleGroup::Model;
+    using Control = typename groups::CircleGroup::Control;
+
+    Model model{};
+    Control control(model);
+
+    CenterObserver centerObserver(control.center);
+    TestObserver circleObserver(control);
+
+    {
+        auto defer = pex::MakeDefer(control);
+        defer.radius.Set(3.1415926);
+
+        REQUIRE(centerObserver.GetCount() == 0);
+        REQUIRE(circleObserver.GetCount() == 0);
+    }
+
+    REQUIRE(centerObserver.GetCount() == 0);
+    REQUIRE(circleObserver.GetCount() == 1);
+
+    REQUIRE(model.radius.Get() == circleObserver.observedValue.radius);
+    REQUIRE(model.center.Get() == centerObserver.observedValue);
+}
+
+
 template<typename T>
 struct CircleWithSignalFields
 {
@@ -460,4 +536,154 @@ TEST_CASE("Presence of signal allows unstructure/structure.", "[groups]")
     auto recovered = fields::Structure<Plain>(unstructured);
 
     REQUIRE(recovered == model.Get());
+}
+
+
+namespace subgroup
+{
+
+
+template<typename T>
+struct ColorFields
+{
+    static constexpr auto fields = std::make_tuple(
+        fields::Field(&T::red, "red"),
+        fields::Field(&T::green, "green"),
+        fields::Field(&T::blue, "blue"));
+};
+
+
+template<template<typename> typename T>
+struct ColorTemplate
+{
+    T<int> red;
+    T<int> green;
+    T<int> blue;
+
+    static constexpr auto fields = ColorFields<ColorTemplate>::fields;
+};
+
+
+struct Color: public ColorTemplate<pex::Identity>
+{
+    Color()
+        :
+        ColorTemplate<pex::Identity>
+        {
+            1,
+            2,
+            3
+        }
+    {
+
+    }
+};
+
+
+struct ColorCustom
+{
+    using Plain = Color;
+};
+
+
+using ColorGroup = pex::Group<ColorFields, ColorTemplate, ColorCustom>;
+using ColorModel = typename ColorGroup::Model;
+
+
+template<typename T>
+struct PixelFields
+{
+    static constexpr auto fields = std::make_tuple(
+        fields::Field(&T::color, "color"),
+        fields::Field(&T::x, "x"),
+        fields::Field(&T::y, "y"));
+};
+
+
+template<template<typename> typename T>
+struct PixelTemplate
+{
+    T<ColorGroup> color;
+    T<int> x;
+    T<int> y;
+
+    static constexpr auto fields = PixelFields<PixelTemplate>::fields;
+};
+
+
+using PixelGroup = pex::Group<PixelFields, PixelTemplate>;
+using PixelModel = typename PixelGroup::Model;
+
+
+
+template<typename T>
+struct FooFields
+{
+    static constexpr auto fields = std::make_tuple(
+        fields::Field(&T::leftPixel, "leftPixel"),
+        fields::Field(&T::rightPixel, "rightPixel"),
+        fields::Field(&T::bar, "bar"));
+};
+
+
+template<template<typename> typename T>
+struct FooTemplate
+{
+    T<PixelGroup> leftPixel;
+    T<PixelGroup> rightPixel;
+    T<int> bar;
+
+    static constexpr auto fields = FooFields<FooTemplate>::fields;
+};
+
+
+struct FooCustom
+{
+    template<typename Base>
+    struct Plain: public Base
+    {
+        Plain()
+            :
+            Base{}
+        {
+            this->leftPixel.color.red = 4;
+            this->leftPixel.color.green = 5;
+            this->leftPixel.color.blue = 6;
+        }
+    };
+};
+
+
+using FooGroup = pex::Group<FooFields, FooTemplate, FooCustom>;
+using FooModel = typename FooGroup::Model;
+
+
+} // end namespace subgroup
+
+
+TEST_CASE("Subgroup is initialized using default constructor.", "[groups]")
+{
+    using Model = subgroup::ColorModel;
+
+    Model model{};
+
+    REQUIRE(model.red.Get() == 1);
+    REQUIRE(model.green.Get() == 2);
+    REQUIRE(model.blue.Get() == 3);
+}
+
+
+TEST_CASE("Subgroup is initialized by intermediate group.", "[groups]")
+{
+    using Model = subgroup::FooModel;
+
+    Model model{};
+
+    REQUIRE(model.leftPixel.color.red.Get() == 4);
+    REQUIRE(model.leftPixel.color.green.Get() == 5);
+    REQUIRE(model.leftPixel.color.blue.Get() == 6);
+
+    REQUIRE(model.rightPixel.color.red.Get() == 1);
+    REQUIRE(model.rightPixel.color.green.Get() == 2);
+    REQUIRE(model.rightPixel.color.blue.Get() == 3);
 }

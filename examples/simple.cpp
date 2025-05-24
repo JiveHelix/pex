@@ -1,6 +1,7 @@
 #include <iostream>
 #include <pex/model_value.h>
 #include <pex/control_value.h>
+#include <pex/converter.h>
 
 
 void Observer(void *, double value)
@@ -24,6 +25,14 @@ int main()
     std::cout << model.Get() << std::endl;
 
     follower.Disconnect(nullptr);
+
+    using IntConverter = pex::Converter<int>;
+
+    std::cout << "-1: " << IntConverter::ToString(-1) << std::endl;
+    std::cout << "0: " << IntConverter::ToString(0) << std::endl;
+    std::cout << "1: " << IntConverter::ToString(1) << std::endl;
+
+
 
     return 0;
 }

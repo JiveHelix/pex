@@ -4,18 +4,23 @@ if (${fPIC})
     set_property(TARGET pex PROPERTY POSITION_INDEPENDENT_CODE ON)
 endif ()
 
+find_package(Fmt REQUIRED)
+find_package(Jive REQUIRED)
+find_package(Fields REQUIRED)
+
 # Projects that include this project must #include "pex/<header-name>"
 target_include_directories(pex PUBLIC ${PROJECT_SOURCE_DIR})
+
+target_compile_options(pex PUBLIC $<$<CXX_COMPILER_ID:GNU>:-fconcepts>)
 
 target_link_libraries(
     pex
     PUBLIC
     project_options
     project_warnings
-    CONAN_PKG::jive
-    CONAN_PKG::fields
-    CONAN_PKG::fmt
-    CONAN_PKG::nlohmann_json)
+    jive::jive
+    fields::fields
+    fmt::fmt)
 
 target_sources(
     pex

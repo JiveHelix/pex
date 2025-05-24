@@ -510,7 +510,8 @@ private:
         {
             (*self->valueConnection_)(self->cached_);
         }
-        else if (self->signalConnection_.has_value())
+
+        if (self->signalConnection_.has_value())
         {
             (*self->signalConnection_)();
         }

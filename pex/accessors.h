@@ -40,7 +40,7 @@ template<typename Target, typename Source>
 std::enable_if_t<detail::CanBeSet<Target>>
 SetWithoutNotify(Target &target, const Source &source)
 {
-    detail::AccessReference<Target>(target).SetWithoutNotify(source);
+    detail::AccessReference(target).SetWithoutNotify(source);
 }
 
 template<typename Target, typename Source>
@@ -64,7 +64,7 @@ DoSetInitial(Target &target, const Source &source)
 {
     if constexpr (!IsSignal<Target>)
     {
-        detail::AccessReference<Target>(target).SetWithoutNotify(source);
+        detail::AccessReference(target).SetWithoutNotify(source);
     }
 }
 
@@ -72,7 +72,7 @@ template<typename Target>
 std::enable_if_t<detail::CanBeSet<Target>>
 DoNotify(Target &target)
 {
-    detail::AccessReference<Target>(target).DoNotify();
+    detail::AccessReference(target).DoNotify();
 }
 
 template<typename Target>
@@ -212,12 +212,16 @@ public:
 
     void Set(const Plain &plain)
     {
+        // DeferGroup will notify members of changes after all values have been
+        // set.
+        // The aggregate notification will follow.
         DeferGroup<Fields, Template_, Selector, Derived> deferGroup(
             static_cast<Derived &>(*this));
 
         deferGroup.Set(plain);
     }
 
+    // Initialize values without sending notifications.
     void SetInitial(const Plain &plain)
     {
         auto derived = static_cast<Derived *>(this);
@@ -235,7 +239,7 @@ public:
             Fields<Derived>::fields,
             Fields<Plain>::fields);
 
-        this->DoNotify_();
+        // this->DoNotify_();
     }
 
     template<typename>

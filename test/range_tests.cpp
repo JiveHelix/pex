@@ -233,3 +233,108 @@ TEST_CASE("Range limits are never optional.", "[range]")
     STATIC_REQUIRE(
         !jive::IsOptional<decltype(std::declval<LinearRange>().maximum.Get())>);
 }
+
+
+namespace linked
+{
+
+
+using ColorRanges =
+    pex::LinkedRanges
+    <
+        int,
+        pex::Limit<0>,
+        pex::Limit<0>,
+        pex::Limit<255>,
+        pex::Limit<255>
+    >;
+
+
+
+template<typename T>
+struct ColorFields
+{
+    static constexpr auto fields = std::make_tuple(
+        fields::Field(&T::red, "red"),
+        fields::Field(&T::green, "green"),
+        fields::Field(&T::blue, "blue"));
+};
+
+
+template<template<typename> typename T>
+struct ColorTemplate
+{
+    T<typename ColorRanges::Group> red;
+    T<typename ColorRanges::Group> green;
+    T<typename ColorRanges::Group> blue;
+
+    static constexpr auto fields = ColorFields<ColorTemplate>::fields;
+};
+
+
+using ColorGroup = pex::Group<ColorFields, ColorTemplate>;
+using ColorModel = typename ColorGroup::Model;
+
+
+template<typename T>
+struct PixelFields
+{
+    static constexpr auto fields = std::make_tuple(
+        fields::Field(&T::color, "color"),
+        fields::Field(&T::x, "x"),
+        fields::Field(&T::y, "y"));
+};
+
+
+template<template<typename> typename T>
+struct PixelTemplate
+{
+    T<ColorGroup> color;
+    T<int> x;
+    T<int> y;
+
+    static constexpr auto fields = PixelFields<PixelTemplate>::fields;
+};
+
+
+struct PixelCustom
+{
+    template<typename Base>
+    struct Plain: public Base
+    {
+        Plain()
+            :
+            Base{}
+        {
+            this->color.red.high = 1023;
+        }
+    };
+
+    template<typename Base>
+    struct Model: public Base
+    {
+        Model()
+            :
+            Base{}
+        {
+
+        }
+    };
+};
+
+
+using PixelGroup = pex::Group<PixelFields, PixelTemplate, PixelCustom>;
+using PixelModel = typename PixelGroup::Model;
+
+
+} // end namespace linked
+
+
+TEST_CASE("Linked ranges can be overridden in owner's initializer.", "[range]")
+{
+    linked::ColorModel color;
+    linked::PixelModel pixel;
+
+    REQUIRE(color.red.high.Get() == 255);
+    REQUIRE(pixel.color.red.high.Get() == 1023);
+}

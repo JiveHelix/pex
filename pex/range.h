@@ -534,12 +534,12 @@ public:
 private:
     void SetWithoutNotify_(Argument<Type> value_)
     {
-        detail::AccessReference<Value>(this->value).SetWithoutNotify(value_);
+        detail::AccessReference(this->value).SetWithoutNotify(value_);
     }
 
     void DoNotify_()
     {
-        detail::AccessReference<Value>(this->value).DoNotify();
+        detail::AccessReference(this->value).DoNotify();
     }
 
     void OnReset_()
@@ -1046,12 +1046,12 @@ public:
 private:
     void SetWithoutNotify_(Argument<Type> value_)
     {
-        detail::AccessReference<Value>(this->value).SetWithoutNotify(value_);
+        detail::AccessReference(this->value).SetWithoutNotify(value_);
     }
 
     void DoNotify_()
     {
-        detail::AccessReference<Value>(this->value).DoNotify();
+        detail::AccessReference(this->value).DoNotify();
     }
 };
 
@@ -1362,12 +1362,12 @@ public:
 private:
     void SetWithoutNotify_(Argument<Type> value_)
     {
-        detail::AccessReference<Value>(this->value).SetWithoutNotify(value_);
+        detail::AccessReference(this->value).SetWithoutNotify(value_);
     }
 
     void DoNotify_()
     {
-        detail::AccessReference<Value>(this->value).DoNotify();
+        detail::AccessReference(this->value).DoNotify();
     }
 };
 

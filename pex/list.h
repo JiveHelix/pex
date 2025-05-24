@@ -173,7 +173,7 @@ struct List
                 std::rotate(element, next, std::end(this->items_));
             }
 
-            detail::AccessReference<Selected>(this->selected)
+            detail::AccessReference(this->selected)
                 .SetWithoutNotify({});
 
             this->count.Set(this->count.Get() - 1);
@@ -220,6 +220,7 @@ struct List
             return result;
         }
 
+        // Initialize values without sending notifications.
         void SetInitial(const Type &values)
         {
             if (values.empty())
@@ -271,7 +272,7 @@ struct List
                 return;
             }
 
-            detail::AccessReference<Count>(this->count)
+            detail::AccessReference(this->count)
                 .SetWithoutNotify(newSize);
 
             this->ChangeCount_(newSize);
@@ -288,11 +289,11 @@ struct List
 
             for (auto &item: this->items_)
             {
-                detail::AccessReference<ListItem>(*item).DoNotify();
+                detail::AccessReference(*item).DoNotify();
             }
 
             jive::ScopeFlag ignoreCount(this->ignoreCount_);
-            detail::AccessReference<Count>(this->count).DoNotify();
+            detail::AccessReference(this->count).DoNotify();
         }
 
         void SetWithoutNotify_(const Type &values)
@@ -306,7 +307,7 @@ struct List
 
             if (values.size() != this->items_.size())
             {
-                detail::AccessReference<Count>(this->count)
+                detail::AccessReference(this->count)
                     .SetWithoutNotify(values.size());
 
                 this->ChangeCount_(values.size());
@@ -317,7 +318,7 @@ struct List
 
             for (size_t index = 0; index < values.size(); ++index)
             {
-                detail::AccessReference<ListItem>(*this->items_[index])
+                detail::AccessReference(*this->items_[index])
                     .SetWithoutNotify(values[index]);
             }
 
@@ -337,7 +338,7 @@ struct List
 
             auto wasSelected = this->selected.Get();
 
-            detail::AccessReference<Selected>(this->selected).SetWithoutNotify({});
+            detail::AccessReference(this->selected).SetWithoutNotify({});
 
             if (count_ < this->items_.size())
             {
@@ -359,7 +360,7 @@ struct List
 
             if (wasSelected && *wasSelected < count_)
             {
-                detail::AccessReference<Selected>(this->selected)
+                detail::AccessReference(this->selected)
                     .SetWithoutNotify(wasSelected);
             }
         }

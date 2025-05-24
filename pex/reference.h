@@ -219,6 +219,10 @@ public:
 };
 
 
+template <typename Pex>
+AccessReference(Pex) -> AccessReference<Pex>;
+
+
 } // end namespace detail
 
 
@@ -257,32 +261,52 @@ public:
 
     using Base::Base;
 
-    Defer(Defer &&other)
+    Defer()
         :
-        Base(std::move(other))
+        Base(),
+        isChanged_(false)
     {
 
     }
 
+    Defer(Pex &pex)
+        :
+        Base(pex),
+        isChanged_(false)
+    {
+
+    }
+
+    Defer(Defer &&other)
+        :
+        Base(std::move(other)),
+        isChanged_(other.isChanged_)
+    {
+        other.isChanged_ = false;
+    }
+
     Defer & operator=(Defer &&other)
     {
-        if (this->pex_)
+        if (this->pex_ && this->isChanged_)
         {
             this->DoNotify_();
         }
 
         Base::operator=(std::move(other));
+        this->isChanged_ = other.isChanged_;
 
         return *this;
     }
 
     void Set(Argument<Type> value)
     {
+        this->isChanged_ = true;
         this->SetWithoutNotify_(value);
     }
 
     Defer & operator=(Argument<Type> value)
     {
+        this->isChanged_ = true;
         this->SetWithoutNotify_(value);
         return *this;
     }
@@ -290,20 +314,22 @@ public:
     ~Defer()
     {
         // Notify on destruction
-        if (this->pex_)
-        {
-            this->DoNotify_();
-        }
+        this->DoNotify();
     }
 
     void DoNotify()
     {
-        if (this->pex_)
+        if (this->pex_ && this->isChanged_)
         {
             this->DoNotify_();
-            this->pex_ = nullptr;
+            this->isChanged_ = false;
         }
+
+        this->pex_ = nullptr;
     }
+
+private:
+    bool isChanged_;
 };
 
 
@@ -392,8 +418,8 @@ struct DeferSelector
         std::enable_if_t<IsPolyModel<Selector<T>>>
     >
     {
-        // This member expands to a list.
-        // Choose the appropriate DeferList
+        // This member expands to a PolyModel.
+        // Choose the appropriate PolyDefer
         using Type = PolyDefer<Selector<T>, typename Selector<T>::SuperModel>;
     };
 
@@ -404,8 +430,8 @@ struct DeferSelector
         std::enable_if_t<IsPolyControl<Selector<T>>>
     >
     {
-        // This member expands to a list.
-        // Choose PolyDefer
+        // This member expands to a PolyControl.
+        // Choose the appropriate PolyDefer
         using Type = PolyDefer<Selector<T>, typename Selector<T>::SuperControl>;
     };
 
@@ -502,6 +528,8 @@ public:
         upstream_(&upstream),
         scopeMute_(upstream, false)
     {
+        // Every member of this group will also be Defer/DeferGroup/DeferList
+        // depending on each type.
         auto initialize = [this, &upstream]
             (auto deferField, [[maybe_unused]] auto upstreamField)
         {
@@ -584,6 +612,11 @@ public:
 
     void DoNotify()
     {
+        if (!this->scopeMute_.IsMuted())
+        {
+            return;
+        }
+
         // Notify all members before unmuting the aggregate observer.
         auto doNotify = [this](auto deferField)
         {
@@ -613,6 +646,7 @@ public:
 
             if constexpr (!std::is_same_v<DescribeSignal, MemberType>)
             {
+                // Does not set fields are read-only.
                 detail::SetByAccess(
                     this->*(deferField.member),
                     plain.*(plainField.member));
@@ -627,6 +661,7 @@ public:
 
     void Clear()
     {
+        // Recursively call Clear() on all members that implement it.
         auto clear = [this](auto deferField)
         {
             using MemberType = typename std::remove_reference_t<
@@ -766,11 +801,11 @@ public:
         assert(this->upstream_);
 
         auto itemCount = plain.size();
+        this->count.Set(itemCount);
 
         if (itemCount != this->items_.size())
         {
             // Clear the existing deferred members so they do not notify.
-
             this->ClearItems();
 
             detail::AccessReference<Upstream>(*this->upstream_)
@@ -856,6 +891,11 @@ public:
     DeferredMember & operator[](size_t index)
     {
         return this->items_[index];
+    }
+
+    DeferredMember & at(size_t index)
+    {
+        return this->items_.at(index);
     }
 
     const DeferredMember & operator[](size_t index) const

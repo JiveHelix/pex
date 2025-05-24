@@ -455,13 +455,14 @@ struct ImplementInterface
 protected:
     void SetWithoutNotify_(Argument<Type> value)
     {
-        detail::AccessReference<Upstream>(
-            static_cast<Derived *>(this)->upstreamControl_).SetWithoutNotify(value);
+        detail::AccessReference(
+            static_cast<Derived *>(this)->upstreamControl_)
+                .SetWithoutNotify(value);
     }
 
     void DoNotify_()
     {
-        detail::AccessReference<Upstream>(
+        detail::AccessReference(
             static_cast<Derived *>(this)->upstreamControl_).DoNotify();
     }
 };

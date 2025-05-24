@@ -112,7 +112,7 @@ template
 >
 struct MakeSelect
 {
-    using Type = SelectType<T>;
+    using Type = SelectType<std::decay_t<T>>;
     using Access = Access_;
 };
 

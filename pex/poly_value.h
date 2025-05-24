@@ -2,7 +2,6 @@
 
 
 #include <memory>
-#include <nlohmann/json.hpp>
 #include "pex/error.h"
 #include "pex/get_type_name.h"
 
