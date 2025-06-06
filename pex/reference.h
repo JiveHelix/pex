@@ -1027,4 +1027,29 @@ auto MakeDefer(Pex &pex)
 }
 
 
+template<typename Deferred>
+struct Silent: public Deferred
+{
+    Silent(Deferred &&other)
+        :
+        Deferred(std::move(other))
+    {
+
+    }
+
+    ~Silent()
+    {
+        // Prevent members from issuing notifications.
+        this->Clear();
+    }
+};
+
+
+template<typename Pex>
+auto MakeSilent(Pex &pex)
+{
+    return Silent(MakeDefer(pex));
+}
+
+
 } // namespace pex
