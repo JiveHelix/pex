@@ -124,7 +124,7 @@ public:
             [](const Json &jsonValues) -> std::shared_ptr<Base>
             {
                 return std::make_shared<Derived>(
-                    fields::StructureFromFields<Derived>(jsonValues));
+                    fields::Restructure<Derived>(jsonValues));
             };
     }
 
