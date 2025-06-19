@@ -269,6 +269,7 @@ struct ColorTemplate
     T<typename ColorRanges::Group> blue;
 
     static constexpr auto fields = ColorFields<ColorTemplate>::fields;
+    static constexpr auto fieldsTypeName = "Color";
 };
 
 
@@ -294,6 +295,7 @@ struct PixelTemplate
     T<int> y;
 
     static constexpr auto fields = PixelFields<PixelTemplate>::fields;
+    static constexpr auto fieldsTypeName = "Pixel";
 };
 
 

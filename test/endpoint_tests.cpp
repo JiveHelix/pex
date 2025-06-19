@@ -24,6 +24,7 @@ struct TestTemplate
     T<pex::List<int, 0>> values;
 
     static constexpr auto fields = TestFields<TestTemplate>::fields;
+    static constexpr auto fieldsTypeName = "Test";
 };
 
 

@@ -79,6 +79,7 @@ struct OrderedListTemplate
         T<ListMaker> list;
 
         static constexpr auto fields = OrderedListFields<Template>::fields;
+        static constexpr auto fieldsTypeName = "OrderedList";
     };
 };
 
@@ -173,14 +174,18 @@ struct OrderedListCustom
     public:
         static constexpr bool hasOrder = ListHasOrder<ListMaker>;
 
-        using Selected = control::ListSelected;
+        using Selected = control::ListOptionalIndex;
+        using MemberRemoved = control::ListOptionalIndex;
+        using MemberAdded = model::ListOptionalIndex;
         using CountWillChange = control::ListCountWillChange;
         using Count = control::ListCount;
 
     private:
         using CountEndpoint = Endpoint<Model, Count>;
         using CountWillChangeEndpoint = Endpoint<Model, CountWillChange>;
+        using MemberRemovedEndpoint = Endpoint<Model, MemberRemoved>;
 
+        MemberRemovedEndpoint memberRemovedEndpoint_;
         CountWillChangeEndpoint countWillChangeEndpoint_;
         CountEndpoint countEndpoint_;
 
@@ -188,6 +193,7 @@ struct OrderedListCustom
         Selected selected;
         CountWillChange countWillChange;
         Count count;
+        MemberAdded memberAdded;
 
         using Indices = ModelSelector<IndicesList>;
         using IndicesListItem = typename Indices::ListItem;
@@ -198,6 +204,11 @@ struct OrderedListCustom
         Model()
             :
             Base(),
+
+            memberRemovedEndpoint_(
+                this,
+                this->list.memberRemoved,
+                &Model::OnListMemberRemoved_),
 
             countWillChangeEndpoint_(
                 this,
@@ -212,18 +223,32 @@ struct OrderedListCustom
             moveDownEndpoints_(),
             moveUpEndpoints_(),
             reorderEndpoint_(this, this->indices, &Model::OnReorder_)
-
         {
+            REGISTER_PEX_NAME(this, "OrderedList::Model");
+            REGISTER_PEX_PARENT(this, &this->list);
+            REGISTER_PEX_PARENT(this, &this->indices);
+            REGISTER_PEX_PARENT(this, &this->reorder);
+
             this->OnListCount_(this->list.count.Get());
 
             assert(this->list.count.Get() == this->indices.count.Get());
             assert(this->indices.Get().size() == this->indices.count.Get());
             assert(this->list.Get().size() == this->list.count.Get());
+
+            PEX_LOG("Created OrderedList::Model: ", pex::LookupPexName(this));
         }
 
         ListItem & operator[](size_t index)
         {
             return this->list[index];
+        }
+
+        template<typename Derived>
+        void Prepend(const Derived &item)
+        {
+            auto newIndex = this->list.Append(item);
+            this->MoveToTop(newIndex);
+            this->memberAdded.Set(newIndex);
         }
 
         template<typename Derived>
@@ -476,6 +501,41 @@ struct OrderedListCustom
             }
         }
 
+        void OnListMemberRemoved_(const std::optional<size_t> &removedIndex)
+        {
+            if (!removedIndex)
+            {
+                return;
+            }
+
+            auto removed = *removedIndex;
+
+            auto previous = this->indices.Get();
+
+            std::erase_if(
+                previous,
+                [removed](size_t index)
+                {
+                    return index == removed;
+                });
+
+            std::transform(
+                std::cbegin(previous),
+                std::cend(previous),
+                std::begin(previous),
+                [removed](size_t value)
+                {
+                    if (value > removed)
+                    {
+                        return value - 1;
+                    }
+
+                    return value;
+                });
+
+            detail::AccessReference(this->indices).SetWithoutNotify(previous);
+        }
+
         void OnListCountWillChange_()
         {
             this->moveDownEndpoints_.clear();
@@ -524,8 +584,6 @@ struct OrderedListCustom
                 {
                     return index >= value;
                 });
-
-            assert(previous.size() == value);
 
             this->indices.Set(previous);
 
@@ -906,6 +964,7 @@ struct OrderedListCustom
     public:
         using List = decltype(Base::list);
         using Selected = typename List::Selected;
+        using MemberAdded = control::ListOptionalIndex;
         using CountWillChange = typename List::CountWillChange;
         using Count = typename List::Count;
         using ListItem = typename List::ListItem;
@@ -926,6 +985,7 @@ struct OrderedListCustom
         Selected selected;
         CountWillChange countWillChange;
         Count count;
+        MemberAdded memberAdded;
 
         Control()
             :
@@ -933,9 +993,13 @@ struct OrderedListCustom
             upstream_(nullptr),
             selected(),
             countWillChange(),
-            count()
+            count(),
+            memberAdded()
         {
-
+            REGISTER_PEX_NAME(this, "OrderedList::Control");
+            REGISTER_PEX_PARENT(this, &this->list);
+            REGISTER_PEX_PARENT(this, &this->indices);
+            REGISTER_PEX_PARENT(this, &this->reorder);
         }
 
         Control(typename Base::Upstream &upstream)
@@ -944,11 +1008,55 @@ struct OrderedListCustom
             upstream_(&upstream),
             selected(this->list.selected),
             countWillChange(this->list.countWillChange),
-            count(this->list.count)
+            count(this->list.count),
+            memberAdded(this->upstream_->memberAdded)
         {
+            REGISTER_PEX_NAME(this, "OrderedList::Control");
+            REGISTER_PEX_PARENT(this, &this->list);
+            REGISTER_PEX_PARENT(this, &this->indices);
+            REGISTER_PEX_PARENT(this, &this->reorder);
+
             assert(this->list.count.Get() == this->indices.count.Get());
             assert(this->indices.Get().size() == this->indices.count.Get());
             assert(this->list.Get().size() == this->list.count.Get());
+        }
+
+        Control(const Control &other)
+            :
+            Base(*other.upstream_),
+            upstream_(other.upstream_),
+            selected(this->list.selected),
+            countWillChange(this->list.countWillChange),
+            count(this->list.count),
+            memberAdded(this->upstream_->memberAdded)
+        {
+            REGISTER_PEX_NAME(this, "OrderedList::Control");
+            REGISTER_PEX_PARENT(this, &this->list);
+            REGISTER_PEX_PARENT(this, &this->indices);
+            REGISTER_PEX_PARENT(this, &this->reorder);
+        }
+
+        Control & operator=(const Control &other)
+        {
+            this->Base::operator=(other);
+            this->upstream_ = other.upstream_;
+            this->selected = other.selected;
+            this->countWillChange = other.countWillChange;
+            this->count = other.count;
+            this->memberAdded = other.memberAdded;
+
+            return *this;
+        }
+
+        template<typename Derived>
+        void Prepend(const Derived &item)
+        {
+            if (!this->upstream_)
+            {
+                throw PexError("No connection to model");
+            }
+
+            this->upstream_->Prepend(item);
         }
 
         template<typename Derived>

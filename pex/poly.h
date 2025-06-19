@@ -49,6 +49,8 @@ struct Poly
         public:
             using GroupBase::GroupBase;
 
+            virtual ~Model() {}
+
             PolyValue GetValue() const override
             {
                 return PolyValue(std::make_shared<Derived>(this->Get()));
@@ -88,6 +90,8 @@ struct Poly
             using GroupBase::GroupBase;
             using Upstream = typename GroupBase::Upstream;
             using Aggregate = typename GroupBase::Aggregate;
+
+            virtual ~Control() {}
 
             Control(::pex::poly::Model<Supers> &model);
 

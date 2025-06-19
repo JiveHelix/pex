@@ -1,6 +1,7 @@
 #pragma once
 
 
+#include <fields/compare.h>
 #include "pex/identity.h"
 #include "pex/traits.h"
 #include "pex/poly_base.h"

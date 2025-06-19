@@ -561,6 +561,7 @@ struct ColorTemplate
     T<int> blue;
 
     static constexpr auto fields = ColorFields<ColorTemplate>::fields;
+    static constexpr auto fieldsTypeName = "Color";
 };
 
 
@@ -608,6 +609,7 @@ struct PixelTemplate
     T<int> y;
 
     static constexpr auto fields = PixelFields<PixelTemplate>::fields;
+    static constexpr auto fieldsTypeName = "Pixel";
 };
 
 
@@ -634,6 +636,7 @@ struct FooTemplate
     T<int> bar;
 
     static constexpr auto fields = FooFields<FooTemplate>::fields;
+    static constexpr auto fieldsTypeName = "Foo";
 };
 
 

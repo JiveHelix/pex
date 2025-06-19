@@ -108,7 +108,7 @@ public:
 
     ~Endpoint_()
     {
-        UNREGISTER_PEX_NAME(&this->connector, "connector");
+        UNREGISTER_PEX_NAME(this, "Endpoint");
     }
 
     Endpoint_()
@@ -116,7 +116,8 @@ public:
         observer_(nullptr),
         connector()
     {
-        REGISTER_PEX_NAME_WITH_PARENT(&this->connector, this, "connector");
+        REGISTER_PEX_NAME(this, "Endpoint");
+        REGISTER_PEX_PARENT(this, &this->connector);
     }
 
     Endpoint_(Observer *observer)
@@ -124,7 +125,8 @@ public:
         observer_(observer),
         connector()
     {
-        REGISTER_PEX_NAME_WITH_PARENT(&this->connector, this, "connector");
+        REGISTER_PEX_NAME(this, "Endpoint");
+        REGISTER_PEX_PARENT(this, &this->connector);
     }
 
     Endpoint_(Observer *observer, UpstreamControl upstream)
@@ -132,7 +134,8 @@ public:
         observer_(observer),
         connector(observer, upstream)
     {
-        REGISTER_PEX_NAME_WITH_PARENT(&this->connector, this, "connector");
+        REGISTER_PEX_NAME(this, "Endpoint");
+        REGISTER_PEX_PARENT(this, &this->connector);
     }
 
     Endpoint_(Observer *observer, UpstreamControl upstream, Callable callable)
@@ -140,7 +143,8 @@ public:
         observer_(observer),
         connector(observer, upstream, callable)
     {
-        REGISTER_PEX_NAME_WITH_PARENT(&this->connector, this, "connector");
+        REGISTER_PEX_NAME(this, "Endpoint");
+        REGISTER_PEX_PARENT(this, &this->connector);
     }
 
     Endpoint_(Observer *observer, typename UpstreamControl::Upstream &model)
@@ -148,7 +152,8 @@ public:
         observer_(observer),
         connector(observer, UpstreamControl(model))
     {
-        REGISTER_PEX_NAME_WITH_PARENT(&this->connector, this, "connector");
+        REGISTER_PEX_NAME(this, "Endpoint");
+        REGISTER_PEX_PARENT(this, &this->connector);
     }
 
     Endpoint_(
@@ -159,7 +164,8 @@ public:
         observer_(observer),
         connector(observer, UpstreamControl(model), callable)
     {
-        REGISTER_PEX_NAME_WITH_PARENT(&this->connector, this, "connector");
+        REGISTER_PEX_NAME(this, "Endpoint");
+        REGISTER_PEX_PARENT(this, &this->connector);
     }
 
     Endpoint_(Observer *observer, const Endpoint_ &other)
@@ -167,7 +173,8 @@ public:
         observer_(observer),
         connector(observer, other.connector)
     {
-        REGISTER_PEX_NAME_WITH_PARENT(&this->connector, this, "connector");
+        REGISTER_PEX_NAME(this, "Endpoint");
+        REGISTER_PEX_PARENT(this, &this->connector);
     }
 
     Endpoint_ & Assign(Observer *observer, const Endpoint_ &other)
@@ -183,7 +190,8 @@ public:
         observer_(other.observer_),
         connector(other.observer_, other.connector)
     {
-        REGISTER_PEX_NAME_WITH_PARENT(&this->connector, this, "connector");
+        REGISTER_PEX_NAME(this, "Endpoint");
+        REGISTER_PEX_PARENT(this, &this->connector);
     }
 
     Endpoint_ & operator=(Endpoint_ &&other)

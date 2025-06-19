@@ -2,6 +2,7 @@
 
 #include <map>
 #include <fmt/core.h>
+#include <vector>
 
 
 namespace pex
@@ -13,17 +14,45 @@ std::unique_ptr<std::mutex> logMutex(std::make_unique<std::mutex>());
 
 struct Name
 {
-    void *parent;
+    const void *parent;
     std::string name;
 };
 
 
-std::map<void *, Name> namesByAddress;
+std::map<const void *, Name> namesByAddress;
+
+
+std::string FormatName(const void *address, const Name &name)
+{
+    if (name.parent != nullptr)
+    {
+        assert(name.parent != address);
+
+        return fmt::format(
+            "({} @ {}) childof {}",
+            name.name,
+            address,
+            LookupPexName(name.parent));
+    }
+
+    return fmt::format(
+        "{} @ {}",
+        name.name,
+        address);
+}
 
 
 void RegisterPexName(void *address, const std::string &name)
 {
-    namesByAddress[address] = Name{nullptr, name};
+    if (namesByAddress.count(address))
+    {
+        auto &entry = namesByAddress[address];
+        entry.name = name;
+    }
+    else
+    {
+        namesByAddress[address] = Name{nullptr, name};
+    }
 }
 
 
@@ -50,11 +79,73 @@ void RegisterPexName(void *address, void *parent, const std::string &name)
         throw std::runtime_error("parent must have unique address");
     }
 
-    namesByAddress[address] = Name{parent, name};
+    if (!namesByAddress.count(parent))
+    {
+        throw std::runtime_error("disallowed anonymous parent");
+    }
+
+    if (namesByAddress.count(address))
+    {
+        auto &entry = namesByAddress[address];
+
+        entry.parent = parent;
+        entry.name = name;
+    }
+    else
+    {
+        namesByAddress[address] = Name{parent, name};
+    }
 }
 
 
-std::string LookupPexName(void *address)
+void RegisterPexParent(void *parent, void *child)
+{
+    if (child == parent)
+    {
+        throw std::runtime_error("parent must have unique address");
+    }
+
+    if (!namesByAddress.count(parent))
+    {
+        throw std::runtime_error("disallowed anonymous parent");
+    }
+
+    if (namesByAddress.count(child))
+    {
+        auto &name = namesByAddress[child];
+        name.parent = parent;
+    }
+    else
+    {
+        namesByAddress[child] = Name{parent, ""};
+    }
+}
+
+
+bool HasPexName(void *address)
+{
+    if (!address)
+    {
+        return false;
+    }
+
+    if (!namesByAddress.count(address))
+    {
+        return false;
+    }
+
+    const auto &entry = namesByAddress[address];
+
+    if (entry.name.empty())
+    {
+        return false;
+    }
+
+    return true;
+}
+
+
+std::string LookupPexName(const void *address)
 {
     if (address == nullptr)
     {
@@ -65,20 +156,7 @@ std::string LookupPexName(void *address)
     {
         auto &name = namesByAddress[address];
 
-        if (name.parent != nullptr)
-        {
-            assert(name.parent != address);
-
-            return fmt::format(
-                "{} => {}",
-                name.name,
-                LookupPexName(name.parent));
-        }
-
-        return fmt::format(
-            "{} @ {}",
-            name.name,
-            address);
+        return FormatName(address, name);
     }
 
     return fmt::format("{}", address);

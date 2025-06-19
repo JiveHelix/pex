@@ -103,6 +103,13 @@ Poly<Fields, Templates>::GroupTemplates_
     :
     GroupBase()
 {
+    REGISTER_PEX_NAME(
+        this,
+        fmt::format(
+            "Poly<Fields, {}>::Control<{}>",
+            jive::GetTypeName<Templates>(),
+            jive::GetTypeName<GroupBase>()));
+
     using DerivedControl = typename Poly<Fields, Templates>::Control;
 
     auto base = model.GetVirtual();
@@ -129,6 +136,13 @@ Poly<Fields, Templates>::GroupTemplates_
     :
     GroupBase()
 {
+    REGISTER_PEX_NAME(
+        this,
+        fmt::format(
+            "Poly<Fields, {}>::Control<{}>",
+            jive::GetTypeName<Templates>(),
+            jive::GetTypeName<GroupBase>()));
+
     using DerivedControl = typename Poly<Fields, Templates>::Control;
 
     auto base = control.GetVirtual();

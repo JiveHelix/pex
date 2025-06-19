@@ -34,7 +34,7 @@ namespace model
 
 
 using ListCount = Value<size_t>;
-using ListSelected = Value<std::optional<size_t>>;
+using ListOptionalIndex = Value<std::optional<size_t>>;
 
 
 } // namespace model
@@ -45,7 +45,7 @@ namespace control
 
 
 using ListCount = Value<::pex::model::ListCount>;
-using ListSelected = Value<::pex::model::ListSelected>;
+using ListOptionalIndex = Value<::pex::model::ListOptionalIndex>;
 using ListCountWillChange = Signal<GetTag>;
 
 
@@ -78,11 +78,11 @@ struct List
         using Item = typename ListItem::Type;
         using Type = std::vector<Item>;
         using Count = ::pex::model::ListCount;
-        using Selected = ::pex::model::ListSelected;
+        using Selected = ::pex::model::ListOptionalIndex;
+        using MemberRemoved = ::pex::model::ListOptionalIndex;
         using Access = GetAndSetTag;
 
         using Defer = DeferList<Member, ModelSelector, Model>;
-        // using DeferredList = detail::DeferredList<Member, ModelSelector, Model>;
 
         template<typename>
         friend class ::pex::Reference;
@@ -101,6 +101,7 @@ struct List
         model::Signal countWillChange;
         Count count;
         Selected selected;
+        MemberRemoved memberRemoved;
 
         Model()
             :
@@ -112,9 +113,16 @@ struct List
             countWillChange(),
             count(initialCount),
             selected(),
+            memberRemoved(),
             items_(),
             countTerminus_(this, this->count, &Model::OnCount_)
         {
+            REGISTER_PEX_NAME(
+                this,
+                fmt::format(
+                    "pex::List<{}>::Model",
+                    jive::GetTypeName<Member>()));
+
             size_t toInitialize = initialCount;
 
             while (toInitialize--)
@@ -128,6 +136,20 @@ struct List
             Model()
         {
             this->Set(items);
+
+            for (auto &item: this->items_)
+            {
+                REGISTER_PEX_PARENT(this, &item);
+            }
+        }
+
+        ~Model()
+        {
+            UNREGISTER_PEX_NAME(
+                this,
+                fmt::format(
+                    "pex::List<{}>::Model",
+                    jive::GetTypeName<Member>()));
         }
 
         ListItem & operator[](size_t index)
@@ -157,6 +179,8 @@ struct List
                 return;
             }
 
+            this->memberRemoved.Set(*selected_);
+
             if (*selected_ != this->items_.size() - 1)
             {
                 // Move the selected element to the back before erasing it.
@@ -173,10 +197,14 @@ struct List
                 std::rotate(element, next, std::end(this->items_));
             }
 
-            detail::AccessReference(this->selected)
-                .SetWithoutNotify({});
+            // This item is going away.
+            // Leave the list without a selection.
+            detail::AccessReference(this->selected).SetWithoutNotify({});
 
-            this->count.Set(this->count.Get() - 1);
+            size_t newCount = this->count.Get() - 1;
+            this->count.Set(newCount);
+
+            detail::AccessReference(this->memberRemoved).SetWithoutNotify({});
         }
 
         ListItem & at(size_t index)
@@ -292,6 +320,7 @@ struct List
                 detail::AccessReference(*item).DoNotify();
             }
 
+            // We don't want count echoed back to us here.
             jive::ScopeFlag ignoreCount(this->ignoreCount_);
             detail::AccessReference(this->count).DoNotify();
         }
@@ -332,6 +361,8 @@ struct List
         {
             // Signal all listening controls to disconnect.
             this->countWillChange.Trigger();
+
+            PEX_LOG("Sending internalCountWillChange_ message");
 
             // Now signal control::Lists that the count will change.
             this->internalCountWillChange_.Trigger();
@@ -408,7 +439,8 @@ struct List
         using Item = typename Upstream::Item;
         using ListItem = ControlSelector<Member>;
         using Count = ::pex::control::ListCount;
-        using Selected = ::pex::control::ListSelected;
+        using Selected = ::pex::control::ListOptionalIndex;
+        using MemberRemoved = ::pex::control::ListOptionalIndex;
         using CountWillChange = ::pex::control::ListCountWillChange;
 
         using CountWillChangeTerminus =
@@ -437,6 +469,7 @@ struct List
         CountWillChange countWillChange;
         Count count;
         Selected selected;
+        MemberRemoved memberRemoved;
 
         Control()
             :
@@ -444,11 +477,16 @@ struct List
             countWillChange(),
             count(),
             selected(),
+            memberRemoved(),
             upstream_(nullptr),
             countTerminus_(),
             items_()
         {
-
+            REGISTER_PEX_NAME(
+                this,
+                fmt::format(
+                    "pex::List<{}>::Control",
+                    jive::GetTypeName<Member>()));
         }
 
         Control(Upstream &upstream)
@@ -457,6 +495,7 @@ struct List
             countWillChange(upstream.countWillChange),
             count(upstream.count),
             selected(upstream.selected),
+            memberRemoved(upstream.memberRemoved),
             upstream_(&upstream),
 
             countWillChange_(
@@ -471,6 +510,12 @@ struct List
 
             items_()
         {
+            REGISTER_PEX_NAME(
+                this,
+                fmt::format(
+                    "pex::List<{}>::Control",
+                    jive::GetTypeName<Member>()));
+
             for (size_t index = 0; index < this->count.Get(); ++index)
             {
                 this->items_.emplace_back((*this->upstream_)[index]);
@@ -483,6 +528,7 @@ struct List
             countWillChange(other.countWillChange),
             count(other.count),
             selected(other.selected),
+            memberRemoved(other.memberRemoved),
             upstream_(other.upstream_),
 
             countWillChange_(
@@ -497,7 +543,18 @@ struct List
 
             items_(other.items_)
         {
+            REGISTER_PEX_NAME(
+                this,
+                fmt::format(
+                    "pex::List<{}>::Control",
+                    jive::GetTypeName<Member>()));
 
+#ifdef ENABLE_REGISTER_NAME
+            for (auto &item: this->items_)
+            {
+                REGISTER_PEX_PARENT(this, &item);
+            }
+#endif
         }
 
         Control & operator=(const Control &other)
@@ -506,10 +563,18 @@ struct List
             this->countWillChange = other.countWillChange;
             this->count = other.count;
             this->selected = other.selected;
+            this->memberRemoved = other.memberRemoved;
             this->upstream_ = other.upstream_;
             this->countWillChange_.Assign(this, other.countWillChange_);
             this->countTerminus_.Assign(this, other.countTerminus_);
             this->items_ = other.items_;
+
+#ifdef ENABLE_REGISTER_NAME
+            for (auto &item: this->items_)
+            {
+                REGISTER_PEX_PARENT(this, &item);
+            }
+#endif
 
             return *this;
         }
@@ -623,6 +688,11 @@ struct List
                 return false;
             }
 
+            if (!this->memberRemoved.HasModel())
+            {
+                return false;
+            }
+
             for (auto &item: this->items_)
             {
                 if (!item.HasModel())
@@ -637,6 +707,9 @@ struct List
         template<typename Derived>
         std::optional<size_t> Append(const Derived &item)
         {
+            // TODO: The user asked to Append an item, but forgot to connect
+            // their control to the model?
+            // This feels like it should be a hard error.
             if (!this->upstream_)
             {
                 return {};
@@ -670,7 +743,17 @@ struct List
 
         void OnCountWillChange_()
         {
+            PEX_LOG(
+                LookupPexName(this),
+                " clear items_.size(): ",
+                this->items_.size());
+
             this->items_.clear();
+
+            PEX_LOG(
+                LookupPexName(this),
+                " items_.size(): ",
+                this->items_.size());
         }
 
         void OnCount_(size_t count_)

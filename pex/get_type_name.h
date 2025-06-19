@@ -1,6 +1,7 @@
 #pragma once
 
 
+#include <jive/describe_type.h>
 #include <fields/core.h>
 
 
@@ -24,7 +25,14 @@ std::string_view GetTypeName()
         using TemplateBase =
             typename Templates::template Template<fields::Identity>;
 
-        return TemplateBase::fieldsTypeName;
+        if constexpr (fields::HasFieldsTypeName<TemplateBase>)
+        {
+            return TemplateBase::fieldsTypeName;
+        }
+        else
+        {
+            return jive::GetTypeName<Templates>();
+        }
     }
 }
 

@@ -2,6 +2,7 @@
 
 
 #include <memory>
+#include <fields/describe.h>
 #include "pex/error.h"
 #include "pex/get_type_name.h"
 

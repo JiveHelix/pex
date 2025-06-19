@@ -215,6 +215,7 @@ struct CoffeeTemplate
     T<double> price;
 
     static constexpr auto fields = CoffeeFields<CoffeeTemplate>::fields;
+    static constexpr auto fieldsTypeName = "Coffee";
 };
 
 

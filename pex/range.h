@@ -27,6 +27,11 @@
 #include "pex/terminus.h"
 
 
+#ifdef USE_OBSERVER_NAME
+#include <jive/describe_type.h>
+#endif
+
+
 #undef max
 #undef min
 
@@ -171,7 +176,7 @@ template
     typename initialMaximum = void,
     template<typename, typename, typename> typename ValueTemplate = Value_
 >
-class Range
+class Range: Separator
 {
 public:
     using Type = T;
@@ -205,6 +210,7 @@ public:
         defaultValue_(value.Get()),
         resetTerminus_(this, this->reset, &Range::OnReset_)
     {
+        REGISTER_PEX_NAME(this, "model::Range");
         REGISTER_PEX_NAME_WITH_PARENT(&this->value, this, "value");
         REGISTER_PEX_NAME_WITH_PARENT(&this->minimum, this, "minimum");
         REGISTER_PEX_NAME_WITH_PARENT(&this->maximum, this, "maximum");
@@ -231,6 +237,7 @@ public:
         UNREGISTER_PEX_NAME(&this->value, "value");
         UNREGISTER_PEX_NAME(&this->minimum, "minimum");
         UNREGISTER_PEX_NAME(&this->maximum, "maximum");
+        UNREGISTER_PEX_NAME(this, "model::Range");
     }
 
     void Connect(void * observer, Callable callable)
@@ -828,7 +835,7 @@ template
     typename Filter_ = NoFilter,
     typename Access_ = pex::GetAndSetTag
 >
-class Range
+class Range: Separator
 {
 public:
     using Upstream = Upstream_;
@@ -864,6 +871,7 @@ public:
         maximum(upstream.maximum),
         reset(upstream.reset)
     {
+        REGISTER_PEX_NAME(this, "control::Range");
         REGISTER_PEX_NAME_WITH_PARENT(&this->value, this, "value");
         REGISTER_PEX_NAME_WITH_PARENT(&this->minimum, this, "minimum");
         REGISTER_PEX_NAME_WITH_PARENT(&this->maximum, this, "maximum");
@@ -890,6 +898,7 @@ public:
 
     ~Range()
     {
+        UNREGISTER_PEX_NAME(this, "control::Range");
         UNREGISTER_PEX_NAME(&this->value, "value");
         UNREGISTER_PEX_NAME(&this->minimum, "minimum");
         UNREGISTER_PEX_NAME(&this->maximum, "maximum");
@@ -903,7 +912,10 @@ public:
         maximum(other.maximum),
         reset(other.reset)
     {
-
+        REGISTER_PEX_NAME(this, "control::Range");
+        REGISTER_PEX_NAME_WITH_PARENT(&this->value, this, "value");
+        REGISTER_PEX_NAME_WITH_PARENT(&this->minimum, this, "minimum");
+        REGISTER_PEX_NAME_WITH_PARENT(&this->maximum, this, "maximum");
     }
 
     template<typename OtherFilter, typename OtherAccess>
@@ -916,6 +928,11 @@ public:
         maximum(other.maximum),
         reset(other.reset)
     {
+        REGISTER_PEX_NAME(this, "control::Range");
+        REGISTER_PEX_NAME_WITH_PARENT(&this->value, this, "value");
+        REGISTER_PEX_NAME_WITH_PARENT(&this->minimum, this, "minimum");
+        REGISTER_PEX_NAME_WITH_PARENT(&this->maximum, this, "maximum");
+
         this->SetFilter(filter);
     }
 
@@ -938,7 +955,10 @@ public:
         maximum(other.maximum),
         reset(other.reset)
     {
-
+        REGISTER_PEX_NAME(this, "control::Range");
+        REGISTER_PEX_NAME_WITH_PARENT(&this->value, this, "value");
+        REGISTER_PEX_NAME_WITH_PARENT(&this->minimum, this, "minimum");
+        REGISTER_PEX_NAME_WITH_PARENT(&this->maximum, this, "maximum");
     }
 
     Range & operator=(const Range &other)
@@ -958,7 +978,10 @@ public:
         maximum(std::move(other.maximum)),
         reset(std::move(other.reset))
     {
-
+        REGISTER_PEX_NAME(this, "control::Range");
+        REGISTER_PEX_NAME_WITH_PARENT(&this->value, this, "value");
+        REGISTER_PEX_NAME_WITH_PARENT(&this->minimum, this, "minimum");
+        REGISTER_PEX_NAME_WITH_PARENT(&this->maximum, this, "maximum");
     }
 
     Range & operator=(Range &&other)

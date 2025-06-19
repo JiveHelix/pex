@@ -52,6 +52,7 @@ struct SomeTemplate
     T<pex::MakeSelect<RateChoices>> rate;
 
     static constexpr auto fields = SomeFields<SomeTemplate>::fields;
+    static constexpr auto fieldsTypeName = "Some";
 };
 
 using SomeGroup = pex::Group<SomeFields, SomeTemplate>;
@@ -164,6 +165,7 @@ struct AnotherTemplate
     T<pex::MakeSelect<RateSelect>> rate;
 
     static constexpr auto fields = AnotherFields<AnotherTemplate>::fields;
+    static constexpr auto fieldsTypeName = "Another";
 };
 
 using AnotherGroup = pex::Group<AnotherFields, AnotherTemplate>;

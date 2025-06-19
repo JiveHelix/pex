@@ -85,17 +85,22 @@ public:
         :
         model_(&model)
     {
-        PEX_LOG("Connect ", this);
         REGISTER_PEX_NAME(this, "Signal");
         this->model_->Connect(this, &Signal::OnModelSignaled_);
+        PEX_LOG("Signal created: ", LookupPexName(this));
     }
 
     ~Signal()
     {
+        PEX_LOG("~Signal : ", LookupPexName(this));
+
         if (this->model_)
         {
-            PEX_LOG("Disconnect ", LookupPexName(this));
-            this->model_->Disconnect(this);
+            if (this->model_->HasObserver(this))
+            {
+                PEX_LOG("Disconnect ", LookupPexName(this));
+                this->model_->Disconnect(this);
+            }
         }
 
         UNREGISTER_PEX_NAME(this, "Signal");
@@ -105,6 +110,7 @@ public:
         :
         Signal(model)
     {
+        REGISTER_PEX_NAME(this, "Signal");
         this->Connect(observer, callable);
     }
 
@@ -112,6 +118,7 @@ public:
         :
         Signal(other)
     {
+        REGISTER_PEX_NAME(this, "Signal");
         this->Connect(observer, callable);
     }
 
@@ -128,7 +135,9 @@ public:
         :
         model_(other.model_)
     {
-        if (other.model_)
+        REGISTER_PEX_NAME(this, "Signal");
+
+        if (this->model_)
         {
             PEX_LOG("Connect ", this);
             this->model_->Connect(this, &Signal::OnModelSignaled_);
@@ -139,8 +148,11 @@ public:
     {
         if (this->model_)
         {
-            PEX_LOG("Disconnect ", this);
-            this->model_->Disconnect(this);
+            if (this->model_->HasObserver(this))
+            {
+                PEX_LOG("operator= Disconnect ", LookupPexName(this));
+                this->model_->Disconnect(this);
+            }
         }
 
         this->model_ = other.model_;

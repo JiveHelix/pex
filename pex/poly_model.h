@@ -1,6 +1,8 @@
 #pragma once
 
 
+#include <fmt/core.h>
+#include "pex/detail/log.h"
 #include "pex/poly_supers.h"
 #include "pex/traits.h"
 
@@ -67,6 +69,22 @@ public:
 
     template<HasValueBase>
     friend class Control;
+
+    Model()
+        :
+        base_{},
+        superModel_{},
+        baseCreated_{}
+    {
+        REGISTER_PEX_NAME(
+            this,
+            fmt::format("PolyModel<{}>", jive::GetTypeName<Supers>()));
+
+        REGISTER_PEX_NAME_WITH_PARENT(
+            &this->baseCreated_,
+            this,
+            "baseCreated");
+    };
 
     Value Get() const
     {
@@ -149,7 +167,6 @@ public:
     {
         this->superModel_->DoValueNotify();
     }
-
 
 private:
     std::unique_ptr<ModelBase> base_;

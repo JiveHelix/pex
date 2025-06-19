@@ -121,19 +121,7 @@ public:
 
     ~Value_()
     {
-#ifdef ENABLE_PEX_LOG
-        if (!this->connections_.empty())
-        {
-            for (auto &connection: this->connections_)
-            {
-                PEX_LOG(
-                    "Warning: ",
-                    LookupPexName(connection.GetObserver()),
-                    " is still connected to Model ",
-                    LookupPexName(this));
-            }
-        }
-#endif
+
     }
 
     /** Set the value and notify interfaces **/

@@ -92,6 +92,7 @@ struct TestTemplate
     T<double> three;
 
     static constexpr auto fields = TestFields<TestTemplate>::fields;
+    static constexpr auto fieldsTypeName = "Test";
 };
 
 using TerminusTestGroup = pex::Group<TestFields, TestTemplate>;

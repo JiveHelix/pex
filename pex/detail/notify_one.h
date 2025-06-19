@@ -5,6 +5,7 @@
 #include "pex/access_tag.h"
 #include "pex/argument.h"
 #include "pex/detail/log.h"
+#include "pex/detail/observer_name.h"
 
 
 #if defined(__GNUG__) && !defined(__clang__) && !defined(_WIN32)
@@ -42,30 +43,32 @@ public:
     using Observer = typename ConnectionType::Observer;
     using Callable = typename ConnectionType::Callable;
 
+    NotifyOne_()
+        :
+        connection_{}
+    {
+
+    }
+
     void Connect(Observer *observer, Callable callable)
     {
         static_assert(
             HasAccess<GetTag, Access>,
             "Cannot connect observer without read access.");
+#ifndef NDEBUG
+        if (this->connection_)
+        {
+            throw std::logic_error("Connection already made");     
+        }
+#endif
 
 #ifdef USE_OBSERVER_NAME
-        if constexpr (std::is_void_v<Observer>)
-        {
-            PEX_LOG(
-                "void (",
-                LookupPexName(observer),
-                ") connecting to ",
-                LookupPexName(this));
-        }
-        else
-        {
-            PEX_LOG(
-                Observer::observerName,
-                " (",
-                LookupPexName(observer),
-                ") connecting to ",
-                LookupPexName(this));
-        }
+        PEX_LOG(
+            ObserverName<Observer>,
+            " (",
+            LookupPexName(observer),
+            ") connecting to ",
+            LookupPexName(this));
 #endif
 
         this->connection_ = ConnectionType(observer, callable);
@@ -78,36 +81,32 @@ public:
             std::cout << "ERROR: Active connection destroyed: ";
 
 #ifdef USE_OBSERVER_NAME
-            if constexpr (std::is_void_v<Observer>)
-            {
-                std::cout << "void ";
-            }
-            else
-            {
-                std::cout << Observer::observerName << " ";
-            }
+            std::cout << (ObserverName<Observer>) << " "
+                << LookupPexName(this) << std::endl;
 #endif
-            std::cout << this;
-            std::cout << std::endl;
 
             std::cout << "Was your model destroyed before your controls?"
                 << std::endl;
 
-            std::cout << "  " << this->connection_->GetObserver() << std::endl;
+            std::cout << "  "
+                << LookupPexName(this->connection_->GetObserver()) << std::endl;
 
             assert(false);
         }
     }
 
     /** Remove all registered callbacks for the observer. **/
-    void Disconnect(
-        [[maybe_unused]] typename ConnectionType::Observer *observer)
+    void Disconnect([[maybe_unused]] Observer *observer)
     {
-
 #ifndef NDEBUG
-        if (this->connection_)
+        if (!this->connection_)
         {
-            assert(this->connection_->GetObserver() == observer);
+            throw std::logic_error("Disconnect without connection");
+        }
+
+        if (this->connection_->GetObserver() != observer)
+        {
+            throw std::logic_error("Disconnect with wrong observer");
         }
 #endif
 

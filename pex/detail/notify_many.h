@@ -16,6 +16,7 @@
 #include "pex/argument.h"
 #include "pex/error.h"
 #include "pex/detail/log.h"
+#include "pex/detail/observer_name.h"
 
 
 namespace pex
@@ -66,25 +67,16 @@ public:
         {
             std::cout << "ERROR: Active connections destroyed: ";
 
-#ifdef USE_OBSERVER_NAME
-            if constexpr (std::is_void_v<Observer>)
-            {
-                std::cout << "void ";
-            }
-            else
-            {
-                std::cout << Observer::observerName << " ";
-            }
-#endif
-            std::cout << this;
-            std::cout << std::endl;
+            std::cout << (ObserverName<Observer>) << " "
+                << LookupPexName(this) << std::endl;
 
             std::cout << "Was your model destroyed before your controls?"
                 << std::endl;
 
             for (auto &connection: this->connections_)
             {
-                std::cout << "  " << connection.GetObserver() << std::endl;
+                std::cout << "  "
+                    << LookupPexName(connection.GetObserver()) << std::endl;
             }
 
             assert(false);
@@ -101,73 +93,63 @@ public:
 
         THROW_IF_NOTIFYING
 
-#ifdef USE_OBSERVER_NAME
-        if constexpr (std::is_void_v<Observer>)
-        {
-            PEX_LOG(
-                "void (",
-                LookupPexName(observer),
-                ") connecting to ",
-                LookupPexName(this));
-        }
-        else
-        {
-            PEX_LOG(
-                Observer::observerName,
-                " (",
-                LookupPexName(observer),
-                ") connecting to ",
-                LookupPexName(this));
-        }
-#endif
+        PEX_LOG(
+            ObserverName<Observer>,
+            " (",
+            LookupPexName(observer),
+            ") connecting to ",
+            LookupPexName(this));
 
         // Callbacks will be executed in the order the connections are made.
         this->connections_.emplace_back(observer, callable);
     }
 
     /** Remove all registered callbacks for the observer. **/
-    void Disconnect(typename ConnectionType::Observer *observer)
+    void Disconnect(Observer *observer)
     {
         THROW_IF_NOTIFYING
 
-#ifdef USE_OBSERVER_NAME
-        if constexpr (std::is_void_v<Observer>)
+        PEX_LOG(
+            ObserverName<Observer>,
+            " (",
+            LookupPexName(observer),
+            ") disconnecting from ",
+            LookupPexName(this));
+
+#ifndef NDEBUG
+        auto found = std::find(
+            std::begin(this->connections_),
+            std::end(this->connections_),
+            ConnectionType(observer));
+
+        if (found == std::end(this->connections_))
         {
-            PEX_LOG(
-                "void (",
-                LookupPexName(observer),
-                ") disconnecting from ",
-                LookupPexName(this));
-        }
-        else
-        {
-            PEX_LOG(
-                Observer::observerName,
-                " (",
-                LookupPexName(observer),
-                ") disconnecting from ",
-                LookupPexName(this));
+            throw std::logic_error(
+                "Attempted disconnection from wrong model");
         }
 #endif
 
         std::erase(
             this->connections_,
             ConnectionType(observer));
-    }
 
-    bool IsConnected(typename ConnectionType::Observer *observer)
-    {
-        return std::end(this->connections_) !=
-            std::find(
-                std::begin(this->connections_),
-                std::end(this->connections_),
-                ConnectionType(observer));
+#ifndef NDEBUG
+        for (auto &connection: this->connections_)
+        {
+            if (connection.GetObserver() == observer)
+            {
+                throw std::logic_error(
+                    "Expected all references to Observer to have been removed");
+            }
+        }
+#endif
+
     }
 
     // Only make the connection if the observer is not already connected.
     void ConnectOnce(Observer *observer, Callable callable)
     {
-        if (this->IsConnected(observer))
+        if (this->HasObserver(observer))
         {
             // This observer has already been added to the connections_.
             return;

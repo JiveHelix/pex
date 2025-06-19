@@ -2,6 +2,7 @@
 
 
 #include <fields/fields.h>
+#include <jive/describe_type.h>
 
 #include "pex/identity.h"
 #include "pex/selectors.h"
@@ -287,6 +288,10 @@ struct Group
         {
             this->SetInitial(Plain{});
 
+            REGISTER_PEX_NAME(
+                this,
+                fmt::format("{} Model", jive::GetTypeName<Plain>()));
+
             REGISTER_PEX_NAMES(this);
         }
 
@@ -299,12 +304,20 @@ struct Group
         {
             this->SetInitial(plain);
 
+            REGISTER_PEX_NAME(
+                this,
+                fmt::format("{} Model", jive::GetTypeName<Plain>()));
+
             REGISTER_PEX_NAMES(this);
         }
 
         ~Model_()
         {
             UNREGISTER_PEX_NAMES();
+
+            UNREGISTER_PEX_NAME(
+                this,
+                fmt::format("{} Model", jive::GetTypeName<Plain>()));
         }
 
         Model_(const Model_ &) = delete;
@@ -340,7 +353,6 @@ struct Group
 
         using AccessorsBase = ControlAccessors<Control_>;
 
-        // using Plain = typename Group::Plain;
         using Type = Plain;
 
         using Upstream = Model;
@@ -369,6 +381,10 @@ struct Group
             ControlMembers{},
             AccessorsBase{}
         {
+            REGISTER_PEX_NAME(
+                this,
+                fmt::format("{} Control", jive::GetTypeName<Plain>()));
+
             REGISTER_PEX_NAMES(this);
         }
 
@@ -380,6 +396,10 @@ struct Group
         {
             fields::AssignConvert<Fields>(*this, model);
 
+            REGISTER_PEX_NAME(
+                this,
+                fmt::format("{} Control", jive::GetTypeName<Plain>()));
+
             REGISTER_PEX_NAMES(this);
         }
 
@@ -390,6 +410,10 @@ struct Group
             AccessorsBase{}
         {
             fields::Assign<Fields>(*this, other);
+
+            REGISTER_PEX_NAME(
+                this,
+                fmt::format("{} Control", jive::GetTypeName<Plain>()));
 
             REGISTER_PEX_NAMES(this);
         }
@@ -410,6 +434,10 @@ struct Group
         {
             fields::MoveAssign<Fields>(*this, std::move(other));
 
+            REGISTER_PEX_NAME(
+                this,
+                fmt::format("{} Control", jive::GetTypeName<Plain>()));
+
             REGISTER_PEX_NAMES(this);
         }
 
@@ -424,6 +452,10 @@ struct Group
         ~Control_()
         {
             UNREGISTER_PEX_NAMES();
+
+            UNREGISTER_PEX_NAME(
+                this,
+                fmt::format("{} Control", jive::GetTypeName<Plain>()));
         }
 
         bool HasModel() const

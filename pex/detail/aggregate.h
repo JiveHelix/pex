@@ -130,12 +130,6 @@ template<typename T>
 using AggregateSelector = typename AggregateSelector_<T>::Type;
 
 
-#ifdef ENABLE_PEX_LOG
-struct Separator
-{
-    uint8_t garbage;
-};
-#endif
 
 // Internal helper to allow observation of aggregate types.
 template
@@ -145,9 +139,7 @@ template
     template<template<typename> typename> typename Template
 >
 struct Aggregate:
-#ifdef ENABLE_PEX_LOG
-    public Separator,
-#endif
+    Separator,
     public Template<AggregateSelector>,
     public Getter<Plain, Fields, Aggregate<Plain, Fields, Template>>,
     public detail::NotifyOne
@@ -169,7 +161,7 @@ public:
             GetAndSetTag
         >;
 
-#ifdef ENABLE_PEX_LOG
+#ifdef ENABLE_REGISTER_NAME
     void RegisterPexNames()
     {
         // Iterate over members, and register names and addresses.
@@ -207,9 +199,14 @@ public:
         isMuted_(),
         muteTerminus_(),
         isModified_(false),
-        memberChanged_()
+        memberChanged_(),
+        madeConnections_(false)
     {
-#ifdef ENABLE_PEX_LOG
+#ifdef ENABLE_REGISTER_NAME
+        REGISTER_PEX_NAME(
+            this,
+            fmt::format("Aggregate {}", jive::GetTypeName<Plain>()));
+
         this->RegisterPexNames();
 #endif
     }
@@ -220,9 +217,14 @@ public:
         isMuted_(),
         muteTerminus_(),
         isModified_(false),
-        memberChanged_()
+        memberChanged_(),
+        madeConnections_(false)
     {
-#ifdef ENABLE_PEX_LOG
+#ifdef ENABLE_REGISTER_NAME
+        REGISTER_PEX_NAME(
+            this,
+            fmt::format("Aggregate {}", jive::GetTypeName<Plain>()));
+
         this->RegisterPexNames();
 #endif
         this->AssignUpstream(upstream);
@@ -266,7 +268,11 @@ public:
         this->UnmakeConnections_();
         this->ClearConnections();
 
-#ifdef ENABLE_PEX_LOG
+#ifdef ENABLE_REGISTER_NAME
+        UNREGISTER_PEX_NAME(
+            this,
+            fmt::format("Aggregate {}", jive::GetTypeName<Plain>()));
+
         this->UnregisterPexNames();
 #endif
     }
@@ -329,6 +335,8 @@ private:
         };
 
         jive::ForEach(Fields<Aggregate>::fields, connector);
+
+        this->madeConnections_ = true;
     }
 
     template<typename Member>
@@ -342,12 +350,19 @@ private:
 
     void UnmakeConnections_()
     {
+        if (!this->madeConnections_)
+        {
+            return;
+        }
+
         auto disconnector = [this](const auto &field) -> void
         {
             this->Disconnector_(this->*(field.member));
         };
 
         jive::ForEach(Fields<Aggregate>::fields, disconnector);
+
+        this->madeConnections_ = false;
     }
 
     template<typename T>
@@ -440,6 +455,7 @@ private:
 
     bool isModified_;
     std::optional<SignalConnection_> memberChanged_;
+    bool madeConnections_;
 };
 
 

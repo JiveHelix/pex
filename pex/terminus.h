@@ -135,10 +135,9 @@ public:
 
         REGISTER_PEX_NAME(this, "Terminus_");
 
-        REGISTER_PEX_NAME_WITH_PARENT(
-            &this->upstreamControl_,
+        REGISTER_PEX_PARENT(
             this,
-            "Terminus_->upstreamControl_");
+            &this->upstreamControl_);
     }
 
     Terminus_(Observer *observer, const ControlType &control)
@@ -149,10 +148,9 @@ public:
     {
         REGISTER_PEX_NAME(this, "Terminus_");
 
-        REGISTER_PEX_NAME_WITH_PARENT(
-            &this->upstreamControl_,
+        REGISTER_PEX_PARENT(
             this,
-            "Terminus_->upstreamControl_");
+            &this->upstreamControl_);
 
         this->upstreamControl_.ClearConnections();
         PEX_LOG("Terminus copy(control) ctor: ", this);
@@ -166,10 +164,9 @@ public:
     {
         REGISTER_PEX_NAME(this, "Terminus_");
 
-        REGISTER_PEX_NAME_WITH_PARENT(
-            &this->upstreamControl_,
+        REGISTER_PEX_PARENT(
             this,
-            "Terminus_->upstreamControl_");
+            &this->upstreamControl_);
 
         this->upstreamControl_.ClearConnections();
         this->Connect(callable);
@@ -183,13 +180,11 @@ public:
     {
         REGISTER_PEX_NAME(this, "Terminus_");
 
-        REGISTER_PEX_NAME_WITH_PARENT(
-            &this->upstreamControl_,
+        REGISTER_PEX_PARENT(
             this,
-            "Terminus_->upstreamControl_");
+            &this->upstreamControl_);
 
         this->upstreamControl_.ClearConnections();
-        PEX_LOG("Terminus move(control) ctor: ", this);
     }
 
     Terminus_(Observer *observer, ControlType &&control, Callable callable)
@@ -200,10 +195,9 @@ public:
     {
         REGISTER_PEX_NAME(this, "Terminus_");
 
-        REGISTER_PEX_NAME_WITH_PARENT(
-            &this->upstreamControl_,
+        REGISTER_PEX_PARENT(
             this,
-            "Terminus_->upstreamControl_");
+            &this->upstreamControl_);
 
         this->upstreamControl_.ClearConnections();
         this->Connect(callable);
@@ -219,10 +213,9 @@ public:
     {
         REGISTER_PEX_NAME(this, "Terminus_");
 
-        REGISTER_PEX_NAME_WITH_PARENT(
-            &this->upstreamControl_,
+        REGISTER_PEX_PARENT(
             this,
-            "Terminus_->upstreamControl_");
+            &this->upstreamControl_);
 
         this->upstreamControl_.ClearConnections();
         PEX_LOG("Terminus upstream ctor: ", this);
@@ -239,10 +232,9 @@ public:
     {
         REGISTER_PEX_NAME(this, "Terminus_");
 
-        REGISTER_PEX_NAME_WITH_PARENT(
-            &this->upstreamControl_,
+        REGISTER_PEX_PARENT(
             this,
-            "Terminus_->upstreamControl_");
+            &this->upstreamControl_);
 
         this->upstreamControl_.ClearConnections();
         this->Connect(callable);
@@ -256,25 +248,21 @@ public:
     // Copy construct
     Terminus_(Observer *observer, const Terminus_ &other)
         :
-        observer_(observer),
-        notifier_{},
-        upstreamControl_(other.upstreamControl_)
+        Terminus_(observer, other.upstreamControl_)
     {
-        REGISTER_PEX_NAME(
-            &this->upstreamControl_,
-            "Terminus_->upstreamControl_");
-
         assert(this != &other);
-        assert(observer);
 
-        this->upstreamControl_.ClearConnections();
+        if (other.notifier_.HasConnection())
+        {
+            this->Connect(other.notifier_.GetCallable());
+        }
+    }
 
-        PEX_LOG(
-            "Terminus copy ctor: ",
-            this,
-            " with ",
-            LookupPexName(observer));
-
+    // Move construct
+    Terminus_(Observer *observer, Terminus_ &&other)
+        :
+        Terminus_(observer, std::move(other.upstreamControl_))
+    {
         if (other.notifier_.HasConnection())
         {
             this->Connect(other.notifier_.GetCallable());
@@ -293,10 +281,9 @@ public:
     {
         REGISTER_PEX_NAME(this, "Terminus_");
 
-        REGISTER_PEX_NAME_WITH_PARENT(
-            &this->upstreamControl_,
+        REGISTER_PEX_PARENT(
             this,
-            "Terminus_->upstreamControl_");
+            &this->upstreamControl_);
 
         PEX_LOG(
             "Terminus copy ctor: ",
@@ -308,7 +295,32 @@ public:
 
         this->upstreamControl_.ClearConnections();
 
+        if constexpr (std::is_same_v<Observer, O>)
+        {
+            if (other.notifier_.HasConnection())
+            {
+                this->Connect(other.notifier_.GetCallable());
+            }
+        }
+        // else
         // There is no way to copy the callable from a different observer.
+    }
+
+    // Move construct from other observer
+    template<typename O>
+    Terminus_(
+        Observer *observer,
+        Terminus_<O, Upstream_> &&other)
+        :
+        Terminus_(observer, std::move(other.upstreamControl_))
+    {
+        if constexpr (std::is_same_v<Observer, O>)
+        {
+            if (other.notifier_.HasConnection())
+            {
+                this->Connect(other.notifier_.GetCallable());
+            }
+        }
     }
 
     // Copy assign
@@ -340,23 +352,54 @@ public:
         // There is no way to copy the callable from a different observer.
 
         return *this;
+    }
 
+    // Move assign
+    template<typename O>
+    Terminus_ & Assign(
+        Observer *observer,
+        Terminus_<O, Upstream_> &&other)
+    {
+        if constexpr (std::is_same_v<Observer, O>)
+        {
+            assert(this != &other);
+        }
+
+        PEX_LOG("Terminus move assign: ", this);
+
+        this->Disconnect();
+        this->observer_ = observer;
+        this->upstreamControl_ = std::move(other.upstreamControl_);
+        this->upstreamControl_.ClearConnections();
+
+        if constexpr (std::is_same_v<Observer, O>)
+        {
+            if (other.notifier_.HasConnection())
+            {
+                this->Connect(other.notifier_.GetCallable());
+            }
+        }
+        // else
+        // There is no way to copy the callable from a different observer.
+
+        return *this;
     }
 
     ~Terminus_()
     {
+        PEX_LOG("~Terminus_(): ", LookupPexName(this));
         this->Disconnect();
 
         UNREGISTER_PEX_NAME(this, "Terminus_");
-
-        UNREGISTER_PEX_NAME(
-            &this->upstreamControl_,
-            "Terminus_->upstreamControl_");
     }
 
     void Disconnect()
     {
-        this->upstreamControl_.Disconnect(&this->notifier_);
+        if (this->upstreamControl_.HasObserver(&this->notifier_))
+        {
+            this->upstreamControl_.Disconnect(&this->notifier_);
+        }
+
         this->notifier_.ClearConnections();
     }
 
@@ -519,6 +562,13 @@ public:
 
     }
 
+    Terminus(Observer *observer, Terminus &&other)
+        :
+        Base(observer, std::move(other))
+    {
+
+    }
+
     Terminus(Observer *observer, const ControlType &pex, Callable callable)
         :
         Base(observer, pex, callable)
@@ -556,6 +606,28 @@ public:
         Callable callable)
         :
         Base(observer, upstream, callable)
+    {
+
+    }
+
+    // Copy construct from other observer
+    template<typename O>
+    Terminus(
+        Observer *observer,
+        const Terminus<O, Upstream_> &other)
+        :
+        Base(observer, other)
+    {
+
+    }
+
+    // Move construct from other observer
+    template<typename O>
+    Terminus(
+        Observer *observer,
+        Terminus<O, Upstream_> &&other)
+        :
+        Base(observer, std::move(other))
     {
 
     }

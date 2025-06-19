@@ -484,6 +484,25 @@ TEST_CASE("OrderedList of polymorphic values can be unstructured", "[poly]")
 }
 
 
+TEST_CASE("OrderedList of polymorphic values can be resized", "[poly]")
+{
+    OrderedModel model;
+    OrderedAirportControl control(model);
+
+    control.aircraft.Append(PolyValue::Create<RotorWing>(10000., 175., 25.));
+    control.aircraft.Append(PolyValue::Create<FixedWing>(20000., 800., 50.));
+    control.aircraft.Append(PolyValue::Create<FixedWing>(60000., 7000., 150.));
+    control.aircraft.Append(PolyValue::Create<RotorWing>(15000., 300., 34.));
+
+    REQUIRE(model.aircraft.count.Get() == 4);
+
+    control.aircraft.list.selected.Set(1);
+    control.aircraft.EraseSelected();
+
+    REQUIRE(model.aircraft.count.Get() == 3);
+    REQUIRE(control.aircraft.count.Get() == 3);
+}
+
 
 
 using TestListControl =
@@ -769,6 +788,8 @@ struct SinglePolyTemplate
 
     static constexpr auto fields =
         SinglePolyFields<SinglePolyTemplate>::fields;
+
+    static constexpr auto fieldsTypeName = "Single";
 };
 
 

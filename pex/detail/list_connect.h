@@ -175,7 +175,7 @@ public:
 
         cached_(this->listControl_.Get())
     {
-
+        REGISTER_PEX_NAME(this, "ListConnect");
     }
 
     ListConnect(
@@ -212,6 +212,7 @@ public:
 
         cached_(this->listControl_.Get())
     {
+        REGISTER_PEX_NAME(this, "ListConnect");
         this->MakeListConnections_();
     }
 
@@ -249,6 +250,7 @@ public:
 
         cached_(this->listControl_.Get())
     {
+        REGISTER_PEX_NAME(this, "ListConnect");
         this->MakeListConnections_();
     }
 
@@ -325,6 +327,8 @@ public:
 
         cached_(this->listControl_.Get())
     {
+        REGISTER_PEX_NAME(this, "ListConnect");
+
         if (other.valueConnection_)
         {
             this->valueConnection_.emplace(
@@ -354,7 +358,7 @@ public:
         :
         ListConnect(other.observer_, other)
     {
-
+        REGISTER_PEX_NAME(this, "ListConnect");
     }
 
     ListConnect & Assign(Observer *observer, const ListConnect &other)

@@ -43,17 +43,17 @@ public:
     TerminusObserver(TerminusObserver &&other)
         :
         terminus_(this, std::move(other.terminus_)),
+        count_(other.count_),
         observedValue(std::move(other.observedValue))
     {
         REQUIRE(this->terminus_.GetObserver() == this);
-        this->terminus_.Connect(&TerminusObserver::Observe_);
     }
 
     TerminusObserver & operator=(TerminusObserver &&other)
     {
         this->terminus_.Assign(this, std::move(other.terminus_));
+        this->count_ = other.count_;
         this->observedValue = std::move(other.observedValue);
-        this->terminus_.Connect(&TerminusObserver::Observe_);
 
         REQUIRE(this->terminus_.GetObserver() == this);
 
@@ -63,17 +63,17 @@ public:
     TerminusObserver(const TerminusObserver &other)
         :
         terminus_(this, other.terminus_),
+        count_(other.count_),
         observedValue(std::move(other.observedValue))
     {
-        this->terminus_.Connect(&TerminusObserver::Observe_);
         REQUIRE(this->terminus_.GetObserver() == this);
     }
 
     TerminusObserver & operator=(const TerminusObserver &other)
     {
         this->terminus_.Assign(this, other.terminus_);
+        this->count_ = other.count_;
         this->observedValue = other.observedValue;
-        this->terminus_.Connect(&TerminusObserver::Observe_);
         REQUIRE(this->terminus_.GetObserver() == this);
 
         return *this;

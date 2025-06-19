@@ -1,6 +1,8 @@
 #pragma once
 
 // #define ENABLE_PEX_LOG
+// #define USE_OBSERVER_NAME
+// #define ENABLE_REGISTER_NAME
 
 #include <mutex>
 #include <memory>
@@ -37,9 +39,13 @@ void RegisterPexName(void *address, const std::string &name);
 
 void RegisterPexName(void *address, void *parent, const std::string &name);
 
+void RegisterPexParent(void *parent, void *child);
+
 void UnregisterPexName(void *address, const std::string &name);
 
-std::string LookupPexName(void *address);
+std::string LookupPexName(const void *address);
+
+bool HasPexName(void *address);
 
 
 } // end namespace pex
@@ -64,6 +70,19 @@ std::string LookupPexName(void *address);
         "] ", \
         __VA_ARGS__); assert(std::cout.good())
 
+
+#else
+
+
+#define PEX_LOG(...)
+
+#endif // ENABLE_PEX_LOG
+
+
+#ifdef ENABLE_REGISTER_NAME
+
+struct Separator { char garbage; };
+
 #define REGISTER_PEX_NAME(address, name) pex::RegisterPexName(address, name)
 
 #define UNREGISTER_PEX_NAME(address, name) pex::UnregisterPexName(address, name)
@@ -71,14 +90,16 @@ std::string LookupPexName(void *address);
 #define REGISTER_PEX_NAME_WITH_PARENT(address, parent, name) \
     pex::RegisterPexName(address, parent, name)
 
+#define REGISTER_PEX_PARENT(parent, child) \
+    pex::RegisterPexParent(parent, child)
+
 #else
 
-
-#define PEX_LOG(...)
+struct Separator {};
 
 #define REGISTER_PEX_NAME(address, name)
 #define REGISTER_PEX_NAME_WITH_PARENT(address, parent, name)
+#define REGISTER_PEX_PARENT(parent, child)
 #define UNREGISTER_PEX_NAME(address, name)
 
-
-#endif // ENABLE_PEX_LOG
+#endif // ENABLE_REGISTER_NAME

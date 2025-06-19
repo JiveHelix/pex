@@ -1,6 +1,7 @@
 #pragma once
 
 
+#include <fmt/core.h>
 #include "pex/poly_value.h"
 #include "pex/poly_model.h"
 #include "pex/traits.h"
@@ -15,7 +16,7 @@ namespace poly
 
 
 template<HasValueBase Supers>
-class Control
+class Control final
 {
 public:
     using Access = GetAccess<Supers>;
@@ -40,7 +41,16 @@ public:
         baseCreated(),
         baseCreatedTerminus_()
     {
+        REGISTER_PEX_NAME(
+            this,
+            fmt::format("PolyControl<{}>", jive::GetTypeName<Supers>()));
 
+        REGISTER_PEX_NAME_WITH_PARENT(&this->baseCreated, this, "baseCreated");
+
+        REGISTER_PEX_NAME_WITH_PARENT(
+            &this->baseCreatedTerminus_,
+            this,
+            "baseCreatedTerminus_");
     }
 
     Control(Upstream &upstream)
@@ -53,12 +63,29 @@ public:
             this->upstream_->baseCreated_,
             &Control::OnBaseCreated_)
     {
+        REGISTER_PEX_NAME(
+            this,
+            fmt::format("PolyControl<{}>", jive::GetTypeName<Supers>()));
+
+        REGISTER_PEX_NAME_WITH_PARENT(&this->baseCreated, this, "baseCreated");
+
+        REGISTER_PEX_NAME_WITH_PARENT(
+            &this->baseCreatedTerminus_,
+            this,
+            "baseCreatedTerminus_");
+
         auto modelBase = upstream.GetVirtual();
 
         if (modelBase)
         {
             this->base_ = modelBase->CreateControl();
         }
+
+        PEX_LOG(
+            " Construct from upstream ",
+            LookupPexName(this),
+            " from ",
+            LookupPexName(&upstream));
     }
 
     Control(const Control &other)
@@ -71,7 +98,22 @@ public:
             this->upstream_->baseCreated_,
             &Control::OnBaseCreated_)
     {
+        REGISTER_PEX_NAME(
+            this,
+            fmt::format("PolyControl<{}>", jive::GetTypeName<Supers>()));
 
+        REGISTER_PEX_NAME_WITH_PARENT(&this->baseCreated, this, "baseCreated");
+
+        REGISTER_PEX_NAME_WITH_PARENT(
+            &this->baseCreatedTerminus_,
+            this,
+            "baseCreatedTerminus_");
+
+        PEX_LOG(
+            " Copy ",
+            LookupPexName(this),
+            " from ",
+            LookupPexName(&other));
     }
 
     Control(void *observer, Upstream &upstream, Callable callable)
@@ -84,6 +126,17 @@ public:
             this->upstream_->baseCreated_,
             &Control::OnBaseCreated_)
     {
+        REGISTER_PEX_NAME(
+            this,
+            fmt::format("PolyControl<{}>", jive::GetTypeName<Supers>()));
+
+        REGISTER_PEX_NAME_WITH_PARENT(&this->baseCreated, this, "baseCreated");
+
+        REGISTER_PEX_NAME_WITH_PARENT(
+            &this->baseCreatedTerminus_,
+            this,
+            "baseCreatedTerminus_");
+
         auto modelBase = upstream.GetVirtual();
 
         if (modelBase)
@@ -91,6 +144,12 @@ public:
             this->base_ = modelBase->CreateControl();
             this->Connect(observer, callable);
         }
+
+        PEX_LOG(
+            " Construct from upstream with callable ",
+            LookupPexName(this),
+            " from ",
+            LookupPexName(&upstream));
     }
 
     Control(void *observer, const Control &other, Callable callable)
@@ -103,22 +162,50 @@ public:
             this->upstream_->baseCreated_,
             &Control::OnBaseCreated_)
     {
+        REGISTER_PEX_NAME(
+            this,
+            fmt::format("PolyControl<{}>", jive::GetTypeName<Supers>()));
+
+        REGISTER_PEX_NAME_WITH_PARENT(&this->baseCreated, this, "baseCreated");
+
+        REGISTER_PEX_NAME_WITH_PARENT(
+            &this->baseCreatedTerminus_,
+            this,
+            "baseCreatedTerminus_");
+
         if (!this->base_)
         {
             throw std::logic_error("Cannot connect without a valid object.");
         }
+
+        PEX_LOG(
+            " Copy with callable ",
+            LookupPexName(this),
+            " from ",
+            LookupPexName(&other));
 
         this->Connect(observer, callable);
     }
 
     Control & operator=(const Control &other)
     {
+        PEX_LOG(
+            " operator= ",
+            LookupPexName(this),
+            " from ",
+            LookupPexName(&other));
+
         this->upstream_ = other.upstream_;
         this->base_ = other.base_;
         this->baseCreated = other.baseCreated;
         this->baseCreatedTerminus_.Assign(this, other.baseCreatedTerminus_);
 
         return *this;
+    }
+
+    ~Control()
+    {
+        PEX_LOG("Destruct ", LookupPexName(this));
     }
 
     Value Get() const
