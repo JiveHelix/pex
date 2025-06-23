@@ -1186,4 +1186,46 @@ template<typename ListMaker>
 using OrderedListControl = typename OrderedListGroup<ListMaker>::Control;
 
 
+template<typename T>
+concept HasGetUnordered = requires(T t, size_t index)
+{
+    { t.GetUnordered(index) };
+};
+
+
+template<typename T>
+concept HasIndices = requires (T t)
+{
+    { t.indices } -> IsListControl;
+};
+
+
+template<typename List>
+auto & GetUnordered(List &list, size_t index)
+{
+    if constexpr (HasGetUnordered<List>)
+    {
+        return list.GetUnordered(index);
+    }
+    else
+    {
+        return list.at(index);
+    }
+}
+
+
+template<HasOrder Item>
+auto & GetOrder(Item &item)
+{
+    if constexpr (HasOrderMember<Item>)
+    {
+        return item.order;
+    }
+    else
+    {
+        return item.GetVirtual()->GetOrder();
+    }
+}
+
+
 } // end namespace pex

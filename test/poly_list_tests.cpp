@@ -275,13 +275,11 @@ struct IsAircraftCustom_<T, std::enable_if_t<T::isAircraftCustom>>
 template<typename T>
 inline constexpr bool IsAircraftCustom = IsAircraftCustom_<T>::value;
 
-
 static_assert(IsAircraftCustom<typename RotorWingPoly::Model>);
 static_assert(IsAircraftCustom<typename FixedWingPoly::Model>);
 
 
 DECLARE_EQUALITY_OPERATORS(Airport)
-
 
 TEST_CASE("List of polymorphic values", "[poly]")
 {
@@ -770,7 +768,6 @@ TEST_CASE("Poly list is observed after going to size 0.", "[List]")
 }
 
 
-#if 1
 template<typename T>
 struct SinglePolyFields
 {
@@ -824,4 +821,3 @@ TEST_CASE("Use Poly in a pex::Group", "[poly]")
     REQUIRE(fixedWing == model.fixedWing.GetValue());
     REQUIRE(rotorWing == model.rotorWing.GetValue());
 }
-#endif

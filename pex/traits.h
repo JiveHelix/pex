@@ -347,7 +347,6 @@ concept IsListModel = T::isListModel;
 template<typename T>
 concept IsListNode = IsListModel<T> || IsListControl<T>;
 
-
 template<typename T>
 concept IsPolyGroup = T::isPolyGroup;
 

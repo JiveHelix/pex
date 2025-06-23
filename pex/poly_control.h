@@ -16,7 +16,7 @@ namespace poly
 
 
 template<HasValueBase Supers>
-class Control final
+class Control
 {
 public:
     using Access = GetAccess<Supers>;

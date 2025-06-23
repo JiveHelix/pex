@@ -227,53 +227,6 @@ public:
             typename Group_::Control
         >;
 
-#if 0
-    class PolyValue: public PolyValue_
-    {
-    public:
-        using PolyValue_::PolyValue_;
-        using DerivedControl = Control;
-
-#if 0
-        std::unique_ptr<ModelBase> CreateModel() const
-        {
-            auto result = std::make_unique<Model>();
-
-            // I believe that this step is redundant.
-            // result->Set(this->template RequireDerived<Derived>());
-
-            return result;
-        }
-
-        static bool CheckModel(ModelBase *modelBase)
-        {
-            auto check = dynamic_cast<Model *>(modelBase);
-
-            return (check != nullptr);
-        }
-#endif
-
-        static std::string_view DoGetTypeName()
-        {
-            return ::pex::poly::GetTypeName<Templates>();
-        }
-
-        PolyValue()
-            :
-            PolyValue_()
-        {
-
-        }
-
-        PolyValue(TemplateBase &&base)
-            :
-            PolyValue_{std::make_shared<Derived>(std::move(base))}
-        {
-
-        }
-    };
-#endif
-
 private:
     // Register the Derived type so that it can be structured from json.
     static const inline bool once =
