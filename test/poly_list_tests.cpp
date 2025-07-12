@@ -475,7 +475,9 @@ TEST_CASE("OrderedList of polymorphic values can be unstructured", "[poly]")
 
     model2.Set(recovered);
 
-    REQUIRE(model2.Get() == model.Get());
+    auto first = model.Get();
+    auto second = model2.Get();
+    REQUIRE(first == second);
 
     REQUIRE(countObserver.GetCount() == model2.aircraft.Get().size());
     REQUIRE(countObserver.GetCount() == model2.aircraft.count.Get());
@@ -627,7 +629,7 @@ TEST_CASE("Poly list of groups implements virtual bases.", "[List]")
 {
     Model model;
     AirportControl control(model);
-    AircraftObserver observer(control.aircraft);
+    AircraftObserver aircraftObserver(control.aircraft);
 
     auto values = GENERATE(
         take(
@@ -636,24 +638,30 @@ TEST_CASE("Poly list of groups implements virtual bases.", "[List]")
                 15,
                 random(-1000.0, 1000.0))));
 
-    REQUIRE(observer.GetNotificationCount() == 0);
+    REQUIRE(aircraftObserver.GetNotificationCount() == 0);
 
     control.aircraft.Append(
         PolyValue::Create<RotorWing>(values.at(0), values.at(1), values.at(2)));
 
-    REQUIRE(observer.GetNotificationCount() == 1);
+    REQUIRE(aircraftObserver.GetNotificationCount() == 1);
 
     control.aircraft.Append(
         PolyValue::Create<FixedWing>(values.at(3), values.at(4), values.at(5)));
 
+    REQUIRE(aircraftObserver.GetNotificationCount() == 2);
+
     control.aircraft.Append(
         PolyValue::Create<FixedWing>(values.at(6), values.at(7), values.at(8)));
+
+    REQUIRE(aircraftObserver.GetNotificationCount() == 3);
 
     control.aircraft.Append(
         PolyValue::Create<RotorWing>(
             values.at(9),
             values.at(10),
             values.at(11)));
+
+    REQUIRE(aircraftObserver.GetNotificationCount() == 4);
 
     AirportObserver airportObserver(control);
     REQUIRE(airportObserver.GetNotificationCount() == 0);
@@ -664,19 +672,19 @@ TEST_CASE("Poly list of groups implements virtual bases.", "[List]")
             values.at(13),
             values.at(14)));
 
+    REQUIRE(aircraftObserver.GetNotificationCount() == 5);
     REQUIRE(airportObserver.GetNotificationCount() == 1);
 
     control.aircraft[2].GetVirtual()->GetRange().Set(42.0);
 
+    REQUIRE(aircraftObserver.GetNotificationCount() == 6);
     REQUIRE(airportObserver.GetNotificationCount() == 2);
-
-    REQUIRE(observer.GetNotificationCount() == 6);
 
     REQUIRE(
         model.aircraft[2].Get().RequireDerived<FixedWing>().range == 42.0);
 
     REQUIRE(
-        observer.GetAircraft()[2].RequireDerived<FixedWing>().range == 42.0);
+        aircraftObserver.GetAircraft()[2].RequireDerived<FixedWing>().range == 42.0);
 
     auto &airport = airportObserver.GetAirport();
 

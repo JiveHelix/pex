@@ -62,13 +62,6 @@ struct IsModelSignal_
 template<typename T>
 inline constexpr bool IsModelSignal = IsModelSignal_<T>::value;
 
-#if 0
-template<typename ...T>
-struct IsBaseControlSignal_: std::false_type {};
-
-template<typename ...T>
-struct IsBaseControlSignal_<pex::control::Signal<T...>>: std::true_type {};
-#endif
 
 template<typename T, typename Enable = void>
 struct DefinesIsControlSignal_: std::false_type {};
@@ -168,6 +161,36 @@ template<typename Pex>
 inline constexpr bool IsCopyable = IsCopyable_<Pex>::value;
 
 
+template<typename T, typename Enable = void>
+struct IsValueContainer_: std::false_type {};
+
+template<typename T>
+struct IsValueContainer_
+<
+    T,
+    std::enable_if_t<T::isValueContainer>
+>
+: std::true_type {};
+
+template<typename T>
+inline constexpr bool IsValueContainer = IsValueContainer_<T>::value;
+
+
+template<typename T, typename Enable = void>
+struct IsKeyValueContainer_: std::false_type {};
+
+template<typename T>
+struct IsKeyValueContainer_
+<
+    T,
+    std::enable_if_t<T::isKeyValueContainer>
+>
+: std::true_type {};
+
+template<typename T>
+inline constexpr bool IsKeyValueContainer = IsKeyValueContainer_<T>::value;
+
+
 /**
  ** Copyable Upstream may be stored directly, else use Direct.
  **/
@@ -182,10 +205,44 @@ template<typename T>
 struct UpstreamHolder_
 <
     T,
-    std::enable_if_t<!IsCopyable<T>>
+    std::enable_if_t
+    <
+        !IsCopyable<T>
+        && !IsValueContainer<T>
+        && !IsKeyValueContainer<T>
+    >
 >
 {
     using Type = ::pex::model::Direct<T>;
+};
+
+
+template<typename T>
+struct UpstreamHolder_
+<
+    T,
+    std::enable_if_t
+    <
+        !IsCopyable<T>
+        && IsValueContainer<T>
+    >
+>
+{
+    using Type = ::pex::model::DirectValueContainer<T>;
+};
+
+template<typename T>
+struct UpstreamHolder_
+<
+    T,
+    std::enable_if_t
+    <
+        !IsCopyable<T>
+        && IsKeyValueContainer<T>
+    >
+>
+{
+    using Type = ::pex::model::DirectKeyValueContainer<T>;
 };
 
 

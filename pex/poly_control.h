@@ -198,7 +198,10 @@ public:
         this->upstream_ = other.upstream_;
         this->base_ = other.base_;
         this->baseCreated = other.baseCreated;
-        this->baseCreatedTerminus_.Assign(this, other.baseCreatedTerminus_);
+
+        this->baseCreatedTerminus_.RequireAssign(
+            this,
+            other.baseCreatedTerminus_);
 
         return *this;
     }

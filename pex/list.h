@@ -4,6 +4,7 @@
 #include <vector>
 
 #include <jive/scope_flag.h>
+#include <jive/vector.h>
 #include "pex/model_value.h"
 #include "pex/control_value.h"
 #include "pex/terminus.h"
@@ -33,6 +34,7 @@ namespace model
 {
 
 
+using ListFlag = Value<bool>;
 using ListCount = Value<size_t>;
 using ListOptionalIndex = Value<std::optional<size_t>>;
 
@@ -40,17 +42,38 @@ using ListOptionalIndex = Value<std::optional<size_t>>;
 } // namespace model
 
 
+class ScopedListFlag
+{
+public:
+    ScopedListFlag(::pex::model::ListFlag &listFlag)
+        :
+        flag_(listFlag)
+    {
+        this->flag_.Set(true);
+    }
+
+    ~ScopedListFlag()
+    {
+        this->flag_.Set(false);
+    }
+
+private:
+    ::pex::model::ListFlag &flag_;
+};
+
+
+
+
 namespace control
 {
 
 
+using ListFlag = Value<::pex::model::ListFlag>;
 using ListCount = Value<::pex::model::ListCount>;
 using ListOptionalIndex = Value<::pex::model::ListOptionalIndex>;
-using ListCountWillChange = Signal<GetTag>;
 
 
 } // end namespace control
-
 
 
 template<typename Member, size_t initialCount_ = 0>
@@ -79,7 +102,10 @@ struct List
         using Type = std::vector<Item>;
         using Count = ::pex::model::ListCount;
         using Selected = ::pex::model::ListOptionalIndex;
+        using MemberAdded = ::pex::model::ListOptionalIndex;
+        using MemberWillRemove = ::pex::model::ListOptionalIndex;
         using MemberRemoved = ::pex::model::ListOptionalIndex;
+        using ListFlag = ::pex::model::ListFlag;
         using Access = GetAndSetTag;
 
         using Defer = DeferList<Member, ModelSelector, Model>;
@@ -93,35 +119,44 @@ struct List
         friend class ::pex::detail::ListConnect;
 
     private:
-        model::Signal internalCountWillChange_;
-        Count internalCount_;
         bool ignoreCount_;
 
     public:
-        model::Signal countWillChange;
         Count count;
         Selected selected;
+        MemberAdded memberAdded;
+        MemberWillRemove memberWillRemove;
         MemberRemoved memberRemoved;
+        ListFlag isNotifying;
 
         Model()
             :
             detail::MuteOwner(),
             detail::Mute(this->GetMuteControl()),
-            internalCountWillChange_(),
-            internalCount_(initialCount),
             ignoreCount_(false),
-            countWillChange(),
             count(initialCount),
             selected(),
+            memberAdded(),
+            memberWillRemove(),
             memberRemoved(),
+            isNotifying(),
             items_(),
             countTerminus_(this, this->count, &Model::OnCount_)
+#ifndef NDEBUG
+            , selectedTerminus_(
+                this,
+                this->selected,
+                &Model::OnSelected_)
+#endif
         {
             REGISTER_PEX_NAME(
                 this,
                 fmt::format(
                     "pex::List<{}>::Model",
                     jive::GetTypeName<Member>()));
+
+            REGISTER_PEX_NAME_WITH_PARENT(
+                &this->memberAdded, this, "memberAdded");
 
             size_t toInitialize = initialCount;
 
@@ -179,32 +214,7 @@ struct List
                 return;
             }
 
-            this->memberRemoved.Set(*selected_);
-
-            if (*selected_ != this->items_.size() - 1)
-            {
-                // Move the selected element to the back before erasing it.
-                // This is less efficient because it involves one extra copy
-                // than erasing it in place, but it allows the existing
-                // size-changing machinery in this class to be used without
-                // modification.
-
-                auto element = std::begin(this->items_)
-                    + static_cast<ssize_t>(*selected_);
-
-                auto next = element + 1;
-
-                std::rotate(element, next, std::end(this->items_));
-            }
-
-            // This item is going away.
-            // Leave the list without a selection.
-            detail::AccessReference(this->selected).SetWithoutNotify({});
-
-            size_t newCount = this->count.Get() - 1;
-            this->count.Set(newCount);
-
-            detail::AccessReference(this->memberRemoved).SetWithoutNotify({});
+            this->Erase(*selected_);
         }
 
         ListItem & at(size_t index)
@@ -248,6 +258,16 @@ struct List
             return result;
         }
 
+        size_t size() const
+        {
+            return this->items_.size();
+        }
+
+        bool empty() const
+        {
+            return this->items_.empty();
+        }
+
         // Initialize values without sending notifications.
         void SetInitial(const Type &values)
         {
@@ -276,20 +296,127 @@ struct List
             auto scopeMute = detail::ScopeMute<Model>(*this, false);
 
             size_t newIndex = this->count.Get();
+            auto wasSelected = this->selected.Get();
+            auto newCount = newIndex + 1;
 
             // count observers will be notified at the end of this function.
-            auto deferCount = pex::MakeDefer(this->count);
-            deferCount.Set(newIndex + 1);
+            // ScopeMute calls Mute on aggregate types (groups and lists) at
+            // the start of the scope, and unmutes at the end.
+            // For any entity listening for a notification of this->count
+            // (which is not an aggregate type), they will be notifified when
+            // deferCount is destroyed, even though scopeMute is still in
+            // effect.
+            {
+                jive::ScopeFlag ignoreCount(this->ignoreCount_);
 
-            // ChangeCount_ will adjust the size of items_.
-            this->ChangeCount_(newIndex + 1);
+                auto deferCount = pex::MakeDefer(this->count);
+                deferCount.Set(newCount);
 
-            // Add the new item at the back of the list.
-            this->items_.back()->Set(item);
+                this->selected.Set({});
 
-            this->internalCount_.Set(newIndex + 1);
+                this->items_.push_back(std::make_unique<ListItem>());
+
+                // Add the new item at the back of the list.
+                this->items_.back()->Set(item);
+                this->memberAdded.Set(newIndex);
+            }
+
+            if (wasSelected && *wasSelected < newCount)
+            {
+                this->selected.Set(wasSelected);
+            }
 
             return newIndex;
+        }
+
+        template<typename Derived>
+        void Insert(size_t index, const Derived &item)
+        {
+            std::cout << "Insert(" << index << " ..." << std::endl;
+            assert(index <= this->items_.size());
+
+            auto scopedFlag = ScopedListFlag(this->isNotifying);
+
+            // Mute while setting item values.
+            auto scopeMute = detail::ScopeMute<Model>(*this, false);
+
+            auto newIndex = this->items_.size();
+            auto newCount = this->items_.size() + 1;
+
+            // Insertion doesn't change whether an item is selected.
+            // selected will be adjusted to the new index after the insertion.
+            auto wasSelected = this->selected.Get();
+
+            // count observers will be notified at the end of this scope.
+            {
+                jive::ScopeFlag ignoreCount(this->ignoreCount_);
+
+                auto deferCount = pex::MakeDefer(this->count);
+                deferCount.Set(newCount);
+
+                if (wasSelected)
+                {
+                    this->selected.Set({});
+                }
+
+                this->items_.insert(
+                    this->items_.begin() + newIndex,
+                    std::make_unique<ListItem>());
+
+                this->items_.at(newIndex)->Set(item);
+
+                std::cout << "memberAdded.Set(" << newIndex << ")" << std::endl;
+                this->memberAdded.Set(newIndex);
+            }
+
+            if (wasSelected)
+            {
+                if (*wasSelected < index)
+                {
+                    // The selected item was before the insertion point.
+                    this->selected.Set(wasSelected);
+                }
+                else
+                {
+                    // The selected item was after the insertion point.
+                    this->selected.Set(*wasSelected + 1);
+                }
+            }
+
+            std::cout << "Insert done" << std::endl;
+        }
+
+    protected:
+        void Remove_(size_t index)
+        {
+            this->memberWillRemove.Set(index);
+            jive::SafeErase(this->items_, index);
+
+            this->memberRemoved.Set(index);
+            detail::AccessReference(this->memberRemoved).SetWithoutNotify({});
+        }
+
+    public:
+        void Erase(size_t index)
+        {
+            assert(index < this->items_.size());
+
+            auto scopedFlag = ScopedListFlag(this->isNotifying);
+
+            auto selected_ = this->selected.Get();
+
+            if (selected_ && *selected_ == index)
+            {
+                this->selected.Set({});
+            }
+
+            size_t newCount = this->count.Get() - 1;
+
+            jive::ScopeFlag ignoreCount(this->ignoreCount_);
+            auto deferCount = MakeDefer(this->count);
+            deferCount.Set(newCount);
+
+            this->Remove_(index);
         }
 
         void ResizeWithoutNotify(size_t newSize)
@@ -303,8 +430,28 @@ struct List
             detail::AccessReference(this->count)
                 .SetWithoutNotify(newSize);
 
-            this->ChangeCount_(newSize);
-            this->internalCount_.Set(newSize);
+            auto wasSelected = this->selected.Get();
+            this->selected.Set({});
+
+            if (newSize < this->items_.size())
+            {
+                this->ReduceCount_(newSize);
+            }
+            else
+            {
+                size_t toInitialize = newSize - this->items_.size();
+
+                while (toInitialize--)
+                {
+                    this->items_.push_back(std::make_unique<ListItem>());
+                    this->memberAdded.Set(this->items_.size() - 1);
+                }
+            }
+
+            if (wasSelected && *wasSelected < newSize)
+            {
+                this->selected.Set(wasSelected);
+            }
         }
 
     private:
@@ -314,6 +461,8 @@ struct List
             // At the end of this scope, a signal notification may be sent by
             // ListConnect.
             auto scopeMute = detail::ScopeMute<Model>(*this, false);
+
+            auto scopedFlag = ScopedListFlag(this->isNotifying);
 
             for (auto &item: this->items_)
             {
@@ -334,65 +483,94 @@ struct List
 
             bool countChanged = false;
 
+            auto wasSelected = this->selected.Get();
+
             if (values.size() != this->items_.size())
             {
                 detail::AccessReference(this->count)
                     .SetWithoutNotify(values.size());
 
-                this->ChangeCount_(values.size());
+                this->selected.Set({});
+
+                if (values.size() < this->items_.size())
+                {
+                    this->ReduceCount_(values.size());
+
+                    // Set all of the new values.
+                    for (size_t index = 0; index < values.size(); ++index)
+                    {
+                        detail::AccessReference(*this->items_[index])
+                            .SetWithoutNotify(values[index]);
+                    }
+                }
+                else
+                {
+                    // Set the new values we already have items_ for.
+                    for (size_t index = 0; index < this->items_.size(); ++index)
+                    {
+                        detail::AccessReference(*this->items_[index])
+                            .SetWithoutNotify(values[index]);
+                    }
+
+                    // Create and set the new items.
+                    size_t toInitialize = values.size() - this->items_.size();
+
+                    while (toInitialize--)
+                    {
+                        // Create, set, and notify member added for each new
+                        // item.
+                        this->items_.push_back(std::make_unique<ListItem>());
+
+                        auto newIndex = this->items_.size() - 1;
+
+                        detail::AccessReference(*this->items_[newIndex])
+                            .SetWithoutNotify(values[newIndex]);
+
+                        // Don't call member added until the new value has been
+                        // set.
+                        this->memberAdded.Set(newIndex);
+                    }
+                }
+
                 countChanged = true;
+            }
+            else
+            {
+                // No size changes.
+                // Set all values.
+                for (size_t index = 0; index < values.size(); ++index)
+                {
+                    detail::AccessReference(*this->items_[index])
+                        .SetWithoutNotify(values[index]);
+                }
             }
 
             assert(this->items_.size() == values.size());
 
-            for (size_t index = 0; index < values.size(); ++index)
-            {
-                detail::AccessReference(*this->items_[index])
-                    .SetWithoutNotify(values[index]);
-            }
-
+            // Reselect value if it is still in the list.
             if (countChanged)
             {
-                this->internalCount_.Set(values.size());
+                if (wasSelected && *wasSelected < values.size())
+                {
+                    this->selected.Set(wasSelected);
+                }
             }
         }
 
-        void ChangeCount_(size_t count_)
+        void ReduceCount_(size_t count_)
         {
-            // Signal all listening controls to disconnect.
-            this->countWillChange.Trigger();
-
-            PEX_LOG("Sending internalCountWillChange_ message");
-
-            // Now signal control::Lists that the count will change.
-            this->internalCountWillChange_.Trigger();
-
-            auto wasSelected = this->selected.Get();
-
-            detail::AccessReference(this->selected).SetWithoutNotify({});
+            assert(count_ < this->items_.size());
 
             if (count_ < this->items_.size())
             {
                 // This is a reduction in size.
                 // No new elements need to be created.
-                this->items_.resize(count_);
-            }
-            else
-            {
-                assert(count_ > this->items_.size());
-
-                size_t toInitialize = count_ - this->items_.size();
-
-                while (toInitialize--)
+                for (size_t i = this->items_.size(); i > count_; --i)
                 {
-                    this->items_.push_back(std::make_unique<ListItem>());
+                    // Call Erase with each removed index.
+                    // Calls memberWillRemove/memberRemoved for each item.
+                    this->Remove_(i - 1);
                 }
-            }
-
-            if (wasSelected && *wasSelected < count_)
-            {
-                detail::AccessReference(this->selected)
-                    .SetWithoutNotify(wasSelected);
             }
         }
 
@@ -410,18 +588,49 @@ struct List
                 return;
             }
 
-            this->ChangeCount_(count_);
-            this->internalCount_.Set(count_);
+            auto scopedFlag = ScopedListFlag(this->isNotifying);
+
+            auto wasSelected = this->selected.Get();
+            this->selected.Set({});
+
+            if (count_ < this->items_.size())
+            {
+                this->ReduceCount_(count_);
+            }
+            else
+            {
+                size_t toInitialize = count_ - this->items_.size();
+
+                while (toInitialize--)
+                {
+                    this->items_.push_back(std::make_unique<ListItem>());
+                    this->memberAdded.Set(this->items_.size() - 1);
+                }
+            }
+
+            if (wasSelected && *wasSelected < count_)
+            {
+                this->selected.Set(wasSelected);
+            }
         }
 
-        ::pex::control::ListCount GetInternalCount_()
+#ifndef NDEBUG
+        void OnSelected_(const std::optional<size_t> &index)
         {
-            return {this->internalCount_};
+            if (index)
+            {
+                assert(*index < this->items_.size());
+            }
         }
+#endif
 
     private:
         std::vector<std::unique_ptr<ListItem>> items_;
         ::pex::Terminus<Model, Count> countTerminus_;
+
+#ifndef NDEBUG
+        ::pex::Terminus<Model, Selected> selectedTerminus_;
+#endif
     };
 
 
@@ -440,13 +649,15 @@ struct List
         using ListItem = ControlSelector<Member>;
         using Count = ::pex::control::ListCount;
         using Selected = ::pex::control::ListOptionalIndex;
+        using MemberAdded = ::pex::control::ListOptionalIndex;
+        using MemberWillRemove = ::pex::control::ListOptionalIndex;
         using MemberRemoved = ::pex::control::ListOptionalIndex;
-        using CountWillChange = ::pex::control::ListCountWillChange;
+        using ListFlag = ::pex::control::ListFlag;
 
-        using CountWillChangeTerminus =
-            ::pex::Terminus<Control, CountWillChange>;
+        using MemberWillRemoveTerminus =
+            ::pex::Terminus<Control, MemberWillRemove>;
 
-        using CountTerminus = ::pex::Terminus<Control, Count>;
+        using MemberAddedTerminus = ::pex::Terminus<Control, MemberAdded>;
         using Vector = std::vector<ListItem>;
         using Iterator = typename Vector::iterator;
         using ConstIterator = typename Vector::const_iterator;
@@ -454,9 +665,6 @@ struct List
         using ConstReverseIterator = typename Vector::const_reverse_iterator;
 
         using Defer = DeferList<Member, ControlSelector, Control>;
-
-        // using DeferredList =
-        //     detail::DeferredList<Member, ControlSelector, Control>;
 
         static_assert(IsControl<ListItem> || IsGroupControl<ListItem>);
 
@@ -466,20 +674,28 @@ struct List
         template<typename, typename>
         friend class ::pex::detail::ListConnect;
 
-        CountWillChange countWillChange;
+        template<typename, typename>
+        friend class ::pex::detail::ListConnect;
+
         Count count;
         Selected selected;
+        MemberAdded memberAdded;
+        MemberWillRemove memberWillRemove;
         MemberRemoved memberRemoved;
+        ListFlag isNotifying;
 
         Control()
             :
             detail::Mute(),
-            countWillChange(),
             count(),
             selected(),
+            memberAdded(),
+            memberWillRemove(),
             memberRemoved(),
+            isNotifying(),
             upstream_(nullptr),
-            countTerminus_(),
+            memberWillRemoveTerminus_(),
+            memberAddedTerminus_(),
             items_()
         {
             REGISTER_PEX_NAME(
@@ -492,24 +708,28 @@ struct List
         Control(Upstream &upstream)
             :
             detail::Mute(upstream.CloneMuteControl()),
-            countWillChange(upstream.countWillChange),
             count(upstream.count),
             selected(upstream.selected),
+            memberAdded(upstream.memberAdded),
+            memberWillRemove(upstream.memberWillRemove),
             memberRemoved(upstream.memberRemoved),
+            isNotifying(upstream.isNotifying),
             upstream_(&upstream),
 
-            countWillChange_(
+            memberWillRemoveTerminus_(
                 this,
-                this->upstream_->internalCountWillChange_,
-                &Control::OnCountWillChange_),
+                this->upstream_->memberWillRemove,
+                &Control::OnMemberWillRemove_),
 
-            countTerminus_(
+            memberAddedTerminus_(
                 this,
-                this->upstream_->internalCount_,
-                &Control::OnCount_),
+                this->upstream_->memberAdded,
+                &Control::OnMemberAdded_),
 
             items_()
         {
+            assert(this->upstream_ != nullptr);
+
             REGISTER_PEX_NAME(
                 this,
                 fmt::format(
@@ -525,24 +745,30 @@ struct List
         Control(const Control &other)
             :
             detail::Mute(other),
-            countWillChange(other.countWillChange),
             count(other.count),
             selected(other.selected),
+            memberAdded(other.memberAdded),
+            memberWillRemove(other.memberWillRemove),
             memberRemoved(other.memberRemoved),
+            isNotifying(other.isNotifying),
             upstream_(other.upstream_),
 
-            countWillChange_(
+            memberWillRemoveTerminus_(
                 this,
-                this->upstream_->internalCountWillChange_,
-                &Control::OnCountWillChange_),
+                this->upstream_->memberWillRemove,
+                &Control::OnMemberWillRemove_),
 
-            countTerminus_(
+            memberAddedTerminus_(
                 this,
-                this->upstream_->internalCount_,
-                &Control::OnCount_),
+                this->upstream_->memberAdded,
+                &Control::OnMemberAdded_),
 
             items_(other.items_)
         {
+            assert(other.upstream_ != nullptr);
+
+            assert(this->memberAddedTerminus_.HasModel());
+
             REGISTER_PEX_NAME(
                 this,
                 fmt::format(
@@ -560,13 +786,42 @@ struct List
         Control & operator=(const Control &other)
         {
             this->detail::Mute::operator=(other);
-            this->countWillChange = other.countWillChange;
             this->count = other.count;
             this->selected = other.selected;
+            this->memberAdded = other.memberAdded;
+            this->memberWillRemove = other.memberWillRemove;
             this->memberRemoved = other.memberRemoved;
+            this->isNotifying = other.isNotifying;
             this->upstream_ = other.upstream_;
-            this->countWillChange_.Assign(this, other.countWillChange_);
-            this->countTerminus_.Assign(this, other.countTerminus_);
+
+            if (other.HasModel())
+            {
+                assert(other.memberAddedTerminus_.HasModel());
+                assert(other.memberAddedTerminus_.HasConnection());
+                assert(other.memberWillRemoveTerminus_.HasModel());
+                assert(other.memberWillRemoveTerminus_.HasConnection());
+            }
+
+            this->memberWillRemoveTerminus_.RequireAssign(
+                this,
+                other.memberWillRemoveTerminus_);
+
+            if (this->HasModel())
+            {
+                assert(this->memberWillRemoveTerminus_.HasModel());
+                assert(this->memberWillRemoveTerminus_.HasConnection());
+            }
+
+            this->memberAddedTerminus_.RequireAssign(
+                this,
+                other.memberAddedTerminus_);
+
+            if (this->HasModel())
+            {
+                assert(this->memberAddedTerminus_.HasModel());
+                assert(this->memberAddedTerminus_.HasConnection());
+            }
+
             this->items_ = other.items_;
 
 #ifdef ENABLE_REGISTER_NAME
@@ -673,11 +928,6 @@ struct List
                 return false;
             }
 
-            if (!this->countWillChange.HasModel())
-            {
-                return false;
-            }
-
             if (!this->count.HasModel())
             {
                 return false;
@@ -688,7 +938,22 @@ struct List
                 return false;
             }
 
+            if (!this->memberAdded.HasModel())
+            {
+                return false;
+            }
+
+            if (!this->memberWillRemove.HasModel())
+            {
+                return false;
+            }
+
             if (!this->memberRemoved.HasModel())
+            {
+                return false;
+            }
+
+            if (!this->isNotifying.HasModel())
             {
                 return false;
             }
@@ -741,51 +1006,32 @@ struct List
             this->upstream_->SetWithoutNotify_(values);
         }
 
-        void OnCountWillChange_()
+        void OnMemberWillRemove_(const std::optional<size_t> &index)
         {
-            PEX_LOG(
-                LookupPexName(this),
-                " clear items_.size(): ",
-                this->items_.size());
-
-            this->items_.clear();
-
-            PEX_LOG(
-                LookupPexName(this),
-                " items_.size(): ",
-                this->items_.size());
-        }
-
-        void OnCount_(size_t count_)
-        {
-            if (!this->items_.empty())
+            if (!index)
             {
-                // items_ should have been cleared by an earlier call to
-                // OnCountWillChange_.
-                throw std::logic_error("items must be empty");
+                return;
             }
 
-            Vector updatedItems;
+            jive::SafeErase(this->items_, *index);
+        }
 
-            for (size_t index = 0; index < count_; ++index)
+        void OnMemberAdded_(const std::optional<size_t> &index)
+        {
+            if (!index)
             {
-                updatedItems.emplace_back((*this->upstream_)[index]);
+                return;
             }
 
-            this->items_.swap(updatedItems);
+            this->items_.emplace(
+                jive::SafeInsertIterator(this->items_, *index),
+                (*this->upstream_)[*index]);
         }
 
-        Count GetInternalCount_()
-        {
-            assert(this->upstream_);
-
-            return Count(this->upstream_->internalCount_);
-        }
-
-    private:
+    // private:
         Upstream *upstream_;
-        CountWillChangeTerminus countWillChange_;
-        CountTerminus countTerminus_;
+        MemberWillRemoveTerminus memberWillRemoveTerminus_;
+        MemberAddedTerminus memberAddedTerminus_;
         Vector items_;
     };
 };

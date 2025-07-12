@@ -183,6 +183,120 @@ protected:
 };
 
 
+template<typename Pex>
+class ValueContainerReference: public Reference<Pex>
+{
+public:
+    using Base = Reference<Pex>;
+    using Base::Base;
+
+    using Base::Base;
+    using Base::Set;
+    using Base::Get;
+
+    using Type = typename Base::Type;
+    using ValueType = typename Type::value_type;
+    using Access = typename Base::Access;
+
+    void Set(size_t index, Argument<ValueType> value)
+        requires (HasAccess<SetTag, Access>)
+    {
+        this->pex_->Set(index, value);
+    }
+
+    Type Get(size_t index) const
+    {
+        return this->pex_->Get(index);
+    }
+
+    size_t size() const
+    {
+        return this->pex_->size();
+    }
+
+    size_t empty() const
+    {
+        return this->pex_->empty();
+    }
+
+    // There is no non-const operator[].
+    // We must have a way to publish changed values.
+    const ValueType & operator[](size_t index) const
+    {
+        return (*this->pex_)[index];
+    }
+
+    const ValueType & at(size_t index) const
+    {
+        return this->pex_->at(index);
+    }
+
+protected:
+    using Base::SetWithoutNotify_;
+
+    void SetWithoutNotify_(size_t index, Argument<ValueType> value)
+    {
+        this->pex_->SetWithoutNotify_(index, value);
+    }
+};
+
+
+template<typename Pex>
+class KeyValueContainerReference: public Reference<Pex>
+{
+public:
+    using Base = Reference<Pex>;
+    using Base::Base;
+    using Base::Set;
+    using Base::Get;
+
+    using Type = typename Base::Type;
+    using MappedType = typename Type::mapped_type;
+    using KeyType = typename Type::key_type;
+    using Access = typename Base::Access;
+
+    /** Set the value and notify interfaces **/
+    void Set(const KeyType &key, Argument<MappedType> value)
+        requires (HasAccess<SetTag, Access>)
+    {
+        this->Set(key, value);
+    }
+
+    Type Get(const KeyType &key) const
+    {
+        return this->pex_->Get(key);
+    }
+
+    size_t size() const
+    {
+        return this->pex_->size();
+    }
+
+    size_t empty() const
+    {
+        return this->pex_->empty();
+    }
+
+    size_t count(const KeyType &key) const
+    {
+        return this->pex_->count(key);
+    }
+
+    const MappedType & at(const KeyType &key) const
+    {
+        return this->pex_->at(key);
+    }
+
+protected:
+    using Base::SetWithoutNotify_;
+
+    void SetWithoutNotify_(const KeyType &key, Argument<MappedType> value)
+    {
+        this->pex_->SetWithoutNotify_(key, value);
+    }
+};
+
+
 namespace detail
 {
 
@@ -333,6 +447,187 @@ private:
 };
 
 
+template<typename Pex>
+class DeferValueContainer: public Reference<Pex>
+{
+public:
+    using Base = Reference<Pex>;
+    using Type = typename Base::Type;
+    using ValueType = typename Type::value_type;
+    using Access = typename Pex::Access;
+
+    using Base::Base;
+
+    DeferValueContainer()
+        :
+        Base(),
+        isChanged_(false)
+    {
+
+    }
+
+    DeferValueContainer(Pex &pex)
+        :
+        Base(pex),
+        isChanged_(false)
+    {
+
+    }
+
+    DeferValueContainer(DeferValueContainer &&other)
+        :
+        Base(std::move(other)),
+        isChanged_(other.isChanged_)
+    {
+        other.isChanged_ = false;
+    }
+
+    DeferValueContainer & operator=(DeferValueContainer &&other)
+    {
+        if (this->pex_ && this->isChanged_)
+        {
+            this->DoNotify_();
+        }
+
+        Base::operator=(std::move(other));
+        this->isChanged_ = other.isChanged_;
+
+        return *this;
+    }
+
+    void Set(Argument<Type> value)
+    {
+        this->isChanged_ = true;
+        this->SetWithoutNotify_(value);
+    }
+
+    void Set(size_t index, Argument<ValueType> value)
+        requires (HasAccess<SetTag, Access>)
+    {
+        this->isChanged_ = true;
+        this->pex_->SetWithoutNotify_(index, value);
+    }
+
+    DeferValueContainer & operator=(Argument<Type> value)
+    {
+        this->isChanged_ = true;
+        this->SetWithoutNotify_(value);
+        return *this;
+    }
+
+    ~DeferValueContainer()
+    {
+        // Notify on destruction
+        this->DoNotify();
+    }
+
+    void DoNotify()
+    {
+        if (this->pex_ && this->isChanged_)
+        {
+            this->DoNotify_();
+            this->isChanged_ = false;
+        }
+
+        this->pex_ = nullptr;
+    }
+
+private:
+    bool isChanged_;
+};
+
+
+template<typename Pex>
+class DeferKeyValueContainer: public Reference<Pex>
+{
+public:
+    using Base = Reference<Pex>;
+    using Type = typename Base::Type;
+    using KeyType = typename Type::key_type;
+    using MappedType = typename Type::mapped_type;
+    using Access = typename Pex::Access;
+
+    using Base::Base;
+
+    DeferKeyValueContainer()
+        :
+        Base(),
+        isChanged_(false)
+    {
+
+    }
+
+    DeferKeyValueContainer(Pex &pex)
+        :
+        Base(pex),
+        isChanged_(false)
+    {
+
+    }
+
+    DeferKeyValueContainer(DeferKeyValueContainer &&other)
+        :
+        Base(std::move(other)),
+        isChanged_(other.isChanged_)
+    {
+        other.isChanged_ = false;
+    }
+
+    DeferKeyValueContainer & operator=(DeferKeyValueContainer &&other)
+    {
+        if (this->pex_ && this->isChanged_)
+        {
+            this->DoNotify_();
+        }
+
+        Base::operator=(std::move(other));
+        this->isChanged_ = other.isChanged_;
+
+        return *this;
+    }
+
+    void Set(Argument<Type> value)
+    {
+        this->isChanged_ = true;
+        this->SetWithoutNotify_(value);
+    }
+
+    void Set(const KeyType &key, Argument<MappedType> value)
+        requires (HasAccess<SetTag, Access>)
+    {
+        this->isChanged_ = true;
+        this->pex_->SetWithoutNotify_(key, value);
+    }
+
+    DeferKeyValueContainer & operator=(Argument<Type> value)
+    {
+        this->isChanged_ = true;
+        this->SetWithoutNotify_(value);
+        return *this;
+    }
+
+    ~DeferKeyValueContainer()
+    {
+        // Notify on destruction
+        this->DoNotify();
+    }
+
+    void DoNotify()
+    {
+        if (this->pex_ && this->isChanged_)
+        {
+            this->DoNotify_();
+            this->isChanged_ = false;
+        }
+
+        this->pex_ = nullptr;
+    }
+
+private:
+    bool isChanged_;
+};
+
+
 template<typename Pex, typename Super>
 class PolyDefer: public Defer<Pex>
 {
@@ -433,6 +728,26 @@ struct DeferSelector
         // This member expands to a PolyControl.
         // Choose the appropriate PolyDefer
         using Type = PolyDefer<Selector<T>, typename Selector<T>::SuperControl>;
+    };
+
+    template<typename T>
+    struct DeferHelper_
+    <
+        T,
+        std::enable_if_t<IsValueContainer<Selector<T>>>
+    >
+    {
+        using Type = DeferValueContainer<Selector<T>>;
+    };
+
+    template<typename T>
+    struct DeferHelper_
+    <
+        T,
+        std::enable_if_t<IsKeyValueContainer<Selector<T>>>
+    >
+    {
+        using Type = DeferKeyValueContainer<Selector<T>>;
     };
 
     template<typename T>
@@ -967,6 +1282,11 @@ public:
         return this->model_.value_;
     }
 
+    const Model * GetModel() const
+    {
+        return &this->model_;
+    }
+
 private:
     const Model &model_;
 };
@@ -977,7 +1297,9 @@ class ConstControlReference
 {
 
 public:
-    using Type = typename Control::Type;
+    using Model = typename Control::Model;
+    using Type = typename Model::Type;
+
 
     ConstControlReference(const Control &control)
         :
@@ -999,8 +1321,13 @@ public:
         return this->modelReference_.Get();
     }
 
+    const Model * GetModel() const
+    {
+        return this->modelReference_.GetModel();
+    }
+
 private:
-    const ConstReference<typename Control::Model_> modelReference_;
+    const ConstReference<Model> modelReference_;
 };
 
 
@@ -1019,6 +1346,14 @@ auto MakeDefer(Pex &pex)
     else if constexpr (IsPolyControl<Pex>)
     {
         return PolyDefer<Pex, typename Pex::SuperControl>(pex);
+    }
+    else if constexpr (IsValueContainer<Pex>)
+    {
+        return DeferValueContainer(pex);
+    }
+    else if constexpr (IsKeyValueContainer<Pex>)
+    {
+        return DeferKeyValueContainer(pex);
     }
     else
     {

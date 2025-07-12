@@ -24,12 +24,16 @@ namespace pex
 template<typename>
 class ConstControlReference;
 
+template<typename, typename>
+class Terminus;
+
 
 namespace control
 {
 
 
-template<
+template
+<
     typename Upstream_,
     typename Filter_ = NoFilter,
     typename Access_ = GetAndSetTag
@@ -69,8 +73,7 @@ public:
     using Access = Access_;
     using This = Value_<Upstream_, Filter, Access>;
 
-    using UpstreamType = typename UpstreamHolder::Type;
-    using Type = detail::FilteredType<UpstreamType, Filter>;
+    using UpstreamType = typename UpstreamHolder::Type; using Type = detail::FilteredType<UpstreamType, Filter>;
     using Plain = Type;
 
     using Connection = ValueConnection<void, UpstreamType, Filter>;
@@ -93,10 +96,15 @@ public:
     template<typename>
     friend class ::pex::model::Direct;
 
+    template<typename, typename>
+    friend class ::pex::Terminus;
+
     static_assert(!std::is_same_v<Filter, void>, "Filter must not be void.");
 
     static_assert(
         detail::FilterIsNoneOrValid<UpstreamType, Filter, Access>);
+
+    using Model = typename UpstreamHolder::Model;
 
     class UpstreamConnection
     {
@@ -558,11 +566,12 @@ public:
         }
     }
 
-    using Downstream = Value_<This, NoFilter, Access>;
-
-    Downstream GetDownstream()
+    std::vector<size_t> GetNotificationOrderChain(void *observer)
     {
-        return Downstream(*this);
+        auto upstreamChain = this->upstream_.GetNotificationOrderChain(this);
+        upstreamChain.push_back(this->GetNotificationOrder(observer));
+
+        return upstreamChain;
     }
 
     void SetFilter(const Filter &filter)
@@ -634,7 +643,7 @@ public:
         this->upstreamConnection_.reset();
     }
 
-private:
+protected:
     void SetWithoutNotify_(Argument<Type> value)
     {
         static_assert(
@@ -761,9 +770,7 @@ private:
         }
     }
 
-    using Model_ = typename UpstreamHolder::Model_;
-
-    const Model_ & GetModel_() const
+    const Model & GetModel_() const
     {
         return this->upstream_.GetModel_();
     }
@@ -772,6 +779,161 @@ private:
     std::optional<Filter> filter_;
     std::optional<UpstreamConnection> upstreamConnection_;
 };
+
+
+template<typename Upstream_>
+class ValueContainer: public Value_<Upstream_>
+{
+public:
+    static constexpr bool isValueContainer = true;
+
+    using Base = Value_<Upstream_>;
+    using Upstream = typename Base::Upstream;
+
+    using Base::Base;
+    using Base::Set;
+    using Base::Get;
+
+    using Type = typename Base::Type;
+    using ValueType = typename Type::value_type;
+    using Access = typename Base::Access;
+
+    template <typename, typename, typename>
+    friend class ::pex::control::Value_;
+
+    template<typename>
+    friend class ::pex::Reference;
+
+    template<typename>
+    friend class ::pex::ConstControlReference;
+
+    // A control::Value with a stateful filter cannot be copied, so it can be
+    // managed by Direct when needed.
+    template<typename>
+    friend class ::pex::model::Direct;
+
+    template<typename, typename>
+    friend class ::pex::Terminus;
+
+    /** Set the value and notify interfaces **/
+    void Set(size_t index, Argument<ValueType> value)
+        requires (HasAccess<SetTag, Access>)
+    {
+        this->SetWithoutNotify_(index, value);
+        this->DoNotify_();
+    }
+
+    Type Get(size_t index) const
+    {
+        return this->upstream_[index];
+    }
+
+    size_t size() const
+    {
+        return this->upstream_.size();
+    }
+
+    size_t empty() const
+    {
+        return this->upstream_.empty();
+    }
+
+    // There is no non-const operator[].
+    // We must have a way to publish changed values.
+    const ValueType & operator[](size_t index) const
+    {
+        return this->upstream_[index];
+    }
+
+    const ValueType & at(size_t index) const
+    {
+        return this->upstream_.at(index);
+    }
+
+protected:
+    using Base::SetWithoutNotify_;
+
+    void SetWithoutNotify_(size_t index, Argument<Type> value)
+    {
+        this->upstream_.SetWithoutNotify_(index, value);
+    }
+};
+
+
+template<typename T>
+class KeyValueContainer: public Value_<T, NoFilter>
+{
+public:
+    static constexpr bool isKeyValueContainer = true;
+
+    using Base = Value_<T, NoFilter>;
+
+    using Base::Base;
+    using Base::Set;
+    using Base::Get;
+
+    using Type = typename Base::Type;
+    using MappedType = typename Type::mapped_type;
+    using KeyType = typename Type::key_type;
+    using Access = typename Base::Access;
+
+    template<typename>
+    friend class ::pex::Transaction;
+
+    template<typename>
+    friend class ::pex::Reference;
+
+    template<typename>
+    friend class ::pex::ConstReference;
+
+    template<typename>
+    friend class Direct;
+
+    template<typename, typename>
+    friend class Publisher;
+
+    /** Set the value and notify interfaces **/
+    void Set(const KeyType &key, Argument<MappedType> value)
+        requires (HasAccess<SetTag, Access>)
+    {
+        this->SetWithoutNotify_(key, value);
+        this->DoNotify_();
+    }
+
+    Type Get(const KeyType &key) const
+    {
+        return this->upstream_[key];
+    }
+
+    size_t size() const
+    {
+        return this->upstream_.size();
+    }
+
+    size_t empty() const
+    {
+        return this->upstream_.empty();
+    }
+
+    size_t count(const KeyType &key) const
+    {
+        return this->upstream_.count(key);
+    }
+
+    const MappedType & at(const KeyType &key) const
+    {
+        return this->upstream_.at(key);
+    }
+
+protected:
+    using Base::SetWithoutNotify_;
+
+    void SetWithoutNotify_(const KeyType &key, Argument<MappedType> value)
+    {
+        this->upstream_[key] = value;
+    }
+};
+
 
 
 template<typename Upstream, typename Access = GetAndSetTag>

@@ -192,8 +192,6 @@ TEST_CASE("List of groups", "[List]")
 #ifdef TEST_WITH_ORDERED_LIST
     REQUIRE(model.rockets.list.count.Get() == 4);
     REQUIRE(model.rockets.indices.Get().size() == 4);
-#else
-    REQUIRE(model.rockets.count.Get() == 4);
 #endif
 
     REQUIRE(model.rockets.count.Get() == 4);
@@ -203,7 +201,18 @@ TEST_CASE("List of groups", "[List]")
     Control another(model);
 
     control.rockets.count.Set(10);
+    REQUIRE(model.rockets.count.Get() == 10);
+    REQUIRE(model.rockets.size() == 10);
+    REQUIRE(control.rockets.size() == 10);
+
+    REQUIRE(another.rockets.count.Get() == 10);
+    REQUIRE(another.rockets.size() == 10);
+
     control.rockets[5].y.Set(31);
+
+    REQUIRE(control.rockets[5].y.Get() == 31);
+    REQUIRE(model.rockets[5].y.Get() == 31);
+    REQUIRE(another.rockets[5].y.Get() == 31);
 
     auto drax = another.Get();
 
@@ -253,6 +262,7 @@ class RocketListObserver
 {
 public:
     using RocketListControl = decltype(DraxGroup::Control::rockets);
+
     using RocketsEndpoint =
         pex::Endpoint<RocketListObserver, RocketListControl>;
 
@@ -756,4 +766,29 @@ TEST_CASE("Delete selected.", "[List]")
     REQUIRE(!control.selected.Get());
     REQUIRE(control.count.Get() == 4);
     REQUIRE(control[2].Get() == 3);
+}
+
+
+TEST_CASE("ValueContainer allows operator[] access", "[List]")
+{
+    using Model = pex::ModelSelector<std::vector<int>>;
+
+    Model model;
+    std::vector<int> values(10);
+    std::iota(std::begin(values), std::end(values), 42);
+
+    model.Set(values);
+
+    REQUIRE(model[4] == 46);
+}
+
+
+TEST_CASE("KeyValueContainer allows key access", "[List]")
+{
+    using Model = pex::ModelSelector<std::map<std::string, int>>;
+
+    Model model;
+    model.Set("foo", 42);
+
+    REQUIRE(model.at("foo") == 42);
 }

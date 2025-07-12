@@ -80,6 +80,11 @@ public:
         return this->observer_;
     }
 
+    const Observer * GetObserver() const
+    {
+        return this->observer_;
+    }
+
     Callable GetCallable() const
     {
         return this->callable_;

@@ -63,9 +63,7 @@ struct OrderedListFields
 };
 
 
-using IndicesList = List<size_t, 0>;
-
-using OrderedIndicesControl = ControlSelector<IndicesList>;
+using IndicesList = std::vector<size_t>;
 
 
 template<typename ListMaker>
@@ -162,6 +160,32 @@ concept ListHasOrder =
     ListHasOrderMember<ListMaker> || ListHasVirtualGetOrder<ListMaker>;
 
 
+template<typename ListMaker>
+std::optional<OrderControl> GetOrderControl(
+    ModelSelector<ListMaker> &list,
+    size_t storageIndex)
+{
+    if constexpr (ListHasOrderMember<ListMaker>)
+    {
+        return OrderControl(list.at(storageIndex).order);
+    }
+    else if constexpr (ListHasVirtualGetOrder<ListMaker>)
+    {
+        auto virtualItem = list.at(storageIndex).GetVirtual();
+
+        if (!virtualItem)
+        {
+            return std::nullopt;
+        }
+
+        return OrderControl(virtualItem->GetOrder());
+    }
+    else
+    {
+        return std::nullopt;
+    }
+}
+
 
 template<typename ListMaker>
 struct OrderedListCustom
@@ -175,28 +199,27 @@ struct OrderedListCustom
         static constexpr bool hasOrder = ListHasOrder<ListMaker>;
 
         using Selected = control::ListOptionalIndex;
+        using MemberAdded = control::ListOptionalIndex;
         using MemberRemoved = control::ListOptionalIndex;
-        using MemberAdded = model::ListOptionalIndex;
-        using CountWillChange = control::ListCountWillChange;
         using Count = control::ListCount;
 
     private:
         using CountEndpoint = Endpoint<Model, Count>;
-        using CountWillChangeEndpoint = Endpoint<Model, CountWillChange>;
         using MemberRemovedEndpoint = Endpoint<Model, MemberRemoved>;
+        using MemberAddedEndpoint = Endpoint<Model, MemberAdded>;
 
+        MemberAddedEndpoint memberAddedEndpoint_;
+        MemberRemovedEndpoint memberWillRemoveEndpoint_;
         MemberRemovedEndpoint memberRemovedEndpoint_;
-        CountWillChangeEndpoint countWillChangeEndpoint_;
-        CountEndpoint countEndpoint_;
 
     public:
         Selected selected;
-        CountWillChange countWillChange;
         Count count;
         MemberAdded memberAdded;
+        MemberRemoved memberWillRemove;
+        MemberRemoved memberRemoved;
 
         using Indices = ModelSelector<IndicesList>;
-        using IndicesListItem = typename Indices::ListItem;
 
         using List = decltype(Base::list);
         using ListItem = typename List::ListItem;
@@ -205,56 +228,122 @@ struct OrderedListCustom
             :
             Base(),
 
+            memberAddedEndpoint_(
+                this,
+                this->list.memberAdded,
+                &Model::OnListMemberAdded_),
+
+            memberWillRemoveEndpoint_(
+                this,
+                this->list.memberWillRemove,
+                &Model::OnListMemberWillRemove_),
+
             memberRemovedEndpoint_(
                 this,
                 this->list.memberRemoved,
                 &Model::OnListMemberRemoved_),
 
-            countWillChangeEndpoint_(
-                this,
-                this->list.countWillChange,
-                &Model::OnListCountWillChange_),
-
-            countEndpoint_(this, this->list.count, &Model::OnListCount_),
-
             selected(this->list.selected),
-            countWillChange(this->list.countWillChange),
             count(this->list.count),
+            memberAdded(this->list.memberAdded),
+            memberWillRemove(this->list.memberWillRemove),
+            memberRemoved(this->list.memberRemoved),
             moveDownEndpoints_(),
             moveUpEndpoints_(),
             reorderEndpoint_(this, this->indices, &Model::OnReorder_)
         {
             REGISTER_PEX_NAME(this, "OrderedList::Model");
-            REGISTER_PEX_PARENT(this, &this->list);
+            REGISTER_PEX_NAME_WITH_PARENT(&this->list, this, "list");
+
+            REGISTER_PEX_NAME_WITH_PARENT(
+                &this->memberAddedEndpoint_.connector,
+                this,
+                "memberAddedEndpoint");
+
             REGISTER_PEX_PARENT(this, &this->indices);
             REGISTER_PEX_PARENT(this, &this->reorder);
 
-            this->OnListCount_(this->list.count.Get());
+            this->RestoreOrderConnections_();
 
-            assert(this->list.count.Get() == this->indices.count.Get());
-            assert(this->indices.Get().size() == this->indices.count.Get());
+            assert(this->list.count.Get() == this->indices.Get().size());
             assert(this->list.Get().size() == this->list.count.Get());
+        }
 
-            PEX_LOG("Created OrderedList::Model: ", pex::LookupPexName(this));
+        const ListItem & operator[](size_t index) const
+        {
+            return this->list[this->indices[index]];
         }
 
         ListItem & operator[](size_t index)
         {
-            return this->list[index];
+            return this->list[this->indices[index]];
         }
 
+        const ListItem & at(size_t index) const
+        {
+            return this->list.at(this->indices.at(index));
+        }
+
+        ListItem & at(size_t index)
+        {
+            return this->list.at(this->indices.at(index));
+        }
+
+        const ListItem & GetUnordered(size_t index) const
+        {
+            return this->list.at(index);
+        }
+
+        ListItem & GetUnordered(size_t index)
+        {
+            return this->list.at(index);
+        }
+
+        size_t GetStorageIndex(size_t orderedIndex)
+        {
+            return this->indices.at(orderedIndex);
+        }
+
+        size_t GetOrderedIndex(size_t storageIndex)
+        {
+            auto asList = this->indices.Get();
+            auto end = std::end(asList);
+
+            auto found = std::find(
+                std::begin(asList),
+                end,
+                storageIndex);
+
+            if (found == end)
+            {
+                throw std::out_of_range("storage index not found");
+            }
+
+            return *found;
+        }
+
+        // TODO Prepend, Append, Insert should follow the order found in
+        // indices.
+        // Currently, they are pass-through plumbing to the underlying list.
         template<typename Derived>
         void Prepend(const Derived &item)
         {
             auto newIndex = this->list.Append(item);
             this->MoveToTop(newIndex);
-            this->memberAdded.Set(newIndex);
         }
 
         template<typename Derived>
         size_t Append(const Derived &item)
         {
-            return this->list.Append(item);
+            auto newIndex = this->list.Append(item);
+
+            return newIndex;
+        }
+
+        template<typename Derived>
+        void Insert(size_t index, const Derived &item)
+        {
+            this->list.Insert(index, item);
         }
 
         void Set(const typename List::Type &listType)
@@ -403,8 +492,8 @@ struct OrderedListCustom
 
             // Clear the move endpoints before possibly deleting the list
             // member they are tracking
-            this->moveDownEndpoints_[storageIndex].Disconnect();
-            this->moveUpEndpoints_[storageIndex].Disconnect();
+            this->moveDownEndpoints_.erase(storageIndex);
+            this->moveUpEndpoints_.erase(storageIndex);
 
             this->list.at(storageIndex).Set(std::forward<T>(item));
 
@@ -419,8 +508,23 @@ struct OrderedListCustom
             this->list.EraseSelected();
         }
 
+        void Erase(size_t index)
+        {
+            this->list.Erase(index);
+        }
+
+        size_t size() const
+        {
+            return this->list.size();
+        }
+
+        bool empty() const
+        {
+            return this->list.empty();
+        }
+
     private:
-        void OnReorder_()
+        void OnReorder_(const std::vector<size_t> &)
         {
             this->reorder.Trigger();
         }
@@ -429,9 +533,11 @@ struct OrderedListCustom
         {
             if constexpr (hasOrder)
             {
+                assert(this->indices.size() == this->count.Get());
+
                 for (size_t index = 0; index < this->count.Get(); ++index)
                 {
-                    auto storageIndex = this->indices.at(index).Get();
+                    auto storageIndex = this->indices.at(index);
                     this->MakeOrderConnections_(storageIndex);
                 }
             }
@@ -444,61 +550,77 @@ struct OrderedListCustom
                 return;
             }
 
-            OrderControl order;
+            auto order = GetOrderControl<ListMaker>(this->list, storageIndex);
 
-            if constexpr (ListHasOrderMember<ListMaker>)
+            if (!order)
             {
-                order = this->list.at(storageIndex).order;
-            }
-            else
-            {
-                static_assert(ListHasVirtualGetOrder<ListMaker>);
-
-                auto virtualItem = this->list.at(storageIndex).GetVirtual();
-
-                if (!virtualItem)
-                {
-                    return;
-                }
-
-                order = virtualItem->GetOrder();
+                return;
             }
 
             this->moveDownEndpoints_[storageIndex] =
                 MoveOrderEndpoint(
                     this,
-                    order.moveDown,
+                    order->moveDown,
                     &Model::MoveDown,
                     storageIndex);
 
             this->moveUpEndpoints_[storageIndex] =
                 MoveOrderEndpoint(
                     this,
-                    order.moveUp,
+                    order->moveUp,
                     &Model::MoveUp,
                     storageIndex);
         }
 
-        void IncreaseSize_(size_t previousSize, size_t newSize)
+        void OnListMemberAdded_(const std::optional<size_t> &addedIndex)
         {
-            // The size of the list grew.
-            // Add default indices for the new elements.
-            size_t newIndex = previousSize;
-
-            while (newIndex < newSize)
+            if (!addedIndex)
             {
-                // This function is called while ListConnect has been muted.
-                // Observers of the full list of indices will not be notified
-                // until we are done.
-                this->indices[newIndex].Set(newIndex);
-                ++newIndex;
+                return;
             }
 
-            if constexpr (hasOrder)
+            if (this->indices.size() == this->list.count.Get())
             {
-                this->moveDownEndpoints_.resize(newSize);
-                this->moveUpEndpoints_.resize(newSize);
+                // We already have enough indices.
+                return;
             }
+
+            auto added = *addedIndex;
+
+            auto previous = this->indices.Get();
+
+            std::transform(
+                std::cbegin(previous),
+                std::cend(previous),
+                std::begin(previous),
+                [added](size_t value)
+                {
+                    if (value >= added)
+                    {
+                        return value + 1;
+                    }
+
+                    return value;
+                });
+
+            previous.insert(
+                previous.begin() + static_cast<ssize_t>(added),
+                added);
+
+            detail::AccessReference(this->indices).SetWithoutNotify(previous);
+            assert(this->indices.size() == previous.size());
+            this->MakeOrderConnections_(added);
+        }
+
+        void OnListMemberWillRemove_(const std::optional<size_t> &removedIndex)
+        {
+            if (!removedIndex)
+            {
+                return;
+            }
+
+            this->moveDownEndpoints_.erase(*removedIndex);
+            this->moveUpEndpoints_.erase(*removedIndex);
         }
 
         void OnListMemberRemoved_(const std::optional<size_t> &removedIndex)
@@ -536,65 +658,6 @@ struct OrderedListCustom
             detail::AccessReference(this->indices).SetWithoutNotify(previous);
         }
 
-        void OnListCountWillChange_()
-        {
-            this->moveDownEndpoints_.clear();
-            this->moveUpEndpoints_.clear();
-        }
-
-        void OnListCount_(size_t value)
-        {
-            if (value == this->indices.count.Get())
-            {
-                // The indices size already matches the new list size.
-                if constexpr (hasOrder)
-                {
-                    // It is still necessary to make the order connections.
-                    this->moveDownEndpoints_.resize(value);
-                    this->moveUpEndpoints_.resize(value);
-                    this->RestoreOrderConnections_();
-                }
-
-                return;
-            }
-
-            // Mute while adjusting indices.
-            // Silence notifications on indices to allow the count observers to
-            // be notified first.
-            auto scopeMute =
-                detail::ScopeMute<Indices>(this->indices, true);
-
-            auto previous = this->indices.Get();
-            auto previousSize = previous.size();
-
-            if (value > previousSize)
-            {
-                this->indices.ResizeWithoutNotify(value);
-                this->IncreaseSize_(previousSize, value);
-                this->RestoreOrderConnections_();
-
-                return;
-            }
-
-            // value < previousSize
-            // Remove references to indices that no longer exist
-            std::erase_if(
-                previous,
-                [value](size_t index)
-                {
-                    return index >= value;
-                });
-
-            this->indices.Set(previous);
-
-            if constexpr (hasOrder)
-            {
-                this->moveDownEndpoints_.resize(value);
-                this->moveUpEndpoints_.resize(value);
-                this->RestoreOrderConnections_();
-            }
-        }
-
     private:
 
         using MoveOrderEndpoint =
@@ -604,14 +667,13 @@ struct OrderedListCustom
                 decltype(&Model::MoveUp)
             >;
 
-        std::vector<MoveOrderEndpoint> moveDownEndpoints_;
-        std::vector<MoveOrderEndpoint> moveUpEndpoints_;
+        std::map<size_t, MoveOrderEndpoint> moveDownEndpoints_;
+        std::map<size_t, MoveOrderEndpoint> moveUpEndpoints_;
 
         // static_assert(
             // pex::IsControl<pex::GetControlType<decltype(Model::indices)>>);
 
-        using ReorderEndpoint =
-            detail::ListConnect<Model, decltype(Model::indices)>;
+        using ReorderEndpoint = Endpoint<Model, decltype(Model::indices)>;
 
         ReorderEndpoint reorderEndpoint_;
     };
@@ -727,8 +789,7 @@ struct OrderedListCustom
             index_(initialIndex),
             count_(indices_.size())
         {
-            assert(
-                this->list_.size() == this->indices_.size());
+            assert(this->list_.size() == this->indices_.size());
         }
 
         ListItem & operator*()
@@ -827,14 +888,14 @@ struct OrderedListCustom
 
             // Convert to storageIndex using size_t. This works for both
             // control::Value indices and plain-old size_t indices.
-            return self->list.at(size_t(self->indices.at(index)));
+            return self->list[size_t(self->indices[index])];
         }
 
         ListItem & operator[](size_t index)
         {
             auto self = this->GetDerived();
 
-            return self->list.at(size_t(self->indices.at(index)));
+            return self->list[size_t(self->indices[index])];
         }
 
         const ListItem & at(size_t index) const
@@ -965,7 +1026,7 @@ struct OrderedListCustom
         using List = decltype(Base::list);
         using Selected = typename List::Selected;
         using MemberAdded = control::ListOptionalIndex;
-        using CountWillChange = typename List::CountWillChange;
+        using MemberRemoved = control::ListOptionalIndex;
         using Count = typename List::Count;
         using ListItem = typename List::ListItem;
         using Upstream = typename Base::Upstream;
@@ -977,24 +1038,28 @@ struct OrderedListCustom
                 ListItem
             >);
 
+        static_assert(IsValueContainer<decltype(Base::indices)>);
+
     private:
         // In group customizations, 'Upstream' is always the group's Model.
         Upstream *upstream_;
 
     public:
         Selected selected;
-        CountWillChange countWillChange;
         Count count;
         MemberAdded memberAdded;
+        MemberRemoved memberWillRemove;
+        MemberRemoved memberRemoved;
 
         Control()
             :
             Base(),
             upstream_(nullptr),
             selected(),
-            countWillChange(),
             count(),
-            memberAdded()
+            memberAdded(),
+            memberWillRemove(),
+            memberRemoved()
         {
             REGISTER_PEX_NAME(this, "OrderedList::Control");
             REGISTER_PEX_PARENT(this, &this->list);
@@ -1007,17 +1072,17 @@ struct OrderedListCustom
             Base(upstream),
             upstream_(&upstream),
             selected(this->list.selected),
-            countWillChange(this->list.countWillChange),
             count(this->list.count),
-            memberAdded(this->upstream_->memberAdded)
+            memberAdded(this->upstream_->list.memberAdded),
+            memberWillRemove(this->upstream_->list.memberWillRemove),
+            memberRemoved(this->upstream_->list.memberRemoved)
         {
             REGISTER_PEX_NAME(this, "OrderedList::Control");
             REGISTER_PEX_PARENT(this, &this->list);
             REGISTER_PEX_PARENT(this, &this->indices);
             REGISTER_PEX_PARENT(this, &this->reorder);
 
-            assert(this->list.count.Get() == this->indices.count.Get());
-            assert(this->indices.Get().size() == this->indices.count.Get());
+            assert(this->list.count.Get() == this->indices.size());
             assert(this->list.Get().size() == this->list.count.Get());
         }
 
@@ -1026,9 +1091,10 @@ struct OrderedListCustom
             Base(*other.upstream_),
             upstream_(other.upstream_),
             selected(this->list.selected),
-            countWillChange(this->list.countWillChange),
             count(this->list.count),
-            memberAdded(this->upstream_->memberAdded)
+            memberAdded(this->upstream_->list.memberAdded),
+            memberWillRemove(this->upstream_->list.memberWillRemove),
+            memberRemoved(this->upstream_->list.memberRemoved)
         {
             REGISTER_PEX_NAME(this, "OrderedList::Control");
             REGISTER_PEX_PARENT(this, &this->list);
@@ -1041,9 +1107,10 @@ struct OrderedListCustom
             this->Base::operator=(other);
             this->upstream_ = other.upstream_;
             this->selected = other.selected;
-            this->countWillChange = other.countWillChange;
             this->count = other.count;
             this->memberAdded = other.memberAdded;
+            this->memberWillRemove = other.memberWillRemove;
+            this->memberRemoved = other.memberRemoved;
 
             return *this;
         }
@@ -1106,6 +1173,16 @@ struct OrderedListCustom
             assert(this->upstream_);
             this->upstream_->EraseSelected();
         }
+
+        size_t size() const
+        {
+            return this->list.size();
+        }
+
+        bool empty() const
+        {
+            return this->list.empty();
+        }
     };
 
     template<typename Base>
@@ -1153,6 +1230,22 @@ struct OrderedListCustom
         }
 
     private:
+        void InitializeSize_(size_t newSize)
+        {
+            // The size of the list grew.
+            // Add default indices for the new elements.
+            size_t newIndex = 0;
+
+            while (newIndex < newSize)
+            {
+                // This function is called while ListConnect has been muted.
+                // Observers of the full list of indices will not be notified
+                // until we are done.
+                this->indices[newIndex].Set(newIndex);
+                ++newIndex;
+            }
+        }
+
         void IncreaseSize_(size_t previousSize, size_t newSize)
         {
             // The size of the list grew.

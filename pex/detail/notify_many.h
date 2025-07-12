@@ -146,6 +146,37 @@ public:
 
     }
 
+    void PrintObservers() const
+    {
+        std::cout << "Observers of " << LookupPexName(this) << std::endl;
+
+        for (size_t i = 0; i < this->connections_.size(); ++i)
+        {
+            std::cout << "  " << i << ": "
+                << LookupPexName(this->connections_[i].GetObserver())
+                << std::endl;
+        }
+    }
+
+    size_t GetNotificationOrder(Observer *observer)
+    {
+        if (!this->HasObserver(observer))
+        {
+            throw std::logic_error("Observer not found");
+        }
+
+        auto found = std::find(
+            this->connections_.begin(),
+            this->connections_.end(),
+            ConnectionType(observer));
+
+        auto result = std::distance(this->connections_.begin(), found);
+
+        assert(result >= 0);
+
+        return static_cast<size_t>(result);
+    }
+
     // Only make the connection if the observer is not already connected.
     void ConnectOnce(Observer *observer, Callable callable)
     {

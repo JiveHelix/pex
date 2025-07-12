@@ -98,7 +98,7 @@ public:
     using Connectable =
         ConnectableSelector<typename ListControl::ListItem>;
 
-    using Connectables = std::vector<Connectable>;
+    using Connectables = std::map<size_t, Connectable>;
 
     using UpstreamControl = ListControl;
     using Upstream = typename MakeControl<Upstream_>::Upstream;
@@ -109,11 +109,14 @@ public:
 
     using Item = typename ListControl::Item;
 
-    using CountWillChangeTerminus =
-        Terminus<ListConnect, typename ListControl::CountWillChange>;
+    using MemberWillRemoveTerminus =
+        Terminus<ListConnect, typename ListControl::MemberWillRemove>;
 
-    using Count = typename ListControl::Count;
-    using CountTerminus = ::pex::Terminus<ListConnect, Count>;
+    using MemberAddedTerminus =
+        ::pex::Terminus<ListConnect, typename ListControl::MemberAdded>;
+
+    using ListFlagTerminus =
+        ::pex::Terminus<ListConnect, typename ListControl::ListFlag>;
 
     using ValueConnection_ = ValueConnection<Observer, ListType>;
     using ValueCallable = typename ValueConnection_::Callable;
@@ -128,15 +131,15 @@ public:
         :
         muteTerminus_(),
         muteState_(),
-        hasListConnections_(false),
         listControl_(),
         connectables_(),
         observer_(nullptr),
         valueConnection_(),
         signalConnection_(),
-        countWillChange_(),
-        internalCount_(),
-        count_(),
+        memberWillRemoveTerminus_(),
+        memberAddedTerminus_(),
+        isNotifying_(false),
+        isNotifyingTerminus_(),
         cached_()
     {
 
@@ -151,27 +154,28 @@ public:
             listControl.CloneMuteControl(),
             &ListConnect::OnMute_),
         muteState_(listControl.CloneMuteControl().Get()),
-        hasListConnections_(false),
         listControl_(listControl),
         connectables_(),
         observer_(observer),
         valueConnection_(),
         signalConnection_(),
 
-        countWillChange_(
+        memberWillRemoveTerminus_(
             this,
-            this->listControl_.countWillChange,
-            &ListConnect::OnCountWillChange_),
+            this->listControl_.memberWillRemove,
+            &ListConnect::OnMemberWillRemove_),
 
-        internalCount_(
+        memberAddedTerminus_(
             this,
-            this->listControl_.GetInternalCount_(),
-            &ListConnect::OnInternalCount_),
+            this->listControl_.memberAdded,
+            &ListConnect::OnMemberAdded_),
 
-        count_(
+        isNotifying_(false),
+
+        isNotifyingTerminus_(
             this,
-            this->listControl_.count,
-            &ListConnect::OnCount_),
+            this->listControl_.isNotifying,
+            &ListConnect::OnIsNotifying_),
 
         cached_(this->listControl_.Get())
     {
@@ -188,27 +192,28 @@ public:
             listControl.CloneMuteControl(),
             &ListConnect::OnMute_),
         muteState_(listControl.CloneMuteControl().Get()),
-        hasListConnections_(false),
         listControl_(listControl),
         connectables_(),
         observer_(observer),
         valueConnection_(std::in_place_t{}, observer, callable),
         signalConnection_(),
 
-        countWillChange_(
+        memberWillRemoveTerminus_(
             this,
-            this->listControl_.countWillChange,
-            &ListConnect::OnCountWillChange_),
+            this->listControl_.memberWillRemove,
+            &ListConnect::OnMemberWillRemove_),
 
-        internalCount_(
+        memberAddedTerminus_(
             this,
-            this->listControl_.GetInternalCount_(),
-            &ListConnect::OnInternalCount_),
+            this->listControl_.memberAdded,
+            &ListConnect::OnMemberAdded_),
 
-        count_(
+        isNotifying_(false),
+
+        isNotifyingTerminus_(
             this,
-            this->listControl_.count,
-            &ListConnect::OnCount_),
+            this->listControl_.isNotifying,
+            &ListConnect::OnIsNotifying_),
 
         cached_(this->listControl_.Get())
     {
@@ -226,27 +231,28 @@ public:
             listControl.CloneMuteControl(),
             &ListConnect::OnMute_),
         muteState_(listControl.CloneMuteControl().Get()),
-        hasListConnections_(false),
         listControl_(listControl),
         connectables_(),
         observer_(observer),
         valueConnection_(),
         signalConnection_(std::in_place_t{}, observer, callable),
 
-        countWillChange_(
+        memberWillRemoveTerminus_(
             this,
-            this->listControl_.countWillChange,
-            &ListConnect::OnCountWillChange_),
+            this->listControl_.memberWillRemove,
+            &ListConnect::OnMemberWillRemove_),
 
-        internalCount_(
+        memberAddedTerminus_(
             this,
-            this->listControl_.GetInternalCount_(),
-            &ListConnect::OnInternalCount_),
+            this->listControl_.memberAdded,
+            &ListConnect::OnMemberAdded_),
 
-        count_(
+        isNotifying_(false),
+
+        isNotifyingTerminus_(
             this,
-            this->listControl_.count,
-            &ListConnect::OnCount_),
+            this->listControl_.isNotifying,
+            &ListConnect::OnIsNotifying_),
 
         cached_(this->listControl_.Get())
     {
@@ -304,26 +310,27 @@ public:
             other.listControl_.CloneMuteControl(),
             &ListConnect::OnMute_),
         muteState_(other.muteState_),
-        hasListConnections_(false),
         listControl_(other.listControl_),
         connectables_(),
         observer_(observer),
         valueConnection_(),
         signalConnection_(),
-        countWillChange_(
+        memberWillRemoveTerminus_(
             this,
-            this->listControl_.countWillChange,
-            &ListConnect::OnCountWillChange_),
+            this->listControl_.memberWillRemove,
+            &ListConnect::OnMemberWillRemove_),
 
-        internalCount_(
+        memberAddedTerminus_(
             this,
-            this->listControl_.GetInternalCount_(),
-            &ListConnect::OnInternalCount_),
+            this->listControl_.memberAdded,
+            &ListConnect::OnMemberAdded_),
 
-        count_(
+        isNotifying_(false),
+
+        isNotifyingTerminus_(
             this,
-            this->listControl_.count,
-            &ListConnect::OnCount_),
+            this->listControl_.isNotifying,
+            &ListConnect::OnIsNotifying_),
 
         cached_(this->listControl_.Get())
     {
@@ -363,7 +370,7 @@ public:
 
     ListConnect & Assign(Observer *observer, const ListConnect &other)
     {
-        this->muteTerminus_.Assign(this, other.muteTerminus_);
+        this->muteTerminus_.RequireAssign(this, other.muteTerminus_);
         this->muteState_ = other.muteState_;
         this->ClearListConnections_();
 
@@ -389,9 +396,20 @@ public:
             this->MakeListConnections_();
         }
 
-        this->countWillChange_.Assign(this, other.countWillChange_);
-        this->internalCount_.Assign(this, other.internalCount_);
-        this->count_.Assign(this, other.count_);
+        this->memberWillRemoveTerminus_.RequireAssign(
+            this,
+            other.memberWillRemoveTerminus_);
+
+        this->memberAddedTerminus_.RequireAssign(
+            this,
+            other.memberAddedTerminus_);
+
+        this->isNotifying_ = other.isNotifying_;
+
+        this->isNotifyingTerminus_.RequireAssign(
+            this,
+            other.isNotifyingTerminus_);
+
         this->cached_ = other.cached_;
 
         return *this;
@@ -406,7 +424,7 @@ public:
 
         this->valueConnection_.emplace(this->observer_, callable);
 
-        if (!this->hasListConnections_)
+        if (this->connectables_.empty())
         {
             this->MakeListConnections_();
         }
@@ -427,7 +445,7 @@ public:
 
         this->signalConnection_.emplace(this->observer_, callable);
 
-        if (!this->hasListConnections_)
+        if (this->connectables_.empty())
         {
             this->MakeListConnections_();
         }
@@ -510,6 +528,13 @@ private:
             return;
         }
 
+        if (self->isNotifying_)
+        {
+            // The observed list is notifying all members at once.
+            // Wait until it is done to send one group notification.
+            return;
+        }
+
         if (self->valueConnection_.has_value())
         {
             (*self->valueConnection_)(self->cached_);
@@ -530,12 +555,10 @@ private:
             return;
         }
 
-        this->hasListConnections_ = true;
-        this->connectables_.reserve(count);
-
         for (size_t index = 0; index < count; ++index)
         {
-            this->connectables_.emplace_back(
+            auto result = this->connectables_.try_emplace(
+                index,
                 this,
                 this->listControl_[index],
                 std::bind(
@@ -543,46 +566,82 @@ private:
                     index,
                     std::placeholders::_1,
                     std::placeholders::_2));
+
+            assert(result.second);
         }
     }
 
     void ClearListConnections_()
     {
-        if (!this->hasListConnections_)
+        if (this->connectables_.empty())
         {
             return;
         }
 
-        for (auto &control: this->connectables_)
+        for (auto &pair: this->connectables_)
         {
-            control.Disconnect(this);
+            pair.second.Disconnect(this);
         }
 
         this->connectables_.clear();
-        this->hasListConnections_ = false;
     }
 
-    void OnCountWillChange_()
+    void OnMemberWillRemove_(const std::optional<size_t> &index)
     {
-        this->ClearListConnections_();
+        if (!index)
+        {
+            return;
+        }
+
+        if (this->connectables_.empty())
+        {
+            return;
+        }
+
+        this->connectables_.at(*index).Disconnect(this);
+        this->connectables_.erase(*index);
     }
 
-    void OnInternalCount_(size_t)
+    void OnMemberAdded_(const std::optional<size_t> &index)
     {
+        if (!index)
+        {
+            return;
+        }
+
         this->cached_ = this->listControl_.Get();
 
         if (
             this->valueConnection_.has_value()
             || this->signalConnection_.has_value())
         {
-            this->MakeListConnections_();
+            auto result = this->connectables_.try_emplace(
+                *index,
+                this,
+                this->listControl_[*index],
+                std::bind(
+                    ListConnect::OnItemChanged_,
+                    *index,
+                    std::placeholders::_1,
+                    std::placeholders::_2));
+
+            assert(result.second);
         }
     }
 
-    void OnCount_(size_t)
+    void OnIsNotifying_(bool isNotifying)
     {
-        if (!this->muteState_.isMuted && !this->muteState_.isSilenced)
+        this->isNotifying_ = isNotifying;
+
+        if (this->muteState_)
         {
+            return;
+        }
+
+        if (!isNotifying)
+        {
+            // When isNotifying transitions to false, send a group
+            // notification.
             if (this->valueConnection_.has_value())
             {
                 (*this->valueConnection_)(this->cached_);
@@ -599,15 +658,15 @@ private:
     using MuteTerminus = pex::Terminus<ListConnect, MuteModel>;
     MuteTerminus muteTerminus_;
     Mute_ muteState_;
-    bool hasListConnections_;
     ListControl listControl_;
     Connectables connectables_;
     Observer *observer_;
     std::optional<ValueConnection_> valueConnection_;
     std::optional<SignalConnection_> signalConnection_;
-    CountWillChangeTerminus countWillChange_;
-    CountTerminus internalCount_;
-    CountTerminus count_;
+    MemberWillRemoveTerminus memberWillRemoveTerminus_;
+    MemberAddedTerminus memberAddedTerminus_;
+    bool isNotifying_;
+    ListFlagTerminus isNotifyingTerminus_;
     ListType cached_;
 };
 

@@ -16,20 +16,21 @@ public:
     using ListItem = typename ListControl::ListItem;
     using Upstream = typename MakeControl<Upstream_>::Upstream;
 
-    using CountWillChangeEndpoint =
-        Endpoint<Observer, typename ListControl::CountWillChange>;
+    using MemberAddedEndpoint =
+        Endpoint<Observer, typename ListControl::MemberAdded>;
 
-    using CountWillChangeCallable = typename CountWillChangeEndpoint::Callable;
+    using MemberAddedCallable = typename MemberAddedEndpoint::Callable;
 
-    using CountEndpoint =
-        Endpoint<Observer, typename ListControl::Count>;
+    using MemberRemovedEndpoint =
+        Endpoint<Observer, typename ListControl::MemberRemoved>;
 
-    using CountCallable = typename CountEndpoint::Callable;
+    using MemberRemovedCallable = typename MemberRemovedEndpoint::Callable;
 
     ListObserver()
         :
-        countWillChange(),
-        count()
+        memberAdded(),
+        memberWillRemove(),
+        memberRemoved()
     {
 
     }
@@ -37,63 +38,79 @@ public:
     ListObserver(
         Observer *observer,
         ListControl listControl,
-        CountWillChangeCallable countWillChangeCallable,
-        CountCallable countCallable)
+        MemberAddedCallable memberAddedCallable,
+        MemberRemovedCallable memberWillRemoveCallable,
+        MemberRemovedCallable memberRemovedCallable)
         :
-        countWillChange(
+        memberAdded(
             observer,
-            listControl.countWillChange,
-            countWillChangeCallable),
-        count(
+            listControl.memberAdded,
+            memberAddedCallable),
+
+        memberWillRemove(
             observer,
-            listControl.count,
-            countCallable)
+            listControl.memberWillRemove,
+            memberWillRemoveCallable),
+
+        memberRemoved(
+            observer,
+            listControl.memberRemoved,
+            memberRemovedCallable)
     {
+        std::cout << "Observer (" << observer << ") connected to listControl ("
+            << &listControl.memberAdded << ")" << std::endl;
 
     }
 
     ListObserver(
         Observer *observer,
         Upstream &upstream,
-        CountWillChangeCallable countWillChangeCallable,
-        CountCallable countCallable)
+        MemberAddedCallable memberAddedCallable,
+        MemberRemovedCallable memberWillRemoveCallable,
+        MemberRemovedCallable memberRemovedCallable)
 
         :
         ListObserver(
             observer,
             ListControl(upstream),
-            countWillChangeCallable,
-            countCallable)
+            memberAddedCallable,
+            memberWillRemoveCallable,
+            memberRemovedCallable)
     {
 
     }
 
     ListObserver(ListObserver &&other)
         :
-        countWillChange(std::move(other.countWillChange)),
-        count(std::move(other.count))
+        memberAdded(std::move(other.memberAdded)),
+        memberWillRemove(std::move(other.memberWillRemove)),
+        memberRemoved(std::move(other.memberRemoved))
     {
 
     }
 
     ListObserver & operator=(ListObserver &&other)
     {
-        this->countWillChange = std::move(other.countWillChange);
-        this->count = std::move(other.count);
+        this->memberAdded = std::move(other.memberAdded);
+        this->memberWillRemove = std::move(other.memberWillRemove);
+        this->memberRemoved = std::move(other.memberRemoved);
 
         return *this;
     }
 
     ListObserver & Assign(Observer *observer, const ListObserver &other)
     {
-        this->countWillChange.Assign(observer, other.countWillChange);
-        this->count.Assign(observer, other.count);
+
+        this->memberAdded.Assign(observer, other.memberAdded);
+        this->memberWillRemove.Assign(observer, other.memberWillRemove);
+        this->memberRemoved.Assign(observer, other.memberRemoved);
 
         return *this;
     }
 
-    CountWillChangeEndpoint countWillChange;
-    CountEndpoint count;
+    MemberAddedEndpoint memberAdded;
+    MemberRemovedEndpoint memberWillRemove;
+    MemberRemovedEndpoint memberRemoved;
 };
 
 

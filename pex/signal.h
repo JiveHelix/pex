@@ -72,6 +72,8 @@ class Signal
     public detail::NotifyOne<detail::SignalConnection<void>, Access>
 {
 public:
+    using Model = ::pex::model::Signal;
+
     static constexpr bool isControlSignal = true;
 
     using Upstream = pex::model::Signal;

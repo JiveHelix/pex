@@ -115,6 +115,7 @@ public:
         typename MakeControl<Upstream_>::Control;
 
     using UpstreamControl = ControlType;
+    using Model = typename UpstreamControl::Model;
     using Connection = MakeConnection<Observer, ControlType>;
     using Notifier = typename Connection::Notifier;
     using Callable = typename Connection::Callable;
@@ -354,6 +355,13 @@ public:
         return *this;
     }
 
+    Terminus_ & RequireAssign(
+        Observer *observer,
+        const Terminus_<Observer, Upstream_> &other)
+    {
+        return this->Assign(observer, other);
+    }
+
     // Move assign
     template<typename O>
     Terminus_ & Assign(
@@ -383,6 +391,13 @@ public:
         // There is no way to copy the callable from a different observer.
 
         return *this;
+    }
+
+    Terminus_ & RequireAssign(
+        Observer *observer,
+        Terminus_<Observer, Upstream_> &&other)
+    {
+        return this->Assign(observer, other);
     }
 
     ~Terminus_()
@@ -455,6 +470,17 @@ public:
         typename
     >
     friend struct ImplementInterface;
+
+    bool HasConnection() const
+    {
+        return this->notifier_.HasConnection();
+    }
+
+    std::vector<size_t> GetNotificationOrderChain()
+    {
+        return this->upstreamControl_
+            .GetNotificationOrderChain(&this->notifier_);
+    }
 
 private:
     Observer *observer_;
@@ -555,6 +581,8 @@ public:
     using UpstreamControl =
         typename MakeControl<Upstream_>::Control;
 
+    using Model = typename UpstreamControl::Model;
+    
     Terminus(Observer *observer, const Terminus &other)
         :
         Base(observer, other)
@@ -634,6 +662,16 @@ public:
 
     template<typename>
     friend class Reference;
+
+    template<typename>
+    friend class ConstControlReference;
+
+private:
+    const Model & GetModel_() const
+    {
+        assert(this->HasModel());
+        return this->upstreamControl_.GetModel_();
+    }
 };
 
 

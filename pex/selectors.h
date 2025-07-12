@@ -61,6 +61,27 @@ struct ModelSelector_
     using Type = model::Value<T>;
 };
 
+
+template<typename T>
+struct ModelSelector_
+<
+    T,
+    std::enable_if_t<jive::IsValueContainer<T>::value>
+>
+{
+    using Type = model::ValueContainer<T>;
+};
+
+template<typename T>
+struct ModelSelector_
+<
+    T,
+    std::enable_if_t<jive::IsKeyValueContainer<T>::value>
+>
+{
+    using Type = model::KeyValueContainer<T>;
+};
+
 template<typename T>
 struct ModelSelector_<T, std::enable_if_t<IsMakeSignal<T>>>
 {
@@ -127,6 +148,27 @@ template<typename T, typename = void>
 struct ControlSelector_
 {
     using Type = control::Value<typename ModelSelector_<T>::Type>;
+};
+
+
+template<typename T>
+struct ControlSelector_
+<
+    T,
+    std::enable_if_t<jive::IsValueContainer<T>::value>
+>
+{
+    using Type = control::ValueContainer<typename ModelSelector_<T>::Type>;
+};
+
+template<typename T>
+struct ControlSelector_
+<
+    T,
+    std::enable_if_t<jive::IsKeyValueContainer<T>::value>
+>
+{
+    using Type = control::KeyValueContainer<typename ModelSelector_<T>::Type>;
 };
 
 template<typename T>

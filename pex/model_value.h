@@ -34,7 +34,16 @@ template<typename>
 class Reference;
 
 template<typename>
+class ValueContainerReference;
+
+template<typename>
+class KeyValueContainerReference;
+
+template<typename>
 class ConstReference;
+
+template<typename, typename>
+class Publisher;
 
 
 // TODO: This has the same name as ::pex::detail::ValueConnection, which can
@@ -79,10 +88,19 @@ public:
     friend class ::pex::Reference;
 
     template<typename>
+    friend class ::pex::ValueContainerReference;
+
+    template<typename>
+    friend class ::pex::KeyValueContainerReference;
+
+    template<typename>
     friend class ::pex::ConstReference;
 
     template<typename>
     friend class Direct;
+
+    template<typename, typename>
+    friend class Publisher;
 
     Value_()
         :
@@ -274,6 +292,197 @@ protected:
 };
 
 
+template<typename Model, typename T>
+class Publisher
+{
+public:
+    explicit Publisher(Model &model, T &value)
+        :
+        model_(model),
+        value_(value)
+    {
+
+    }
+
+    T & operator=(const T &value)
+    {
+        return this->value_ = value;
+    }
+
+    ~Publisher()
+    {
+        this->model_.DoNotify_();
+    }
+
+private:
+    Model &model_;
+    T &value_;
+};
+
+
+template<typename T>
+class ValueContainer: public Value_<T, NoFilter>
+{
+public:
+    static constexpr bool isValueContainer = true;
+
+    using Base = Value_<T, NoFilter>;
+
+    using Base::Base;
+    using Base::Set;
+    using Base::Get;
+
+    using Type = typename Base::Type;
+    using ValueType = typename Type::value_type;
+    using Access = typename Base::Access;
+
+    template<typename>
+    friend class ::pex::Transaction;
+
+    template<typename>
+    friend class ::pex::Reference;
+
+    template<typename>
+    friend class ::pex::ValueContainerReference;
+
+    template<typename>
+    friend class ::pex::KeyValueContainerReference;
+
+    template<typename>
+    friend class ::pex::ConstReference;
+
+    template<typename>
+    friend class Direct;
+
+    template<typename, typename>
+    friend class Publisher;
+
+    /** Set the value and notify interfaces **/
+    void Set(size_t index, Argument<ValueType> value)
+        requires (HasAccess<SetTag, Access>)
+    {
+        this->SetWithoutNotify_(index, value);
+        this->DoNotify_();
+    }
+
+    Type Get(size_t index) const
+    {
+        return this->value_[index];
+    }
+
+    size_t size() const
+    {
+        return this->value_.size();
+    }
+
+    size_t empty() const
+    {
+        return this->value_.empty();
+    }
+
+    // There is no non-const operator[].
+    // We must have a way to publish changed values.
+    const ValueType & operator[](size_t index) const
+    {
+        return this->value_[index];
+    }
+
+    const ValueType & at(size_t index) const
+    {
+        return this->value_.at(index);
+    }
+
+protected:
+    using Base::SetWithoutNotify_;
+
+    void SetWithoutNotify_(size_t index, Argument<ValueType> value)
+    {
+        this->value_[index] = value;
+    }
+};
+
+
+template<typename T>
+class KeyValueContainer: public Value_<T, NoFilter>
+{
+public:
+    static constexpr bool isKeyValueContainer = true;
+
+    using Base = Value_<T, NoFilter>;
+
+    using Base::Base;
+    using Base::Set;
+    using Base::Get;
+
+    using Type = typename Base::Type;
+    using MappedType = typename Type::mapped_type;
+    using KeyType = typename Type::key_type;
+    using Access = typename Base::Access;
+
+    template<typename>
+    friend class ::pex::Transaction;
+
+    template<typename>
+    friend class ::pex::Reference;
+
+    template<typename>
+    friend class ::pex::ValueContainerReference;
+
+    template<typename>
+    friend class ::pex::KeyValueContainerReference;
+
+    template<typename>
+    friend class ::pex::ConstReference;
+
+    template<typename>
+    friend class Direct;
+
+    template<typename, typename>
+    friend class Publisher;
+
+    /** Set the value and notify interfaces **/
+    void Set(const KeyType &key, Argument<MappedType> value)
+        requires (HasAccess<SetTag, Access>)
+    {
+        this->SetWithoutNotify_(key, value);
+        this->DoNotify_();
+    }
+
+    Type Get(const KeyType &key) const
+    {
+        return this->value_[key];
+    }
+
+    size_t size() const
+    {
+        return this->value_.size();
+    }
+
+    size_t empty() const
+    {
+        return this->value_.empty();
+    }
+
+    size_t count(const KeyType &key) const
+    {
+        return this->value_.count(key);
+    }
+
+    const MappedType & at(const KeyType &key) const
+    {
+        return this->value_.at(key);
+    }
+
+protected:
+    using Base::SetWithoutNotify_;
+
+    void SetWithoutNotify_(const KeyType &key, Argument<MappedType> value)
+    {
+        this->value_[key] = value;
+    }
+};
+
+
 template<typename T>
 using Value = Value_<T, NoFilter>;
 
@@ -377,6 +586,8 @@ namespace control
 
 
 template<typename, typename, typename> class Value_;
+template<typename> class ValueContainer;
+template<typename> class KeyValueContainer;
 
 
 } // end namespace control
@@ -386,10 +597,11 @@ namespace model
 {
 
 
-template<typename Model>
+template<typename Model_>
 class Direct
 {
 public:
+    using Model = Model_;
     using Type = typename Model::Type;
     using Callable = typename Model::Callable;
     static constexpr bool isPexCopyable = true;
@@ -478,13 +690,23 @@ public:
         return (this->model_ != nullptr);
     }
 
+    size_t GetNotificationOrder(void *observer)
+    {
+        return this->model_->GetNotificationOrder(observer);
+    }
+
+    std::vector<size_t> GetNotificationOrderChain(void *observer)
+    {
+        return {this->GetNotificationOrder(observer)};
+    }
+
     template<typename, typename, typename>
     friend class ::pex::control::Value_;
 
     template<typename>
     friend class ::pex::Reference;
 
-private:
+protected:
     void SetWithoutNotify_(Argument<Type> value)
     {
         this->model_->SetWithoutNotify_(value);
@@ -495,9 +717,7 @@ private:
         this->model_->DoNotify_();
     }
 
-    using Model_ = Model;
-
-    const Model_ & GetModel_() const
+    const Model & GetModel_() const
     {
         if (!this->HasModel())
         {
@@ -507,8 +727,136 @@ private:
         return *this->model_;
     }
 
-private:
+protected:
     Model *model_;
+};
+
+
+template<typename Model_>
+class DirectValueContainer: public Direct<Model_>
+{
+public:
+    using Base = Direct<Model_>;
+    using Base::Base;
+    using Base::Set;
+    using Base::Get;
+
+    template<typename>
+    friend class ::pex::control::ValueContainer;
+
+    template<typename>
+    friend class ::pex::ValueContainerReference;
+
+    using Type = typename Base::Type;
+    using ValueType = typename Type::value_type;
+    using Access = typename Model_::Access;
+
+    /** Set the value and notify interfaces **/
+    void Set(size_t index, Argument<ValueType> value)
+        requires (HasAccess<SetTag, Access>)
+    {
+        this->SetWithoutNotify_(index, value);
+        this->DoNotify_();
+    }
+
+    Type Get(size_t index) const
+    {
+        return this->model_->Get(index);
+    }
+
+    size_t size() const
+    {
+        return this->model_->size();
+    }
+
+    size_t empty() const
+    {
+        return this->model_->empty();
+    }
+
+    // There is no non-const operator[].
+    // We must have a way to publish changed values.
+    const ValueType & operator[](size_t index) const
+    {
+        return (*this->model_)[index];
+    }
+
+    const ValueType & at(size_t index) const
+    {
+        return this->model_->at(index);
+    }
+
+protected:
+    using Base::SetWithoutNotify_;
+
+    void SetWithoutNotify_(size_t index, Argument<ValueType> value)
+    {
+        this->model_->SetWithoutNotify_(index, value);
+    }
+};
+
+
+template<typename Model_>
+class DirectKeyValueContainer: public Direct<Model_>
+{
+public:
+    using Base = Direct<Model_>;
+    using Base::Base;
+    using Base::Set;
+    using Base::Get;
+
+    using Type = typename Base::Type;
+    using MappedType = typename Type::mapped_type;
+    using KeyType = typename Type::key_type;
+    using Access = typename Model_::Access;
+
+    template<typename>
+    friend class ::pex::control::KeyValueContainer;
+
+    template<typename>
+    friend class ::pex::KeyValueContainerReference;
+
+    /** Set the value and notify interfaces **/
+    void Set(const KeyType &key, Argument<MappedType> value)
+        requires (HasAccess<SetTag, Access>)
+    {
+        this->SetWithoutNotify_(key, value);
+        this->DoNotify_();
+    }
+
+    Type Get(const KeyType &key) const
+    {
+        return this->model_->Get(key);
+    }
+
+    size_t size() const
+    {
+        return this->model_->size();
+    }
+
+    size_t empty() const
+    {
+        return this->model_->empty();
+    }
+
+    size_t count(const KeyType &key) const
+    {
+        return this->model_->count(key);
+    }
+
+    const MappedType & at(const KeyType &key) const
+    {
+        return this->model_->at(key);
+    }
+
+protected:
+    using Base::SetWithoutNotify_;
+
+    void SetWithoutNotify_(const KeyType &key, Argument<MappedType> value)
+    {
+        this->model_->SetWithoutNotify_(key, value);
+    }
+
 };
 
 

@@ -2,7 +2,7 @@
 
 // #define ENABLE_PEX_LOG
 // #define USE_OBSERVER_NAME
-// #define ENABLE_REGISTER_NAME
+#define ENABLE_REGISTER_NAME
 
 #include <mutex>
 #include <memory>

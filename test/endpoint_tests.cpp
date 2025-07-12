@@ -1,8 +1,9 @@
 #include <catch2/catch.hpp>
 #include <nlohmann/json.hpp>
+#include <jive/vector.h>
 #include <pex/list.h>
 #include <pex/group.h>
-#include <pex/list_observer.h>
+#include <pex/endpoint.h>
 
 
 using json = nlohmann::json;
@@ -38,34 +39,31 @@ using ListControl = decltype(TestControl::values);
 class TestObserver
 {
 public:
-    using ListObserver = pex::ListObserver<TestObserver, ListControl>;
+    using MemberWillRemoveEndpoint =
+        pex::Endpoint<TestObserver, typename ListControl::MemberWillRemove>;
+
+    using MemberAddedEndpoint =
+        pex::Endpoint<TestObserver, typename ListControl::MemberAdded>;
 
     TestObserver(TestControl testControl)
         :
         listControl(testControl.values),
-        listObserver(
+
+        memberWillRemoveEndpoint_(
             this,
-            testControl.values,
-            &TestObserver::OnCountWillChange_,
-            &TestObserver::OnCount_),
+            testControl.values.memberWillRemove,
+            &TestObserver::OnMemberWillRemove_),
+
+        memberAddedEndpoint_(
+            this,
+            testControl.values.memberAdded,
+            &TestObserver::OnMemberAdded_),
+
         endpoints(),
         observedValuesByIndex()
     {
-        this->OnCount_(testControl.values.count.Get());
-    }
+        size_t count = testControl.values.count.Get();
 
-    void OnValue_(int value, size_t index)
-    {
-        this->observedValuesByIndex[index] = value;
-    }
-
-    void OnCountWillChange_()
-    {
-        this->endpoints.clear();
-    }
-
-    void OnCount_(size_t count)
-    {
         this->endpoints.reserve(count);
 
         for (size_t i = 0; i < count; ++i)
@@ -78,15 +76,46 @@ public:
         }
     }
 
+    void OnValue_(int value, size_t index)
+    {
+        this->observedValuesByIndex[index] = value;
+    }
+
+    void OnMemberWillRemove_(const std::optional<size_t> &index)
+    {
+        if (!index)
+        {
+            return;
+        }
+
+        jive::SafeErase(this->endpoints, *index);
+    }
+
+    void OnMemberAdded_(const std::optional<size_t> &index)
+    {
+        if (!index)
+        {
+            return;
+        }
+
+        this->endpoints.emplace(
+            jive::SafeInsertIterator(this->endpoints, *index),
+            this,
+            this->listControl[*index],
+            &TestObserver::OnValue_,
+            *index);
+    }
+
     using BoundEndpoint =
         pex::BoundEndpoint
         <
-            typename ListObserver::ListItem,
+            typename ListControl::ListItem,
             decltype(&TestObserver::OnValue_)
         >;
 
     ListControl listControl;
-    ListObserver listObserver;
+    MemberWillRemoveEndpoint memberWillRemoveEndpoint_;
+    MemberAddedEndpoint memberAddedEndpoint_;
     std::vector<BoundEndpoint> endpoints;
     std::map<size_t, int> observedValuesByIndex;
 };
