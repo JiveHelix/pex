@@ -1,9 +1,12 @@
-from cmake_includes.conan import LibraryConanFile
+from conan import ConanFile
 
 
-class PexConan(LibraryConanFile):
+class PexConan(ConanFile):
     name = "pex"
     version = "1.0.0"
+
+    python_requires = "boiler/0.1"
+    python_requires_extend = "boiler.LibraryConanFile"
 
     license = "MIT"
     author = "Jive Helix (jivehelix@gmail.com)"
