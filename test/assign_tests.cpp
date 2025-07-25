@@ -5,12 +5,13 @@
 #include <string>
 #include <optional>
 
-#include "pex/identity.h"
-#include "pex/selectors.h"
+#include <pex/identity.h>
+#include <pex/selectors.h>
+#include <pex/detail/log.h>
 
 
 template<typename Control>
-class Observer
+class Observer: Separator
 {
 public:
     using Type = typename Control::Type;
@@ -22,6 +23,8 @@ public:
         control_(this, control)
     {
         PEX_LOG("Connect");
+        REGISTER_PEX_NAME(this, "Observer");
+        REGISTER_PEX_PARENT(control_);
         this->control_.Connect(&Observer::Observe_);
     }
 
@@ -107,6 +110,7 @@ TEST_CASE("Assign round trip.", "[pex]")
     AssignPlain test{{42, 3.14159, "frob"}};
 
     AssignTestModel model{};
+    REGISTER_IDENTITY(model);
 
     model.SetTest(test);
 
@@ -120,6 +124,7 @@ TEST_CASE("Assign is observed.", "[pex]")
     AssignPlain test{{42, 3.14159, "frob"}};
 
     AssignTestModel model{};
+    REGISTER_IDENTITY(model);
 
     auto observer = Observer(AssignTestControl(model).foo);
 
@@ -135,6 +140,7 @@ TEST_CASE("Assign to control reaches model.", "[pex]")
     AssignPlain test{{42, 3.14159, "frob"}};
 
     AssignTestModel model{};
+    REGISTER_IDENTITY(model);
 
     AssignTestControl control(model);
 

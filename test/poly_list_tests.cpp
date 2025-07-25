@@ -314,7 +314,10 @@ class CountObserver
 public:
     CountObserver(pex::control::ListCount count)
         :
-        countEndpoint_(this, count, &CountObserver::OnCount_),
+        countEndpoint_(
+            USE_REGISTER_PEX_NAME(this, "CountObserver"),
+            count,
+            &CountObserver::OnCount_),
         count_(count.Get())
     {
 

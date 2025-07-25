@@ -7,6 +7,10 @@
 #include "pex/detail/log.h"
 #include "pex/detail/observer_name.h"
 
+#ifndef NDEBUG
+#include <pex/detail/logs_observers.h>
+#endif
+
 
 #if defined(__GNUG__) && !defined(__clang__) && !defined(_WIN32)
 // Avoid bogus -Werror=maybe-uninitialized
@@ -36,8 +40,13 @@ namespace pex
 namespace detail
 {
 
+
 template<typename ConnectionType, typename Access>
 class NotifyOne_
+#ifndef NDEBUG
+    :
+    public LogsObservers
+#endif
 {
 public:
     using Observer = typename ConnectionType::Observer;
@@ -45,30 +54,54 @@ public:
 
     NotifyOne_()
         :
+#ifndef NDEBUG
+        LogsObservers{},
+#endif
         connection_{}
     {
 
     }
 
-    void Connect(Observer *observer, Callable callable)
+    template<typename T>
+    void Connect(T *observer, Callable callable)
     {
         static_assert(
             HasAccess<GetTag, Access>,
             "Cannot connect observer without read access.");
+
 #ifndef NDEBUG
         if (this->connection_)
         {
-            throw std::logic_error("Connection already made");     
+            throw std::logic_error("Connection already made");
         }
 #endif
 
-#ifdef USE_OBSERVER_NAME
+#ifdef ENABLE_REGISTER_NAME
+        if (!HasPexName(observer))
+        {
+            throw std::runtime_error("All observers must be labeled");
+        }
+
+        if (!HasPexName(this))
+        {
+            throw std::runtime_error("All nodes must be labeled");
+        }
+
+        if (!HasNamedParent(this))
+        {
+            throw std::runtime_error("Singular nodes must have named parent");
+        }
+#endif
+
         PEX_LOG(
             ObserverName<Observer>,
             " (",
             LookupPexName(observer),
             ") connecting to ",
             LookupPexName(this));
+
+#ifndef NDEBUG
+        this->RegisterObserver(observer);
 #endif
 
         this->connection_ = ConnectionType(observer, callable);
@@ -78,7 +111,7 @@ public:
     {
         if (this->connection_)
         {
-            std::cout << "ERROR: Active connection destroyed: ";
+            std::cout << "Warning: Active connection destroyed: ";
 
 #ifdef USE_OBSERVER_NAME
             std::cout << (ObserverName<Observer>) << " "
@@ -93,6 +126,8 @@ public:
 
             assert(false);
         }
+
+        UNREGISTER_PEX_NAME(this);
     }
 
     /** Remove all registered callbacks for the observer. **/

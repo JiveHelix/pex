@@ -63,7 +63,11 @@ public:
         observer_(nullptr),
         valueConnection_()
     {
+        REGISTER_PEX_NAME(
+            this,
+            "GroupConnect for NULL");
 
+        REGISTER_PEX_PARENT(aggregate_);
     }
 
     GroupConnect(
@@ -75,7 +79,11 @@ public:
         observer_(observer),
         valueConnection_()
     {
+        REGISTER_PEX_NAME(
+            this,
+            fmt::format("GroupConnect for {}", pex::LookupPexName(observer)));
 
+        REGISTER_PEX_PARENT(aggregate_);
     }
 
     GroupConnect(
@@ -88,6 +96,12 @@ public:
         observer_(observer),
         valueConnection_(std::in_place_t{}, observer, callable)
     {
+        REGISTER_PEX_NAME(
+            this,
+            fmt::format("GroupConnect for {}", pex::LookupPexName(observer)));
+
+        REGISTER_PEX_PARENT(aggregate_);
+
         this->aggregate_.Connect(this, &GroupConnect::OnAggregate_);
     }
 
@@ -117,6 +131,12 @@ public:
         observer_(observer),
         valueConnection_()
     {
+        REGISTER_PEX_NAME(
+            this,
+            fmt::format("GroupConnect for {}", pex::LookupPexName(observer)));
+
+        REGISTER_PEX_PARENT(aggregate_);
+
         if (other.valueConnection_)
         {
             this->valueConnection_.emplace(
@@ -139,6 +159,39 @@ public:
         observer_(other.observer_),
         valueConnection_()
     {
+        REGISTER_PEX_NAME(
+            this,
+            fmt::format(
+                "GroupConnect for {}",
+                pex::LookupPexName(this->observer_)));
+
+        REGISTER_PEX_PARENT(aggregate_);
+
+        if (other.valueConnection_)
+        {
+            this->valueConnection_.emplace(
+                this->observer_,
+                other.valueConnection_->GetCallable());
+
+            this->aggregate_.Connect(this, &GroupConnect::OnAggregate_);
+        }
+    }
+
+    GroupConnect(GroupConnect &&other) noexcept
+        :
+        upstreamControl_(std::move(other.upstreamControl_)),
+        aggregate_(this->upstreamControl_),
+        observer_(std::move(other.observer_)),
+        valueConnection_()
+    {
+        REGISTER_PEX_NAME(
+            this,
+            fmt::format(
+                "GroupConnect for {}",
+                pex::LookupPexName(this->observer_)));
+
+        REGISTER_PEX_PARENT(aggregate_);
+
         if (other.valueConnection_)
         {
             this->valueConnection_.emplace(
@@ -157,6 +210,12 @@ public:
         this->aggregate_.AssignUpstream(this->upstreamControl_);
 
         this->observer_ = observer;
+
+        REGISTER_PEX_NAME(
+            this,
+            fmt::format(
+                "GroupConnect for {}",
+                pex::LookupPexName(this->observer_)));
 
         if (other.valueConnection_)
         {

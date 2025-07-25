@@ -98,7 +98,7 @@ public:
     using Connectable =
         ConnectableSelector<typename ListControl::ListItem>;
 
-    using Connectables = std::map<size_t, Connectable>;
+    using Connectables = std::vector<Connectable>;
 
     using UpstreamControl = ListControl;
     using Upstream = typename MakeControl<Upstream_>::Upstream;
@@ -111,6 +111,9 @@ public:
 
     using MemberWillRemoveTerminus =
         Terminus<ListConnect, typename ListControl::MemberWillRemove>;
+
+    using MemberRemovedTerminus =
+        Terminus<ListConnect, typename ListControl::MemberRemoved>;
 
     using MemberAddedTerminus =
         ::pex::Terminus<ListConnect, typename ListControl::MemberAdded>;
@@ -137,6 +140,7 @@ public:
         valueConnection_(),
         signalConnection_(),
         memberWillRemoveTerminus_(),
+        memberRemovedTerminus_(),
         memberAddedTerminus_(),
         isNotifying_(false),
         isNotifyingTerminus_(),
@@ -165,6 +169,11 @@ public:
             this->listControl_.memberWillRemove,
             &ListConnect::OnMemberWillRemove_),
 
+        memberRemovedTerminus_(
+            this,
+            this->listControl_.memberRemoved,
+            &ListConnect::OnMemberRemoved_),
+
         memberAddedTerminus_(
             this,
             this->listControl_.memberAdded,
@@ -177,9 +186,9 @@ public:
             this->listControl_.isNotifying,
             &ListConnect::OnIsNotifying_),
 
-        cached_(this->listControl_.Get())
+        cached_()
     {
-        REGISTER_PEX_NAME(this, "ListConnect");
+
     }
 
     ListConnect(
@@ -203,6 +212,11 @@ public:
             this->listControl_.memberWillRemove,
             &ListConnect::OnMemberWillRemove_),
 
+        memberRemovedTerminus_(
+            this,
+            this->listControl_.memberRemoved,
+            &ListConnect::OnMemberRemoved_),
+
         memberAddedTerminus_(
             this,
             this->listControl_.memberAdded,
@@ -217,8 +231,7 @@ public:
 
         cached_(this->listControl_.Get())
     {
-        REGISTER_PEX_NAME(this, "ListConnect");
-        this->MakeListConnections_();
+        this->RestoreConnections_(0);
     }
 
     ListConnect(
@@ -242,6 +255,11 @@ public:
             this->listControl_.memberWillRemove,
             &ListConnect::OnMemberWillRemove_),
 
+        memberRemovedTerminus_(
+            this,
+            this->listControl_.memberRemoved,
+            &ListConnect::OnMemberRemoved_),
+
         memberAddedTerminus_(
             this,
             this->listControl_.memberAdded,
@@ -254,10 +272,9 @@ public:
             this->listControl_.isNotifying,
             &ListConnect::OnIsNotifying_),
 
-        cached_(this->listControl_.Get())
+        cached_()
     {
-        REGISTER_PEX_NAME(this, "ListConnect");
-        this->MakeListConnections_();
+        this->RestoreConnections_(0);
     }
 
     ListConnect(
@@ -315,10 +332,16 @@ public:
         observer_(observer),
         valueConnection_(),
         signalConnection_(),
+
         memberWillRemoveTerminus_(
             this,
             this->listControl_.memberWillRemove,
             &ListConnect::OnMemberWillRemove_),
+
+        memberRemovedTerminus_(
+            this,
+            this->listControl_.memberRemoved,
+            &ListConnect::OnMemberRemoved_),
 
         memberAddedTerminus_(
             this,
@@ -332,10 +355,8 @@ public:
             this->listControl_.isNotifying,
             &ListConnect::OnIsNotifying_),
 
-        cached_(this->listControl_.Get())
+        cached_(other.cached_)
     {
-        REGISTER_PEX_NAME(this, "ListConnect");
-
         if (other.valueConnection_)
         {
             this->valueConnection_.emplace(
@@ -352,7 +373,7 @@ public:
 
         if (other.valueConnection_ || other.signalConnection_)
         {
-            this->MakeListConnections_();
+            this->RestoreConnections_(0);
         }
     }
 
@@ -365,13 +386,14 @@ public:
         :
         ListConnect(other.observer_, other)
     {
-        REGISTER_PEX_NAME(this, "ListConnect");
+
     }
 
     ListConnect & Assign(Observer *observer, const ListConnect &other)
     {
         this->muteTerminus_.RequireAssign(this, other.muteTerminus_);
         this->muteState_ = other.muteState_;
+
         this->ClearListConnections_();
 
         this->listControl_ = other.listControl_;
@@ -393,12 +415,16 @@ public:
 
         if (other.valueConnection_ || other.signalConnection_)
         {
-            this->MakeListConnections_();
+            this->RestoreConnections_(0);
         }
 
         this->memberWillRemoveTerminus_.RequireAssign(
             this,
             other.memberWillRemoveTerminus_);
+
+        this->memberRemovedTerminus_.RequireAssign(
+            this,
+            other.memberRemovedTerminus_);
 
         this->memberAddedTerminus_.RequireAssign(
             this,
@@ -422,11 +448,13 @@ public:
             throw std::runtime_error("ListConnect has no observer.");
         }
 
+        this->cached_ = this->listControl_.Get();
+
         this->valueConnection_.emplace(this->observer_, callable);
 
         if (this->connectables_.empty())
         {
-            this->MakeListConnections_();
+            this->RestoreConnections_(0);
         }
     }
 
@@ -447,7 +475,7 @@ public:
 
         if (this->connectables_.empty())
         {
-            this->MakeListConnections_();
+            this->RestoreConnections_(0);
         }
     }
 
@@ -455,6 +483,27 @@ public:
     {
         this->observer_ = observer;
         this->Connect(callable);
+    }
+
+    bool HasObservers() const
+    {
+        bool result =
+            this->valueConnection_.has_value()
+            || this->signalConnection_.has_value();
+
+#ifndef NDEBUG
+        if (!result)
+        {
+            assert(this->connectables_.empty());
+        }
+#endif
+
+        return result;
+    }
+
+    bool NeedsCache_() const
+    {
+        return this->valueConnection_.has_value();
     }
 
     ~ListConnect()
@@ -521,7 +570,10 @@ private:
     {
         auto self = static_cast<ListConnect *>(context);
 
-        self->cached_.at(index) = item;
+        if (self->NeedsCache_())
+        {
+            self->cached_.at(index) = item;
+        }
 
         if (self->muteState_)
         {
@@ -546,31 +598,6 @@ private:
         }
     }
 
-    void MakeListConnections_()
-    {
-        size_t count = this->listControl_.count.Get();
-
-        if (!count)
-        {
-            return;
-        }
-
-        for (size_t index = 0; index < count; ++index)
-        {
-            auto result = this->connectables_.try_emplace(
-                index,
-                this,
-                this->listControl_[index],
-                std::bind(
-                    ListConnect::OnItemChanged_,
-                    index,
-                    std::placeholders::_1,
-                    std::placeholders::_2));
-
-            assert(result.second);
-        }
-    }
-
     void ClearListConnections_()
     {
         if (this->connectables_.empty())
@@ -578,9 +605,9 @@ private:
             return;
         }
 
-        for (auto &pair: this->connectables_)
+        for (auto &connectable: this->connectables_)
         {
-            pair.second.Disconnect(this);
+            connectable.Disconnect(this);
         }
 
         this->connectables_.clear();
@@ -593,13 +620,74 @@ private:
             return;
         }
 
-        if (this->connectables_.empty())
+        if (!this->HasObservers())
         {
             return;
         }
 
-        this->connectables_.at(*index).Disconnect(this);
-        this->connectables_.erase(*index);
+        this->ClearInvalidatedConnections_(*index);
+    }
+
+    void OnMemberRemoved_(const std::optional<size_t> &index)
+    {
+        if (!index)
+        {
+            return;
+        }
+
+        if (this->NeedsCache_())
+        {
+            // Update the cache.
+            jive::SafeErase(this->cached_, *index);
+        }
+
+        if (!this->HasObservers())
+        {
+            return;
+        }
+
+        this->RestoreConnections_(*index);
+    }
+
+    void ClearInvalidatedConnections_(size_t firstToClear)
+    {
+        size_t connectionCount = this->connectables_.size();
+
+        if (firstToClear >= connectionCount)
+        {
+            // Nothing to do.
+            // An item was added at the end of the list.
+
+            return;
+        }
+
+        for (size_t index = firstToClear; index < connectionCount; ++index)
+        {
+            this->connectables_.at(index).Disconnect(this);
+        }
+
+        this->connectables_.erase(
+            jive::SafeEraseIterator(this->connectables_, firstToClear),
+            std::end(this->connectables_));
+    }
+
+    void RestoreConnections_(size_t firstIndex)
+    {
+        size_t listCount = this->listControl_.size();
+        assert(this->connectables_.size() == firstIndex);
+        static_assert(std::is_nothrow_move_constructible_v<Connectable>);
+
+        for (size_t i = firstIndex; i < listCount; ++i)
+        {
+            this->connectables_.emplace_back(
+                this,
+                this->listControl_[i],
+                std::bind(
+                    ListConnect::OnItemChanged_,
+                    i,
+                    std::placeholders::_1,
+                    std::placeholders::_2));
+        }
     }
 
     void OnMemberAdded_(const std::optional<size_t> &index)
@@ -609,23 +697,18 @@ private:
             return;
         }
 
-        this->cached_ = this->listControl_.Get();
-
-        if (
-            this->valueConnection_.has_value()
-            || this->signalConnection_.has_value())
+        if (this->NeedsCache_())
         {
-            auto result = this->connectables_.try_emplace(
-                *index,
-                this,
-                this->listControl_[*index],
-                std::bind(
-                    ListConnect::OnItemChanged_,
-                    *index,
-                    std::placeholders::_1,
-                    std::placeholders::_2));
+            // Maintain the cache.
+            this->cached_.insert(
+                jive::SafeInsertIterator(this->cached_, *index),
+                this->listControl_.at(*index).Get());
+        }
 
-            assert(result.second);
+        if (this->HasObservers())
+        {
+            this->ClearInvalidatedConnections_(*index);
+            this->RestoreConnections_(*index);
         }
     }
 
@@ -664,6 +747,7 @@ private:
     std::optional<ValueConnection_> valueConnection_;
     std::optional<SignalConnection_> signalConnection_;
     MemberWillRemoveTerminus memberWillRemoveTerminus_;
+    MemberRemovedTerminus memberRemovedTerminus_;
     MemberAddedTerminus memberAddedTerminus_;
     bool isNotifying_;
     ListFlagTerminus isNotifyingTerminus_;

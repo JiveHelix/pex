@@ -451,6 +451,8 @@ template<typename Pex>
 class DeferValueContainer: public Reference<Pex>
 {
 public:
+    static_assert(IsValueContainer<Pex>);
+
     using Base = Reference<Pex>;
     using Type = typename Base::Type;
     using ValueType = typename Type::value_type;

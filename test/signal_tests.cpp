@@ -51,6 +51,7 @@ TEST_CASE("Signal propagation", "[signal]")
     auto signalCount = GENERATE(take(10, random(1, 10000)));
     auto expectedObservedCount = signalCount;
     pex::model::Signal signal;
+    REGISTER_IDENTITY(signal);
     Observer observer(signal);
 
     while (signalCount-- > 0)
@@ -67,6 +68,7 @@ TEST_CASE("Signal fan out", "[signal]")
     auto signalCount = GENERATE(take(10, random(1, 10000)));
     auto expectedObservedCount = signalCount;
     pex::model::Signal signal;
+    REGISTER_IDENTITY(signal);
     Observer observer1(signal);
     Observer observer2(signal);
     Observer observer3(signal);
@@ -88,6 +90,7 @@ TEST_CASE("Signal fan out from write-only control", "[signal]")
     auto signalCount = GENERATE(take(10, random(1, 10000)));
     auto expectedObservedCount = signalCount;
     pex::model::Signal signal;
+    REGISTER_IDENTITY(signal);
     Observer<pex::SetTag> observer1(signal);
     Observer<pex::GetTag> observer2(signal);
     Observer<pex::GetTag> observer3(signal);

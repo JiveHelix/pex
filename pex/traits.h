@@ -161,34 +161,11 @@ template<typename Pex>
 inline constexpr bool IsCopyable = IsCopyable_<Pex>::value;
 
 
-template<typename T, typename Enable = void>
-struct IsValueContainer_: std::false_type {};
+template<typename T>
+concept IsValueContainer = std::remove_cvref_t<T>::isValueContainer;
 
 template<typename T>
-struct IsValueContainer_
-<
-    T,
-    std::enable_if_t<T::isValueContainer>
->
-: std::true_type {};
-
-template<typename T>
-inline constexpr bool IsValueContainer = IsValueContainer_<T>::value;
-
-
-template<typename T, typename Enable = void>
-struct IsKeyValueContainer_: std::false_type {};
-
-template<typename T>
-struct IsKeyValueContainer_
-<
-    T,
-    std::enable_if_t<T::isKeyValueContainer>
->
-: std::true_type {};
-
-template<typename T>
-inline constexpr bool IsKeyValueContainer = IsKeyValueContainer_<T>::value;
+concept IsKeyValueContainer = T::isKeyValueContainer;
 
 
 /**

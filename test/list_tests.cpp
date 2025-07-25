@@ -12,10 +12,6 @@
 using json = nlohmann::json;
 
 
-#define TEST_WITH_ORDERED_LIST
-
-
-
 TEST_CASE("List can change size", "[List]")
 {
     using List = pex::List<int, 4>;
@@ -158,41 +154,71 @@ struct DraxFields
 };
 
 
-template<template<typename> typename T>
-struct DraxTemplate
+struct ListTag {};
+struct OrderedListTag {};
+
+
+template<typename Tag>
+struct ChooseRocketList_;
+
+template<>
+struct ChooseRocketList_<ListTag>
 {
-    T<std::string> name;
-
-#ifdef TEST_WITH_ORDERED_LIST
-    T<pex::OrderedListGroup<pex::List<RocketGroup, 4>>> rockets;
-#else
-    T<pex::List<RocketGroup, 4>> rockets;
-#endif
-
-    static constexpr auto fields = DraxFields<DraxTemplate>::fields;
-    static constexpr auto fieldsTypeName = "Drax";
+    using type = pex::List<RocketGroup, 4>;
 };
 
+template<>
+struct ChooseRocketList_<OrderedListTag>
+{
+    using type = pex::OrderedListGroup<pex::List<RocketGroup, 4>>;
+};
 
-using DraxGroup = pex::Group<DraxFields, DraxTemplate>;
-using Drax = typename DraxGroup::Plain;
-
-DECLARE_EQUALITY_OPERATORS(Drax)
+template<typename T>
+using ChooseRocketList = typename ChooseRocketList_<T>::type;
 
 
-TEST_CASE("List of groups", "[List]")
+template<typename Tag>
+struct DraxTemplate
+{
+    template<template<typename> typename T>
+    struct Template
+    {
+        T<std::string> name;
+        T<ChooseRocketList<Tag>> rockets;
+
+        static constexpr auto fields = DraxFields<Template>::fields;
+        static constexpr auto fieldsTypeName = "Drax";
+    };
+};
+
+template<typename Tag>
+using DraxGroup =
+    pex::Group<DraxFields, DraxTemplate<Tag>::template Template>;
+
+
+template<typename Tag>
+using Drax = typename DraxGroup<Tag>::Plain;
+
+
+DECLARE_EQUALITY_OPERATORS(Drax<ListTag>)
+DECLARE_EQUALITY_OPERATORS(Drax<OrderedListTag>)
+
+
+TEMPLATE_TEST_CASE("List of groups", "[List]", ListTag, OrderedListTag)
 {
     STATIC_REQUIRE(pex::IsGroup<RocketGroup>);
 
-    using Model = typename DraxGroup::Model;
-    using Control = typename DraxGroup::Control;
+    using GroupUnderTest = DraxGroup<TestType>;
+    using Model = typename GroupUnderTest::Model;
+    using Control = typename GroupUnderTest::Control;
 
     Model model;
 
-#ifdef TEST_WITH_ORDERED_LIST
-    REQUIRE(model.rockets.list.count.Get() == 4);
-    REQUIRE(model.rockets.indices.Get().size() == 4);
-#endif
+    if constexpr (std::is_same_v<TestType, OrderedListTag>)
+    {
+        REQUIRE(model.rockets.list.count.Get() == 4);
+        REQUIRE(model.rockets.indices.Get().size() == 4);
+    }
 
     REQUIRE(model.rockets.count.Get() == 4);
 
@@ -221,22 +247,29 @@ TEST_CASE("List of groups", "[List]")
 }
 
 
-TEST_CASE("List of groups can be unstructured", "[List]")
+TEMPLATE_TEST_CASE(
+    "List of groups can be unstructured",
+    "[List]",
+    ListTag,
+    OrderedListTag)
 {
-    using Model = typename DraxGroup::Model;
-    using Control = typename DraxGroup::Control;
+    using GroupUnderTest = DraxGroup<TestType>;
+    using Model = typename GroupUnderTest::Model;
+    using Control = typename GroupUnderTest::Control;
 
     Model model;
     model.name.Set("I am Drax");
     Control control(model);
 
-
-#ifdef TEST_WITH_ORDERED_LIST
-    REQUIRE(model.rockets.list.count.Get() == 4);
-    REQUIRE(model.rockets.indices.Get().size() == 4);
-#else
-    REQUIRE(model.rockets.count.Get() == 4);
-#endif
+    if constexpr (std::is_same_v<TestType, OrderedListTag>)
+    {
+        REQUIRE(model.rockets.list.count.Get() == 4);
+        REQUIRE(model.rockets.indices.Get().size() == 4);
+    }
+    else
+    {
+        REQUIRE(model.rockets.count.Get() == 4);
+    }
 
     REQUIRE(model.rockets.count.Get() == 4);
 
@@ -252,16 +285,17 @@ TEST_CASE("List of groups can be unstructured", "[List]")
     auto unstructured = fields::Unstructure<json>(model.Get());
     auto asString = unstructured.dump();
     auto recoveredUnstructured = json::parse(asString);
-    auto recovered = fields::Structure<Drax>(recoveredUnstructured);
+    auto recovered = fields::Structure<Drax<TestType>>(recoveredUnstructured);
 
     REQUIRE(recovered == model.Get());
 }
 
 
+template<typename Tag>
 class RocketListObserver
 {
 public:
-    using RocketListControl = decltype(DraxGroup::Control::rockets);
+    using RocketListControl = decltype(DraxGroup<Tag>::Control::rockets);
 
     using RocketsEndpoint =
         pex::Endpoint<RocketListObserver, RocketListControl>;
@@ -293,25 +327,6 @@ public:
         return this->rocketList_;
     }
 
-    bool operator==(const RocketList &rocketList) const
-    {
-        if (rocketList.size() != this->rocketList_.size())
-        {
-            return false;
-        }
-
-        for (size_t i = 0; i < rocketList.size(); ++i)
-        {
-            if (rocketList[i] != this->rocketList_[i])
-            {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-#ifdef TEST_WITH_ORDERED_LIST
     bool operator==(const std::vector<Rocket> &rocketList) const
     {
         if (rocketList.size() != this->rocketList_.size())
@@ -329,7 +344,6 @@ public:
 
         return true;
     }
-#endif
 
 private:
     RocketsEndpoint endpoint_;
@@ -339,15 +353,20 @@ private:
 
 
 
-TEST_CASE("List of groups can be observed", "[List]")
+TEMPLATE_TEST_CASE(
+    "List of groups can be observed",
+    "[List]",
+    ListTag,
+    OrderedListTag)
 {
-    using Model = typename DraxGroup::Model;
-    using Control = typename DraxGroup::Control;
+    using GroupUnderTest = DraxGroup<TestType>;
+    using Model = typename GroupUnderTest::Model;
+    using Control = typename GroupUnderTest::Control;
 
     Model model;
     model.name.Set("I am Drax");
     Control control(model);
-    RocketListObserver observer(control.rockets);
+    RocketListObserver<TestType> observer(control.rockets);
 
     auto values = GENERATE(
         take(
@@ -380,6 +399,8 @@ TEST_CASE("List of groups can be observed", "[List]")
 
     control.rockets.count.Set(3);
     REQUIRE(model.rockets.count.Get() == 3);
+    REQUIRE(model.rockets.Get().size() == 3);
+    REQUIRE(observer.GetNotificationCount() == 3);
     REQUIRE(observer.GetRockets().size() == 3);
 }
 
@@ -395,27 +416,39 @@ struct GamoraFields
 };
 
 
-template<template<typename> typename T>
+template<typename Tag>
 struct GamoraTemplate
 {
-    T<std::string> name;
-    T<pex::List<DraxGroup, 1>> draxes;
-    T<pex::List<GrootGroup, 1>> groots;
+    template<template<typename> typename T>
+    struct Template
+    {
+        T<std::string> name;
+        T<pex::List<DraxGroup<Tag>, 1>> draxes;
+        T<pex::List<GrootGroup, 1>> groots;
 
-    static constexpr auto fields = GamoraFields<GamoraTemplate>::fields;
-    static constexpr auto fieldsTypeName = "Gamora";
+        static constexpr auto fields = GamoraFields<Template>::fields;
+        static constexpr auto fieldsTypeName = "Gamora";
+    };
 };
 
-using GamoraGroup = pex::Group<GamoraFields, GamoraTemplate>;
-using Gamora = typename GamoraGroup::Plain;
 
-DECLARE_EQUALITY_OPERATORS(Gamora)
+template<typename Tag>
+using GamoraGroup =
+    pex::Group<GamoraFields, GamoraTemplate<Tag>::template Template>;
+
+template<typename Tag>
+using Gamora = typename GamoraGroup<Tag>::Plain;
 
 
+DECLARE_EQUALITY_OPERATORS(Gamora<ListTag>)
+DECLARE_EQUALITY_OPERATORS(Gamora<OrderedListTag>)
+
+
+template<typename Tag>
 class GamoraObserver
 {
 public:
-    using GamoraControl = typename GamoraGroup::Control;
+    using GamoraControl = typename GamoraGroup<Tag>::Control;
     using GamoraEndpoint = pex::Endpoint<GamoraObserver, GamoraControl>;
     using Gamora = typename GamoraControl::Type;
 
@@ -451,15 +484,20 @@ private:
 };
 
 
-TEST_CASE("List of groups with member lists can be observed", "[List]")
+TEMPLATE_TEST_CASE(
+    "List of groups with member lists can be observed",
+    "[List]",
+    ListTag,
+    OrderedListTag)
 {
-    using Model = typename GamoraGroup::Model;
-    using Control = typename GamoraGroup::Control;
+    using GroupUnderTest = GamoraGroup<TestType>;
+    using Model = typename GroupUnderTest::Model;
+    using Control = typename GroupUnderTest::Control;
 
     Model model;
     model.name.Set("I am Gamora");
     Control control(model);
-    GamoraObserver observer(control);
+    GamoraObserver<TestType> observer(control);
 
     auto values = GENERATE(
         take(
@@ -479,11 +517,14 @@ TEST_CASE("List of groups with member lists can be observed", "[List]")
 
     control.draxes.at(0).rockets.Set(rockets);
 
-#ifdef TEST_WITH_ORDERED_LIST
-    REQUIRE(observer.GetGamora().draxes.at(0).rockets.list == rockets);
-#else
-    REQUIRE(observer.GetGamora().draxes.at(0).rockets == rockets);
-#endif
+    if constexpr (std::is_same_v<TestType, OrderedListTag>)
+    {
+        REQUIRE(observer.GetGamora().draxes.at(0).rockets.list == rockets);
+    }
+    else
+    {
+        REQUIRE(observer.GetGamora().draxes.at(0).rockets == rockets);
+    }
 
     REQUIRE(observer.GetNotificationCount() == 1);
 
@@ -493,22 +534,28 @@ TEST_CASE("List of groups with member lists can be observed", "[List]")
 
     control.draxes.at(0).rockets.Set(rockets);
 
-#ifdef TEST_WITH_ORDERED_LIST
-    REQUIRE(observer.GetGamora().draxes.at(0).rockets.list == rockets);
-#else
-    REQUIRE(observer.GetGamora().draxes.at(0).rockets == rockets);
-#endif
+    if constexpr (std::is_same_v<TestType, OrderedListTag>)
+    {
+        REQUIRE(observer.GetGamora().draxes.at(0).rockets.list == rockets);
+    }
+    else
+    {
+        REQUIRE(observer.GetGamora().draxes.at(0).rockets == rockets);
+    }
 
     REQUIRE(observer.GetNotificationCount() == 2);
 
     // Change the number of draxes without affecting existing values.
     control.draxes.count.Set(2);
 
-#ifdef TEST_WITH_ORDERED_LIST
-    REQUIRE(observer.GetGamora().draxes.at(0).rockets.list == rockets);
-#else
-    REQUIRE(observer.GetGamora().draxes.at(0).rockets == rockets);
-#endif
+    if constexpr (std::is_same_v<TestType, OrderedListTag>)
+    {
+        REQUIRE(observer.GetGamora().draxes.at(0).rockets.list == rockets);
+    }
+    else
+    {
+        REQUIRE(observer.GetGamora().draxes.at(0).rockets == rockets);
+    }
 
     // Unstructure/Structure to copy of the model.
     Model secondModel;
@@ -516,7 +563,7 @@ TEST_CASE("List of groups with member lists can be observed", "[List]")
     auto unstructured = fields::Unstructure<json>(model.Get());
     auto asString = unstructured.dump();
     auto recoveredUnstructured = json::parse(asString);
-    auto recovered = fields::Structure<Gamora>(recoveredUnstructured);
+    auto recovered = fields::Structure<Gamora<TestType>>(recoveredUnstructured);
 
     secondModel.Set(recovered);
 
@@ -524,37 +571,63 @@ TEST_CASE("List of groups with member lists can be observed", "[List]")
 }
 
 
+template<typename Control, typename Tag, typename = void>
+struct ChooseListControl_
+{
+    using type = Control;
+};
+
+template<typename Control, typename Tag>
+struct ChooseListControl_
+<
+    Control,
+    Tag,
+    std::enable_if_t<std::is_same_v<Tag, OrderedListTag>>
+>
+{
+    using type = decltype(Control::list);
+};
+
+
+template<typename Control, typename Tag>
+using ChooseListControl = typename ChooseListControl_<Control, Tag>::type;
+
+
+template<typename Tag, typename Control>
+auto & GetList(Control &control)
+{
+    if constexpr (std::is_same_v<Tag, OrderedListTag>)
+    {
+        return control.list;
+    }
+    else
+    {
+        return control;
+    }
+}
+
+
+template<typename Tag>
 class RocketSignalObserver
 {
 public:
-#ifdef TEST_WITH_ORDERED_LIST
-    using RocketsControl = decltype(DraxGroup::Control::rockets);
-    using RocketListControl = decltype(RocketsControl::list);
+    using RocketsControl = decltype(DraxGroup<Tag>::Control::rockets);
+    using RocketListControl = ChooseListControl<RocketsControl, Tag>;
 
     using RocketsConnect =
         pex::detail::ListConnect<RocketSignalObserver, RocketListControl>;
 
     RocketSignalObserver(RocketsControl rocketsControl)
         :
-        endpoint_(this, rocketsControl.list, &RocketSignalObserver::OnRockets_),
+        endpoint_(
+            this,
+            GetList<Tag>(rocketsControl),
+            &RocketSignalObserver::OnRockets_),
+
         notificationCount_()
     {
 
     }
-#else
-    using RocketListControl = decltype(DraxGroup::Control::rockets);
-
-    using RocketsConnect =
-        pex::detail::ListConnect<RocketSignalObserver, RocketListControl>;
-
-    RocketSignalObserver(RocketListControl rocketListControl)
-        :
-        endpoint_(this, rocketListControl, &RocketSignalObserver::OnRockets_),
-        notificationCount_()
-    {
-
-    }
-#endif
 
     void OnRockets_()
     {
@@ -572,17 +645,20 @@ private:
 };
 
 
-#ifndef TEST_WITH_ORDERED_LIST
-TEST_CASE("List of groups can be Set", "[List]")
+TEMPLATE_TEST_CASE(
+    "List of groups can be Set",
+    "[List]",
+    ListTag,
+    OrderedListTag)
 {
-    using Model = typename DraxGroup::Model;
-    using Control = typename DraxGroup::Control;
+    using Model = typename DraxGroup<TestType>::Model;
+    using Control = typename DraxGroup<TestType>::Control;
 
     Model model;
     model.name.Set("I am Drax");
     Control control(model);
-    RocketListObserver observer(control.rockets);
-    RocketSignalObserver signalObserver(control.rockets);
+    RocketListObserver<TestType> observer(control.rockets);
+    RocketSignalObserver<TestType> signalObserver(control.rockets);
 
     auto values = GENERATE(
         take(
@@ -610,6 +686,8 @@ TEST_CASE("List of groups can be Set", "[List]")
     rockets.push_back({values.at(12), values.at(13), values.at(14)});
 
     auto drax = control.Get();
+
+
     drax.rockets = rockets;
 
     // We haven't changed the model yet, so the observer should be untouched.
@@ -627,7 +705,6 @@ TEST_CASE("List of groups can be Set", "[List]")
     REQUIRE(observer.GetNotificationCount() == 2);
     REQUIRE(signalObserver.GetNotificationCount() == 2);
 }
-#endif
 
 
 template<typename T>

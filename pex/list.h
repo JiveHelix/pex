@@ -62,8 +62,6 @@ private:
 };
 
 
-
-
 namespace control
 {
 
@@ -74,6 +72,52 @@ using ListOptionalIndex = Value<::pex::model::ListOptionalIndex>;
 
 
 } // end namespace control
+
+
+#ifdef ENABLE_REGISTER_NAME
+
+
+template<typename Parent, typename Items>
+void RegisterItemNames(Parent *parent, Items &items)
+{
+    size_t i = 0;
+
+    for (auto &item: items)
+    {
+        REGISTER_PEX_NAME_WITH_PARENT(
+            item.get(),
+            parent,
+            fmt::format("item {}", i++));
+    }
+}
+
+
+template<typename Parent, typename Items>
+void RegisterItemrefNames(Parent *parent, Items &items)
+{
+    size_t i = 0;
+
+    for (auto &item: items)
+    {
+        REGISTER_PEX_NAME_WITH_PARENT(
+            &item,
+            parent,
+            fmt::format("item {}", i++));
+    }
+}
+
+
+#define REGISTER_ITEM_NAMES(parent, items) RegisterItemNames(parent, items)
+
+#define REGISTER_ITEMREF_NAMES(parent, items) \
+    RegisterItemrefNames(parent, items)
+
+#else
+
+#define REGISTER_ITEM_NAMES(parent, items)
+#define REGISTER_ITEMREF_NAMES(parent, items)
+
+#endif
 
 
 template<typename Member, size_t initialCount_ = 0>
@@ -141,13 +185,23 @@ struct List
             memberRemoved(),
             isNotifying(),
             items_(),
-            countTerminus_(this, this->count, &Model::OnCount_)
-#ifndef NDEBUG
-            , selectedTerminus_(
+
+            countTerminus_(
+                USE_REGISTER_PEX_NAME(
+                    this,
+                    fmt::format(
+                        "pex::List<{}>::Model",
+                        jive::GetTypeName<Member>())),
+
+                *USE_REGISTER_PEX_PARENT(count),
+                &Model::OnCount_),
+
+            selectedTerminus_(
                 this,
-                this->selected,
-                &Model::OnSelected_)
-#endif
+                *USE_REGISTER_PEX_PARENT(selected),
+                &Model::OnSelected_),
+
+            selectionReceived_(false)
         {
             REGISTER_PEX_NAME(
                 this,
@@ -155,8 +209,10 @@ struct List
                     "pex::List<{}>::Model",
                     jive::GetTypeName<Member>()));
 
-            REGISTER_PEX_NAME_WITH_PARENT(
-                &this->memberAdded, this, "memberAdded");
+            REGISTER_PEX_PARENT(memberAdded);
+            REGISTER_PEX_PARENT(memberWillRemove);
+            REGISTER_PEX_PARENT(memberRemoved);
+            REGISTER_PEX_PARENT(isNotifying);
 
             size_t toInitialize = initialCount;
 
@@ -164,6 +220,8 @@ struct List
             {
                 this->items_.push_back(std::make_unique<ListItem>());
             }
+
+            REGISTER_ITEM_NAMES(this, this->items_);
         }
 
         Model(const Type &items)
@@ -171,20 +229,6 @@ struct List
             Model()
         {
             this->Set(items);
-
-            for (auto &item: this->items_)
-            {
-                REGISTER_PEX_PARENT(this, &item);
-            }
-        }
-
-        ~Model()
-        {
-            UNREGISTER_PEX_NAME(
-                this,
-                fmt::format(
-                    "pex::List<{}>::Model",
-                    jive::GetTypeName<Member>()));
         }
 
         ListItem & operator[](size_t index)
@@ -316,13 +360,21 @@ struct List
 
                 this->items_.push_back(std::make_unique<ListItem>());
 
+                REGISTER_PEX_NAME_WITH_PARENT(
+                    this->items_.back().get(),
+                    this,
+                    fmt::format("item {}", newCount - 1));
+
                 // Add the new item at the back of the list.
                 this->items_.back()->Set(item);
+
+                this->selectionReceived_ = false;
                 this->memberAdded.Set(newIndex);
             }
 
-            if (wasSelected && *wasSelected < newCount)
+            if (wasSelected && !this->selectionReceived_)
             {
+                // Nothing changed the selection in response to memberAdded.
                 this->selected.Set(wasSelected);
             }
 
@@ -332,7 +384,6 @@ struct List
         template<typename Derived>
         void Insert(size_t index, const Derived &item)
         {
-            std::cout << "Insert(" << index << " ..." << std::endl;
             assert(index <= this->items_.size());
 
             auto scopedFlag = ScopedListFlag(this->isNotifying);
@@ -363,14 +414,19 @@ struct List
                     this->items_.begin() + newIndex,
                     std::make_unique<ListItem>());
 
-                this->items_.at(newIndex)->Set(item);
+                REGISTER_PEX_NAME_WITH_PARENT(
+                    this->items_[newIndex].get(),
+                    this,
+                    fmt::format("item {}", newIndex));
 
-                std::cout << "memberAdded.Set(" << newIndex << ")" << std::endl;
+                this->items_.at(newIndex)->Set(item);
+                this->selectionReceived_ = false;
                 this->memberAdded.Set(newIndex);
             }
 
-            if (wasSelected)
+            if (wasSelected && !this->selectionReceived_)
             {
+                // Nothing changed the selection in response to memberAdded.
                 if (*wasSelected < index)
                 {
                     // The selected item was before the insertion point.
@@ -382,8 +438,6 @@ struct List
                     this->selected.Set(*wasSelected + 1);
                 }
             }
-
-            std::cout << "Insert done" << std::endl;
         }
 
     protected:
@@ -441,15 +495,28 @@ struct List
             {
                 size_t toInitialize = newSize - this->items_.size();
 
+                this->selectionReceived_ = false;
+
                 while (toInitialize--)
                 {
                     this->items_.push_back(std::make_unique<ListItem>());
-                    this->memberAdded.Set(this->items_.size() - 1);
+                    size_t newIndex = this->items_.size() - 1;
+
+                    REGISTER_PEX_NAME_WITH_PARENT(
+                        this->items_.back().get(),
+                        this,
+                        fmt::format("item {}", newIndex));
+
+                    this->memberAdded.Set(newIndex);
                 }
             }
 
-            if (wasSelected && *wasSelected < newSize)
+            if (
+                !this->selectionReceived_
+                && wasSelected
+                && *wasSelected < newSize)
             {
+                // Nothing changed the selection in response to memberAdded.
                 this->selected.Set(wasSelected);
             }
         }
@@ -487,10 +554,14 @@ struct List
 
             if (values.size() != this->items_.size())
             {
+                countChanged = true;
+
                 detail::AccessReference(this->count)
                     .SetWithoutNotify(values.size());
 
                 this->selected.Set({});
+
+                this->selectionReceived_ = false;
 
                 if (values.size() < this->items_.size())
                 {
@@ -523,6 +594,11 @@ struct List
 
                         auto newIndex = this->items_.size() - 1;
 
+                        REGISTER_PEX_NAME_WITH_PARENT(
+                            this->items_.back().get(),
+                            this,
+                            fmt::format("item {}", newIndex));
+
                         detail::AccessReference(*this->items_[newIndex])
                             .SetWithoutNotify(values[newIndex]);
 
@@ -531,8 +607,6 @@ struct List
                         this->memberAdded.Set(newIndex);
                     }
                 }
-
-                countChanged = true;
             }
             else
             {
@@ -548,8 +622,10 @@ struct List
             assert(this->items_.size() == values.size());
 
             // Reselect value if it is still in the list.
-            if (countChanged)
+            if (countChanged && !this->selectionReceived_)
             {
+                // memberAdded listeners did not make a selection.
+                // Restore the previous selection.
                 if (wasSelected && *wasSelected < values.size())
                 {
                     this->selected.Set(wasSelected);
@@ -561,16 +637,13 @@ struct List
         {
             assert(count_ < this->items_.size());
 
-            if (count_ < this->items_.size())
+            // This is a reduction in size.
+            // No new elements need to be created.
+            for (size_t i = this->items_.size(); i > count_; --i)
             {
-                // This is a reduction in size.
-                // No new elements need to be created.
-                for (size_t i = this->items_.size(); i > count_; --i)
-                {
-                    // Call Erase with each removed index.
-                    // Calls memberWillRemove/memberRemoved for each item.
-                    this->Remove_(i - 1);
-                }
+                // Call Erase with each removed index.
+                // Calls memberWillRemove/memberRemoved for each item.
+                this->Remove_(i - 1);
             }
         }
 
@@ -601,36 +674,48 @@ struct List
             {
                 size_t toInitialize = count_ - this->items_.size();
 
+                this->selectionReceived_ = false;
+
                 while (toInitialize--)
                 {
                     this->items_.push_back(std::make_unique<ListItem>());
-                    this->memberAdded.Set(this->items_.size() - 1);
+
+                    auto newIndex = this->items_.size() - 1;
+
+                    REGISTER_PEX_NAME_WITH_PARENT(
+                        this->items_.back().get(),
+                        this,
+                        fmt::format("item {}", newIndex));
+
+                    this->memberAdded.Set(newIndex);
                 }
             }
 
-            if (wasSelected && *wasSelected < count_)
+            if (
+                !this->selectionReceived_
+                && wasSelected
+                && *wasSelected < count_)
             {
                 this->selected.Set(wasSelected);
             }
         }
 
-#ifndef NDEBUG
-        void OnSelected_(const std::optional<size_t> &index)
+        void OnSelected_([[maybe_unused]] const std::optional<size_t> &index)
         {
+#ifndef NDEBUG
             if (index)
             {
                 assert(*index < this->items_.size());
             }
-        }
 #endif
+            this->selectionReceived_ = true;
+        }
 
     private:
         std::vector<std::unique_ptr<ListItem>> items_;
         ::pex::Terminus<Model, Count> countTerminus_;
-
-#ifndef NDEBUG
         ::pex::Terminus<Model, Selected> selectedTerminus_;
-#endif
+        bool selectionReceived_;
     };
 
 
@@ -717,7 +802,13 @@ struct List
             upstream_(&upstream),
 
             memberWillRemoveTerminus_(
-                this,
+
+                USE_REGISTER_PEX_NAME(
+                    this,
+                    fmt::format(
+                        "pex::List<{}>::Control",
+                        jive::GetTypeName<Member>())),
+
                 this->upstream_->memberWillRemove,
                 &Control::OnMemberWillRemove_),
 
@@ -729,12 +820,6 @@ struct List
             items_()
         {
             assert(this->upstream_ != nullptr);
-
-            REGISTER_PEX_NAME(
-                this,
-                fmt::format(
-                    "pex::List<{}>::Control",
-                    jive::GetTypeName<Member>()));
 
             for (size_t index = 0; index < this->count.Get(); ++index)
             {
@@ -754,7 +839,13 @@ struct List
             upstream_(other.upstream_),
 
             memberWillRemoveTerminus_(
-                this,
+
+                USE_REGISTER_PEX_NAME(
+                    this,
+                    fmt::format(
+                        "pex::List<{}>::Control",
+                        jive::GetTypeName<Member>())),
+
                 this->upstream_->memberWillRemove,
                 &Control::OnMemberWillRemove_),
 
@@ -775,12 +866,7 @@ struct List
                     "pex::List<{}>::Control",
                     jive::GetTypeName<Member>()));
 
-#ifdef ENABLE_REGISTER_NAME
-            for (auto &item: this->items_)
-            {
-                REGISTER_PEX_PARENT(this, &item);
-            }
-#endif
+            REGISTER_ITEMREF_NAMES(this, this->items_);
         }
 
         Control & operator=(const Control &other)
@@ -824,12 +910,7 @@ struct List
 
             this->items_ = other.items_;
 
-#ifdef ENABLE_REGISTER_NAME
-            for (auto &item: this->items_)
-            {
-                REGISTER_PEX_PARENT(this, &item);
-            }
-#endif
+            REGISTER_ITEMREF_NAMES(this, this->items_);
 
             return *this;
         }
@@ -1028,7 +1109,8 @@ struct List
                 (*this->upstream_)[*index]);
         }
 
-    // private:
+    // TODO: Make private
+    public:
         Upstream *upstream_;
         MemberWillRemoveTerminus memberWillRemoveTerminus_;
         MemberAddedTerminus memberAddedTerminus_;

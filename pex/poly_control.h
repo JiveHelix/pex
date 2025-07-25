@@ -45,12 +45,8 @@ public:
             this,
             fmt::format("PolyControl<{}>", jive::GetTypeName<Supers>()));
 
-        REGISTER_PEX_NAME_WITH_PARENT(&this->baseCreated, this, "baseCreated");
-
-        REGISTER_PEX_NAME_WITH_PARENT(
-            &this->baseCreatedTerminus_,
-            this,
-            "baseCreatedTerminus_");
+        REGISTER_PEX_PARENT(baseCreated);
+        REGISTER_PEX_PARENT(baseCreatedTerminus_);
     }
 
     Control(Upstream &upstream)
@@ -58,21 +54,16 @@ public:
         upstream_(&upstream),
         base_(),
         baseCreated(this->upstream_->baseCreated_),
+
         baseCreatedTerminus_(
-            this,
+            USE_REGISTER_PEX_NAME(
+                this,
+                fmt::format("PolyControl<{}>", jive::GetTypeName<Supers>())),
             this->upstream_->baseCreated_,
             &Control::OnBaseCreated_)
     {
-        REGISTER_PEX_NAME(
-            this,
-            fmt::format("PolyControl<{}>", jive::GetTypeName<Supers>()));
-
-        REGISTER_PEX_NAME_WITH_PARENT(&this->baseCreated, this, "baseCreated");
-
-        REGISTER_PEX_NAME_WITH_PARENT(
-            &this->baseCreatedTerminus_,
-            this,
-            "baseCreatedTerminus_");
+        REGISTER_PEX_PARENT(baseCreated);
+        REGISTER_PEX_PARENT(baseCreatedTerminus_);
 
         auto modelBase = upstream.GetVirtual();
 
@@ -93,21 +84,38 @@ public:
         upstream_(other.upstream_),
         base_(other.base_),
         baseCreated(this->upstream_->baseCreated_),
+
         baseCreatedTerminus_(
-            this,
+            USE_REGISTER_PEX_NAME(
+                this,
+                fmt::format("PolyControl<{}>", jive::GetTypeName<Supers>())),
             this->upstream_->baseCreated_,
             &Control::OnBaseCreated_)
     {
-        REGISTER_PEX_NAME(
-            this,
-            fmt::format("PolyControl<{}>", jive::GetTypeName<Supers>()));
+        REGISTER_PEX_PARENT(baseCreated);
+        REGISTER_PEX_PARENT(baseCreatedTerminus_);
 
-        REGISTER_PEX_NAME_WITH_PARENT(&this->baseCreated, this, "baseCreated");
+        PEX_LOG(
+            " Copy ",
+            LookupPexName(this),
+            " from ",
+            LookupPexName(&other));
+    }
 
-        REGISTER_PEX_NAME_WITH_PARENT(
-            &this->baseCreatedTerminus_,
-            this,
-            "baseCreatedTerminus_");
+    Control(Control &&other) noexcept
+        :
+        upstream_(std::move(other.upstream_)),
+        base_(std::move(other.base_)),
+        baseCreated(this->upstream_->baseCreated_),
+        baseCreatedTerminus_(
+            USE_REGISTER_PEX_NAME(
+                this,
+                fmt::format("PolyControl<{}>", jive::GetTypeName<Supers>())),
+            this->upstream_->baseCreated_,
+            &Control::OnBaseCreated_)
+    {
+        REGISTER_PEX_PARENT(baseCreated);
+        REGISTER_PEX_PARENT(baseCreatedTerminus_);
 
         PEX_LOG(
             " Copy ",
@@ -122,20 +130,14 @@ public:
         base_(),
         baseCreated(this->upstream_->baseCreated_),
         baseCreatedTerminus_(
-            this,
+            USE_REGISTER_PEX_NAME(
+                this,
+                fmt::format("PolyControl<{}>", jive::GetTypeName<Supers>())),
             this->upstream_->baseCreated_,
             &Control::OnBaseCreated_)
     {
-        REGISTER_PEX_NAME(
-            this,
-            fmt::format("PolyControl<{}>", jive::GetTypeName<Supers>()));
-
-        REGISTER_PEX_NAME_WITH_PARENT(&this->baseCreated, this, "baseCreated");
-
-        REGISTER_PEX_NAME_WITH_PARENT(
-            &this->baseCreatedTerminus_,
-            this,
-            "baseCreatedTerminus_");
+        REGISTER_PEX_PARENT(baseCreated);
+        REGISTER_PEX_PARENT(baseCreatedTerminus_);
 
         auto modelBase = upstream.GetVirtual();
 
@@ -158,20 +160,14 @@ public:
         base_(other.base_),
         baseCreated(this->upstream_->baseCreated_),
         baseCreatedTerminus_(
-            this,
+            USE_REGISTER_PEX_NAME(
+                this,
+                fmt::format("PolyControl<{}>", jive::GetTypeName<Supers>())),
             this->upstream_->baseCreated_,
             &Control::OnBaseCreated_)
     {
-        REGISTER_PEX_NAME(
-            this,
-            fmt::format("PolyControl<{}>", jive::GetTypeName<Supers>()));
-
-        REGISTER_PEX_NAME_WITH_PARENT(&this->baseCreated, this, "baseCreated");
-
-        REGISTER_PEX_NAME_WITH_PARENT(
-            &this->baseCreatedTerminus_,
-            this,
-            "baseCreatedTerminus_");
+        REGISTER_PEX_PARENT(baseCreated);
+        REGISTER_PEX_PARENT(baseCreatedTerminus_);
 
         if (!this->base_)
         {

@@ -44,7 +44,10 @@ class ReorderObserver
 public:
     ReorderObserver(pex::control::Signal<> reorder)
         :
-        endpoint_(this, reorder, &ReorderObserver::OnReorder_),
+        endpoint_(
+            USE_REGISTER_PEX_NAME(this, "ReorderObserver"),
+            reorder,
+            &ReorderObserver::OnReorder_),
         count(0)
     {
 
@@ -116,4 +119,149 @@ TEST_CASE("OrderedList can delete selected", "[OrderedList]")
     // We erased the element at storage index 2, causing the remaining elements
     // to shift left.
     REQUIRE(control[1].Get() == 1);
+}
+
+
+template<typename ListControl>
+class TestListObserver
+{
+public:
+    using ListEndpoint =
+        pex::Endpoint<TestListObserver, ListControl>;
+
+    using ListType = typename ListControl::Type;
+
+    TestListObserver(ListControl listControl)
+        :
+        endpoint_(this, listControl, &TestListObserver::OnList_),
+        observedList_(listControl.Get()),
+        notificationCount_()
+    {
+
+    }
+
+    void OnList_(const ListType &listType)
+    {
+        this->observedList_ = listType;
+        ++this->notificationCount_;
+    }
+
+    size_t GetNotificationCount() const
+    {
+        return this->notificationCount_;
+    }
+
+    const ListType & GetList() const
+    {
+        return this->observedList_;
+    }
+
+    bool operator==(const ListType &other) const
+    {
+        if (other.size() != this->observedList_.size())
+        {
+            return false;
+        }
+
+        for (size_t i = 0; i < other.size(); ++i)
+        {
+            if (other[i] != this->observedList_[i])
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+private:
+    ListEndpoint endpoint_;
+    ListType observedList_;
+    size_t notificationCount_;
+};
+
+
+TEST_CASE("OrderedList Erase by index", "[OrderedList]")
+{
+    using List = pex::List<int, 0>;
+    using OrderedListGroup = pex::OrderedListGroup<List>;
+
+    using Model = typename OrderedListGroup::Model;
+    using Control = typename OrderedListGroup::Control;
+
+    Model model;
+    REGISTER_IDENTITY(model);
+    Control control(model);
+    REGISTER_IDENTITY(control);
+
+    for (int i = 0; i < 4; ++i)
+    {
+        model.Append(i);
+    }
+
+    TestListObserver observer(control);
+
+    REQUIRE(model.size() == 4);
+
+    model.Erase(2);
+
+    REQUIRE(model.size() == 3);
+
+    auto editedList = model.Get();
+
+    REQUIRE(observer == editedList);
+
+    // We erased the element at storage index 2, causing the remaining elements
+    // to shift left.
+    REQUIRE(control[2].Get() == 3);
+    REQUIRE(editedList.at(2) == 3);
+}
+
+
+TEST_CASE("Reordered OrderedList Erase by index", "[OrderedList]")
+{
+    using List = pex::List<int, 0>;
+    using OrderedListGroup = pex::OrderedListGroup<List>;
+
+    using Model = typename OrderedListGroup::Model;
+    using Control = typename OrderedListGroup::Control;
+
+    Model model;
+    REGISTER_IDENTITY(model);
+    Control control(model);
+    REGISTER_IDENTITY(control);
+
+    for (int i = 0; i < 4; ++i)
+    {
+        model.Append(i);
+    }
+
+    TestListObserver observer(control);
+
+    REQUIRE(model.size() == 4);
+
+    model.MoveToTop(3);
+
+    REQUIRE(model.indices.at(0) == 3);
+
+    std::vector<int> expectedSort{{3, 0, 1, 2}};
+
+    REQUIRE(observer == expectedSort);
+
+    // Erase the item at storage index 2
+    model.Erase(2);
+
+    REQUIRE(model.size() == 3);
+
+    auto editedList = model.Get();
+
+    REQUIRE(observer == editedList);
+
+    // The items index in control are ordered.
+    REQUIRE(control[2].Get() == 1);
+    REQUIRE(editedList.at(2) == 1);
+
+    model.Append(42);
+    REQUIRE(control.at(3).Get() == 42);
+    REQUIRE(observer.GetList().at(3) == 42);
 }

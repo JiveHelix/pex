@@ -87,14 +87,14 @@ public:
         :
         model_(&model)
     {
-        REGISTER_PEX_NAME(this, "Signal");
+        REGISTER_PEX_NAME(this, "control::Signal");
         this->model_->Connect(this, &Signal::OnModelSignaled_);
         PEX_LOG("Signal created: ", LookupPexName(this));
     }
 
     ~Signal()
     {
-        PEX_LOG("~Signal : ", LookupPexName(this));
+        PEX_LOG("control::Signal::~Signal : ", LookupPexName(this));
 
         if (this->model_)
         {
@@ -104,15 +104,13 @@ public:
                 this->model_->Disconnect(this);
             }
         }
-
-        UNREGISTER_PEX_NAME(this, "Signal");
     }
 
     Signal(void *observer, model::Signal &model, Callable callable)
         :
         Signal(model)
     {
-        REGISTER_PEX_NAME(this, "Signal");
+        REGISTER_PEX_NAME(this, "control::Signal");
         this->Connect(observer, callable);
     }
 
@@ -120,7 +118,7 @@ public:
         :
         Signal(other)
     {
-        REGISTER_PEX_NAME(this, "Signal");
+        REGISTER_PEX_NAME(this, "control::Signal");
         this->Connect(observer, callable);
     }
 
@@ -137,7 +135,7 @@ public:
         :
         model_(other.model_)
     {
-        REGISTER_PEX_NAME(this, "Signal");
+        REGISTER_PEX_NAME(this, "control::Signal");
 
         if (this->model_)
         {
@@ -158,6 +156,7 @@ public:
         }
 
         this->model_ = other.model_;
+        REGISTER_PEX_NAME(this, "control::Signal");
 
         if (this->model_)
         {
@@ -198,6 +197,13 @@ public:
 
     template<typename>
     friend class Signal;
+
+    const model::Signal & GetModel_() const
+    {
+        assert(this->model_);
+
+        return *this->model_;
+    }
 
 private:
     model::Signal * model_;

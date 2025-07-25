@@ -93,8 +93,12 @@ TEMPLATE_TEST_CASE(
 
     RangeFilter<TestType> filter{low, high};
     using Control = pex::control::Value<Model>;
+
     Model model{filter};
+    REGISTER_IDENTITY(model);
+
     Observer<Control> observer((Control(model)));
+
     model.Set(value);
     REQUIRE(observer.observedValue <= high);
     REQUIRE(observer.observedValue >= low);
@@ -139,6 +143,7 @@ TEMPLATE_TEST_CASE(
 
     RangeFilter<TestType> filter{low, high};
     Model model{filter};
+    REGISTER_IDENTITY(model);
     using Control = pex::control::Value<Model>;
     Observer<Control> observer((Control(model)));
     model.Set(value);
@@ -278,6 +283,7 @@ TEST_CASE("Observe a control that follows another control", "[filters]")
     using Follower = pex::control::Value<Control>;
 
     Model model;
+    REGISTER_IDENTITY(model);
     Control control(model);
 
     Observer<Control> controlObserver{control};
@@ -305,6 +311,7 @@ TEST_CASE("Observe filtered value", "[filters]")
     >;
 
     Model model;
+    REGISTER_IDENTITY(model);
     Control control(model);
 
     auto observer = Observer(
@@ -323,6 +330,7 @@ TEST_CASE("LinearRange is observable", "[filters]")
     using FilteredWeight = pex::control::LinearRange<WeightControl>;
 
     WeightRange weightRange;
+    REGISTER_IDENTITY(weightRange);
     weightRange.SetMinimum(100.0);
     weightRange.SetMaximum(150.0);
 
@@ -345,6 +353,7 @@ TEST_CASE("Optional LinearRange is observable", "[filters]")
     using FilteredValue = typename FilteredWeight::Value;
 
     WeightRange weightRange;
+    REGISTER_IDENTITY(weightRange);
     weightRange.SetMinimum(100.0);
     weightRange.SetMaximum(150.0);
 
@@ -369,11 +378,14 @@ TEST_CASE("Optional LinearRange is observable", "[filters]")
 
 TEST_CASE("Optional ConvertingRange is observable", "[filters]")
 {
+    RESET_PEX_NAMES
+
     using WeightRange = pex::model::Range<std::optional<double>>;
     using WeightControl = pex::control::Range<WeightRange>;
     using FilteredWeight = pex::control::ConvertingRange<WeightControl, int>;
 
     WeightRange weightRange;
+    REGISTER_IDENTITY(weightRange);
     weightRange.SetMinimum(100.0);
     weightRange.SetMaximum(150.0);
 

@@ -311,15 +311,6 @@ struct Group
             REGISTER_PEX_NAMES(this);
         }
 
-        ~Model_()
-        {
-            UNREGISTER_PEX_NAMES();
-
-            UNREGISTER_PEX_NAME(
-                this,
-                fmt::format("{} Model", jive::GetTypeName<Plain>()));
-        }
-
         Model_(const Model_ &) = delete;
         Model_(Model_ &&) = delete;
         Model_ & operator=(const Model_ &) = delete;
@@ -447,15 +438,6 @@ struct Group
             fields::MoveAssign<Fields>(*this, std::move(other));
 
             return *this;
-        }
-
-        ~Control_()
-        {
-            UNREGISTER_PEX_NAMES();
-
-            UNREGISTER_PEX_NAME(
-                this,
-                fmt::format("{} Control", jive::GetTypeName<Plain>()));
         }
 
         bool HasModel() const

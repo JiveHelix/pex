@@ -280,15 +280,13 @@ protected:
 };
 
 
-#ifdef ENABLE_PEX_LOG
+#ifdef ENABLE_REGISTER_NAME
 
 #define REGISTER_PEX_NAMES(groupAddress) this->RegisterPexNames(groupAddress)
-#define UNREGISTER_PEX_NAMES() this->UnregisterPexNames()
 
 #else
 
 #define REGISTER_PEX_NAMES(groupAddress)
-#define UNREGISTER_PEX_NAMES()
 
 #endif
 

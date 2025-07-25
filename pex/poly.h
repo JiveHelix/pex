@@ -29,7 +29,7 @@ struct Poly
 
     using ControlBase = MakeControlSuper<Supers>;
 
-    using ModelBase = MakeModelSuper<Supers>;
+    using SuperModel = MakeModelSuper<Supers>;
 
     using Derived = PolyDerived<Templates>;
     using TemplateBase = typename Derived::TemplateBase;
@@ -43,7 +43,7 @@ struct Poly
         template<typename GroupBase>
         class Model
             :
-            public ModelBase,
+            public SuperModel,
             public GroupBase
         {
         public:
@@ -87,13 +87,30 @@ struct Poly
             public GroupBase
         {
         public:
-            using GroupBase::GroupBase;
+            // using GroupBase::GroupBase;
             using Upstream = typename GroupBase::Upstream;
             using Aggregate = typename GroupBase::Aggregate;
 
             virtual ~Control() {}
 
-            Control(::pex::poly::Model<Supers> &model);
+            Control()
+                :
+                GroupBase(),
+                aggregate_(),
+                baseNotifier_()
+            {
+                REGISTER_PEX_NAME(
+                    this,
+                    fmt::format(
+                        "Poly<Fields, {}>::Control<{}>",
+                        jive::GetTypeName<Templates>(),
+                        jive::GetTypeName<GroupBase>()));
+
+                REGISTER_PEX_PARENT(aggregate_);
+                REGISTER_PEX_PARENT(baseNotifier_);
+            }
+
+            Control(SuperModel &model);
 
             Control(const ::pex::poly::Control<Supers> &control);
 
@@ -103,6 +120,16 @@ struct Poly
                 aggregate_(),
                 baseNotifier_(other.baseNotifier_)
             {
+                REGISTER_PEX_NAME(
+                    this,
+                    fmt::format(
+                        "Poly<Fields, {}>::Control<{}>",
+                        jive::GetTypeName<Templates>(),
+                        jive::GetTypeName<GroupBase>()));
+
+                REGISTER_PEX_PARENT(aggregate_);
+                REGISTER_PEX_PARENT(baseNotifier_);
+
                 if (this->baseNotifier_.HasConnections())
                 {
                     this->aggregate_.AssignUpstream(*this);

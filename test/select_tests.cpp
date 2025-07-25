@@ -104,7 +104,7 @@ struct TestObserver
     TestObserver(SomeControl control)
         :
         observedRate{control.rate.Get()},
-        endpoints_{this, control}
+        endpoints_{USE_REGISTER_PEX_NAME(this, "TestObserver"), control}
     {
         this->endpoints_.rate.Connect(&TestObserver::OnObserve_);
     }

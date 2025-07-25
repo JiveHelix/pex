@@ -44,7 +44,7 @@ TEMPLATE_TEST_CASE(
 
     using Model = pex::model::Value<TestType>;
     Model model{original};
-
+    REGISTER_IDENTITY(model);
     TerminusObserver<Model> observer(model);
 
     if constexpr (std::is_floating_point_v<TestType>)
@@ -102,6 +102,7 @@ TEMPLATE_TEST_CASE(
 
     using Model = pex::model::Value<TestType>;
     Model model{original};
+    REGISTER_IDENTITY(model);
     TerminusObserver<Model> observer(model);
 
     if constexpr (std::is_floating_point_v<TestType>)
@@ -137,6 +138,7 @@ TEST_CASE("std::string propagation", "[value]")
 
     using Model = pex::model::Value<std::string>;
     Model model(original);
+    REGISTER_IDENTITY(model);
     TerminusObserver<Model> observer(model);
 
     REQUIRE(observer.observedValue == original);
@@ -178,6 +180,7 @@ TEMPLATE_TEST_CASE(
 
     using Model = pex::model::Value<TestType>;
     Model model{original};
+    REGISTER_IDENTITY(model);
     TerminusObserver<Model> observer1(model);
     TerminusObserver<Model> observer2(model);
     TerminusObserver<Model> observer3(model);

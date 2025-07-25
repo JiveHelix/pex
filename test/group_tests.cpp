@@ -199,7 +199,7 @@ TEST_CASE("Terminus aggregate member observer receives message.", "[groups]")
 }
 
 
-class EndpointObserver
+class EndpointObserver: Separator
 {
 public:
     using Control = typename groups::CircleGroup::Control;
@@ -212,8 +212,9 @@ public:
         :
         center(),
         radius(),
-        endpoints_(this, control)
+        endpoints_(USE_REGISTER_PEX_NAME(this, "EndpointObserver"), control)
     {
+        REGISTER_PEX_PARENT(center);
         this->endpoints_.center.Connect(&EndpointObserver::OnCenter_);
         this->endpoints_.radius.Connect(&EndpointObserver::OnRadius_);
     }
@@ -247,16 +248,19 @@ public:
 
     RadiusObserver()
         :
-        endpoint(this)
+        endpoint(USE_REGISTER_PEX_NAME(this, "RadiusObserver"))
     {
-
+        REGISTER_PEX_PARENT(endpoint);
     }
 
     RadiusObserver(const Control &control)
         :
-        endpoint(this, control.radius, &RadiusObserver::OnRadius_)
+        endpoint(
+            USE_REGISTER_PEX_NAME(this, "RadiusObserver"),
+            control.radius,
+            &RadiusObserver::OnRadius_)
     {
-
+        REGISTER_PEX_PARENT(endpoint);
     }
 
     void SetControl(const Control &control)

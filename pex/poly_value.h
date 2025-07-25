@@ -215,7 +215,7 @@ public:
                 throw PolyError("Unitialized");
             }
 
-            std::cout << "dynamic cast failed from "
+            std::cerr << "dynamic cast failed from "
                 << this->value_->GetTypeName()
                 << " to "
                 << Derived::DoGetTypeName() << std::endl;
@@ -247,7 +247,7 @@ public:
                 throw PolyError("Unitialized");
             }
 
-            std::cout << "dynamic cast failed from "
+            std::cerr << "dynamic cast failed from "
                 << this->value_->GetTypeName()
                 << " to "
                 << Derived::DoGetTypeName() << std::endl;

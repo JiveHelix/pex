@@ -10,6 +10,7 @@
 
 #ifndef NDEBUG
 #include <jive/scope_flag.h>
+#include <fields/describe.h>
 #endif
 
 #include "pex/access_tag.h"
@@ -17,6 +18,11 @@
 #include "pex/error.h"
 #include "pex/detail/log.h"
 #include "pex/detail/observer_name.h"
+
+
+#ifndef NDEBUG
+#include <pex/detail/logs_observers.h>
+#endif
 
 
 namespace pex
@@ -45,15 +51,20 @@ namespace detail
 
 
 template<typename ConnectionType, typename Access>
-class NotifyConnector_
+class NotifyMany_
+#ifndef NDEBUG
+    :
+    public LogsObservers
+#endif
 {
 public:
     using Observer = typename ConnectionType::Observer;
     using Callable = typename ConnectionType::Callable;
 
-    NotifyConnector_()
+    NotifyMany_()
         :
 #ifndef NDEBUG
+        LogsObservers{},
         isNotifying_{},
 #endif
         connections_{}
@@ -61,11 +72,11 @@ public:
 
     }
 
-    ~NotifyConnector_()
+    ~NotifyMany_()
     {
         if (!this->connections_.empty())
         {
-            std::cout << "ERROR: Active connections destroyed: ";
+            std::cout << "WARNING: Active connections destroyed: ";
 
             std::cout << (ObserverName<Observer>) << " "
                 << LookupPexName(this) << std::endl;
@@ -73,19 +84,25 @@ public:
             std::cout << "Was your model destroyed before your controls?"
                 << std::endl;
 
-            for (auto &connection: this->connections_)
-            {
-                std::cout << "  "
-                    << LookupPexName(connection.GetObserver()) << std::endl;
-            }
+#ifndef NDEBUG
+            static_assert(std::derived_from<NotifyMany_, LogsObservers>);
+            this->PrintObservers(1);
+#endif
 
             assert(false);
         }
 
         assert(this->connections_.empty());
+
+        UNREGISTER_PEX_NAME(this);
     }
 
-    void Connect(Observer *observer, Callable callable)
+    NotifyMany_(const NotifyMany_ &other) = default;
+    NotifyMany_(NotifyMany_ &&) noexcept = default;
+    NotifyMany_ & operator=(const NotifyMany_ &other) = default;
+
+    template<typename T>
+    void Connect(T *observer, Callable callable)
     {
         static_assert(
             HasAccess<GetTag, Access>,
@@ -93,12 +110,28 @@ public:
 
         THROW_IF_NOTIFYING
 
+#ifdef ENABLE_REGISTER_NAME
+        if (!HasPexName(observer))
+        {
+            throw std::runtime_error("All observers must be labeled");
+        }
+
+        if (!HasPexName(this))
+        {
+            throw std::runtime_error("All nodes must be labeled");
+        }
+#endif
+
         PEX_LOG(
             ObserverName<Observer>,
             " (",
             LookupPexName(observer),
             ") connecting to ",
             LookupPexName(this));
+
+#ifndef NDEBUG
+        this->RegisterObserver(observer);
+#endif
 
         // Callbacks will be executed in the order the connections are made.
         this->connections_.emplace_back(observer, callable);
@@ -134,6 +167,8 @@ public:
             ConnectionType(observer));
 
 #ifndef NDEBUG
+        this->RemoveObserver(observer);
+
         for (auto &connection: this->connections_)
         {
             if (connection.GetObserver() == observer)
@@ -143,19 +178,6 @@ public:
             }
         }
 #endif
-
-    }
-
-    void PrintObservers() const
-    {
-        std::cout << "Observers of " << LookupPexName(this) << std::endl;
-
-        for (size_t i = 0; i < this->connections_.size(); ++i)
-        {
-            std::cout << "  " << i << ": "
-                << LookupPexName(this->connections_[i].GetObserver())
-                << std::endl;
-        }
     }
 
     size_t GetNotificationOrder(Observer *observer)
@@ -178,7 +200,8 @@ public:
     }
 
     // Only make the connection if the observer is not already connected.
-    void ConnectOnce(Observer *observer, Callable callable)
+    template<typename T>
+    void ConnectOnce(T *observer, Callable callable)
     {
         if (this->HasObserver(observer))
         {
@@ -226,7 +249,7 @@ protected:
 
 // For callbacks without an argument (signals)
 template<typename ConnectionType, typename Access, typename = std::void_t<>>
-class NotifyMany: public NotifyConnector_<ConnectionType, Access>
+class NotifyMany: public NotifyMany_<ConnectionType, Access>
 {
 protected:
     void Notify_()
@@ -249,7 +272,7 @@ class NotifyMany
     Access,
     std::void_t<typename ConnectionType::Type>
 >
-    : public NotifyConnector_<ConnectionType, Access>
+    : public NotifyMany_<ConnectionType, Access>
 {
 public:
     using Type = typename ConnectionType::Type;

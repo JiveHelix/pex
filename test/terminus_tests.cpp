@@ -19,6 +19,8 @@ using Observer = TerminusObserver<Model, Terminus>;
 TEST_CASE("Terminus uses new observer after move.", "[terminus]")
 {
     Model value(42);
+    REGISTER_IDENTITY(value);
+
     Observer first(value);
 
     REQUIRE(first.observedValue == 42);
@@ -48,6 +50,8 @@ TEST_CASE("Terminus uses new observer after move.", "[terminus]")
 TEST_CASE("Terminus uses new observer after copy.", "[terminus]")
 {
     Model value(42);
+    REGISTER_IDENTITY(value);
+
     Observer first(value);
 
     REQUIRE(first.observedValue == 42);

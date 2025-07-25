@@ -672,6 +672,8 @@ public:
                 " to ",
                 LookupPexName(this->model_));
 
+
+
             this->model_->ConnectOnce(observer, callable);
         }
     }
@@ -742,6 +744,12 @@ public:
     using Base::Get;
 
     template<typename>
+    friend class ::pex::Reference;
+
+    template<typename, typename, typename>
+    friend class ::pex::control::Value_;
+
+    template<typename>
     friend class ::pex::control::ValueContainer;
 
     template<typename>
@@ -809,6 +817,12 @@ public:
     using MappedType = typename Type::mapped_type;
     using KeyType = typename Type::key_type;
     using Access = typename Model_::Access;
+
+    template<typename>
+    friend class ::pex::Reference;
+
+    template<typename, typename, typename>
+    friend class ::pex::control::Value_;
 
     template<typename>
     friend class ::pex::control::KeyValueContainer;

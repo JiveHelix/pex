@@ -208,12 +208,16 @@ public:
         maximum(defaultMaximum),
         reset(),
         defaultValue_(value.Get()),
-        resetTerminus_(this, this->reset, &Range::OnReset_)
+        resetTerminus_(
+            USE_REGISTER_PEX_NAME(this, "model::Range"),
+            *USE_REGISTER_PEX_NAME(&this->reset, "reset"),
+            &Range::OnReset_)
     {
         REGISTER_PEX_NAME(this, "model::Range");
-        REGISTER_PEX_NAME_WITH_PARENT(&this->value, this, "value");
-        REGISTER_PEX_NAME_WITH_PARENT(&this->minimum, this, "minimum");
-        REGISTER_PEX_NAME_WITH_PARENT(&this->maximum, this, "maximum");
+        REGISTER_PEX_PARENT(value);
+        REGISTER_PEX_PARENT(minimum);
+        REGISTER_PEX_PARENT(maximum);
+        REGISTER_PEX_PARENT(reset);
     }
 
     explicit Range(Type value_)
@@ -227,17 +231,16 @@ public:
         maximum(Maximum<LimitType, initialMaximum>::value),
         reset(),
         defaultValue_(this->value.Get()),
-        resetTerminus_(this, this->reset, &Range::OnReset_)
+        resetTerminus_(
+            USE_REGISTER_PEX_NAME(this, "model::Range"),
+            *USE_REGISTER_PEX_NAME(&this->reset, "reset"),
+            &Range::OnReset_)
     {
-
-    }
-
-    ~Range()
-    {
-        UNREGISTER_PEX_NAME(&this->value, "value");
-        UNREGISTER_PEX_NAME(&this->minimum, "minimum");
-        UNREGISTER_PEX_NAME(&this->maximum, "maximum");
-        UNREGISTER_PEX_NAME(this, "model::Range");
+        REGISTER_PEX_NAME(this, "model::Range");
+        REGISTER_PEX_PARENT(value);
+        REGISTER_PEX_PARENT(minimum);
+        REGISTER_PEX_PARENT(maximum);
+        REGISTER_PEX_PARENT(reset);
     }
 
     void Connect(void * observer, Callable callable)
@@ -862,7 +865,19 @@ public:
     using LimitType = typename Limit::Type;
     using Callable = typename Value::Callable;
 
-    Range() = default;
+    Range()
+        :
+        value(),
+        minimum(),
+        maximum(),
+        reset()
+    {
+        REGISTER_PEX_NAME(this, "control::Range");
+        REGISTER_PEX_PARENT(value);
+        REGISTER_PEX_PARENT(minimum);
+        REGISTER_PEX_PARENT(maximum);
+        REGISTER_PEX_PARENT(reset);
+    }
 
     Range(Upstream &upstream)
         :
@@ -872,9 +887,10 @@ public:
         reset(upstream.reset)
     {
         REGISTER_PEX_NAME(this, "control::Range");
-        REGISTER_PEX_NAME_WITH_PARENT(&this->value, this, "value");
-        REGISTER_PEX_NAME_WITH_PARENT(&this->minimum, this, "minimum");
-        REGISTER_PEX_NAME_WITH_PARENT(&this->maximum, this, "maximum");
+        REGISTER_PEX_PARENT(value);
+        REGISTER_PEX_PARENT(minimum);
+        REGISTER_PEX_PARENT(maximum);
+        REGISTER_PEX_PARENT(reset);
     }
 
     Range(Upstream &upstream, const Filter &filter)
@@ -896,14 +912,6 @@ public:
         return this->value.GetFilter();
     }
 
-    ~Range()
-    {
-        UNREGISTER_PEX_NAME(this, "control::Range");
-        UNREGISTER_PEX_NAME(&this->value, "value");
-        UNREGISTER_PEX_NAME(&this->minimum, "minimum");
-        UNREGISTER_PEX_NAME(&this->maximum, "maximum");
-    }
-
     template<typename OtherFilter, typename OtherAccess>
     Range(const Range<Upstream, OtherFilter, OtherAccess> &other)
         :
@@ -913,9 +921,10 @@ public:
         reset(other.reset)
     {
         REGISTER_PEX_NAME(this, "control::Range");
-        REGISTER_PEX_NAME_WITH_PARENT(&this->value, this, "value");
-        REGISTER_PEX_NAME_WITH_PARENT(&this->minimum, this, "minimum");
-        REGISTER_PEX_NAME_WITH_PARENT(&this->maximum, this, "maximum");
+        REGISTER_PEX_PARENT(value);
+        REGISTER_PEX_PARENT(minimum);
+        REGISTER_PEX_PARENT(maximum);
+        REGISTER_PEX_PARENT(reset);
     }
 
     template<typename OtherFilter, typename OtherAccess>
@@ -929,9 +938,10 @@ public:
         reset(other.reset)
     {
         REGISTER_PEX_NAME(this, "control::Range");
-        REGISTER_PEX_NAME_WITH_PARENT(&this->value, this, "value");
-        REGISTER_PEX_NAME_WITH_PARENT(&this->minimum, this, "minimum");
-        REGISTER_PEX_NAME_WITH_PARENT(&this->maximum, this, "maximum");
+        REGISTER_PEX_PARENT(value);
+        REGISTER_PEX_PARENT(minimum);
+        REGISTER_PEX_PARENT(maximum);
+        REGISTER_PEX_PARENT(reset);
 
         this->SetFilter(filter);
     }
@@ -956,9 +966,10 @@ public:
         reset(other.reset)
     {
         REGISTER_PEX_NAME(this, "control::Range");
-        REGISTER_PEX_NAME_WITH_PARENT(&this->value, this, "value");
-        REGISTER_PEX_NAME_WITH_PARENT(&this->minimum, this, "minimum");
-        REGISTER_PEX_NAME_WITH_PARENT(&this->maximum, this, "maximum");
+        REGISTER_PEX_PARENT(value);
+        REGISTER_PEX_PARENT(minimum);
+        REGISTER_PEX_PARENT(maximum);
+        REGISTER_PEX_PARENT(reset);
     }
 
     Range & operator=(const Range &other)
@@ -979,9 +990,10 @@ public:
         reset(std::move(other.reset))
     {
         REGISTER_PEX_NAME(this, "control::Range");
-        REGISTER_PEX_NAME_WITH_PARENT(&this->value, this, "value");
-        REGISTER_PEX_NAME_WITH_PARENT(&this->minimum, this, "minimum");
-        REGISTER_PEX_NAME_WITH_PARENT(&this->maximum, this, "maximum");
+        REGISTER_PEX_PARENT(value);
+        REGISTER_PEX_PARENT(minimum);
+        REGISTER_PEX_PARENT(maximum);
+        REGISTER_PEX_PARENT(reset);
     }
 
     Range & operator=(Range &&other)

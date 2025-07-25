@@ -138,15 +138,16 @@ template
     template<typename> typename Fields,
     template<template<typename> typename> typename Template
 >
-struct Aggregate:
-    Separator,
-    public Template<AggregateSelector>,
-    public Getter<Plain, Fields, Aggregate<Plain, Fields, Template>>,
+struct Aggregate
+    :
     public detail::NotifyOne
     <
         ::pex::ValueConnection<void, Plain, NoFilter>,
         GetAndSetTag
-    >
+    >,
+    Separator,
+    public Template<AggregateSelector>,
+    public Getter<Plain, Fields, Aggregate<Plain, Fields, Template>>
 {
     using SignalConnection_ = SignalConnection<void>;
     using SignalCallable = typename SignalConnection_::Callable;
@@ -267,14 +268,6 @@ public:
     {
         this->UnmakeConnections_();
         this->ClearConnections();
-
-#ifdef ENABLE_REGISTER_NAME
-        UNREGISTER_PEX_NAME(
-            this,
-            fmt::format("Aggregate {}", jive::GetTypeName<Plain>()));
-
-        this->UnregisterPexNames();
-#endif
     }
 
     void ClearConnections()
@@ -331,6 +324,9 @@ private:
     {
         auto connector = [this](const auto &field) -> void
         {
+#ifdef ENABLE_REGISTER_NAME
+            assert(pex::HasPexName(&(this->*(field.member))));
+#endif
             this->Connector_(this->*(field.member));
         };
 

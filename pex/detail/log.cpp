@@ -44,6 +44,12 @@ std::string FormatName(const void *address, const Name &name)
 
 void RegisterPexName(void *address, const std::string &name)
 {
+#if 0
+    std::cout << "RegisterPexName: " << name << " @ " << address
+        << " namesByAddress.size(): " << namesByAddress.size()
+        << std::endl;
+#endif
+
     if (namesByAddress.count(address))
     {
         auto &entry = namesByAddress[address];
@@ -56,19 +62,9 @@ void RegisterPexName(void *address, const std::string &name)
 }
 
 
-void UnregisterPexName(
-    void *address,
-    const std::string &name)
+void UnregisterPexName(void *address)
 {
-    if (namesByAddress.count(address) == 1)
-    {
-        auto storedName = namesByAddress[address];
-
-        if (storedName.name == name)
-        {
-            namesByAddress.erase(address);
-        }
-    }
+    namesByAddress.erase(address);
 }
 
 
@@ -122,7 +118,7 @@ void RegisterPexParent(void *parent, void *child)
 }
 
 
-bool HasPexName(void *address)
+bool HasPexName(const void *address)
 {
     if (!address)
     {
@@ -145,6 +141,24 @@ bool HasPexName(void *address)
 }
 
 
+bool HasNamedParent(const void *address)
+{
+    if (!address)
+    {
+        return false;
+    }
+
+    if (!namesByAddress.count(address))
+    {
+        return false;
+    }
+
+    const auto &entry = namesByAddress[address];
+
+    return HasPexName(entry.parent);
+}
+
+
 std::string LookupPexName(const void *address)
 {
     if (address == nullptr)
@@ -160,6 +174,12 @@ std::string LookupPexName(const void *address)
     }
 
     return fmt::format("{}", address);
+}
+
+
+void ResetPexNames()
+{
+    namesByAddress.clear();
 }
 
 

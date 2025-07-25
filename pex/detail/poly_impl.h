@@ -19,12 +19,11 @@ std::shared_ptr<MakeControlSuper<typename Templates::Supers>>
 Poly<Fields, Templates>::GroupTemplates_
     ::Model<GroupBase>::CreateControl()
 {
-    using This = std::remove_cvref_t<decltype(*this)>;
-
     using DerivedModel =
         typename Poly<Fields, Templates>::Model;
 
-    static_assert(std::is_base_of_v<This, DerivedModel>);
+    static_assert(
+        std::derived_from<DerivedModel, std::remove_cvref_t<decltype(*this)>>);
 
     using Control =
         typename Poly<Fields, Templates>::Control;
@@ -91,6 +90,21 @@ Poly<Fields, Templates>::GroupTemplates_
 }
 
 
+template<typename Derived, typename Base>
+Derived & RequireDerived(Base &base)
+{
+    static_assert(std::derived_from<Derived, Base>);
+    auto derived = dynamic_cast<Derived *>(&base);
+
+    if (!derived)
+    {
+        throw PolyError("Mismatched polymorphic value");
+    }
+
+    return *derived;
+}
+
+
 template
 <
     template<typename> typename Fields,
@@ -99,9 +113,11 @@ template
 template<typename GroupBase>
 Poly<Fields, Templates>::GroupTemplates_
     ::TEMPLATE Control<GroupBase>::Control(
-        ::pex::poly::Model<typename Templates::Supers> &model)
+        ::pex::poly::MakeModelSuper<typename Templates::Supers> &model)
     :
-    GroupBase()
+    GroupBase(RequireDerived<Upstream>(model)),
+    aggregate_(),
+    baseNotifier_()
 {
     REGISTER_PEX_NAME(
         this,
@@ -110,17 +126,8 @@ Poly<Fields, Templates>::GroupTemplates_
             jive::GetTypeName<Templates>(),
             jive::GetTypeName<GroupBase>()));
 
-    using DerivedControl = typename Poly<Fields, Templates>::Control;
-
-    auto base = model.GetVirtual();
-    auto upcast = dynamic_cast<Upstream *>(base);
-
-    if (!upcast)
-    {
-        throw PolyError("Mismatched polymorphic value");
-    }
-
-    *this = DerivedControl(*upcast);
+    REGISTER_PEX_PARENT(aggregate_);
+    REGISTER_PEX_PARENT(baseNotifier_);
 }
 
 
@@ -134,7 +141,9 @@ Poly<Fields, Templates>::GroupTemplates_
     ::TEMPLATE Control<GroupBase>::Control(
         const ::pex::poly::Control<typename Templates::Supers> &control)
     :
-    GroupBase()
+    GroupBase(),
+    aggregate_(),
+    baseNotifier_()
 {
     REGISTER_PEX_NAME(
         this,
@@ -142,6 +151,9 @@ Poly<Fields, Templates>::GroupTemplates_
             "Poly<Fields, {}>::Control<{}>",
             jive::GetTypeName<Templates>(),
             jive::GetTypeName<GroupBase>()));
+
+    REGISTER_PEX_PARENT(aggregate_);
+    REGISTER_PEX_PARENT(baseNotifier_);
 
     using DerivedControl = typename Poly<Fields, Templates>::Control;
 

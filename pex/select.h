@@ -91,7 +91,7 @@ template
     typename ChoiceMaker,
     typename ChoicesAccess_ = GetAndSetTag
 >
-class Select
+class Select: public Separator
 {
 public:
     using Type = T;
@@ -130,7 +130,7 @@ public:
         :
         Select(ChoiceMaker::GetChoices())
     {
-
+        this->Initialize_();
     }
 
     Select(pex::Argument<Type> value)
@@ -139,7 +139,7 @@ public:
             value,
             ChoiceMaker::GetChoices())
     {
-
+        this->Initialize_();
     }
 
     Select(
@@ -148,14 +148,17 @@ public:
         :
         value_(value),
         choices_(choices),
+
         selection_(
             RequireIndex(value, choices),
             SelectFilter(this->choices_.Get())),
+
         terminus_(
-            this,
-            this->selection_)
+            USE_REGISTER_PEX_NAME(this, "SelectModel"),
+            *USE_REGISTER_PEX_PARENT(selection_),
+            &Select::OnSelection_)
     {
-        this->terminus_.Connect(&Select::OnSelection_);
+        this->Initialize_();
     }
 
     Select(const std::vector<Type> &choices)
@@ -164,10 +167,19 @@ public:
         choices_(choices),
         selection_(0, SelectFilter(this->choices_.Get())),
         terminus_(
-            this,
-            this->selection_)
+            USE_REGISTER_PEX_NAME(this, "SelectModel"),
+            *USE_REGISTER_PEX_PARENT(selection_),
+            &Select::OnSelection_)
     {
-        this->terminus_.Connect(&Select::OnSelection_);
+        this->Initialize_();
+    }
+
+    void Initialize_()
+    {
+        REGISTER_PEX_NAME(this, "SelectModel");
+        REGISTER_PEX_PARENT(value_);
+        REGISTER_PEX_PARENT(choices_);
+        REGISTER_PEX_PARENT(selection_);
     }
 
     // Unlike model::Value and control::Value, which Set/Get the same type,

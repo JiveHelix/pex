@@ -95,7 +95,7 @@ public:
     void OnPose(const Pose &pose)
     {
         std::cout << "OnPose: " << fields::DescribeColorized(pose, 1)
-                  << std::endl;
+              << std::endl;
     }
 
 private:

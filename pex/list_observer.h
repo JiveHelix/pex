@@ -57,8 +57,6 @@ public:
             listControl.memberRemoved,
             memberRemovedCallable)
     {
-        std::cout << "Observer (" << observer << ") connected to listControl ("
-            << &listControl.memberAdded << ")" << std::endl;
 
     }
 

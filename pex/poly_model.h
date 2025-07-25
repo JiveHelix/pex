@@ -51,6 +51,11 @@ template<HasValueBase Supers>
 class Control;
 
 
+// This Model is the same wrapper type for every item in a polymorphic list.
+// It manages a virtual object.
+// TODO: This extra layer may not be necessary. Why not have a list of
+// unique_ptr?
+//
 template<HasValueBase Supers>
 class Model
 {
@@ -80,10 +85,7 @@ public:
             this,
             fmt::format("PolyModel<{}>", jive::GetTypeName<Supers>()));
 
-        REGISTER_PEX_NAME_WITH_PARENT(
-            &this->baseCreated_,
-            this,
-            "baseCreated");
+        REGISTER_PEX_PARENT(baseCreated_);
     };
 
     Value Get() const
@@ -166,6 +168,11 @@ public:
     void DoNotify_()
     {
         this->superModel_->DoValueNotify();
+    }
+
+    pex::control::Signal<> GetBaseCreated()
+    {
+        return {this->baseCreated_};
     }
 
 private:
