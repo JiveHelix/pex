@@ -250,7 +250,7 @@ public:
                     " to ",
                     &this->upstream_);
 
-                REGISTER_PEX_NAME(this, "pex::control::Value");
+                PEX_NAME("pex::control::Value");
 
                 this->upstreamConnection_.emplace(
                     this->upstream_,
@@ -293,7 +293,7 @@ public:
 
             if (this->HasConnections())
             {
-                REGISTER_PEX_NAME(this, "pex::control::Value");
+                PEX_NAME("pex::control::Value");
 
                 this->upstreamConnection_.emplace(
                     this->upstream_,
@@ -345,7 +345,7 @@ public:
 
             if (this->HasConnections())
             {
-                REGISTER_PEX_NAME(this, "pex::control::Value");
+                PEX_NAME("pex::control::Value");
 
                 this->upstreamConnection_.emplace(
                     this->upstream_,
@@ -387,7 +387,7 @@ public:
 
             if (this->HasConnections())
             {
-                REGISTER_PEX_NAME(this, "pex::control::Value");
+                PEX_NAME("pex::control::Value");
 
                 this->upstreamConnection_.emplace(
                     this->upstream_,
@@ -418,7 +418,7 @@ public:
             if (this->HasConnections())
             {
                 PEX_LOG("Copy from other: ", this, " to ", &this->upstream_);
-                REGISTER_PEX_NAME(this, "pex::control::Value");
+                PEX_NAME("pex::control::Value");
 
                 this->upstreamConnection_.emplace(
                     this->upstream_,
@@ -449,7 +449,7 @@ public:
             if (this->HasConnections())
             {
                 PEX_LOG("Connect ", this);
-                REGISTER_PEX_NAME(this, "pex::control::Value");
+                PEX_NAME("pex::control::Value");
 
                 this->upstreamConnection_.emplace(
                     this->upstream_,
@@ -484,7 +484,7 @@ public:
             if (this->HasConnections())
             {
                 PEX_LOG("Connect ", this);
-                REGISTER_PEX_NAME(this, "pex::control::Value");
+                PEX_NAME("pex::control::Value");
 
                 this->upstreamConnection_.emplace(
                     this->upstream_,
@@ -516,7 +516,7 @@ public:
             if (this->HasConnections())
             {
                 PEX_LOG("Connect ", this);
-                REGISTER_PEX_NAME(this, "pex::control::Value");
+                PEX_NAME("pex::control::Value");
 
                 this->upstreamConnection_.emplace(
                     this->upstream_,
@@ -537,7 +537,7 @@ public:
             // This is the first request for a connection.
             // Connect ourselves to the upstream.
             PEX_LOG("Connect ", this);
-            REGISTER_PEX_NAME(this, "pex::control::Value");
+            PEX_NAME("pex::control::Value");
 
             this->upstreamConnection_.emplace(
                 this->upstream_,
@@ -557,7 +557,7 @@ public:
             // This is the first request for a connection.
             // Connect ourselves to the upstream.
             PEX_LOG("Connect ", this);
-            REGISTER_PEX_NAME(this, "pex::control::Value");
+            PEX_NAME("pex::control::Value");
 
             this->upstreamConnection_.emplace(
                 this->upstream_,

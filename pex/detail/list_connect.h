@@ -671,6 +671,18 @@ private:
             std::end(this->connectables_));
     }
 
+    void RestoreConnection_(size_t index)
+    {
+        this->connectables_.emplace_back(
+            this,
+            this->listControl_[index],
+            std::bind(
+                ListConnect::OnItemChanged_,
+                index,
+                std::placeholders::_1,
+                std::placeholders::_2));
+    }
+
     void RestoreConnections_(size_t firstIndex)
     {
         size_t listCount = this->listControl_.size();
@@ -679,14 +691,7 @@ private:
 
         for (size_t i = firstIndex; i < listCount; ++i)
         {
-            this->connectables_.emplace_back(
-                this,
-                this->listControl_[i],
-                std::bind(
-                    ListConnect::OnItemChanged_,
-                    i,
-                    std::placeholders::_1,
-                    std::placeholders::_2));
+            this->RestoreConnection_(i);
         }
     }
 

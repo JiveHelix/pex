@@ -87,7 +87,7 @@ public:
         :
         model_(&model)
     {
-        REGISTER_PEX_NAME(this, "control::Signal");
+        PEX_NAME("control::Signal");
         this->model_->Connect(this, &Signal::OnModelSignaled_);
         PEX_LOG("Signal created: ", LookupPexName(this));
     }
@@ -110,7 +110,7 @@ public:
         :
         Signal(model)
     {
-        REGISTER_PEX_NAME(this, "control::Signal");
+        PEX_NAME("control::Signal");
         this->Connect(observer, callable);
     }
 
@@ -118,7 +118,7 @@ public:
         :
         Signal(other)
     {
-        REGISTER_PEX_NAME(this, "control::Signal");
+        PEX_NAME("control::Signal");
         this->Connect(observer, callable);
     }
 
@@ -135,7 +135,7 @@ public:
         :
         model_(other.model_)
     {
-        REGISTER_PEX_NAME(this, "control::Signal");
+        PEX_NAME("control::Signal");
 
         if (this->model_)
         {
@@ -156,7 +156,7 @@ public:
         }
 
         this->model_ = other.model_;
-        REGISTER_PEX_NAME(this, "control::Signal");
+        PEX_NAME("control::Signal");
 
         if (this->model_)
         {

@@ -45,7 +45,7 @@ public:
     ReorderObserver(pex::control::Signal<> reorder)
         :
         endpoint_(
-            USE_REGISTER_PEX_NAME(this, "ReorderObserver"),
+            PEX_THIS("ReorderObserver"),
             reorder,
             &ReorderObserver::OnReorder_),
         count(0)
@@ -190,9 +190,8 @@ TEST_CASE("OrderedList Erase by index", "[OrderedList]")
     using Control = typename OrderedListGroup::Control;
 
     Model model;
-    REGISTER_IDENTITY(model);
+    PEX_ROOT(model);
     Control control(model);
-    REGISTER_IDENTITY(control);
 
     for (int i = 0; i < 4; ++i)
     {
@@ -227,9 +226,8 @@ TEST_CASE("Reordered OrderedList Erase by index", "[OrderedList]")
     using Control = typename OrderedListGroup::Control;
 
     Model model;
-    REGISTER_IDENTITY(model);
+    PEX_ROOT(model);
     Control control(model);
-    REGISTER_IDENTITY(control);
 
     for (int i = 0; i < 4; ++i)
     {

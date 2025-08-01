@@ -42,14 +42,8 @@ std::string FormatName(const void *address, const Name &name)
 }
 
 
-void RegisterPexName(void *address, const std::string &name)
+void PexName(void *address, const std::string &name)
 {
-#if 0
-    std::cout << "RegisterPexName: " << name << " @ " << address
-        << " namesByAddress.size(): " << namesByAddress.size()
-        << std::endl;
-#endif
-
     if (namesByAddress.count(address))
     {
         auto &entry = namesByAddress[address];
@@ -62,13 +56,13 @@ void RegisterPexName(void *address, const std::string &name)
 }
 
 
-void UnregisterPexName(void *address)
+void ClearPexName(void *address)
 {
     namesByAddress.erase(address);
 }
 
 
-void RegisterPexName(void *address, void *parent, const std::string &name)
+void PexName(void *address, void *parent, const std::string &name)
 {
     if (address == parent)
     {

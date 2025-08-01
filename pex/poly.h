@@ -99,15 +99,14 @@ struct Poly
                 aggregate_(),
                 baseNotifier_()
             {
-                REGISTER_PEX_NAME(
-                    this,
+                PEX_NAME(
                     fmt::format(
                         "Poly<Fields, {}>::Control<{}>",
                         jive::GetTypeName<Templates>(),
                         jive::GetTypeName<GroupBase>()));
 
-                REGISTER_PEX_PARENT(aggregate_);
-                REGISTER_PEX_PARENT(baseNotifier_);
+                PEX_MEMBER(aggregate_);
+                PEX_MEMBER(baseNotifier_);
             }
 
             Control(SuperModel &model);
@@ -120,15 +119,14 @@ struct Poly
                 aggregate_(),
                 baseNotifier_(other.baseNotifier_)
             {
-                REGISTER_PEX_NAME(
-                    this,
+                PEX_NAME(
                     fmt::format(
                         "Poly<Fields, {}>::Control<{}>",
                         jive::GetTypeName<Templates>(),
                         jive::GetTypeName<GroupBase>()));
 
-                REGISTER_PEX_PARENT(aggregate_);
-                REGISTER_PEX_PARENT(baseNotifier_);
+                PEX_MEMBER(aggregate_);
+                PEX_MEMBER(baseNotifier_);
 
                 if (this->baseNotifier_.HasConnections())
                 {

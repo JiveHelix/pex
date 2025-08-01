@@ -94,7 +94,7 @@ public:
 
         assert(this->connections_.empty());
 
-        UNREGISTER_PEX_NAME(this);
+        PEX_CLEAR_NAME(this);
     }
 
     NotifyMany_(const NotifyMany_ &other) = default;
@@ -110,7 +110,7 @@ public:
 
         THROW_IF_NOTIFYING
 
-#ifdef ENABLE_REGISTER_NAME
+#ifdef ENABLE_PEX_NAMES
         if (!HasPexName(observer))
         {
             throw std::runtime_error("All observers must be labeled");

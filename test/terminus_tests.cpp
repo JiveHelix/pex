@@ -19,7 +19,7 @@ using Observer = TerminusObserver<Model, Terminus>;
 TEST_CASE("Terminus uses new observer after move.", "[terminus]")
 {
     Model value(42);
-    REGISTER_IDENTITY(value);
+    PEX_ROOT(value);
 
     Observer first(value);
 
@@ -50,7 +50,7 @@ TEST_CASE("Terminus uses new observer after move.", "[terminus]")
 TEST_CASE("Terminus uses new observer after copy.", "[terminus]")
 {
     Model value(42);
-    REGISTER_IDENTITY(value);
+    PEX_ROOT(value);
 
     Observer first(value);
 

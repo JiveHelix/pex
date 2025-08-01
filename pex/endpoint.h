@@ -111,8 +111,8 @@ public:
         observer_(nullptr),
         connector()
     {
-        REGISTER_PEX_NAME(this, "Endpoint");
-        REGISTER_PEX_PARENT(connector);
+        PEX_NAME("Endpoint");
+        PEX_MEMBER(connector);
     }
 
     Endpoint_(Observer *observer)
@@ -120,8 +120,8 @@ public:
         observer_(observer),
         connector()
     {
-        REGISTER_PEX_NAME(this, "Endpoint");
-        REGISTER_PEX_PARENT(connector);
+        PEX_NAME("Endpoint");
+        PEX_MEMBER(connector);
     }
 
     Endpoint_(Observer *observer, UpstreamControl upstream)
@@ -129,8 +129,8 @@ public:
         observer_(observer),
         connector(observer, upstream)
     {
-        REGISTER_PEX_NAME(this, "Endpoint");
-        REGISTER_PEX_PARENT(connector);
+        PEX_NAME("Endpoint");
+        PEX_MEMBER(connector);
     }
 
     Endpoint_(Observer *observer, UpstreamControl upstream, Callable callable)
@@ -138,8 +138,8 @@ public:
         observer_(observer),
         connector(observer, upstream, callable)
     {
-        REGISTER_PEX_NAME(this, "Endpoint");
-        REGISTER_PEX_PARENT(connector);
+        PEX_NAME("Endpoint");
+        PEX_MEMBER(connector);
     }
 
     Endpoint_(Observer *observer, typename UpstreamControl::Upstream &model)
@@ -147,8 +147,8 @@ public:
         observer_(observer),
         connector(observer, UpstreamControl(model))
     {
-        REGISTER_PEX_NAME(this, "Endpoint");
-        REGISTER_PEX_PARENT(connector);
+        PEX_NAME("Endpoint");
+        PEX_MEMBER(connector);
     }
 
     Endpoint_(
@@ -159,8 +159,8 @@ public:
         observer_(observer),
         connector(observer, UpstreamControl(model), callable)
     {
-        REGISTER_PEX_NAME(this, "Endpoint");
-        REGISTER_PEX_PARENT(connector);
+        PEX_NAME("Endpoint");
+        PEX_MEMBER(connector);
     }
 
     Endpoint_(Observer *observer, const Endpoint_ &other)
@@ -168,8 +168,8 @@ public:
         observer_(observer),
         connector(observer, other.connector)
     {
-        REGISTER_PEX_NAME(this, "Endpoint");
-        REGISTER_PEX_PARENT(connector);
+        PEX_NAME("Endpoint");
+        PEX_MEMBER(connector);
     }
 
     Endpoint_ & Assign(Observer *observer, const Endpoint_ &other)
@@ -185,8 +185,8 @@ public:
         observer_(other.observer_),
         connector(other.observer_, other.connector)
     {
-        REGISTER_PEX_NAME(this, "Endpoint");
-        REGISTER_PEX_PARENT(connector);
+        PEX_NAME("Endpoint");
+        PEX_MEMBER(connector);
     }
 
     Endpoint_ & operator=(Endpoint_ &&other)
@@ -481,7 +481,7 @@ public:
 
     BoundEndpoint()
         :
-        endpoint(USE_REGISTER_PEX_NAME(this, "BoundEndpoint")),
+        endpoint(PEX_THIS("BoundEndpoint")),
         observer_(nullptr),
         memberFunction_(),
         args_()
@@ -491,7 +491,7 @@ public:
 
     BoundEndpoint(Observer *observer)
         :
-        endpoint(USE_REGISTER_PEX_NAME(this, "BoundEndpoint")),
+        endpoint(PEX_THIS("BoundEndpoint")),
         observer_(observer),
         memberFunction_(),
         args_()
@@ -501,7 +501,7 @@ public:
 
     BoundEndpoint(Observer *observer, UpstreamControl upstream)
         :
-        endpoint(USE_REGISTER_PEX_NAME(this, "BoundEndpoint"), upstream),
+        endpoint(PEX_THIS("BoundEndpoint"), upstream),
         observer_(observer),
         memberFunction_(),
         args_()
@@ -517,7 +517,7 @@ public:
         MemberFunction memberFunction,
         T &&...args)
         :
-        endpoint(USE_REGISTER_PEX_NAME(this, "BoundEndpoint"), upstream),
+        endpoint(PEX_THIS("BoundEndpoint"), upstream),
         observer_(observer),
         memberFunction_(memberFunction),
         args_(std::make_tuple(std::forward<T>(args)...))
@@ -528,7 +528,7 @@ public:
     BoundEndpoint(Observer *observer, typename UpstreamControl::Upstream &model)
         :
         endpoint(
-            USE_REGISTER_PEX_NAME(this, "BoundEndpoint"),
+            PEX_THIS("BoundEndpoint"),
             UpstreamControl(model)),
         observer_(observer),
         memberFunction_(),
@@ -548,7 +548,7 @@ public:
             this->endpoint.Connect(&BoundEndpoint::OnInternal_);
         }
 
-        REGISTER_PEX_NAME(this, "BoundEndpoint");
+        PEX_NAME("BoundEndpoint");
     }
 
     // Uses helper type ...T to allow forwarding the bound arguments.
@@ -560,7 +560,7 @@ public:
         T &&...args)
         :
         endpoint(
-            USE_REGISTER_PEX_NAME(this, "BoundEndpoint"),
+            PEX_THIS("BoundEndpoint"),
             UpstreamControl(model)),
         observer_(observer),
         memberFunction_(memberFunction),
@@ -572,7 +572,7 @@ public:
     BoundEndpoint(Observer *observer, const BoundEndpoint &other)
         :
         endpoint(
-            USE_REGISTER_PEX_NAME(this, "BoundEndpoint"),
+            PEX_THIS("BoundEndpoint"),
             other.endpoint),
         observer_(observer),
         memberFunction_(other.memberFunction_),
@@ -594,7 +594,7 @@ public:
     BoundEndpoint(BoundEndpoint &&other)
         :
         endpoint(
-            USE_REGISTER_PEX_NAME(this, "BoundEndpoint"),
+            PEX_THIS("BoundEndpoint"),
             other.endpoint),
         observer_(other.observer_),
         memberFunction_(other.memberFunction_),

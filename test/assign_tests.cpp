@@ -23,8 +23,8 @@ public:
         control_(this, control)
     {
         PEX_LOG("Connect");
-        REGISTER_PEX_NAME(this, "Observer");
-        REGISTER_PEX_PARENT(control_);
+        PEX_NAME("Observer");
+        PEX_MEMBER(control_);
         this->control_.Connect(&Observer::Observe_);
     }
 
@@ -110,7 +110,7 @@ TEST_CASE("Assign round trip.", "[pex]")
     AssignPlain test{{42, 3.14159, "frob"}};
 
     AssignTestModel model{};
-    REGISTER_IDENTITY(model);
+    PEX_ROOT(model);
 
     model.SetTest(test);
 
@@ -124,7 +124,7 @@ TEST_CASE("Assign is observed.", "[pex]")
     AssignPlain test{{42, 3.14159, "frob"}};
 
     AssignTestModel model{};
-    REGISTER_IDENTITY(model);
+    PEX_ROOT(model);
 
     auto observer = Observer(AssignTestControl(model).foo);
 
@@ -140,7 +140,7 @@ TEST_CASE("Assign to control reaches model.", "[pex]")
     AssignPlain test{{42, 3.14159, "frob"}};
 
     AssignTestModel model{};
-    REGISTER_IDENTITY(model);
+    PEX_ROOT(model);
 
     AssignTestControl control(model);
 

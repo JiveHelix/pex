@@ -74,7 +74,7 @@ using ListOptionalIndex = Value<::pex::model::ListOptionalIndex>;
 } // end namespace control
 
 
-#ifdef ENABLE_REGISTER_NAME
+#ifdef ENABLE_PEX_NAMES
 
 
 template<typename Parent, typename Items>
@@ -84,7 +84,7 @@ void RegisterItemNames(Parent *parent, Items &items)
 
     for (auto &item: items)
     {
-        REGISTER_PEX_NAME_WITH_PARENT(
+        pex::PexName(
             item.get(),
             parent,
             fmt::format("item {}", i++));
@@ -99,7 +99,7 @@ void RegisterItemrefNames(Parent *parent, Items &items)
 
     for (auto &item: items)
     {
-        REGISTER_PEX_NAME_WITH_PARENT(
+        pex::PexName(
             &item,
             parent,
             fmt::format("item {}", i++));
@@ -187,32 +187,31 @@ struct List
             items_(),
 
             countTerminus_(
-                USE_REGISTER_PEX_NAME(
-                    this,
+                PEX_THIS(
                     fmt::format(
                         "pex::List<{}>::Model",
                         jive::GetTypeName<Member>())),
 
-                *USE_REGISTER_PEX_PARENT(count),
+                PEX_MEMBER_PASS(count),
                 &Model::OnCount_),
 
             selectedTerminus_(
                 this,
-                *USE_REGISTER_PEX_PARENT(selected),
+                PEX_MEMBER_PASS(selected),
                 &Model::OnSelected_),
 
-            selectionReceived_(false)
+            selectionReceived_(false),
+            internalMemberAdded_()
         {
-            REGISTER_PEX_NAME(
-                this,
+            PEX_NAME(
                 fmt::format(
                     "pex::List<{}>::Model",
                     jive::GetTypeName<Member>()));
 
-            REGISTER_PEX_PARENT(memberAdded);
-            REGISTER_PEX_PARENT(memberWillRemove);
-            REGISTER_PEX_PARENT(memberRemoved);
-            REGISTER_PEX_PARENT(isNotifying);
+            PEX_MEMBER(memberAdded);
+            PEX_MEMBER(memberWillRemove);
+            PEX_MEMBER(memberRemoved);
+            PEX_MEMBER(isNotifying);
 
             size_t toInitialize = initialCount;
 
@@ -222,6 +221,7 @@ struct List
             }
 
             REGISTER_ITEM_NAMES(this, this->items_);
+            PEX_MEMBER(internalMemberAdded_);
         }
 
         Model(const Type &items)
@@ -360,15 +360,16 @@ struct List
 
                 this->items_.push_back(std::make_unique<ListItem>());
 
-                REGISTER_PEX_NAME_WITH_PARENT(
+                PEX_MEMBER_ADDRESS(
                     this->items_.back().get(),
-                    this,
                     fmt::format("item {}", newCount - 1));
 
                 // Add the new item at the back of the list.
                 this->items_.back()->Set(item);
 
                 this->selectionReceived_ = false;
+
+                this->internalMemberAdded_.Set(newIndex);
                 this->memberAdded.Set(newIndex);
             }
 
@@ -414,13 +415,13 @@ struct List
                     this->items_.begin() + newIndex,
                     std::make_unique<ListItem>());
 
-                REGISTER_PEX_NAME_WITH_PARENT(
+                PEX_MEMBER_ADDRESS(
                     this->items_[newIndex].get(),
-                    this,
                     fmt::format("item {}", newIndex));
 
                 this->items_.at(newIndex)->Set(item);
                 this->selectionReceived_ = false;
+                this->internalMemberAdded_.Set(newIndex);
                 this->memberAdded.Set(newIndex);
             }
 
@@ -502,11 +503,11 @@ struct List
                     this->items_.push_back(std::make_unique<ListItem>());
                     size_t newIndex = this->items_.size() - 1;
 
-                    REGISTER_PEX_NAME_WITH_PARENT(
+                    PEX_MEMBER_ADDRESS(
                         this->items_.back().get(),
-                        this,
                         fmt::format("item {}", newIndex));
 
+                    this->internalMemberAdded_.Set(newIndex);
                     this->memberAdded.Set(newIndex);
                 }
             }
@@ -594,9 +595,8 @@ struct List
 
                         auto newIndex = this->items_.size() - 1;
 
-                        REGISTER_PEX_NAME_WITH_PARENT(
+                        PEX_MEMBER_ADDRESS(
                             this->items_.back().get(),
-                            this,
                             fmt::format("item {}", newIndex));
 
                         detail::AccessReference(*this->items_[newIndex])
@@ -604,6 +604,7 @@ struct List
 
                         // Don't call member added until the new value has been
                         // set.
+                        this->internalMemberAdded_.Set(newIndex);
                         this->memberAdded.Set(newIndex);
                     }
                 }
@@ -682,11 +683,11 @@ struct List
 
                     auto newIndex = this->items_.size() - 1;
 
-                    REGISTER_PEX_NAME_WITH_PARENT(
+                    PEX_MEMBER_ADDRESS(
                         this->items_.back().get(),
-                        this,
                         fmt::format("item {}", newIndex));
 
+                    this->internalMemberAdded_.Set(newIndex);
                     this->memberAdded.Set(newIndex);
                 }
             }
@@ -716,6 +717,8 @@ struct List
         ::pex::Terminus<Model, Count> countTerminus_;
         ::pex::Terminus<Model, Selected> selectedTerminus_;
         bool selectionReceived_;
+
+        MemberAdded internalMemberAdded_;
     };
 
 
@@ -783,8 +786,7 @@ struct List
             memberAddedTerminus_(),
             items_()
         {
-            REGISTER_PEX_NAME(
-                this,
+            PEX_NAME(
                 fmt::format(
                     "pex::List<{}>::Control",
                     jive::GetTypeName<Member>()));
@@ -803,8 +805,7 @@ struct List
 
             memberWillRemoveTerminus_(
 
-                USE_REGISTER_PEX_NAME(
-                    this,
+                PEX_THIS(
                     fmt::format(
                         "pex::List<{}>::Control",
                         jive::GetTypeName<Member>())),
@@ -814,7 +815,7 @@ struct List
 
             memberAddedTerminus_(
                 this,
-                this->upstream_->memberAdded,
+                this->upstream_->internalMemberAdded_,
                 &Control::OnMemberAdded_),
 
             items_()
@@ -840,8 +841,7 @@ struct List
 
             memberWillRemoveTerminus_(
 
-                USE_REGISTER_PEX_NAME(
-                    this,
+                PEX_THIS(
                     fmt::format(
                         "pex::List<{}>::Control",
                         jive::GetTypeName<Member>())),
@@ -851,17 +851,15 @@ struct List
 
             memberAddedTerminus_(
                 this,
-                this->upstream_->memberAdded,
+                this->upstream_->internalMemberAdded_,
                 &Control::OnMemberAdded_),
 
             items_(other.items_)
         {
             assert(other.upstream_ != nullptr);
-
             assert(this->memberAddedTerminus_.HasModel());
 
-            REGISTER_PEX_NAME(
-                this,
+            PEX_NAME(
                 fmt::format(
                     "pex::List<{}>::Control",
                     jive::GetTypeName<Member>()));
@@ -1087,16 +1085,6 @@ struct List
             this->upstream_->SetWithoutNotify_(values);
         }
 
-        void OnMemberWillRemove_(const std::optional<size_t> &index)
-        {
-            if (!index)
-            {
-                return;
-            }
-
-            jive::SafeErase(this->items_, *index);
-        }
-
         void OnMemberAdded_(const std::optional<size_t> &index)
         {
             if (!index)
@@ -1109,8 +1097,17 @@ struct List
                 (*this->upstream_)[*index]);
         }
 
-    // TODO: Make private
-    public:
+        void OnMemberWillRemove_(const std::optional<size_t> &index)
+        {
+            if (!index)
+            {
+                return;
+            }
+
+            jive::SafeErase(this->items_, *index);
+        }
+
+    private:
         Upstream *upstream_;
         MemberWillRemoveTerminus memberWillRemoveTerminus_;
         MemberAddedTerminus memberAddedTerminus_;

@@ -63,11 +63,8 @@ public:
         observer_(nullptr),
         valueConnection_()
     {
-        REGISTER_PEX_NAME(
-            this,
-            "GroupConnect for NULL");
-
-        REGISTER_PEX_PARENT(aggregate_);
+        PEX_NAME("GroupConnect for NULL");
+        PEX_MEMBER(aggregate_);
     }
 
     GroupConnect(
@@ -79,11 +76,10 @@ public:
         observer_(observer),
         valueConnection_()
     {
-        REGISTER_PEX_NAME(
-            this,
+        PEX_NAME(
             fmt::format("GroupConnect for {}", pex::LookupPexName(observer)));
 
-        REGISTER_PEX_PARENT(aggregate_);
+        PEX_MEMBER(aggregate_);
     }
 
     GroupConnect(
@@ -96,11 +92,10 @@ public:
         observer_(observer),
         valueConnection_(std::in_place_t{}, observer, callable)
     {
-        REGISTER_PEX_NAME(
-            this,
+        PEX_NAME(
             fmt::format("GroupConnect for {}", pex::LookupPexName(observer)));
 
-        REGISTER_PEX_PARENT(aggregate_);
+        PEX_MEMBER(aggregate_);
 
         this->aggregate_.Connect(this, &GroupConnect::OnAggregate_);
     }
@@ -131,11 +126,10 @@ public:
         observer_(observer),
         valueConnection_()
     {
-        REGISTER_PEX_NAME(
-            this,
+        PEX_NAME(
             fmt::format("GroupConnect for {}", pex::LookupPexName(observer)));
 
-        REGISTER_PEX_PARENT(aggregate_);
+        PEX_MEMBER(aggregate_);
 
         if (other.valueConnection_)
         {
@@ -159,13 +153,12 @@ public:
         observer_(other.observer_),
         valueConnection_()
     {
-        REGISTER_PEX_NAME(
-            this,
+        PEX_NAME(
             fmt::format(
                 "GroupConnect for {}",
                 pex::LookupPexName(this->observer_)));
 
-        REGISTER_PEX_PARENT(aggregate_);
+        PEX_MEMBER(aggregate_);
 
         if (other.valueConnection_)
         {
@@ -184,13 +177,12 @@ public:
         observer_(std::move(other.observer_)),
         valueConnection_()
     {
-        REGISTER_PEX_NAME(
-            this,
+        PEX_NAME(
             fmt::format(
                 "GroupConnect for {}",
                 pex::LookupPexName(this->observer_)));
 
-        REGISTER_PEX_PARENT(aggregate_);
+        PEX_MEMBER(aggregate_);
 
         if (other.valueConnection_)
         {
@@ -211,8 +203,7 @@ public:
 
         this->observer_ = observer;
 
-        REGISTER_PEX_NAME(
-            this,
+        PEX_NAME(
             fmt::format(
                 "GroupConnect for {}",
                 pex::LookupPexName(this->observer_)));

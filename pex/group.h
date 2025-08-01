@@ -288,11 +288,9 @@ struct Group
         {
             this->SetInitial(Plain{});
 
-            REGISTER_PEX_NAME(
-                this,
-                fmt::format("{} Model", jive::GetTypeName<Plain>()));
+            PEX_NAME(fmt::format("{} Model", jive::GetTypeName<Plain>()));
 
-            REGISTER_PEX_NAMES(this);
+            PEX_NAMES(this);
         }
 
         Model_(const Plain &plain)
@@ -304,11 +302,8 @@ struct Group
         {
             this->SetInitial(plain);
 
-            REGISTER_PEX_NAME(
-                this,
-                fmt::format("{} Model", jive::GetTypeName<Plain>()));
-
-            REGISTER_PEX_NAMES(this);
+            PEX_NAME(fmt::format("{} Model", jive::GetTypeName<Plain>()));
+            PEX_NAMES(this);
         }
 
         Model_(const Model_ &) = delete;
@@ -372,11 +367,8 @@ struct Group
             ControlMembers{},
             AccessorsBase{}
         {
-            REGISTER_PEX_NAME(
-                this,
-                fmt::format("{} Control", jive::GetTypeName<Plain>()));
-
-            REGISTER_PEX_NAMES(this);
+            PEX_NAME(fmt::format("{} Control", jive::GetTypeName<Plain>()));
+            PEX_NAMES(this);
         }
 
         Control_(Model &model)
@@ -387,11 +379,8 @@ struct Group
         {
             fields::AssignConvert<Fields>(*this, model);
 
-            REGISTER_PEX_NAME(
-                this,
-                fmt::format("{} Control", jive::GetTypeName<Plain>()));
-
-            REGISTER_PEX_NAMES(this);
+            PEX_NAME(fmt::format("{} Control", jive::GetTypeName<Plain>()));
+            PEX_NAMES(this);
         }
 
         Control_(const Control_ &other)
@@ -402,11 +391,8 @@ struct Group
         {
             fields::Assign<Fields>(*this, other);
 
-            REGISTER_PEX_NAME(
-                this,
-                fmt::format("{} Control", jive::GetTypeName<Plain>()));
-
-            REGISTER_PEX_NAMES(this);
+            PEX_NAME(fmt::format("{} Control", jive::GetTypeName<Plain>()));
+            PEX_NAMES(this);
         }
 
         Control_ & operator=(const Control_ &other)
@@ -425,11 +411,8 @@ struct Group
         {
             fields::MoveAssign<Fields>(*this, std::move(other));
 
-            REGISTER_PEX_NAME(
-                this,
-                fmt::format("{} Control", jive::GetTypeName<Plain>()));
-
-            REGISTER_PEX_NAMES(this);
+            PEX_NAME(fmt::format("{} Control", jive::GetTypeName<Plain>()));
+            PEX_NAMES(this);
         }
 
         Control_ & operator=(Control_ &&other)

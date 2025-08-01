@@ -154,8 +154,8 @@ public:
             SelectFilter(this->choices_.Get())),
 
         terminus_(
-            USE_REGISTER_PEX_NAME(this, "SelectModel"),
-            *USE_REGISTER_PEX_PARENT(selection_),
+            PEX_THIS("SelectModel"),
+            PEX_MEMBER_PASS(selection_),
             &Select::OnSelection_)
     {
         this->Initialize_();
@@ -167,8 +167,8 @@ public:
         choices_(choices),
         selection_(0, SelectFilter(this->choices_.Get())),
         terminus_(
-            USE_REGISTER_PEX_NAME(this, "SelectModel"),
-            *USE_REGISTER_PEX_PARENT(selection_),
+            PEX_THIS("SelectModel"),
+            PEX_MEMBER_PASS(selection_),
             &Select::OnSelection_)
     {
         this->Initialize_();
@@ -176,10 +176,10 @@ public:
 
     void Initialize_()
     {
-        REGISTER_PEX_NAME(this, "SelectModel");
-        REGISTER_PEX_PARENT(value_);
-        REGISTER_PEX_PARENT(choices_);
-        REGISTER_PEX_PARENT(selection_);
+        PEX_NAME("SelectModel");
+        PEX_MEMBER(value_);
+        PEX_MEMBER(choices_);
+        PEX_MEMBER(selection_);
     }
 
     // Unlike model::Value and control::Value, which Set/Get the same type,

@@ -76,7 +76,7 @@ public:
         }
 #endif
 
-#ifdef ENABLE_REGISTER_NAME
+#ifdef ENABLE_PEX_NAMES
         if (!HasPexName(observer))
         {
             throw std::runtime_error("All observers must be labeled");
@@ -127,7 +127,7 @@ public:
             assert(false);
         }
 
-        UNREGISTER_PEX_NAME(this);
+        PEX_CLEAR_NAME(this);
     }
 
     /** Remove all registered callbacks for the observer. **/

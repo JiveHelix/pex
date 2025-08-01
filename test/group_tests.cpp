@@ -212,9 +212,9 @@ public:
         :
         center(),
         radius(),
-        endpoints_(USE_REGISTER_PEX_NAME(this, "EndpointObserver"), control)
+        endpoints_(PEX_THIS("EndpointObserver"), control)
     {
-        REGISTER_PEX_PARENT(center);
+        PEX_MEMBER(center);
         this->endpoints_.center.Connect(&EndpointObserver::OnCenter_);
         this->endpoints_.radius.Connect(&EndpointObserver::OnRadius_);
     }
@@ -248,19 +248,19 @@ public:
 
     RadiusObserver()
         :
-        endpoint(USE_REGISTER_PEX_NAME(this, "RadiusObserver"))
+        endpoint(PEX_THIS("RadiusObserver"))
     {
-        REGISTER_PEX_PARENT(endpoint);
+        PEX_MEMBER(endpoint);
     }
 
     RadiusObserver(const Control &control)
         :
         endpoint(
-            USE_REGISTER_PEX_NAME(this, "RadiusObserver"),
+            PEX_THIS("RadiusObserver"),
             control.radius,
             &RadiusObserver::OnRadius_)
     {
-        REGISTER_PEX_PARENT(endpoint);
+        PEX_MEMBER(endpoint);
     }
 
     void SetControl(const Control &control)

@@ -119,15 +119,14 @@ Poly<Fields, Templates>::GroupTemplates_
     aggregate_(),
     baseNotifier_()
 {
-    REGISTER_PEX_NAME(
-        this,
+    PEX_NAME(
         fmt::format(
             "Poly<Fields, {}>::Control<{}>",
             jive::GetTypeName<Templates>(),
             jive::GetTypeName<GroupBase>()));
 
-    REGISTER_PEX_PARENT(aggregate_);
-    REGISTER_PEX_PARENT(baseNotifier_);
+    PEX_MEMBER(aggregate_);
+    PEX_MEMBER(baseNotifier_);
 }
 
 
@@ -145,15 +144,14 @@ Poly<Fields, Templates>::GroupTemplates_
     aggregate_(),
     baseNotifier_()
 {
-    REGISTER_PEX_NAME(
-        this,
+    PEX_NAME(
         fmt::format(
             "Poly<Fields, {}>::Control<{}>",
             jive::GetTypeName<Templates>(),
             jive::GetTypeName<GroupBase>()));
 
-    REGISTER_PEX_PARENT(aggregate_);
-    REGISTER_PEX_PARENT(baseNotifier_);
+    PEX_MEMBER(aggregate_);
+    PEX_MEMBER(baseNotifier_);
 
     using DerivedControl = typename Poly<Fields, Templates>::Control;
 

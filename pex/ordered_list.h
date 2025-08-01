@@ -193,27 +193,6 @@ std::optional<OrderControl> GetOrderControl(
 }
 
 
-template<typename Map>
-static void RemoveKeys(size_t firstToClear, Map &keyValuePairs)
-{
-    std::vector<size_t> keys;
-    keys.reserve(keyValuePairs.size());
-
-    for (auto &it: keyValuePairs)
-    {
-        if (it.first >= firstToClear)
-        {
-            keys.push_back(it.first);
-        }
-    }
-
-    for (auto &key: keys)
-    {
-        keyValuePairs.erase(key);
-    }
-}
-
-
 template<typename ListMaker>
 struct OrderedListCustom
 {
@@ -256,7 +235,7 @@ struct OrderedListCustom
             Base(),
 
             memberAddedEndpoint_(
-                USE_REGISTER_PEX_NAME(this, "OrderedList::Model"),
+                PEX_THIS("OrderedList::Model"),
                 this->list.memberAdded,
                 &Model::OnListMemberAdded_),
 
@@ -279,12 +258,12 @@ struct OrderedListCustom
             moveUpEndpoints_(),
             moveDownEndpoints_(),
             moveToBottomEndpoints_(),
-            reorderEndpoint_(
+            indicesEndpoint_(
                 this,
                 this->indices,
-                &Model::OnReorder_)
+                &Model::OnIndices_)
         {
-            REGISTER_PEX_PARENT(memberAddedEndpoint_);
+            PEX_MEMBER(memberAddedEndpoint_);
 
             this->RestoreConnections_(0);
 
@@ -551,12 +530,53 @@ struct OrderedListCustom
         }
 
     private:
-        void OnReorder_(const std::vector<size_t> &)
+        void OnIndices_(const std::vector<size_t> &)
         {
             this->reorder.Trigger();
         }
 
-        void ClearConnections_(size_t firstToClear)
+        void MakeOrderConnections_(
+            OrderControl &order,
+            size_t storageIndex)
+        {
+            auto result = this->moveToTopEndpoints_.try_emplace(
+                storageIndex,
+                this,
+                order.moveToTop,
+                &Model::MoveToTop,
+                storageIndex);
+
+            assert(result.second);
+
+            result = this->moveUpEndpoints_.try_emplace(
+                storageIndex,
+                this,
+                order.moveUp,
+                &Model::MoveUp,
+                storageIndex);
+
+            assert(result.second);
+
+            result = this->moveDownEndpoints_.try_emplace(
+                storageIndex,
+                this,
+                order.moveDown,
+                &Model::MoveDown,
+                storageIndex);
+
+            assert(result.second);
+
+            result = this->moveToBottomEndpoints_.try_emplace(
+                storageIndex,
+                this,
+                order.moveToBottom,
+                &Model::MoveToBottom,
+                storageIndex);
+
+            assert(result.second);
+        }
+
+        void ClearInvalidatedConnections_(size_t firstToClear)
         {
             auto keys =
                 GetInvalidatedKeys(
@@ -615,7 +635,37 @@ struct OrderedListCustom
             assert(order);
 
             this->MakeOrderConnections_(*order, index);
+        }
 
+        void RestoreConnection_(size_t index)
+        {
+            auto order =
+                GetOrderControl<ListMaker>(this->list, index);
+
+            if (order)
+            {
+                this->MakeOrderConnections_(*order, index);
+            }
+            else
+            {
+                if constexpr (ListHasVirtualGetOrder<ListMaker>)
+                {
+                    auto result = this->itemCreatedEndpoints_.try_emplace(
+                        index,
+                        this,
+                        this->GetUnordered(index).GetBaseCreated(),
+                        &Model::OnItemCreated_,
+                        index);
+
+                    assert(result.second);
+                }
+                else
+                {
+                    // order must exist already because there is no
+                    // separate derived creation step.
+                    assert(order);
+                }
+            }
         }
 
         void RestoreConnections_(size_t firstToRestore)
@@ -634,33 +684,7 @@ struct OrderedListCustom
                 storageIndex < listCount;
                 ++storageIndex)
             {
-                auto order =
-                    GetOrderControl<ListMaker>(this->list, storageIndex);
-
-                if (order)
-                {
-                    this->MakeOrderConnections_(*order, storageIndex);
-                }
-                else
-                {
-                    if constexpr (ListHasVirtualGetOrder<ListMaker>)
-                    {
-                        auto result = this->itemCreatedEndpoints_.try_emplace(
-                            storageIndex,
-                            this,
-                            this->GetUnordered(storageIndex).GetBaseCreated(),
-                            &Model::OnItemCreated_,
-                            storageIndex);
-
-                        assert(result.second);
-                    }
-                    else
-                    {
-                        // order must exist already because there is no
-                        // separate derived creation step.
-                        assert(order);
-                    }
-                }
+                this->RestoreConnection_(storageIndex);
             }
         }
 
@@ -705,49 +729,8 @@ struct OrderedListCustom
 
             detail::AccessReference(this->indices).SetWithoutNotify(previous);
             assert(this->indices.size() == previous.size());
-            this->ClearConnections_(added);
+            this->ClearInvalidatedConnections_(added);
             this->RestoreConnections_(added);
-        }
-
-        void MakeOrderConnections_(
-            OrderControl &order,
-            size_t storageIndex)
-        {
-            auto result = this->moveToTopEndpoints_.try_emplace(
-                storageIndex,
-                this,
-                order.moveToTop,
-                &Model::MoveToTop,
-                storageIndex);
-
-            assert(result.second);
-
-            result = this->moveUpEndpoints_.try_emplace(
-                storageIndex,
-                this,
-                order.moveUp,
-                &Model::MoveUp,
-                storageIndex);
-
-            assert(result.second);
-
-            result = this->moveDownEndpoints_.try_emplace(
-                storageIndex,
-                this,
-                order.moveDown,
-                &Model::MoveDown,
-                storageIndex);
-
-            assert(result.second);
-
-            result = this->moveToBottomEndpoints_.try_emplace(
-                storageIndex,
-                this,
-                order.moveToBottom,
-                &Model::MoveToBottom,
-                storageIndex);
-
-            assert(result.second);
         }
 
         void OnListMemberWillRemove_(const std::optional<size_t> &removedIndex)
@@ -762,7 +745,7 @@ struct OrderedListCustom
                 return;
             }
 
-            this->ClearConnections_(*removedIndex);
+            this->ClearInvalidatedConnections_(*removedIndex);
         }
 
         void OnListMemberRemoved_(const std::optional<size_t> &removedIndex)
@@ -798,6 +781,7 @@ struct OrderedListCustom
                 });
 
             detail::AccessReference(this->indices).SetWithoutNotify(previous);
+            this->RestoreConnections_(removed);
         }
 
     private:
@@ -822,12 +806,9 @@ struct OrderedListCustom
         std::map<size_t, MoveOrderEndpoint> moveToBottomEndpoints_;
         std::map<size_t, ItemCreatedEndpoint> itemCreatedEndpoints_;
 
-        // static_assert(
-            // pex::IsControl<pex::GetControlType<decltype(Model::indices)>>);
+        using IndicesEndpoint = Endpoint<Model, decltype(Model::indices)>;
 
-        using ReorderEndpoint = Endpoint<Model, decltype(Model::indices)>;
-
-        ReorderEndpoint reorderEndpoint_;
+        IndicesEndpoint indicesEndpoint_;
     };
 
 
@@ -1213,7 +1194,7 @@ struct OrderedListCustom
             memberWillRemove(),
             memberRemoved()
         {
-            REGISTER_PEX_NAME(this, "OrderedList::Control");
+            PEX_NAME("OrderedList::Control");
         }
 
         Control(typename Base::Upstream &upstream)
@@ -1226,7 +1207,7 @@ struct OrderedListCustom
             memberWillRemove(this->upstream_->list.memberWillRemove),
             memberRemoved(this->upstream_->list.memberRemoved)
         {
-            REGISTER_PEX_NAME(this, "OrderedList::Control");
+            PEX_NAME("OrderedList::Control");
 
             assert(this->list.count.Get() == this->indices.size());
             assert(this->list.Get().size() == this->list.count.Get());
@@ -1242,7 +1223,7 @@ struct OrderedListCustom
             memberWillRemove(this->upstream_->list.memberWillRemove),
             memberRemoved(this->upstream_->list.memberRemoved)
         {
-            REGISTER_PEX_NAME(this, "OrderedList::Control");
+            PEX_NAME("OrderedList::Control");
         }
 
         Control & operator=(const Control &other)

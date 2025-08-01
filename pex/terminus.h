@@ -134,9 +134,9 @@ public:
     {
         PEX_LOG("Terminus default: ", this);
 
-        REGISTER_PEX_NAME(this, "Terminus_");
-        REGISTER_PEX_PARENT(notifier_);
-        REGISTER_PEX_PARENT(upstreamControl_);
+        PEX_NAME("Terminus_");
+        PEX_MEMBER(notifier_);
+        PEX_MEMBER(upstreamControl_);
     }
 
     Terminus_(Observer *observer, const ControlType &control)
@@ -145,9 +145,9 @@ public:
         notifier_{},
         upstreamControl_(control)
     {
-        REGISTER_PEX_NAME(this, "Terminus_");
-        REGISTER_PEX_PARENT(notifier_);
-        REGISTER_PEX_PARENT(upstreamControl_);
+        PEX_NAME("Terminus_");
+        PEX_MEMBER(notifier_);
+        PEX_MEMBER(upstreamControl_);
 
         this->upstreamControl_.ClearConnections();
         PEX_LOG("Terminus copy(control) ctor: ", this);
@@ -159,9 +159,9 @@ public:
         notifier_{},
         upstreamControl_(control)
     {
-        REGISTER_PEX_NAME(this, "Terminus_");
-        REGISTER_PEX_PARENT(notifier_);
-        REGISTER_PEX_PARENT(upstreamControl_);
+        PEX_NAME("Terminus_");
+        PEX_MEMBER(notifier_);
+        PEX_MEMBER(upstreamControl_);
 
         this->upstreamControl_.ClearConnections();
         this->Connect(callable);
@@ -173,9 +173,9 @@ public:
         notifier_{},
         upstreamControl_(std::move(control))
     {
-        REGISTER_PEX_NAME(this, "Terminus_");
-        REGISTER_PEX_PARENT(notifier_);
-        REGISTER_PEX_PARENT(upstreamControl_);
+        PEX_NAME("Terminus_");
+        PEX_MEMBER(notifier_);
+        PEX_MEMBER(upstreamControl_);
 
         this->upstreamControl_.ClearConnections();
     }
@@ -186,9 +186,9 @@ public:
         notifier_{},
         upstreamControl_(std::move(control))
     {
-        REGISTER_PEX_NAME(this, "Terminus_");
-        REGISTER_PEX_PARENT(notifier_);
-        REGISTER_PEX_PARENT(upstreamControl_);
+        PEX_NAME("Terminus_");
+        PEX_MEMBER(notifier_);
+        PEX_MEMBER(upstreamControl_);
 
         this->upstreamControl_.ClearConnections();
         this->Connect(callable);
@@ -202,9 +202,9 @@ public:
         notifier_{},
         upstreamControl_(upstream)
     {
-        REGISTER_PEX_NAME(this, "Terminus_");
-        REGISTER_PEX_PARENT(notifier_);
-        REGISTER_PEX_PARENT(upstreamControl_);
+        PEX_NAME("Terminus_");
+        PEX_MEMBER(notifier_);
+        PEX_MEMBER(upstreamControl_);
 
         this->upstreamControl_.ClearConnections();
         PEX_LOG("Terminus upstream ctor: ", this);
@@ -219,9 +219,9 @@ public:
         notifier_{},
         upstreamControl_(upstream)
     {
-        REGISTER_PEX_NAME(this, "Terminus_");
-        REGISTER_PEX_PARENT(notifier_);
-        REGISTER_PEX_PARENT(upstreamControl_);
+        PEX_NAME("Terminus_");
+        PEX_MEMBER(notifier_);
+        PEX_MEMBER(upstreamControl_);
 
         this->upstreamControl_.ClearConnections();
         this->Connect(callable);
@@ -266,9 +266,9 @@ public:
         notifier_{},
         upstreamControl_(other.upstreamControl_)
     {
-        REGISTER_PEX_NAME(this, "Terminus_");
-        REGISTER_PEX_PARENT(notifier_);
-        REGISTER_PEX_PARENT(upstreamControl_);
+        PEX_NAME("Terminus_");
+        PEX_MEMBER(notifier_);
+        PEX_MEMBER(upstreamControl_);
 
         PEX_LOG(
             "Terminus copy ctor: ",

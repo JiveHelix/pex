@@ -102,7 +102,7 @@ TEST_CASE("Setting Aggregate does not repeat notifications", "[aggregate]")
     using Model = typename aggregate::StuffGroup::Model;
     using Control = typename aggregate::StuffGroup::Control;
     Model model;
-    REGISTER_IDENTITY(model);
+    PEX_ROOT(model);
     Control control(model);
 
     TestObserver observer(control);
@@ -132,7 +132,7 @@ TEST_CASE("Deferred Aggregate does not repeat notifications", "[aggregate]")
     using Model = typename aggregate::StuffGroup::Model;
     using Control = typename aggregate::StuffGroup::Control;
     Model model;
-    REGISTER_IDENTITY(model);
+    PEX_ROOT(model);
     Control control(model);
     TestObserver observer(control);
 
@@ -168,7 +168,7 @@ TEST_CASE("Deferred member struct does not repeat notifications", "[aggregate]")
     using Model = typename aggregate::StuffGroup::Model;
     using Control = typename aggregate::StuffGroup::Control;
     Model model;
-    REGISTER_IDENTITY(model);
+    PEX_ROOT(model);
     Control control(model);
     TestObserver observer(control);
 

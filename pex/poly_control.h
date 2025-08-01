@@ -41,12 +41,10 @@ public:
         baseCreated(),
         baseCreatedTerminus_()
     {
-        REGISTER_PEX_NAME(
-            this,
-            fmt::format("PolyControl<{}>", jive::GetTypeName<Supers>()));
+        PEX_NAME(fmt::format("PolyControl<{}>", jive::GetTypeName<Supers>()));
 
-        REGISTER_PEX_PARENT(baseCreated);
-        REGISTER_PEX_PARENT(baseCreatedTerminus_);
+        PEX_MEMBER(baseCreated);
+        PEX_MEMBER(baseCreatedTerminus_);
     }
 
     Control(Upstream &upstream)
@@ -56,14 +54,13 @@ public:
         baseCreated(this->upstream_->baseCreated_),
 
         baseCreatedTerminus_(
-            USE_REGISTER_PEX_NAME(
-                this,
+            PEX_THIS(
                 fmt::format("PolyControl<{}>", jive::GetTypeName<Supers>())),
             this->upstream_->baseCreated_,
             &Control::OnBaseCreated_)
     {
-        REGISTER_PEX_PARENT(baseCreated);
-        REGISTER_PEX_PARENT(baseCreatedTerminus_);
+        PEX_MEMBER(baseCreated);
+        PEX_MEMBER(baseCreatedTerminus_);
 
         auto modelBase = upstream.GetVirtual();
 
@@ -86,14 +83,13 @@ public:
         baseCreated(this->upstream_->baseCreated_),
 
         baseCreatedTerminus_(
-            USE_REGISTER_PEX_NAME(
-                this,
+            PEX_THIS(
                 fmt::format("PolyControl<{}>", jive::GetTypeName<Supers>())),
             this->upstream_->baseCreated_,
             &Control::OnBaseCreated_)
     {
-        REGISTER_PEX_PARENT(baseCreated);
-        REGISTER_PEX_PARENT(baseCreatedTerminus_);
+        PEX_MEMBER(baseCreated);
+        PEX_MEMBER(baseCreatedTerminus_);
 
         PEX_LOG(
             " Copy ",
@@ -108,14 +104,13 @@ public:
         base_(std::move(other.base_)),
         baseCreated(this->upstream_->baseCreated_),
         baseCreatedTerminus_(
-            USE_REGISTER_PEX_NAME(
-                this,
+            PEX_THIS(
                 fmt::format("PolyControl<{}>", jive::GetTypeName<Supers>())),
             this->upstream_->baseCreated_,
             &Control::OnBaseCreated_)
     {
-        REGISTER_PEX_PARENT(baseCreated);
-        REGISTER_PEX_PARENT(baseCreatedTerminus_);
+        PEX_MEMBER(baseCreated);
+        PEX_MEMBER(baseCreatedTerminus_);
 
         PEX_LOG(
             " Copy ",
@@ -130,14 +125,13 @@ public:
         base_(),
         baseCreated(this->upstream_->baseCreated_),
         baseCreatedTerminus_(
-            USE_REGISTER_PEX_NAME(
-                this,
+            PEX_THIS(
                 fmt::format("PolyControl<{}>", jive::GetTypeName<Supers>())),
             this->upstream_->baseCreated_,
             &Control::OnBaseCreated_)
     {
-        REGISTER_PEX_PARENT(baseCreated);
-        REGISTER_PEX_PARENT(baseCreatedTerminus_);
+        PEX_MEMBER(baseCreated);
+        PEX_MEMBER(baseCreatedTerminus_);
 
         auto modelBase = upstream.GetVirtual();
 
@@ -160,14 +154,13 @@ public:
         base_(other.base_),
         baseCreated(this->upstream_->baseCreated_),
         baseCreatedTerminus_(
-            USE_REGISTER_PEX_NAME(
-                this,
+            PEX_THIS(
                 fmt::format("PolyControl<{}>", jive::GetTypeName<Supers>())),
             this->upstream_->baseCreated_,
             &Control::OnBaseCreated_)
     {
-        REGISTER_PEX_PARENT(baseCreated);
-        REGISTER_PEX_PARENT(baseCreatedTerminus_);
+        PEX_MEMBER(baseCreated);
+        PEX_MEMBER(baseCreatedTerminus_);
 
         if (!this->base_)
         {
@@ -251,7 +244,7 @@ public:
 
     operator bool () const
     {
-        return (this->base_);
+        return this->base_.get() != NULL;
     }
 
     void Connect(void *observer, Callable callable)

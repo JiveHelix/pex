@@ -119,6 +119,7 @@ public:
     using GroupTemplate = Template_<T>;
 
 public:
+#ifdef ENABLE_PEX_NAMES
     void RegisterPexNames(void *groupAddress)
     {
         auto derived = static_cast<Derived *>(this);
@@ -126,7 +127,7 @@ public:
         // Iterate over members, and register names and addresses.
         auto doRegisterNames = [derived, groupAddress] (auto thisField)
         {
-            RegisterPexName(
+            PexName(
                 &(derived->*(thisField.member)),
                 groupAddress,
                 thisField.name);
@@ -136,6 +137,7 @@ public:
             Fields<Derived>::fields,
             doRegisterNames);
     }
+#endif
 
     void UnregisterPexNames()
     {
@@ -280,13 +282,13 @@ protected:
 };
 
 
-#ifdef ENABLE_REGISTER_NAME
+#ifdef ENABLE_PEX_NAMES
 
-#define REGISTER_PEX_NAMES(groupAddress) this->RegisterPexNames(groupAddress)
+#define PEX_NAMES(groupAddress) this->RegisterPexNames(groupAddress)
 
 #else
 
-#define REGISTER_PEX_NAMES(groupAddress)
+#define PEX_NAMES(groupAddress)
 
 #endif
 

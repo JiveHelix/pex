@@ -2,7 +2,7 @@
 
 // #define ENABLE_PEX_LOG
 // #define USE_OBSERVER_NAME
-// #define ENABLE_REGISTER_NAME
+#define ENABLE_PEX_NAMES
 
 #include <mutex>
 #include <memory>
@@ -35,29 +35,29 @@ void ToStream(T && ... args)
 }
 
 
-void RegisterPexName(void *address, const std::string &name);
+void PexName(void *address, const std::string &name);
 
-void RegisterPexName(void *address, void *parent, const std::string &name);
+void PexName(void *address, void *parent, const std::string &name);
 
 template<typename T>
-T * UseRegisterPexName(T *address, const std::string &name)
+T * PexNameAndReturn(T *address, const std::string &name)
 {
-    RegisterPexName(address, name);
+    PexName(address, name);
 
     return address;
 }
 
 template<typename T>
-T * UseRegisterPexName(T *address, void *parent, const std::string &name)
+T * PexNameAndReturn(T *address, void *parent, const std::string &name)
 {
-    RegisterPexName(address, parent, name);
+    PexName(address, parent, name);
 
     return address;
 }
 
 void RegisterPexParent(void *parent, void *child);
 
-void UnregisterPexName(void *address);
+void ClearPexName(void *address);
 
 std::string LookupPexName(const void *address);
 
@@ -99,27 +99,29 @@ void ResetPexNames();
 #endif // ENABLE_PEX_LOG
 
 
-#ifdef ENABLE_REGISTER_NAME
+#ifdef ENABLE_PEX_NAMES
 
 struct Separator { char garbage; };
 
-#define REGISTER_PEX_NAME(address, name) pex::RegisterPexName(address, name)
+#define PEX_NAME(name) pex::PexName(this, name)
 
-#define UNREGISTER_PEX_NAME(address) pex::UnregisterPexName(address)
+#define PEX_THIS(name) \
+    pex::PexNameAndReturn(this, name)
 
-#define REGISTER_PEX_NAME_WITH_PARENT(address, parent, name) \
-    pex::RegisterPexName(address, parent, name)
+// Name a pex node that does not have a parent.
+#define PEX_ROOT(root) pex::PexName(&root, "root")
 
-#define REGISTER_PEX_PARENT(name) \
-    pex::RegisterPexName(&name, this, "name")
+#define PEX_CLEAR_NAME(address) pex::ClearPexName(address)
 
+// Name a member of pex node 'this'.
+#define PEX_MEMBER(member) \
+    pex::PexName(&member, this, "member")
 
+#define PEX_MEMBER_ADDRESS(member, name) \
+    pex::PexName(member, this, name)
 
-#define USE_REGISTER_PEX_NAME(address, name) \
-    pex::UseRegisterPexName(address, name)
-
-#define USE_REGISTER_PEX_PARENT(name) \
-    pex::UseRegisterPexName(&name, this, "name")
+#define PEX_MEMBER_PASS(member) \
+    *pex::PexNameAndReturn(&member, this, "member")
 
 #define RESET_PEX_NAMES pex::ResetPexNames();
 
@@ -128,32 +130,15 @@ struct Separator { char garbage; };
 
 struct Separator {};
 
-#define REGISTER_PEX_NAME(address, name)
-#define REGISTER_PEX_NAME_WITH_PARENT(address, parent, name)
-#define REGISTER_PEX_PARENT(name)
-#define UNREGISTER_PEX_NAME(address)
-
-#define USE_REGISTER_PEX_NAME(address, name) address
-#define USE_REGISTER_PEX_PARENT(name) &name
+#define PEX_NAME(name)
+#define PEX_THIS(name) this
+#define PEX_ROOT(root)
+#define PEX_MEMBER(member)
+#define PEX_MEMBER_ADDRESS(member, name)
+#define PEX_MEMBER_NAME(member, name)
+#define PEX_CLEAR_NAME(address)
+#define PEX_MEMBER_PASS(member) member
 
 #define RESET_PEX_NAMES
 
-#endif // ENABLE_REGISTER_NAME
-
-
-#define REGISTER_IDENTITY(name) REGISTER_PEX_NAME(&name, "name")
-
-#if 0
-#define DO_REGISTER_IDENTITY(name) REGISTER_PEX_NAME(&name, "name")
-
-// Ping‑pong to avoid direct self-recursion
-#define REGISTER_IDENTITY_A(x, ...) \
-    DO_REGISTER_IDENTITY(x) __VA_OPT__(; REGISTER_IDENTITY_B(__VA_ARGS__))
-
-#define REGISTER_IDENTITY_B(x, ...) \
-    DO_REGISTER_IDENTITY(x) __VA_OPT__(; REGISTER_IDENTITY_A(__VA_ARGS__))
-
-// Entry point
-#define REGISTER_IDENTITY(...) __VA_OPT__(REGISTER_IDENTITY_A(__VA_ARGS__))
-
-#endif
+#endif // ENABLE_PEX_NAMES

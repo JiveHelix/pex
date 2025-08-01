@@ -129,7 +129,7 @@ TEST_CASE("Observe list with BoundEndpoint", "[endpoint]")
 {
     using namespace endpoint_tests;
     TestModel model;
-    REGISTER_IDENTITY(model);
+    PEX_ROOT(model);
 
     TestObserver observer{TestControl{model}};
 

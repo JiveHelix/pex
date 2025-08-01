@@ -81,11 +81,8 @@ public:
         superModel_{},
         baseCreated_{}
     {
-        REGISTER_PEX_NAME(
-            this,
-            fmt::format("PolyModel<{}>", jive::GetTypeName<Supers>()));
-
-        REGISTER_PEX_PARENT(baseCreated_);
+        PEX_NAME(fmt::format("PolyModel<{}>", jive::GetTypeName<Supers>()));
+        PEX_MEMBER(baseCreated_);
     };
 
     Value Get() const

@@ -95,7 +95,7 @@ TEMPLATE_TEST_CASE(
     using Control = pex::control::Value<Model>;
 
     Model model{filter};
-    REGISTER_IDENTITY(model);
+    PEX_ROOT(model);
 
     Observer<Control> observer((Control(model)));
 
@@ -143,7 +143,7 @@ TEMPLATE_TEST_CASE(
 
     RangeFilter<TestType> filter{low, high};
     Model model{filter};
-    REGISTER_IDENTITY(model);
+    PEX_ROOT(model);
     using Control = pex::control::Value<Model>;
     Observer<Control> observer((Control(model)));
     model.Set(value);
@@ -283,7 +283,7 @@ TEST_CASE("Observe a control that follows another control", "[filters]")
     using Follower = pex::control::Value<Control>;
 
     Model model;
-    REGISTER_IDENTITY(model);
+    PEX_ROOT(model);
     Control control(model);
 
     Observer<Control> controlObserver{control};
@@ -311,7 +311,7 @@ TEST_CASE("Observe filtered value", "[filters]")
     >;
 
     Model model;
-    REGISTER_IDENTITY(model);
+    PEX_ROOT(model);
     Control control(model);
 
     auto observer = Observer(
@@ -330,7 +330,7 @@ TEST_CASE("LinearRange is observable", "[filters]")
     using FilteredWeight = pex::control::LinearRange<WeightControl>;
 
     WeightRange weightRange;
-    REGISTER_IDENTITY(weightRange);
+    PEX_ROOT(weightRange);
     weightRange.SetMinimum(100.0);
     weightRange.SetMaximum(150.0);
 
@@ -353,7 +353,7 @@ TEST_CASE("Optional LinearRange is observable", "[filters]")
     using FilteredValue = typename FilteredWeight::Value;
 
     WeightRange weightRange;
-    REGISTER_IDENTITY(weightRange);
+    PEX_ROOT(weightRange);
     weightRange.SetMinimum(100.0);
     weightRange.SetMaximum(150.0);
 
@@ -385,7 +385,7 @@ TEST_CASE("Optional ConvertingRange is observable", "[filters]")
     using FilteredWeight = pex::control::ConvertingRange<WeightControl, int>;
 
     WeightRange weightRange;
-    REGISTER_IDENTITY(weightRange);
+    PEX_ROOT(weightRange);
     weightRange.SetMinimum(100.0);
     weightRange.SetMaximum(150.0);
 

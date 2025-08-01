@@ -162,13 +162,13 @@ public:
             GetAndSetTag
         >;
 
-#ifdef ENABLE_REGISTER_NAME
+#ifdef ENABLE_PEX_NAMES
     void RegisterPexNames()
     {
         // Iterate over members, and register names and addresses.
         auto doRegisterNames = [this] (auto thisField)
         {
-            RegisterPexName(
+            PexName(
                 &(this->*(thisField.member)),
                 this,
                 fmt::format("Aggregate::{}", thisField.name));
@@ -177,21 +177,6 @@ public:
         jive::ForEach(
             Fields<Aggregate>::fields,
             doRegisterNames);
-    }
-
-    void UnregisterPexNames()
-    {
-        // Iterate over members, and register names and addresses.
-        auto doUnregisterNames = [this] (auto thisField)
-        {
-            UnregisterPexName(
-                &(this->*(thisField.member)),
-                fmt::format("Aggregate::{}", thisField.name));
-        };
-
-        jive::ForEach(
-            Fields<Aggregate>::fields,
-            doUnregisterNames);
     }
 #endif
 
@@ -203,11 +188,8 @@ public:
         memberChanged_(),
         madeConnections_(false)
     {
-#ifdef ENABLE_REGISTER_NAME
-        REGISTER_PEX_NAME(
-            this,
-            fmt::format("Aggregate {}", jive::GetTypeName<Plain>()));
-
+#ifdef ENABLE_PEX_NAMES
+        PEX_NAME(fmt::format("Aggregate {}", jive::GetTypeName<Plain>()));
         this->RegisterPexNames();
 #endif
     }
@@ -221,11 +203,8 @@ public:
         memberChanged_(),
         madeConnections_(false)
     {
-#ifdef ENABLE_REGISTER_NAME
-        REGISTER_PEX_NAME(
-            this,
-            fmt::format("Aggregate {}", jive::GetTypeName<Plain>()));
-
+#ifdef ENABLE_PEX_NAMES
+        PEX_NAME(fmt::format("Aggregate {}", jive::GetTypeName<Plain>()));
         this->RegisterPexNames();
 #endif
         this->AssignUpstream(upstream);
@@ -324,7 +303,7 @@ private:
     {
         auto connector = [this](const auto &field) -> void
         {
-#ifdef ENABLE_REGISTER_NAME
+#ifdef ENABLE_PEX_NAMES
             assert(pex::HasPexName(&(this->*(field.member))));
 #endif
             this->Connector_(this->*(field.member));
