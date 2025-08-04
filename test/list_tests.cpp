@@ -12,6 +12,79 @@
 using json = nlohmann::json;
 
 
+template<typename List>
+class ListChangedObserver
+{
+public:
+    ListChangedObserver(List &list)
+        :
+        list_(list),
+
+        memberAddedEndpoint_(
+            PEX_THIS("ListChangedObserver"),
+            list.memberAdded,
+            &ListChangedObserver::OnMemberAdded_),
+
+        memberRemovedEndpoint_(
+            this,
+            list.memberRemoved,
+            &ListChangedObserver::OnMemberRemoved_)
+    {
+
+    }
+
+    void OnMemberAdded_(const std::optional<size_t> &index)
+    {
+        if (this->list_.count.Get() != this->list_.size())
+        {
+            throw std::logic_error(
+                "Expected count and list size to be consistent");
+        }
+
+        if (index && !(this->list_.size() > *index))
+        {
+            throw std::logic_error("Expected index to fit within list bounds");
+        }
+    }
+
+    void OnMemberRemoved_(const std::optional<size_t> &index)
+    {
+        if (this->list_.count.Get() != this->list_.size())
+        {
+            throw std::logic_error(
+                "Expected count and list size to be consistent");
+        }
+
+        if (index && !(this->list_.size() >= *index))
+        {
+            // The removed index may have been at the end of the list, making
+            // the removed index equal to the current list_.size().
+            //
+            // It must never be beyond this index.
+            throw std::logic_error(
+                "Expected index to fit within list bounds  ; 1");
+        }
+    }
+
+private:
+    List &list_;
+
+    using MemberAddedControl = typename List::MemberAdded;
+
+    using MemberAddedEndpoint =
+        pex::Endpoint<ListChangedObserver, MemberAddedControl>;
+
+    MemberAddedEndpoint memberAddedEndpoint_;
+
+    using MemberRemovedControl = typename List::MemberRemoved;
+
+    using MemberRemovedEndpoint =
+        pex::Endpoint<ListChangedObserver, MemberRemovedControl>;
+
+    MemberRemovedEndpoint memberRemovedEndpoint_;
+};
+
+
 TEST_CASE("List can change size", "[List]")
 {
     using List = pex::List<int, 4>;
@@ -39,6 +112,50 @@ TEST_CASE("List can change size", "[List]")
     REQUIRE(listControl.count.Get() == 12);
     REQUIRE(listModel.Get().size() == 12);
     REQUIRE(listControl.Get().size() == 12);
+}
+
+
+TEST_CASE("List changes size when set.", "[List]")
+{
+    using List = pex::List<int, 4>;
+    using ListModel = typename List::Model;
+    using ListControl = typename List::Control;
+
+    ListModel listModel;
+    PEX_ROOT(listModel);
+
+    ListControl listControl(listModel);
+
+    ListChangedObserver observer(listControl);
+
+    REQUIRE(listModel.count.Get() == 4);
+    REQUIRE(listControl.count.Get() == 4);
+    REQUIRE(listModel.Get().size() == 4);
+    REQUIRE(listControl.Get().size() == 4);
+
+    std::vector<int> newValues;
+    newValues.resize(8);
+
+    std::iota(
+        std::begin(newValues),
+        std::end(newValues),
+        0);
+
+    listModel.Set(newValues);
+
+    REQUIRE(listModel.count.Get() == 8);
+    REQUIRE(listControl.count.Get() == 8);
+    REQUIRE(listModel.Get().size() == 8);
+    REQUIRE(listControl.Get().size() == 8);
+
+    newValues.resize(6);
+
+    listModel.Set(newValues);
+
+    REQUIRE(listModel.count.Get() == 6);
+    REQUIRE(listControl.count.Get() == 6);
+    REQUIRE(listModel.Get().size() == 6);
+    REQUIRE(listControl.Get().size() == 6);
 }
 
 

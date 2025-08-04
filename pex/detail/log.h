@@ -109,19 +109,19 @@ struct Separator { char garbage; };
     pex::PexNameAndReturn(this, name)
 
 // Name a pex node that does not have a parent.
-#define PEX_ROOT(root) pex::PexName(&root, "root")
+#define PEX_ROOT(root) pex::PexName(&root, #root)
 
 #define PEX_CLEAR_NAME(address) pex::ClearPexName(address)
 
 // Name a member of pex node 'this'.
 #define PEX_MEMBER(member) \
-    pex::PexName(&member, this, "member")
+    pex::PexName(&member, this, #member)
 
 #define PEX_MEMBER_ADDRESS(member, name) \
     pex::PexName(member, this, name)
 
 #define PEX_MEMBER_PASS(member) \
-    *pex::PexNameAndReturn(&member, this, "member")
+    *pex::PexNameAndReturn(&member, this, #member)
 
 #define RESET_PEX_NAMES pex::ResetPexNames();
 

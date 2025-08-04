@@ -675,7 +675,7 @@ struct OrderedListCustom
                 return;
             }
 
-            assert(this->indices.size() == this->count.Get());
+            assert(this->count.Get() == this->list.size());
 
             size_t listCount = this->list.count.Get();
 
@@ -695,17 +695,22 @@ struct OrderedListCustom
                 return;
             }
 
-            if (this->indices.size() == this->list.count.Get())
+            auto added = *addedIndex;
+
+            if (this->indices.size() >= this->list.count.Get())
             {
+                assert(this->list.count.Get() == this->list.size());
+
+                this->ClearInvalidatedConnections_(added);
+                this->RestoreConnections_(added);
+
                 // We already have enough indices.
-                // This happens this group is set directly, and indices is Set
-                // before each of the items is added.
+                // This happens when this group is set directly, and indices is
+                // Set before each of the items is added.
                 // Adding each item generates a memberAdded notification, which
                 // we can safely ignore in this instance.
                 return;
             }
-
-            auto added = *addedIndex;
 
             auto previous = this->indices.Get();
 
@@ -729,8 +734,6 @@ struct OrderedListCustom
 
             detail::AccessReference(this->indices).SetWithoutNotify(previous);
             assert(this->indices.size() == previous.size());
-            this->ClearInvalidatedConnections_(added);
-            this->RestoreConnections_(added);
         }
 
         void OnListMemberWillRemove_(const std::optional<size_t> &removedIndex)

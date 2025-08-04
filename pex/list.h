@@ -447,6 +447,9 @@ struct List
             this->memberWillRemove.Set(index);
             jive::SafeErase(this->items_, index);
 
+            detail::AccessReference(this->count)
+                .SetWithoutNotify(this->items_.size());
+
             this->memberRemoved.Set(index);
             detail::AccessReference(this->memberRemoved).SetWithoutNotify({});
         }
@@ -482,9 +485,6 @@ struct List
                 return;
             }
 
-            detail::AccessReference(this->count)
-                .SetWithoutNotify(newSize);
-
             auto wasSelected = this->selected.Get();
             this->selected.Set({});
 
@@ -501,7 +501,13 @@ struct List
                 while (toInitialize--)
                 {
                     this->items_.push_back(std::make_unique<ListItem>());
-                    size_t newIndex = this->items_.size() - 1;
+
+                    size_t currentSize = this->items_.size();
+
+                    detail::AccessReference(this->count)
+                        .SetWithoutNotify(currentSize);
+
+                    size_t newIndex = currentSize - 1;
 
                     PEX_MEMBER_ADDRESS(
                         this->items_.back().get(),
@@ -548,17 +554,12 @@ struct List
             // Set isSilenced option to 'true' so nothing is notified when
             // ScopeMute is destroyed.
             auto scopeMute = detail::ScopeMute<Model>(*this, true);
-
             bool countChanged = false;
-
             auto wasSelected = this->selected.Get();
 
             if (values.size() != this->items_.size())
             {
                 countChanged = true;
-
-                detail::AccessReference(this->count)
-                    .SetWithoutNotify(values.size());
 
                 this->selected.Set({});
 
@@ -593,7 +594,12 @@ struct List
                         // item.
                         this->items_.push_back(std::make_unique<ListItem>());
 
-                        auto newIndex = this->items_.size() - 1;
+                        size_t currentSize = this->items_.size();
+
+                        detail::AccessReference(this->count)
+                            .SetWithoutNotify(currentSize);
+
+                        size_t newIndex = currentSize - 1;
 
                         PEX_MEMBER_ADDRESS(
                             this->items_.back().get(),
@@ -667,6 +673,11 @@ struct List
             auto wasSelected = this->selected.Get();
             this->selected.Set({});
 
+            // count must match the current actual size of items_ while we make
+            // adjustments.
+            detail::AccessReference(this->count)
+                .SetWithoutNotify(this->items_.size());
+
             if (count_ < this->items_.size())
             {
                 this->ReduceCount_(count_);
@@ -681,7 +692,12 @@ struct List
                 {
                     this->items_.push_back(std::make_unique<ListItem>());
 
-                    auto newIndex = this->items_.size() - 1;
+                    size_t currentSize = this->items_.size();
+
+                    detail::AccessReference(this->count)
+                        .SetWithoutNotify(currentSize);
+
+                    size_t newIndex = currentSize - 1;
 
                     PEX_MEMBER_ADDRESS(
                         this->items_.back().get(),
