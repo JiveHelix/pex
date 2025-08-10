@@ -49,7 +49,17 @@ struct Poly
         public:
             using GroupBase::GroupBase;
 
-            virtual ~Model() {}
+            Model()
+                :
+                GroupBase()
+            {
+                PEX_NAME_UNIQUE("poly::Poly::Model");
+            }
+
+            virtual ~Model()
+            {
+                PEX_CLEAR_NAME(this);
+            }
 
             PolyValue GetValue() const override
             {
@@ -66,7 +76,7 @@ struct Poly
                 return ::pex::poly::GetTypeName<Templates>();
             }
 
-            std::shared_ptr<MakeControlSuper<Supers>> CreateControl() override;
+            std::unique_ptr<MakeControlSuper<Supers>> CreateControl() override;
 
             void SetValueWithoutNotify(const PolyValue &value) override
             {
@@ -91,7 +101,12 @@ struct Poly
             using Upstream = typename GroupBase::Upstream;
             using Aggregate = typename GroupBase::Aggregate;
 
-            virtual ~Control() {}
+            virtual ~Control()
+            {
+                PEX_CLEAR_NAME(this);
+                PEX_CLEAR_NAME(&this->aggregate_);
+                PEX_CLEAR_NAME(&this->baseNotifier_);
+            }
 
             Control()
                 :
@@ -99,6 +114,7 @@ struct Poly
                 aggregate_(),
                 baseNotifier_()
             {
+                PEX_CONCISE_LOG(this);
                 PEX_NAME(
                     fmt::format(
                         "Poly<Fields, {}>::Control<{}>",
@@ -119,6 +135,8 @@ struct Poly
                 aggregate_(),
                 baseNotifier_(other.baseNotifier_)
             {
+                PEX_CONCISE_LOG(this);
+
                 PEX_NAME(
                     fmt::format(
                         "Poly<Fields, {}>::Control<{}>",
@@ -175,6 +193,8 @@ struct Poly
                 }
 
                 this->baseNotifier_.ConnectOnce(observer, callable);
+
+                PEX_LINK_OBSERVER(&this->aggregate_, observer);
             }
 
             void Disconnect(void *observer) override
@@ -184,10 +204,11 @@ struct Poly
                 if (!this->baseNotifier_.HasConnections())
                 {
                     this->aggregate_.Disconnect(this);
+                    assert(!this->aggregate_.HasConnection());
                 }
             }
 
-            std::shared_ptr<MakeControlSuper<Supers>> Copy() const override;
+            std::unique_ptr<MakeControlSuper<Supers>> Copy() const override;
 
             void SetValueWithoutNotify(const PolyValue &value) override
             {

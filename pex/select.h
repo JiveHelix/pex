@@ -174,6 +174,14 @@ public:
         this->Initialize_();
     }
 
+    ~Select()
+    {
+        PEX_CLEAR_NAME(this);
+        PEX_CLEAR_NAME(&this->value_);
+        PEX_CLEAR_NAME(&this->choices_);
+        PEX_CLEAR_NAME(&this->selection_);
+    }
+
     void Initialize_()
     {
         PEX_NAME("SelectModel");
@@ -553,11 +561,11 @@ public:
 
     }
 
-    SelectTerminus(Observer *observer, const UpstreamControl &pex)
+    explicit SelectTerminus(const UpstreamControl &pex)
         :
-        choices(observer, pex.choices),
-        selection(observer, pex.selection),
-        value(observer, pex.value)
+        choices(pex.choices),
+        selection(pex.selection),
+        value(pex.value)
     {
 
     }
@@ -583,13 +591,11 @@ public:
 
     }
 
-    SelectTerminus(
-        Observer *observer,
-        typename MakeControl<Upstream>::Upstream &upstream)
+    explicit SelectTerminus(typename MakeControl<Upstream>::Upstream &upstream)
         :
-        choices(observer, upstream.choices_),
-        selection(observer, upstream.selection_),
-        value(observer, upstream.value_)
+        choices(upstream.choices_),
+        selection(upstream.selection_),
+        value(upstream.value_)
     {
 
     }
@@ -683,9 +689,9 @@ public:
         return *this;
     }
 
-    void Connect(Callable callable)
+    void Connect(Observer *observer, Callable callable)
     {
-        this->value.Connect(callable);
+        this->value.Connect(observer, callable);
     }
 
     explicit operator Type () const
@@ -697,13 +703,6 @@ public:
     {
         return this->value.Get();
     }
-
-#if 0
-    void Set(size_t selectionIndex)
-    {
-        this->selection.Set(selectionIndex);
-    }
-#endif
 
     bool HasModel() const
     {

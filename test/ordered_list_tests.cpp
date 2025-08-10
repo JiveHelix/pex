@@ -133,7 +133,11 @@ public:
 
     TestListObserver(ListControl listControl)
         :
-        endpoint_(this, listControl, &TestListObserver::OnList_),
+        endpoint_(
+            PEX_THIS("TestListObserver"),
+            listControl,
+            &TestListObserver::OnList_),
+
         observedList_(listControl.Get()),
         notificationCount_()
     {

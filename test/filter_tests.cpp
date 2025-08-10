@@ -27,20 +27,18 @@ public:
 
     Observer(const Control &control)
         :
-        terminus_(this, control),
+        terminus_(control),
         observedValue{this->terminus_.Get()}
     {
-        PEX_LOG("Connect");
-        this->terminus_.Connect(&Observer::Observe_);
+        this->terminus_.Connect(this, &Observer::Observe_);
     }
 
     Observer(Control &&control)
         :
-        terminus_(this, std::move(control)),
+        terminus_(std::move(control)),
         observedValue{this->terminus_.Get()}
     {
-        PEX_LOG("Connect");
-        this->terminus_.Connect(&Observer::Observe_);
+        this->terminus_.Connect(this, &Observer::Observe_);
     }
 
 private:
@@ -378,8 +376,6 @@ TEST_CASE("Optional LinearRange is observable", "[filters]")
 
 TEST_CASE("Optional ConvertingRange is observable", "[filters]")
 {
-    RESET_PEX_NAMES
-
     using WeightRange = pex::model::Range<std::optional<double>>;
     using WeightControl = pex::control::Range<WeightRange>;
     using FilteredWeight = pex::control::ConvertingRange<WeightControl, int>;

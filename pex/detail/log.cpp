@@ -3,6 +3,7 @@
 #include <map>
 #include <fmt/core.h>
 #include <vector>
+#include <fields/describe.h>
 
 
 namespace pex
@@ -20,25 +21,96 @@ struct Name
 
 
 std::map<const void *, Name> namesByAddress;
+std::map<const void *, Name> deletedNamesByAddress;
+std::map<const void *, const void *> observerByLinkedAddress;
 
 
-std::string FormatName(const void *address, const Name &name)
+std::string FormatName(
+    const void *address,
+    const Name &name,
+    int indent)
 {
     if (name.parent != nullptr)
     {
         assert(name.parent != address);
 
         return fmt::format(
-            "({} @ {}) childof {}",
+            "{}({} @ {}) member of {}",
+            fields::MakeIndent(indent),
             name.name,
             address,
-            LookupPexName(name.parent));
+            LookupPexName(
+                name.parent,
+                (indent > -1) ? indent + 1 : indent));
     }
 
     return fmt::format(
-        "{} @ {}",
+        "{}{} @ {}",
+        fields::MakeIndent(indent),
         name.name,
         address);
+}
+
+
+std::string FormatDeletedName(
+    const void *address,
+    const Name &name,
+    int indent)
+{
+    if (name.parent != nullptr)
+    {
+        assert(name.parent != address);
+
+        return fmt::format(
+            "{} (deleted) ({} @ {}) child of {}",
+            fields::MakeIndent(indent),
+            name.name,
+            address,
+            LookupPexName(
+                name.parent,
+                (indent > -1) ? indent + 1 : indent));
+    }
+
+    return fmt::format(
+        "{}{} @ {}",
+        fields::MakeIndent(indent),
+        name.name,
+        address);
+}
+
+
+void PexLinkObserver(const void *address, const void *observer)
+{
+    assert(HasPexName(observer));
+    assert(HasPexName(address));
+
+    observerByLinkedAddress[address] = observer;
+}
+
+
+const void * GetLinkedObserver(const void *address)
+{
+    do
+    {
+        if (observerByLinkedAddress.count(address))
+        {
+            return observerByLinkedAddress[address];
+        }
+    }
+    while ((address = GetParent(address)));
+
+    return NULL;
+}
+
+
+void PexNameUnique(void *address, const std::string &name)
+{
+    if (namesByAddress.count(address))
+    {
+        throw std::logic_error("Name exists");
+    }
+
+    namesByAddress[address] = Name{nullptr, name};
 }
 
 
@@ -47,6 +119,13 @@ void PexName(void *address, const std::string &name)
     if (namesByAddress.count(address))
     {
         auto &entry = namesByAddress[address];
+
+        if (entry.name == "y" && name == "x")
+        {
+            throw std::logic_error("whoops");
+        }
+
+        // fmt::print("Rename:{} {} to {}\n", __LINE__, entry.name, name);
         entry.name = name;
     }
     else
@@ -56,9 +135,15 @@ void PexName(void *address, const std::string &name)
 }
 
 
-void ClearPexName(void *address)
+void ClearPexName(void * address)
 {
+    if (namesByAddress.count(address))
+    {
+        deletedNamesByAddress[address] = namesByAddress[address];
+    }
+
     namesByAddress.erase(address);
+    observerByLinkedAddress.erase(address);
 }
 
 
@@ -77,8 +162,14 @@ void PexName(void *address, void *parent, const std::string &name)
     if (namesByAddress.count(address))
     {
         auto &entry = namesByAddress[address];
-
         entry.parent = parent;
+
+        if (entry.name == "y" && name == "x")
+        {
+            throw std::logic_error("whoops");
+        }
+
+        // fmt::print("Rename:{} {} to {}\n", __LINE__, entry.name, name);
         entry.name = name;
     }
     else
@@ -153,27 +244,54 @@ bool HasNamedParent(const void *address)
 }
 
 
-std::string LookupPexName(const void *address)
+const void * GetParent(const void *address)
 {
+    if (!address)
+    {
+        return NULL;
+    }
+
+    if (!namesByAddress.count(address))
+    {
+        return NULL;
+    }
+
+    const auto &entry = namesByAddress[address];
+
+    return entry.parent;
+}
+
+
+std::string LookupPexName(const void *address, int indent)
+{
+    auto indentString = fields::MakeIndent(indent);
+
     if (address == nullptr)
     {
-        return "NULL";
+        return indentString + "NULL";
     }
 
     if (namesByAddress.count(address))
     {
         auto &name = namesByAddress[address];
 
-        return FormatName(address, name);
+        return FormatName(address, name, indent);
+    }
+    else if (deletedNamesByAddress.count(address))
+    {
+        auto &name = deletedNamesByAddress[address];
+
+        return FormatDeletedName(address, name, indent);
     }
 
-    return fmt::format("{}", address);
+    return fmt::format("{}{}", indentString, address);
 }
 
 
 void ResetPexNames()
 {
     namesByAddress.clear();
+    deletedNamesByAddress.clear();
 }
 
 

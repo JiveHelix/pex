@@ -127,10 +127,12 @@ struct Observer
 
     Observer(Control control)
         :
-        terminus_(this, control)
+        terminus_(
+            PEX_THIS("range_tests::Observer"),
+            control,
+            &Observer::OnValue_)
     {
-        PEX_LOG("Connect");
-        this->terminus_.Connect(&Observer::OnValue_);
+
     }
 
     void OnValue_(int value)

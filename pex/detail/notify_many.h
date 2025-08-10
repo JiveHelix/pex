@@ -97,9 +97,50 @@ public:
         PEX_CLEAR_NAME(this);
     }
 
-    NotifyMany_(const NotifyMany_ &other) = default;
-    NotifyMany_(NotifyMany_ &&) noexcept = default;
-    NotifyMany_ & operator=(const NotifyMany_ &other) = default;
+    NotifyMany_(const NotifyMany_ &other)
+        :
+#ifndef NDEBUG
+        LogsObservers(other),
+        isNotifying_{},
+#endif
+        connections_(other.connections_)
+    {
+
+    }
+
+    NotifyMany_(NotifyMany_ &&other) noexcept
+        :
+#ifndef NDEBUG
+        LogsObservers(std::move(other)),
+        isNotifying_{},
+#endif
+        connections_(std::move(other.connections_))
+    {
+        other.connections_.clear();
+    }
+
+    NotifyMany_ & operator=(const NotifyMany_ &other)
+    {
+#ifndef NDEBUG
+        assert(!this->isNotifying_);
+        this->LogsObservers::operator=(other);
+#endif
+        this->connections_ = other.connections_;
+
+        return *this;
+    }
+
+    NotifyMany_ & operator=(NotifyMany_ &&other)
+    {
+#ifndef NDEBUG
+        assert(!this->isNotifying_);
+        this->LogsObservers::operator=(std::move(other));
+#endif
+        this->connections_ = std::move(other.connections_);
+        other.connections_.clear();
+
+        return *this;
+    }
 
     template<typename T>
     void Connect(T *observer, Callable callable)
@@ -257,6 +298,16 @@ protected:
         REPORT_NOTIFYING
 
         for (auto &connection: this->connections_)
+        {
+            connection();
+        }
+    }
+
+    void NotifyMayModify_()
+    {
+        auto connections = this->connections_;
+
+        for (auto &connection: connections)
         {
             connection();
         }

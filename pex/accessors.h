@@ -137,7 +137,6 @@ public:
             Fields<Derived>::fields,
             doRegisterNames);
     }
-#endif
 
     void UnregisterPexNames()
     {
@@ -146,15 +145,15 @@ public:
         // Iterate over members, and register names and addresses.
         auto doUnregisterNames = [derived] (auto thisField)
         {
-            UnregisterPexName(
-                &(derived->*(thisField.member)),
-                thisField.name);
+            ClearPexName(&(derived->*(thisField.member)));
         };
 
         jive::ForEach(
             Fields<Derived>::fields,
             doUnregisterNames);
     }
+
+#endif // ENABLE_PEX_NAMES
 
     void Mute()
     {
@@ -285,10 +284,12 @@ protected:
 #ifdef ENABLE_PEX_NAMES
 
 #define PEX_NAMES(groupAddress) this->RegisterPexNames(groupAddress)
+#define CLEAR_PEX_NAMES this->UnregisterPexNames()
 
 #else
 
 #define PEX_NAMES(groupAddress)
+#define CLEAR_PEX_NAMES
 
 #endif
 

@@ -162,11 +162,13 @@ public:
             GetAndSetTag
         >;
 
+    using ValueCallable = typename Base::Callable;
+
 #ifdef ENABLE_PEX_NAMES
     void RegisterPexNames()
     {
         // Iterate over members, and register names and addresses.
-        auto doRegisterNames = [this] (auto thisField)
+        auto doRegisterName = [this] (auto thisField)
         {
             PexName(
                 &(this->*(thisField.member)),
@@ -176,7 +178,20 @@ public:
 
         jive::ForEach(
             Fields<Aggregate>::fields,
-            doRegisterNames);
+            doRegisterName);
+    }
+
+    void ClearPexNames()
+    {
+        // Iterate over members, and register names and addresses.
+        auto doClearName = [this] (auto thisField)
+        {
+            ClearPexName(&(this->*(thisField.member)));
+        };
+
+        jive::ForEach(
+            Fields<Aggregate>::fields,
+            doClearName);
     }
 #endif
 
@@ -214,12 +229,7 @@ public:
     void AssignUpstream(Upstream &upstream)
     {
         this->UnmakeConnections_();
-
-        this->muteTerminus_.Assign(
-            this,
-            MuteTerminus(this, upstream.CloneMuteControl()));
-
-        this->muteTerminus_.Connect(&Aggregate::OnMute_);
+        this->muteTerminus_.Emplace(upstream.CloneMuteControl());
 
         auto doAssign = [this, &upstream](
             const auto &aggregateField,
@@ -234,8 +244,6 @@ public:
             doAssign,
             Fields<Aggregate>::fields,
             Fields<Upstream>::fields);
-
-        this->MakeConnections_();
     }
 
     Aggregate(const Aggregate &) = delete;
@@ -247,11 +255,38 @@ public:
     {
         this->UnmakeConnections_();
         this->ClearConnections();
+
+#ifdef ENABLE_PEX_NAMES
+        this->ClearPexNames();
+#endif
+    }
+
+    void Connect(void *observer, ValueCallable callable)
+    {
+        if (!this->madeConnections_)
+        {
+            this->MakeConnections_();
+        }
+
+        this->Base::Connect(observer, callable);
+    }
+
+    void Disconnect(void *observer)
+    {
+        this->UnmakeConnections_();
+
+        if (this->memberChanged_)
+        {
+            this->memberChanged_.reset();
+        }
+
+        this->Base::Disconnect(observer);
     }
 
     void ClearConnections()
     {
-        // Clears downstream connections.
+        // Calls Disconnect for all observers.
+        // This is a NotifyOne, so there is at most one connection to clear.
         this->ClearConnections_();
     }
 
@@ -301,6 +336,8 @@ private:
 
     void MakeConnections_()
     {
+        this->muteTerminus_.Connect(this, &Aggregate::OnMute_);
+
         auto connector = [this](const auto &field) -> void
         {
 #ifdef ENABLE_PEX_NAMES
@@ -329,6 +366,8 @@ private:
         {
             return;
         }
+
+        this->muteTerminus_.Disconnect();
 
         auto disconnector = [this](const auto &field) -> void
         {

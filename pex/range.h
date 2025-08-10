@@ -243,6 +243,14 @@ public:
         PEX_MEMBER(maximum);
     }
 
+    ~Range()
+    {
+        PEX_CLEAR_NAME(this);
+        PEX_CLEAR_NAME(&this->value);
+        PEX_CLEAR_NAME(&this->minimum);
+        PEX_CLEAR_NAME(&this->maximum);
+    }
+
     void Connect(void * observer, Callable callable)
     {
         this->value.Connect(observer, callable);
@@ -997,6 +1005,15 @@ public:
         PEX_MEMBER(reset);
     }
 
+    ~Range()
+    {
+        PEX_CLEAR_NAME(this);
+        PEX_CLEAR_NAME(&this->value);
+        PEX_CLEAR_NAME(&this->minimum);
+        PEX_CLEAR_NAME(&this->maximum);
+        PEX_CLEAR_NAME(&this->reset);
+    }
+
     Range & operator=(Range &&other)
     {
         this->value = std::move(other.value);
@@ -1221,11 +1238,11 @@ public:
 
     }
 
-    RangeTerminus(Observer *observer, const UpstreamControl &pex)
+    explicit RangeTerminus(const UpstreamControl &pex)
         :
-        value(observer, pex.value),
-        minimum(observer, pex.minimum),
-        maximum(observer, pex.maximum)
+        value(pex.value),
+        minimum(pex.minimum),
+        maximum(pex.maximum)
     {
 
     }
@@ -1236,8 +1253,8 @@ public:
         Callable callable)
         :
         value(observer, pex.value, callable),
-        minimum(observer, pex.minimum),
-        maximum(observer, pex.maximum)
+        minimum(pex.minimum),
+        maximum(pex.maximum)
     {
 
     }
@@ -1313,6 +1330,29 @@ public:
 
     }
 
+    void Emplace(const UpstreamControl &control)
+    {
+        this->Disconnect();
+
+        this->value.Emplace(control.value);
+        this->minimum.Emplace(control.minimum);
+        this->maximum.Emplace(control.maximum);
+    }
+
+    void Emplace(
+        Observer *observer,
+        const UpstreamControl &control,
+        Callable callable)
+    {
+        this->Disconnect();
+
+        this->value.Emplace(observer, control.value, callable);
+        this->minimum.Emplace(control.minimum);
+        this->maximum.Emplace(control.maximum);
+
+        this->Connect(observer, callable);
+    }
+
     // Copy assign
     RangeTerminus & Assign(
         Observer *observer,
@@ -1337,9 +1377,9 @@ public:
         return *this;
     }
 
-    void Connect(Callable callable)
+    void Connect(Observer *observer, Callable callable)
     {
-        this->value.Connect(callable);
+        this->value.Connect(observer, callable);
     }
 
     void Disconnect(Observer *)

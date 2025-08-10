@@ -1,6 +1,7 @@
 #pragma once
 
 // #define ENABLE_PEX_LOG
+// #define ENABLE_PEX_CONCISE_LOG
 // #define USE_OBSERVER_NAME
 #define ENABLE_PEX_NAMES
 
@@ -35,6 +36,12 @@ void ToStream(T && ... args)
 }
 
 
+void PexLinkObserver(const void *address, const void *observer);
+
+const void * GetLinkedObserver(const void *address);
+
+void PexNameUnique(void *address, const std::string &name);
+
 void PexName(void *address, const std::string &name);
 
 void PexName(void *address, void *parent, const std::string &name);
@@ -59,11 +66,13 @@ void RegisterPexParent(void *parent, void *child);
 
 void ClearPexName(void *address);
 
-std::string LookupPexName(const void *address);
+std::string LookupPexName(const void *address, int indent = -1);
 
 bool HasPexName(const void *address);
 
 bool HasNamedParent(const void *address);
+
+const void * GetParent(const void *address);
 
 void ResetPexNames();
 
@@ -99,11 +108,41 @@ void ResetPexNames();
 #endif // ENABLE_PEX_LOG
 
 
+#ifdef ENABLE_PEX_CONCISE_LOG
+
+#include <iostream>
+#include <jive/path.h>
+
+
+#define PEX_CONCISE_LOG(...) \
+\
+    pex::ToStream( \
+        std::cout, \
+        "[pex:", \
+        jive::path::Base(__FILE__), \
+        ":", \
+        __FUNCTION__, \
+        ":", \
+        __LINE__, \
+        "] ", \
+        __VA_ARGS__); assert(std::cout.good())
+
+
+#else
+
+
+#define PEX_CONCISE_LOG(...)
+
+#endif // ENABLE_PEX_CONCISE_LOG
+
+
 #ifdef ENABLE_PEX_NAMES
 
 struct Separator { char garbage; };
 
 #define PEX_NAME(name) pex::PexName(this, name)
+
+#define PEX_NAME_UNIQUE(name) pex::PexNameUnique(this, name)
 
 #define PEX_THIS(name) \
     pex::PexNameAndReturn(this, name)
@@ -125,12 +164,16 @@ struct Separator { char garbage; };
 
 #define RESET_PEX_NAMES pex::ResetPexNames();
 
+#define PEX_LINK_OBSERVER(address, observer) \
+    pex::PexLinkObserver(address, observer)
+
 
 #else
 
 struct Separator {};
 
 #define PEX_NAME(name)
+#define PEX_NAME_UNIQUE(name)
 #define PEX_THIS(name) this
 #define PEX_ROOT(root)
 #define PEX_MEMBER(member)
@@ -140,5 +183,7 @@ struct Separator {};
 #define PEX_MEMBER_PASS(member) member
 
 #define RESET_PEX_NAMES
+
+#define PEX_LINK_OBSERVER(address, observer)
 
 #endif // ENABLE_PEX_NAMES

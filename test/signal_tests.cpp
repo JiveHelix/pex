@@ -18,19 +18,19 @@ public:
 
     Observer(pex::model::Signal &model)
         :
-        control_(this, model),
+        terminus_(model),
         observedCount{0}
     {
         if constexpr (pex::HasAccess<pex::GetTag, Access>)
         {
             PEX_LOG("Connect");
-            this->control_.Connect(&Observer::Observe_);
+            this->terminus_.Connect(this, &Observer::Observe_);
         }
     }
 
     void Trigger()
     {
-        this->control_.Trigger();
+        this->terminus_.Trigger();
     }
 
 private:
@@ -39,7 +39,7 @@ private:
         ++this->observedCount;
     }
 
-    pex::Terminus<Observer, Control> control_;
+    pex::Terminus<Observer, Control> terminus_;
 
 public:
     int observedCount;
@@ -101,6 +101,7 @@ TEST_CASE("Signal fan out from write-only control", "[signal]")
         observer1.Trigger();
     }
 
+    // observer1 is write-only, so does not receive notifications.
     REQUIRE(observer1.observedCount == 0);
     REQUIRE(observer2.observedCount == expectedObservedCount);
     REQUIRE(observer3.observedCount == expectedObservedCount);
@@ -117,4 +118,20 @@ TEST_CASE("Signal Terminus is detected", "[signal]")
     STATIC_REQUIRE(pex::IsSignal<ModelSignal>);
     STATIC_REQUIRE(pex::IsSignal<ControlSignal>);
     STATIC_REQUIRE(pex::IsSignal<typename TerminusSignal::Upstream>);
+}
+
+
+TEST_CASE(
+    "control::Signal does not connect to model without connections",
+    "[signal]")
+{
+    using ModelSignal = pex::model::Signal;
+    using ControlSignal = pex::control::Signal<>;
+
+    std::unique_ptr<ControlSignal> control;
+    ModelSignal model;
+    PEX_ROOT(model);
+    control = std::make_unique<ControlSignal>(model);
+
+    REQUIRE(!model.HasObserver(control.get()));
 }

@@ -39,7 +39,7 @@ public:
     virtual void SetValueWithoutNotify(const Value &) = 0;
     virtual void DoValueNotify() = 0;
 
-    virtual std::shared_ptr<ControlSuper> Copy() const = 0;
+    virtual std::unique_ptr<ControlSuper> Copy() const = 0;
 };
 
 
@@ -54,7 +54,7 @@ class ModelSuper: public ModelUserBase
 public:
     using ValueBase = ValueBase_;
     using Value = ::pex::poly::Value<ValueBase>;
-    using ControlPtr = std::shared_ptr<ControlBase>;
+    using ControlPtr = std::unique_ptr<ControlBase>;
 
     virtual ~ModelSuper() {}
     virtual Value GetValue() const = 0;

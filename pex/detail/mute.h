@@ -106,28 +106,37 @@ private:
 };
 
 
-class Mute
+class Mute: Separator
 {
 public:
     Mute()
         :
         muteControl_()
     {
-
+        PEX_NAME("Mute");
+        PEX_MEMBER(muteControl_);
     }
 
     Mute(MuteControl muteControl)
         :
         muteControl_(muteControl)
     {
-
+        PEX_NAME("Mute");
+        PEX_MEMBER(muteControl_);
     }
 
     Mute(const Mute &other)
         :
         muteControl_(other.muteControl_)
     {
+        PEX_NAME("Mute");
+        PEX_MEMBER(muteControl_);
+    }
 
+    ~Mute()
+    {
+        PEX_CLEAR_NAME(this);
+        PEX_CLEAR_NAME(&this->muteControl_);
     }
 
     Mute & operator=(const Mute &other)

@@ -54,6 +54,11 @@ public:
         this->Notify_();
     }
 
+    void TriggerMayModify()
+    {
+        this->NotifyMayModify_();
+    }
+
     explicit operator DescribeSignal () const
     {
         return DescribeSignal{};
@@ -73,6 +78,7 @@ class Signal
 {
 public:
     using Model = ::pex::model::Signal;
+    using Base = detail::NotifyOne<detail::SignalConnection<void>, Access>;
 
     static constexpr bool isControlSignal = true;
 
@@ -81,36 +87,61 @@ public:
     using Callable =
         typename detail::SignalConnection<void>::Callable;
 
-    Signal(): model_(nullptr) {}
+    class UpstreamConnection
+    {
+        Model *upstream_;
+        Signal *observer_;
+
+    public:
+        using FunctionPointer = void (*)(void *);
+
+        UpstreamConnection(
+            Model *upstream,
+            Signal *observer,
+            FunctionPointer callable)
+            :
+            upstream_(upstream),
+            observer_(observer)
+        {
+            this->upstream_->ConnectOnce(observer, callable);
+        }
+
+        ~UpstreamConnection()
+        {
+            PEX_LOG(
+                "control::Signal Disconnect: ",
+                LookupPexName(this->observer_),
+                " from ",
+                LookupPexName(this->upstream_));
+
+            this->upstream_->Disconnect(this->observer_);
+        }
+    };
+
+    Signal(): Base{}, model_(nullptr)
+    {
+        PEX_NAME_UNIQUE("control::Signal");
+    }
 
     Signal(model::Signal &model)
         :
-        model_(&model)
+        Base{},
+        model_(&model),
+        upstreamConnection_()
     {
-        PEX_NAME("control::Signal");
-        this->model_->Connect(this, &Signal::OnModelSignaled_);
-        PEX_LOG("Signal created: ", LookupPexName(this));
+        PEX_NAME_UNIQUE("control::Signal");
     }
 
     ~Signal()
     {
+        PEX_CLEAR_NAME(this);
         PEX_LOG("control::Signal::~Signal : ", LookupPexName(this));
-
-        if (this->model_)
-        {
-            if (this->model_->HasObserver(this))
-            {
-                PEX_LOG("Disconnect ", LookupPexName(this));
-                this->model_->Disconnect(this);
-            }
-        }
     }
 
     Signal(void *observer, model::Signal &model, Callable callable)
         :
         Signal(model)
     {
-        PEX_NAME("control::Signal");
         this->Connect(observer, callable);
     }
 
@@ -118,7 +149,6 @@ public:
         :
         Signal(other)
     {
-        PEX_NAME("control::Signal");
         this->Connect(observer, callable);
     }
 
@@ -133,35 +163,80 @@ public:
 
     Signal(const Signal &other)
         :
-        model_(other.model_)
+        Base(other),
+        model_(other.model_),
+        upstreamConnection_()
     {
-        PEX_NAME("control::Signal");
+        PEX_NAME_UNIQUE("control::Signal");
 
-        if (this->model_)
+        if (this->HasConnection())
         {
-            PEX_LOG("Connect ", this);
-            this->model_->Connect(this, &Signal::OnModelSignaled_);
+            this->upstreamConnection_.emplace(
+                this->model_,
+                this,
+                &Signal::OnModelSignaled_);
+        }
+    }
+
+    Signal(Signal &&other)
+        :
+        Base(std::move(other)),
+        model_(std::move(other.model_)),
+        upstreamConnection_()
+    {
+        other.upstreamConnection_.reset();
+
+        PEX_NAME_UNIQUE("control::Signal");
+
+        if (this->HasConnection())
+        {
+            this->upstreamConnection_.emplace(
+                this->model_,
+                this,
+                &Signal::OnModelSignaled_);
         }
     }
 
     Signal & operator=(const Signal &other)
     {
-        if (this->model_)
-        {
-            if (this->model_->HasObserver(this))
-            {
-                PEX_LOG("operator= Disconnect ", LookupPexName(this));
-                this->model_->Disconnect(this);
-            }
-        }
+        assert(&other != this);
+
+        this->Base::operator=(other);
+
+        // Do not copy connections to other.
+        this->upstreamConnection_.reset();
 
         this->model_ = other.model_;
-        PEX_NAME("control::Signal");
 
-        if (this->model_)
+        if (this->HasConnection())
         {
-            PEX_LOG("Connect ", this);
-            this->model_->Connect(this, &Signal::OnModelSignaled_);
+            this->upstreamConnection_.emplace(
+                this->model_,
+                this,
+                &Signal::OnModelSignaled_);
+        }
+
+        return *this;
+    }
+
+    Signal & operator=(Signal &&other)
+    {
+        assert(&other != this);
+
+        this->Base::operator=(std::move(other));
+        other.upstreamConnection_.reset();
+
+        // Do not copy connections to other.
+        this->upstreamConnection_.reset();
+
+        this->model_ = std::move(other.model_);
+
+        if (this->HasConnection())
+        {
+            this->upstreamConnection_.emplace(
+                this->model_,
+                this,
+                &Signal::OnModelSignaled_);
         }
 
         return *this;
@@ -193,6 +268,45 @@ public:
     void ClearConnections()
     {
         this->ClearConnections_();
+        this->upstreamConnection_.reset();
+    }
+
+    void Connect(void *observer, Callable callable)
+    {
+        if (!this->upstreamConnection_)
+        {
+            this->upstreamConnection_.emplace(
+                this->model_,
+                this,
+                &Signal::OnModelSignaled_);
+        }
+
+        this->Base::Connect(observer, callable);
+    }
+
+    void ConnectOnce(void *observer, Callable callable)
+    {
+        if (!this->upstreamConnection_)
+        {
+            this->upstreamConnection_.emplace(
+                this->model_,
+                this,
+                &Signal::OnModelSignaled_);
+        }
+
+        this->Base::ConnectOnce(observer, callable);
+    }
+
+    void Disconnect(void *observer)
+    {
+        this->Base::Disconnect(observer);
+
+        if (!this->HasConnection())
+        {
+            // The last connection has been disconnected.
+            // Remove ourselves from the upstream.
+            this->upstreamConnection_.reset();
+        }
     }
 
     template<typename>
@@ -207,6 +321,7 @@ public:
 
 private:
     model::Signal * model_;
+    std::optional<UpstreamConnection> upstreamConnection_;
 };
 
 

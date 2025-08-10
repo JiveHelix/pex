@@ -87,7 +87,7 @@ class PoseObserver
 public:
     PoseObserver(PoseControl control)
         :
-        endpoint_(this, control, &PoseObserver::OnPose)
+        endpoint_(PEX_THIS("PoseObserver"), control, &PoseObserver::OnPose)
     {
 
     }

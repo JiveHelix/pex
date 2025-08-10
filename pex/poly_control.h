@@ -56,7 +56,7 @@ public:
         baseCreatedTerminus_(
             PEX_THIS(
                 fmt::format("PolyControl<{}>", jive::GetTypeName<Supers>())),
-            this->upstream_->baseCreated_,
+            this->upstream_->internalBaseCreated_,
             &Control::OnBaseCreated_)
     {
         PEX_MEMBER(baseCreated);
@@ -79,15 +79,20 @@ public:
     Control(const Control &other)
         :
         upstream_(other.upstream_),
-        base_(other.base_),
+        base_(),
         baseCreated(this->upstream_->baseCreated_),
 
         baseCreatedTerminus_(
             PEX_THIS(
                 fmt::format("PolyControl<{}>", jive::GetTypeName<Supers>())),
-            this->upstream_->baseCreated_,
+            this->upstream_->internalBaseCreated_,
             &Control::OnBaseCreated_)
     {
+        if (other.base_)
+        {
+            this->base_ = other.base_->Copy();
+        }
+
         PEX_MEMBER(baseCreated);
         PEX_MEMBER(baseCreatedTerminus_);
 
@@ -106,7 +111,7 @@ public:
         baseCreatedTerminus_(
             PEX_THIS(
                 fmt::format("PolyControl<{}>", jive::GetTypeName<Supers>())),
-            this->upstream_->baseCreated_,
+            this->upstream_->internalBaseCreated_,
             &Control::OnBaseCreated_)
     {
         PEX_MEMBER(baseCreated);
@@ -127,7 +132,7 @@ public:
         baseCreatedTerminus_(
             PEX_THIS(
                 fmt::format("PolyControl<{}>", jive::GetTypeName<Supers>())),
-            this->upstream_->baseCreated_,
+            this->upstream_->internalBaseCreated_,
             &Control::OnBaseCreated_)
     {
         PEX_MEMBER(baseCreated);
@@ -151,21 +156,23 @@ public:
     Control(void *observer, const Control &other, Callable callable)
         :
         upstream_(other.upstream_),
-        base_(other.base_),
+        base_(),
         baseCreated(this->upstream_->baseCreated_),
         baseCreatedTerminus_(
             PEX_THIS(
                 fmt::format("PolyControl<{}>", jive::GetTypeName<Supers>())),
-            this->upstream_->baseCreated_,
+            this->upstream_->internalBaseCreated_,
             &Control::OnBaseCreated_)
     {
         PEX_MEMBER(baseCreated);
         PEX_MEMBER(baseCreatedTerminus_);
 
-        if (!this->base_)
+        if (!other.base_)
         {
             throw std::logic_error("Cannot connect without a valid object.");
         }
+
+        this->base_ = other.base_->Copy();
 
         PEX_LOG(
             " Copy with callable ",
@@ -178,15 +185,52 @@ public:
 
     Control & operator=(const Control &other)
     {
-        PEX_LOG(
-            " operator= ",
+        PEX_CONCISE_LOG(
+            " operator= copy ",
             LookupPexName(this),
             " from ",
             LookupPexName(&other));
 
         this->upstream_ = other.upstream_;
-        this->base_ = other.base_;
+
+        if (other.base_)
+        {
+            this->base_ = other.base_->Copy();
+        }
+        else
+        {
+            this->base_.reset();
+        }
+
         this->baseCreated = other.baseCreated;
+
+        this->baseCreatedTerminus_.RequireAssign(
+            this,
+            other.baseCreatedTerminus_);
+
+        return *this;
+    }
+
+    Control & operator=(Control &&other)
+    {
+        PEX_CONCISE_LOG(
+            " operator= move ",
+            LookupPexName(this),
+            " from ",
+            LookupPexName(&other));
+
+        this->upstream_ = std::move(other.upstream_);
+        this->base_ = std::move(other.base_);
+
+        if (this->base_)
+        {
+            PEX_CONCISE_LOG(
+                "moved base_: ",
+                LookupPexName(this->base_.get()));
+        }
+
+        assert(!other.base_);
+        this->baseCreated = std::move(other.baseCreated);
 
         this->baseCreatedTerminus_.RequireAssign(
             this,
@@ -197,7 +241,9 @@ public:
 
     ~Control()
     {
-        PEX_LOG("Destruct ", LookupPexName(this));
+        PEX_CLEAR_NAME(this);
+        PEX_CLEAR_NAME(&baseCreated);
+        PEX_CLEAR_NAME(&baseCreatedTerminus_);
     }
 
     Value Get() const
@@ -297,7 +343,7 @@ private:
         ::pex::Terminus<Control, pex::control::Signal<>>;
 
     Upstream *upstream_;
-    std::shared_ptr<SuperControl> base_;
+    std::unique_ptr<SuperControl> base_;
 
 public:
     using BaseCreatedControl = pex::control::Signal<>;

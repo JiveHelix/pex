@@ -49,7 +49,8 @@ class Value_
             Filter_
         >,
         Access_
-    >
+    >,
+    Separator
 {
 public:
     using Upstream = Upstream_;
@@ -137,16 +138,19 @@ public:
         }
     };
 
-    Value_(): upstream_(), filter_()
+    Value_(): Base(), upstream_(), filter_()
     {
-
+        PEX_NAME_UNIQUE("pex::control::Value");
     }
 
     explicit Value_(PexArgument<Upstream> pex)
         :
+        Base(),
         upstream_(pex),
         filter_()
     {
+        PEX_NAME_UNIQUE("pex::control::Value");
+
         if constexpr (mustClearConnections)
         {
             this->upstream_.ClearConnections();
@@ -160,9 +164,12 @@ public:
 
     explicit Value_(PexArgument<Upstream> pex, const Filter &filter)
         :
+        Base(),
         upstream_(pex),
         filter_(filter)
     {
+        PEX_NAME_UNIQUE("pex::control::Value");
+
         if constexpr (mustClearConnections)
         {
             this->upstream_.ClearConnections();
@@ -171,9 +178,12 @@ public:
 
     Value_(void *observer, PexArgument<Upstream> pex, Callable callable)
         :
+        Base(),
         upstream_(pex),
         filter_()
     {
+        PEX_NAME_UNIQUE("pex::control::Value");
+
         if constexpr (mustClearConnections)
         {
             this->upstream_.ClearConnections();
@@ -201,7 +211,7 @@ public:
 
     ~Value_()
     {
-
+        PEX_CLEAR_NAME(this);
     }
 
     /**
@@ -212,6 +222,7 @@ public:
     Value_(
         const Value_<Upstream, OtherFilter, OtherAccess> &other)
         :
+        Base(),
         upstream_(other.upstream_),
         filter_()
     {
@@ -228,6 +239,8 @@ public:
                 Value_<Upstream, OtherFilter, OtherAccess>
             >,
             "Value is not copyable.");
+
+        PEX_NAME_UNIQUE("pex::control::Value");
 
         if constexpr (mustClearConnections)
         {
@@ -249,8 +262,6 @@ public:
                     this,
                     " to ",
                     &this->upstream_);
-
-                PEX_NAME("pex::control::Value");
 
                 this->upstreamConnection_.emplace(
                     this->upstream_,
@@ -274,6 +285,8 @@ public:
     operator=(
         const Value_<Upstream, OtherFilter, OtherAccess> &other)
     {
+        this->Base::operator=(other);
+
         this->upstreamConnection_.reset();
 
         this->upstream_ = other.upstream_;
@@ -293,8 +306,6 @@ public:
 
             if (this->HasConnections())
             {
-                PEX_NAME("pex::control::Value");
-
                 this->upstreamConnection_.emplace(
                     this->upstream_,
                     this,
@@ -313,6 +324,7 @@ public:
     template<typename OtherFilter, typename OtherAccess>
     Value_(Value_<Upstream, OtherFilter, OtherAccess> &&other)
         :
+        Base(std::move(other)),
         upstream_(std::move(other.upstream_)),
         filter_()
     {
@@ -330,6 +342,8 @@ public:
             >,
             "Value cannot be moved.");
 
+        PEX_NAME_UNIQUE("pex::control::Value");
+
         if constexpr (mustClearConnections)
         {
             this->upstream_.ClearConnections();
@@ -345,8 +359,6 @@ public:
 
             if (this->HasConnections())
             {
-                PEX_NAME("pex::control::Value");
-
                 this->upstreamConnection_.emplace(
                     this->upstream_,
                     this,
@@ -368,6 +380,7 @@ public:
     >
     operator=(Value_<Upstream, OtherFilter, OtherAccess> &&other)
     {
+        this->Base::operator=(std::move(other));
         this->upstreamConnection_.reset();
 
         this->upstream_ = std::move(other.upstream_);
@@ -387,8 +400,6 @@ public:
 
             if (this->HasConnections())
             {
-                PEX_NAME("pex::control::Value");
-
                 this->upstreamConnection_.emplace(
                     this->upstream_,
                     this,
@@ -408,6 +419,8 @@ public:
     {
         static_assert(IsCopyable<Value_>, "This value is not copyable.");
 
+        PEX_NAME_UNIQUE("pex::control::Value");
+
         if constexpr (mustClearConnections)
         {
             this->upstream_.ClearConnections();
@@ -418,7 +431,6 @@ public:
             if (this->HasConnections())
             {
                 PEX_LOG("Copy from other: ", this, " to ", &this->upstream_);
-                PEX_NAME("pex::control::Value");
 
                 this->upstreamConnection_.emplace(
                     this->upstream_,
@@ -439,6 +451,8 @@ public:
         // move-able.
         // static_assert(IsCopyable<Value_>, "This value cannot be moved.");
 
+        PEX_NAME_UNIQUE("pex::control::Value");
+
         if constexpr (mustClearConnections)
         {
             this->upstream_.ClearConnections();
@@ -449,7 +463,6 @@ public:
             if (this->HasConnections())
             {
                 PEX_LOG("Connect ", this);
-                PEX_NAME("pex::control::Value");
 
                 this->upstreamConnection_.emplace(
                     this->upstream_,
@@ -484,7 +497,6 @@ public:
             if (this->HasConnections())
             {
                 PEX_LOG("Connect ", this);
-                PEX_NAME("pex::control::Value");
 
                 this->upstreamConnection_.emplace(
                     this->upstream_,
@@ -516,7 +528,6 @@ public:
             if (this->HasConnections())
             {
                 PEX_LOG("Connect ", this);
-                PEX_NAME("pex::control::Value");
 
                 this->upstreamConnection_.emplace(
                     this->upstream_,
@@ -532,12 +543,11 @@ public:
     {
         static_assert(HasAccess<GetTag, Access>);
 
-        if (!this->HasConnections())
+        if (!this->upstreamConnection_)
         {
             // This is the first request for a connection.
             // Connect ourselves to the upstream.
             PEX_LOG("Connect ", this);
-            PEX_NAME("pex::control::Value");
 
             this->upstreamConnection_.emplace(
                 this->upstream_,
@@ -552,12 +562,10 @@ public:
     {
         static_assert(HasAccess<GetTag, Access>);
 
-        if (!this->HasConnections())
+        if (!this->upstreamConnection_)
         {
             // This is the first request for a connection.
             // Connect ourselves to the upstream.
-            PEX_LOG("Connect ", this);
-            PEX_NAME("pex::control::Value");
 
             this->upstreamConnection_.emplace(
                 this->upstream_,

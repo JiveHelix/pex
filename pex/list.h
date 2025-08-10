@@ -27,7 +27,54 @@ template<typename, typename>
 class ListConnect;
 
 
+template<typename T>
+concept HasListItem = requires { typename T::ListItem; };
+
+
+template<typename T, typename Enable = void>
+struct ListMember_
+{
+    using Type = typename T::value_type;
+};
+
+
+template<typename T>
+struct ListMember_<T, std::enable_if_t<HasListItem<T>>>
+{
+    using Type = typename T::ListItem;
+};
+
+template<typename T>
+using ListMember = typename ListMember_<T>::Type;
+
+
 } // end namespace detail
+
+
+template<typename ListMaker>
+using ListModelItem = typename ModelSelector<ListMaker>::ListItem;
+
+
+template<typename ListMaker>
+using ListControlItem = typename ControlSelector<ListMaker>::ListItem;
+
+
+template<typename T>
+concept HasGetBaseWillDelete = requires(T t)
+{
+    { t.GetBaseWillDelete() } -> IsSignal;
+};
+
+
+template<typename T>
+concept HasGetBaseCreated = requires(T t)
+{
+    { t.GetBaseCreated() } -> IsSignal;
+};
+
+
+template<typename T>
+concept HasBaseSignals = HasGetBaseWillDelete<T> && HasGetBaseCreated<T>;
 
 
 namespace model
@@ -99,10 +146,47 @@ void RegisterItemrefNames(Parent *parent, Items &items)
 
     for (auto &item: items)
     {
-        pex::PexName(
-            &item,
-            parent,
-            fmt::format("item {}", i++));
+        if constexpr (HasGetVirtual<std::remove_cvref_t<decltype(item)>>)
+        {
+            pex::PexName(
+                item.GetVirtual(),
+                parent,
+                fmt::format("item {}", i++));
+        }
+        else
+        {
+            pex::PexName(
+                &item,
+                parent,
+                fmt::format("item {}", i++));
+        }
+    }
+}
+
+
+template<typename Items>
+void ClearItemNames(Items &items)
+{
+    for (auto &item: items)
+    {
+        pex::ClearPexName(item.get());
+    }
+}
+
+
+template<typename Items>
+void ClearItemrefNames(Items &items)
+{
+    for (auto &item: items)
+    {
+        if constexpr (HasGetVirtual<std::remove_cvref_t<decltype(item)>>)
+        {
+            pex::ClearPexName(item.GetVirtual());
+        }
+        else
+        {
+            pex::ClearPexName(&item);
+        }
     }
 }
 
@@ -112,10 +196,17 @@ void RegisterItemrefNames(Parent *parent, Items &items)
 #define REGISTER_ITEMREF_NAMES(parent, items) \
     RegisterItemrefNames(parent, items)
 
+#define CLEAR_ITEM_NAMES(items) ClearItemNames(items)
+
+#define CLEAR_ITEMREF_NAMES(items) \
+    ClearItemrefNames(items)
+
 #else
 
 #define REGISTER_ITEM_NAMES(parent, items)
 #define REGISTER_ITEMREF_NAMES(parent, items)
+#define CLEAR_ITEM_NAMES(items)
+#define CLEAR_ITEMREF_NAMES(items)
 
 #endif
 
@@ -149,6 +240,8 @@ struct List
         using MemberAdded = ::pex::model::ListOptionalIndex;
         using MemberWillRemove = ::pex::model::ListOptionalIndex;
         using MemberRemoved = ::pex::model::ListOptionalIndex;
+        using MemberWillReplace = ::pex::model::ListOptionalIndex;
+        using MemberReplaced = ::pex::model::ListOptionalIndex;
         using ListFlag = ::pex::model::ListFlag;
         using Access = GetAndSetTag;
 
@@ -171,6 +264,8 @@ struct List
         MemberAdded memberAdded;
         MemberWillRemove memberWillRemove;
         MemberRemoved memberRemoved;
+        MemberWillReplace memberWillReplace;
+        MemberReplaced memberReplaced;
         ListFlag isNotifying;
 
         Model()
@@ -183,6 +278,8 @@ struct List
             memberAdded(),
             memberWillRemove(),
             memberRemoved(),
+            memberWillReplace(),
+            memberReplaced(),
             isNotifying(),
             items_(),
 
@@ -201,7 +298,8 @@ struct List
                 &Model::OnSelected_),
 
             selectionReceived_(false),
-            internalMemberAdded_()
+            internalMemberAdded_(),
+            internalMemberReplaced_()
         {
             PEX_NAME(
                 fmt::format(
@@ -211,6 +309,8 @@ struct List
             PEX_MEMBER(memberAdded);
             PEX_MEMBER(memberWillRemove);
             PEX_MEMBER(memberRemoved);
+            PEX_MEMBER(memberWillReplace);
+            PEX_MEMBER(memberReplaced);
             PEX_MEMBER(isNotifying);
 
             size_t toInitialize = initialCount;
@@ -221,7 +321,10 @@ struct List
             }
 
             REGISTER_ITEM_NAMES(this, this->items_);
+            PEX_MEMBER(internalMemberWillRemove_);
             PEX_MEMBER(internalMemberAdded_);
+            PEX_MEMBER(internalMemberWillReplace_);
+            PEX_MEMBER(internalMemberReplaced_);
         }
 
         Model(const Type &items)
@@ -229,6 +332,22 @@ struct List
             Model()
         {
             this->Set(items);
+        }
+
+        ~Model()
+        {
+            PEX_CLEAR_NAME(this);
+            PEX_CLEAR_NAME(&memberAdded);
+            PEX_CLEAR_NAME(&memberWillRemove);
+            PEX_CLEAR_NAME(&memberRemoved);
+            PEX_CLEAR_NAME(&memberWillReplace);
+            PEX_CLEAR_NAME(&memberReplaced);
+            PEX_CLEAR_NAME(&isNotifying);
+            CLEAR_ITEM_NAMES(this->items_);
+            PEX_CLEAR_NAME(&internalMemberWillRemove_);
+            PEX_CLEAR_NAME(&internalMemberAdded_);
+            PEX_CLEAR_NAME(&internalMemberWillReplace_);
+            PEX_CLEAR_NAME(&internalMemberReplaced_);
         }
 
         ListItem & operator[](size_t index)
@@ -360,9 +479,18 @@ struct List
 
                 this->items_.push_back(std::make_unique<ListItem>());
 
-                PEX_MEMBER_ADDRESS(
-                    this->items_.back().get(),
-                    fmt::format("item {}", newCount - 1));
+                if constexpr (HasGetVirtual<ListItem>)
+                {
+                    PEX_MEMBER_ADDRESS(
+                        this->items_.back()->GetVirtual(),
+                        fmt::format("item {}", newCount - 1));
+                }
+                else
+                {
+                    PEX_MEMBER_ADDRESS(
+                        this->items_.back().get(),
+                        fmt::format("item {}", newCount - 1));
+                }
 
                 // Add the new item at the back of the list.
                 this->items_.back()->Set(item);
@@ -370,6 +498,7 @@ struct List
                 this->selectionReceived_ = false;
 
                 this->internalMemberAdded_.Set(newIndex);
+                this->RestoreBaseEndpoints_(newIndex);
                 this->memberAdded.Set(newIndex);
             }
 
@@ -392,7 +521,6 @@ struct List
             // Mute while setting item values.
             auto scopeMute = detail::ScopeMute<Model>(*this, false);
 
-            auto newIndex = this->items_.size();
             auto newCount = this->items_.size() + 1;
 
             // Insertion doesn't change whether an item is selected.
@@ -411,18 +539,30 @@ struct List
                     this->selected.Set({});
                 }
 
+                this->ClearInvalidatedEndpoints_(index);
+
                 this->items_.insert(
-                    this->items_.begin() + newIndex,
+                    this->items_.begin() + index,
                     std::make_unique<ListItem>());
 
-                PEX_MEMBER_ADDRESS(
-                    this->items_[newIndex].get(),
-                    fmt::format("item {}", newIndex));
+                if constexpr (HasGetVirtual<ListItem>)
+                {
+                    PEX_MEMBER_ADDRESS(
+                        this->items_.at(index)->GetVirtual(),
+                        fmt::format("item {}", index));
+                }
+                else
+                {
+                    PEX_MEMBER_ADDRESS(
+                        this->items_.at(index).get(),
+                        fmt::format("item {}", index));
+                }
 
-                this->items_.at(newIndex)->Set(item);
+                this->items_.at(index)->Set(item);
+                this->RestoreBaseEndpoints_(index);
                 this->selectionReceived_ = false;
-                this->internalMemberAdded_.Set(newIndex);
-                this->memberAdded.Set(newIndex);
+                this->internalMemberAdded_.Set(index);
+                this->memberAdded.Set(index);
             }
 
             if (wasSelected && !this->selectionReceived_)
@@ -445,13 +585,19 @@ struct List
         void Remove_(size_t index)
         {
             this->memberWillRemove.Set(index);
+
+            // Allow the internal controls to respond to memberWillRemove after
+            // outside observers have disconnected.
+            this->internalMemberWillRemove_.Set(index);
+
+            assert(this->baseCreatedEndpoints_.size() <= index);
+
             jive::SafeErase(this->items_, index);
 
             detail::AccessReference(this->count)
                 .SetWithoutNotify(this->items_.size());
 
             this->memberRemoved.Set(index);
-            detail::AccessReference(this->memberRemoved).SetWithoutNotify({});
         }
 
     public:
@@ -474,7 +620,11 @@ struct List
             auto deferCount = MakeDefer(this->count);
             deferCount.Set(newCount);
 
+            this->ClearInvalidatedEndpoints_(index);
+
             this->Remove_(index);
+
+            this->RestoreBaseEndpoints_(index);
         }
 
         void ResizeWithoutNotify(size_t newSize)
@@ -509,9 +659,18 @@ struct List
 
                     size_t newIndex = currentSize - 1;
 
-                    PEX_MEMBER_ADDRESS(
-                        this->items_.back().get(),
-                        fmt::format("item {}", newIndex));
+                    if constexpr (HasGetVirtual<ListItem>)
+                    {
+                        PEX_MEMBER_ADDRESS(
+                            this->items_.back()->GetVirtual(),
+                            fmt::format("item {}", newIndex));
+                    }
+                    else
+                    {
+                        PEX_MEMBER_ADDRESS(
+                            this->items_.back().get(),
+                            fmt::format("item {}", newIndex));
+                    }
 
                     this->internalMemberAdded_.Set(newIndex);
                     this->memberAdded.Set(newIndex);
@@ -601,9 +760,18 @@ struct List
 
                         size_t newIndex = currentSize - 1;
 
-                        PEX_MEMBER_ADDRESS(
-                            this->items_.back().get(),
-                            fmt::format("item {}", newIndex));
+                        if constexpr (HasGetVirtual<ListItem>)
+                        {
+                            PEX_MEMBER_ADDRESS(
+                                this->items_.back()->GetVirtual(),
+                                fmt::format("item {}", newIndex));
+                        }
+                        else
+                        {
+                            PEX_MEMBER_ADDRESS(
+                                this->items_.back().get(),
+                                fmt::format("item {}", newIndex));
+                        }
 
                         detail::AccessReference(*this->items_[newIndex])
                             .SetWithoutNotify(values[newIndex]);
@@ -643,6 +811,8 @@ struct List
         void ReduceCount_(size_t count_)
         {
             assert(count_ < this->items_.size());
+
+            this->ClearInvalidatedEndpoints_(count_);
 
             // This is a reduction in size.
             // No new elements need to be created.
@@ -699,9 +869,18 @@ struct List
 
                     size_t newIndex = currentSize - 1;
 
-                    PEX_MEMBER_ADDRESS(
-                        this->items_.back().get(),
-                        fmt::format("item {}", newIndex));
+                    if constexpr (HasGetVirtual<ListItem>)
+                    {
+                        PEX_MEMBER_ADDRESS(
+                            this->items_.back()->GetVirtual(),
+                            fmt::format("item {}", newIndex));
+                    }
+                    else
+                    {
+                        PEX_MEMBER_ADDRESS(
+                            this->items_.back().get(),
+                            fmt::format("item {}", newIndex));
+                    }
 
                     this->internalMemberAdded_.Set(newIndex);
                     this->memberAdded.Set(newIndex);
@@ -728,13 +907,83 @@ struct List
             this->selectionReceived_ = true;
         }
 
+        void OnBaseWillDelete_(size_t index)
+        {
+            this->memberWillReplace.Set(index);
+            this->internalMemberWillReplace_.Set(index);
+        }
+
+        void OnBaseCreated_(size_t index)
+        {
+            this->internalMemberReplaced_.Set(index);
+            this->memberReplaced.Set(index);
+        }
+
+        void RestoreBaseEndpoint_(size_t index)
+        {
+            static_assert(HasBaseSignals<ListItem>);
+            assert(index == this->baseCreatedEndpoints_.size());
+            assert(index == this->baseWillDeleteEndpoints_.size());
+
+            this->baseWillDeleteEndpoints_.emplace_back(
+                this,
+                this->items_.at(index)->GetBaseWillDelete(),
+                [index](void *context)
+                {
+                    static_cast<Model *>(context)->OnBaseWillDelete_(index);
+                });
+
+            this->baseCreatedEndpoints_.emplace_back(
+                this,
+                this->items_.at(index)->GetBaseCreated(),
+                [index](void *context)
+                {
+                    static_cast<Model *>(context)->OnBaseCreated_(index);
+                });
+        }
+
+        void RestoreBaseEndpoints_([[maybe_unused]] size_t firstToRestore)
+        {
+            if constexpr (HasBaseSignals<ListItem>)
+            {
+                size_t listCount = this->items_.size();
+
+                for (size_t index = firstToRestore; index < listCount; ++index)
+                {
+                    this->RestoreBaseEndpoint_(index);
+                }
+            }
+        }
+
+        void ClearInvalidatedEndpoints_([[maybe_unused]] size_t firstToClear)
+        {
+            if constexpr (HasBaseSignals<ListItem>)
+            {
+                assert(this->baseWillDeleteEndpoints_.size() > firstToClear);
+                assert(this->baseCreatedEndpoints_.size() > firstToClear);
+
+                this->baseWillDeleteEndpoints_.resize(firstToClear);
+                this->baseCreatedEndpoints_.resize(firstToClear);
+            }
+        }
+
     private:
+
+        using BaseActionTerminus =
+            ::pex::Terminus<void, pex::control::Signal<>>;
+
         std::vector<std::unique_ptr<ListItem>> items_;
         ::pex::Terminus<Model, Count> countTerminus_;
         ::pex::Terminus<Model, Selected> selectedTerminus_;
         bool selectionReceived_;
 
+        MemberWillRemove internalMemberWillRemove_;
         MemberAdded internalMemberAdded_;
+        MemberWillReplace internalMemberWillReplace_;
+        MemberReplaced internalMemberReplaced_;
+
+        EndpointVector<BaseActionTerminus> baseWillDeleteEndpoints_;
+        EndpointVector<BaseActionTerminus> baseCreatedEndpoints_;
     };
 
 
@@ -756,12 +1005,20 @@ struct List
         using MemberAdded = ::pex::control::ListOptionalIndex;
         using MemberWillRemove = ::pex::control::ListOptionalIndex;
         using MemberRemoved = ::pex::control::ListOptionalIndex;
+        using MemberWillReplace = ::pex::control::ListOptionalIndex;
+        using MemberReplaced = ::pex::control::ListOptionalIndex;
         using ListFlag = ::pex::control::ListFlag;
 
         using MemberWillRemoveTerminus =
             ::pex::Terminus<Control, MemberWillRemove>;
 
         using MemberAddedTerminus = ::pex::Terminus<Control, MemberAdded>;
+
+        using MemberWillReplaceTerminus =
+            ::pex::Terminus<Control, MemberWillReplace>;
+
+        using MemberReplacedTerminus = ::pex::Terminus<Control, MemberReplaced>;
+
         using Vector = std::vector<ListItem>;
         using Iterator = typename Vector::iterator;
         using ConstIterator = typename Vector::const_iterator;
@@ -786,6 +1043,8 @@ struct List
         MemberAdded memberAdded;
         MemberWillRemove memberWillRemove;
         MemberRemoved memberRemoved;
+        MemberWillReplace memberWillReplace;
+        MemberReplaced memberReplaced;
         ListFlag isNotifying;
 
         Control()
@@ -796,10 +1055,14 @@ struct List
             memberAdded(),
             memberWillRemove(),
             memberRemoved(),
+            memberWillReplace(),
+            memberReplaced(),
             isNotifying(),
             upstream_(nullptr),
             memberWillRemoveTerminus_(),
             memberAddedTerminus_(),
+            memberWillReplaceTerminus_(),
+            memberReplacedTerminus_(),
             items_()
         {
             PEX_NAME(
@@ -816,6 +1079,8 @@ struct List
             memberAdded(upstream.memberAdded),
             memberWillRemove(upstream.memberWillRemove),
             memberRemoved(upstream.memberRemoved),
+            memberWillReplace(upstream.memberWillReplace),
+            memberReplaced(upstream.memberReplaced),
             isNotifying(upstream.isNotifying),
             upstream_(&upstream),
 
@@ -826,13 +1091,23 @@ struct List
                         "pex::List<{}>::Control",
                         jive::GetTypeName<Member>())),
 
-                this->upstream_->memberWillRemove,
+                this->upstream_->internalMemberWillRemove_,
                 &Control::OnMemberWillRemove_),
 
             memberAddedTerminus_(
                 this,
                 this->upstream_->internalMemberAdded_,
                 &Control::OnMemberAdded_),
+
+            memberWillReplaceTerminus_(
+                this,
+                this->upstream_->internalMemberWillReplace_,
+                &Control::OnMemberWillReplace_),
+
+            memberReplacedTerminus_(
+                this,
+                this->upstream_->internalMemberReplaced_,
+                &Control::OnMemberReplaced_),
 
             items_()
         {
@@ -852,6 +1127,8 @@ struct List
             memberAdded(other.memberAdded),
             memberWillRemove(other.memberWillRemove),
             memberRemoved(other.memberRemoved),
+            memberWillReplace(other.memberWillReplace),
+            memberReplaced(other.memberReplaced),
             isNotifying(other.isNotifying),
             upstream_(other.upstream_),
 
@@ -862,13 +1139,23 @@ struct List
                         "pex::List<{}>::Control",
                         jive::GetTypeName<Member>())),
 
-                this->upstream_->memberWillRemove,
+                this->upstream_->internalMemberWillRemove_,
                 &Control::OnMemberWillRemove_),
 
             memberAddedTerminus_(
                 this,
                 this->upstream_->internalMemberAdded_,
                 &Control::OnMemberAdded_),
+
+            memberWillReplaceTerminus_(
+                this,
+                this->upstream_->internalMemberWillReplace_,
+                &Control::OnMemberWillReplace_),
+
+            memberReplacedTerminus_(
+                this,
+                this->upstream_->internalMemberReplaced_,
+                &Control::OnMemberReplaced_),
 
             items_(other.items_)
         {
@@ -883,6 +1170,12 @@ struct List
             REGISTER_ITEMREF_NAMES(this, this->items_);
         }
 
+        ~Control()
+        {
+            CLEAR_ITEMREF_NAMES(this->items_);
+            PEX_CLEAR_NAME(this);
+        }
+
         Control & operator=(const Control &other)
         {
             this->detail::Mute::operator=(other);
@@ -891,36 +1184,52 @@ struct List
             this->memberAdded = other.memberAdded;
             this->memberWillRemove = other.memberWillRemove;
             this->memberRemoved = other.memberRemoved;
+            this->memberWillReplace = other.memberWillReplace;
+            this->memberReplaced = other.memberReplaced;
             this->isNotifying = other.isNotifying;
             this->upstream_ = other.upstream_;
 
             if (other.HasModel())
             {
-                assert(other.memberAddedTerminus_.HasModel());
-                assert(other.memberAddedTerminus_.HasConnection());
                 assert(other.memberWillRemoveTerminus_.HasModel());
                 assert(other.memberWillRemoveTerminus_.HasConnection());
+                assert(other.memberAddedTerminus_.HasModel());
+                assert(other.memberAddedTerminus_.HasConnection());
+                assert(other.memberWillReplaceTerminus_.HasModel());
+                assert(other.memberWillReplaceTerminus_.HasConnection());
+                assert(other.memberReplacedTerminus_.HasModel());
+                assert(other.memberReplacedTerminus_.HasConnection());
             }
 
             this->memberWillRemoveTerminus_.RequireAssign(
                 this,
                 other.memberWillRemoveTerminus_);
 
-            if (this->HasModel())
-            {
-                assert(this->memberWillRemoveTerminus_.HasModel());
-                assert(this->memberWillRemoveTerminus_.HasConnection());
-            }
-
             this->memberAddedTerminus_.RequireAssign(
                 this,
                 other.memberAddedTerminus_);
 
+            this->memberWillReplaceTerminus_.RequireAssign(
+                this,
+                other.memberWillReplaceTerminus_);
+
+            this->memberReplacedTerminus_.RequireAssign(
+                this,
+                other.memberReplacedTerminus_);
+
             if (this->HasModel())
             {
+                assert(this->memberWillRemoveTerminus_.HasModel());
+                assert(this->memberWillRemoveTerminus_.HasConnection());
                 assert(this->memberAddedTerminus_.HasModel());
                 assert(this->memberAddedTerminus_.HasConnection());
+                assert(this->memberWillReplaceTerminus_.HasModel());
+                assert(this->memberWillReplaceTerminus_.HasConnection());
+                assert(this->memberReplacedTerminus_.HasModel());
+                assert(this->memberReplacedTerminus_.HasConnection());
             }
+
+            CLEAR_ITEMREF_NAMES(this->items_);
 
             this->items_ = other.items_;
 
@@ -1043,7 +1352,12 @@ struct List
                 return false;
             }
 
-            if (!this->memberRemoved.HasModel())
+            if (!this->memberWillReplace.HasModel())
+            {
+                return false;
+            }
+
+            if (!this->memberReplaced.HasModel())
             {
                 return false;
             }
@@ -1101,18 +1415,6 @@ struct List
             this->upstream_->SetWithoutNotify_(values);
         }
 
-        void OnMemberAdded_(const std::optional<size_t> &index)
-        {
-            if (!index)
-            {
-                return;
-            }
-
-            this->items_.emplace(
-                jive::SafeInsertIterator(this->items_, *index),
-                (*this->upstream_)[*index]);
-        }
-
         void OnMemberWillRemove_(const std::optional<size_t> &index)
         {
             if (!index)
@@ -1123,10 +1425,61 @@ struct List
             jive::SafeErase(this->items_, *index);
         }
 
+        void OnMemberAdded_(const std::optional<size_t> &index)
+        {
+            if (!index)
+            {
+                return;
+            }
+
+            this->items_.emplace(
+                jive::SafeInsertIterator(this->items_, *index),
+                (*this->upstream_)[*index]);
+
+#ifdef ENABLE_PEX_NAMES
+            if constexpr (HasGetVirtual<ListItem>)
+            {
+                pex::PexName(
+                    this->items_.at(*index).GetVirtual(),
+                    this,
+                    fmt::format("item {}", *index));
+            }
+            else
+            {
+                pex::PexName(
+                    &this->items_.at(*index),
+                    this,
+                    fmt::format("item {}", *index));
+            }
+#endif
+        }
+
+        void OnMemberWillReplace_(const std::optional<size_t> &index)
+        {
+            if (!index)
+            {
+                return;
+            }
+
+            this->items_.at(*index) = ListItem();
+        }
+
+        void OnMemberReplaced_(const std::optional<size_t> &index)
+        {
+            if (!index)
+            {
+                return;
+            }
+
+            this->items_.at(*index) = ListItem((*this->upstream_)[*index]);
+        }
+
     private:
         Upstream *upstream_;
         MemberWillRemoveTerminus memberWillRemoveTerminus_;
         MemberAddedTerminus memberAddedTerminus_;
+        MemberWillReplaceTerminus memberWillReplaceTerminus_;
+        MemberReplacedTerminus memberReplacedTerminus_;
         Vector items_;
     };
 };

@@ -20,17 +20,23 @@ public:
 
     Observer(Control control)
         :
-        control_(this, control)
+        terminus_(control)
     {
         PEX_LOG("Connect");
         PEX_NAME("Observer");
-        PEX_MEMBER(control_);
-        this->control_.Connect(&Observer::Observe_);
+        PEX_MEMBER(terminus_);
+        this->terminus_.Connect(this, &Observer::Observe_);
+    }
+
+    ~Observer()
+    {
+        PEX_CLEAR_NAME(this);
+        PEX_CLEAR_NAME(&this->terminus_);
     }
 
     void Set(pex::Argument<Type> value)
     {
-        this->control_.Set(value);
+        this->terminus_.Set(value);
     }
 
 private:
@@ -39,7 +45,7 @@ private:
         this->observedValue = value;
     }
 
-    pex::Terminus<Observer, Control> control_;
+    pex::Terminus<Observer, Control> terminus_;
 
 public:
     std::optional<Type> observedValue;

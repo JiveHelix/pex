@@ -1,6 +1,7 @@
 #pragma once
 
 
+#include <fmt/core.h>
 #include "pex/detail/value_connection.h"
 #include "pex/detail/signal_connection.h"
 #include "pex/reference.h"
@@ -107,7 +108,143 @@ struct MakeConnection
 
 
 template<typename Observer, typename Upstream_>
-class Terminus_
+class Terminus;
+
+
+template<typename Item>
+class EndpointVector
+{
+private:
+    template<typename, typename>
+    friend class Terminus;
+
+    class Wrapper: public Item
+    {
+    public:
+        using Item::Item;
+
+        Wrapper(Wrapper &&other) noexcept
+            :
+            Item(std::move(other))
+        {
+
+        }
+
+        Wrapper & operator=(Wrapper &&other) noexcept
+        {
+            this->Item::operator=(std::move(other));
+
+            return *this;
+        }
+    };
+
+public:
+
+    class EndpointRef
+    {
+        Wrapper & wrapper_;
+
+        EndpointRef(Wrapper &wrapper)
+            :
+            wrapper_(wrapper)
+        {
+
+        }
+
+    public:
+        // EndpointRef cannot be copied or moved, so it always refers to
+        // a member of this vector.
+        //
+        // Assignment is only allowed by move semantics, disabling copying of
+        // the underlying endpoint.
+        EndpointRef(const EndpointRef &) = delete;
+        EndpointRef(EndpointRef &&) = delete;
+        EndpointRef & operator=(const EndpointRef &) = delete;
+
+        Item & operator=(Item &&other)
+        {
+            this->wrapper_ = Wrapper(std::move(other));
+
+            return this->wrapper_;
+        }
+
+        operator const Item & () const
+        {
+            return this->wrapper_;
+        }
+    };
+
+    EndpointVector()
+        :
+        items_{}
+    {
+
+    }
+
+    void push_back(Item &&item)
+    {
+        this->items_.push_back(Wrapper(std::move(item)));
+    }
+
+    template<typename ...Args>
+    void emplace_back(Args&&... args)
+    {
+        this->items_.emplace_back(std::forward<Args>(args)...);
+    }
+
+    void clear()
+    {
+        this->items_.clear();
+    }
+
+    void resize(size_t index)
+    {
+        this->items_.resize(index);
+    }
+
+    Item & at(size_t index)
+    {
+        return this->items_.at(index);
+    }
+
+    const Item & at(size_t index) const
+    {
+        return this->items_.at(index);
+    }
+
+    bool empty() const
+    {
+        return this->items_.empty();
+    }
+
+    size_t size() const
+    {
+        return this->items_.size();
+    }
+
+    EndpointRef operator[](size_t index)
+    {
+        return this->items_[index];
+    }
+
+    const EndpointRef operator[](size_t index) const
+    {
+        return this->items_[index];
+    }
+
+    EndpointVector(const EndpointVector &) = delete;
+    EndpointVector(EndpointVector &&) = delete;
+    EndpointVector & operator=(const EndpointVector &) = delete;
+    EndpointVector & operator=(EndpointVector &&) = delete;
+
+
+private:
+    std::vector<Wrapper> items_;
+};
+
+
+template<typename Observer, typename Upstream_>
+class Terminus_: Separator
 {
 
 public:
@@ -126,6 +263,24 @@ public:
     template <typename, typename>
     friend class ::pex::Terminus_;
 
+    template
+    <
+        template<typename, typename> typename,
+        typename,
+        typename,
+        typename
+    >
+    friend struct ImplementInterface;
+
+    template<typename>
+    friend class Reference;
+
+    template<typename>
+    friend class ConstControlReference;
+
+    template<typename, typename>
+    friend class Terminus;
+
     Terminus_()
         :
         observer_(nullptr),
@@ -139,9 +294,9 @@ public:
         PEX_MEMBER(upstreamControl_);
     }
 
-    Terminus_(Observer *observer, const ControlType &control)
+    explicit Terminus_(const ControlType &control)
         :
-        observer_(observer),
+        observer_(nullptr),
         notifier_{},
         upstreamControl_(control)
     {
@@ -155,7 +310,7 @@ public:
 
     Terminus_(Observer *observer, const ControlType &control, Callable callable)
         :
-        observer_(observer),
+        observer_(nullptr),
         notifier_{},
         upstreamControl_(control)
     {
@@ -164,12 +319,30 @@ public:
         PEX_MEMBER(upstreamControl_);
 
         this->upstreamControl_.ClearConnections();
-        this->Connect(callable);
+        this->Connect(observer, callable);
     }
 
-    Terminus_(Observer *observer, ControlType &&control)
+    void Emplace(const ControlType &control)
+    {
+        this->Disconnect();
+        this->upstreamControl_ = control;
+        this->upstreamControl_.ClearConnections();
+    }
+
+    void Emplace(
+        Observer *observer,
+        const ControlType &control,
+        Callable callable)
+    {
+        this->Disconnect();
+        this->upstreamControl_ = control;
+        this->upstreamControl_.ClearConnections();
+        this->Connect(observer, callable);
+    }
+
+    explicit Terminus_(ControlType &&control)
         :
-        observer_(observer),
+        observer_(nullptr),
         notifier_{},
         upstreamControl_(std::move(control))
     {
@@ -182,7 +355,7 @@ public:
 
     Terminus_(Observer *observer, ControlType &&control, Callable callable)
         :
-        observer_(observer),
+        observer_(nullptr),
         notifier_{},
         upstreamControl_(std::move(control))
     {
@@ -191,14 +364,12 @@ public:
         PEX_MEMBER(upstreamControl_);
 
         this->upstreamControl_.ClearConnections();
-        this->Connect(callable);
+        this->Connect(observer, callable);
     }
 
-    Terminus_(
-        Observer *observer,
-        typename MakeControl<Upstream_>::Upstream &upstream)
+    explicit Terminus_(typename MakeControl<Upstream_>::Upstream &upstream)
         :
-        observer_(observer),
+        observer_(nullptr),
         notifier_{},
         upstreamControl_(upstream)
     {
@@ -215,7 +386,7 @@ public:
         typename MakeControl<Upstream_>::Upstream &upstream,
         Callable callable)
         :
-        observer_(observer),
+        observer_(nullptr),
         notifier_{},
         upstreamControl_(upstream)
     {
@@ -224,35 +395,87 @@ public:
         PEX_MEMBER(upstreamControl_);
 
         this->upstreamControl_.ClearConnections();
-        this->Connect(callable);
+        this->Connect(observer, callable);
     }
 
-    Terminus_(const Terminus_ &other) = delete;
-    Terminus_(Terminus_ &&other) = delete;
+    // It does not make sense to copy callbacks to the same observer.
+    // Every copy would mean extra meaningless notifications.
+    Terminus_(const Terminus_ &) = delete;
     Terminus_ & operator=(const Terminus_ &) = delete;
-    Terminus_ & operator=(Terminus_ &&) = delete;
 
+private:
+
+    Terminus_(Terminus_ &&other) noexcept
+        :
+        observer_(nullptr),
+        notifier_(),
+        upstreamControl_(std::move(other.upstreamControl_))
+    {
+        assert(this != &other);
+
+        PEX_NAME("Terminus_");
+        PEX_MEMBER(notifier_);
+        PEX_MEMBER(upstreamControl_);
+
+        this->upstreamControl_.ClearConnections();
+
+        if (other.notifier_.HasConnection())
+        {
+            assert(other.observer_);
+            this->Connect(other.observer_, other.notifier_.GetCallable());
+            other.notifier_.ClearConnections();
+            assert(!other.upstreamControl_.HasObserver(&other.notifier_));
+            other.observer_ = nullptr;
+        }
+    }
+
+    Terminus_ & operator=(Terminus_ &&other) noexcept
+    {
+        assert(this != &other);
+
+        this->Disconnect();
+
+        this->upstreamControl_ = std::move(other.upstreamControl_);
+        this->upstreamControl_.ClearConnections();
+
+        if (other.notifier_.HasConnection())
+        {
+            assert(other.observer_);
+            this->Connect(other.observer_, other.notifier_.GetCallable());
+            other.notifier_.ClearConnections();
+            assert(!other.upstreamControl_.HasObserver(&other.notifier_));
+            other.observer_ = nullptr;
+        }
+    }
+
+public:
     // Copy construct
     Terminus_(Observer *observer, const Terminus_ &other)
         :
-        Terminus_(observer, other.upstreamControl_)
+        Terminus_(other.upstreamControl_)
     {
         assert(this != &other);
 
         if (other.notifier_.HasConnection())
         {
-            this->Connect(other.notifier_.GetCallable());
+            this->Connect(observer, other.notifier_.GetCallable());
         }
     }
 
     // Move construct
     Terminus_(Observer *observer, Terminus_ &&other)
         :
-        Terminus_(observer, std::move(other.upstreamControl_))
+        Terminus_(std::move(other.upstreamControl_))
     {
+        assert(this != &other);
+
         if (other.notifier_.HasConnection())
         {
-            this->Connect(other.notifier_.GetCallable());
+            assert(observer != nullptr);
+            this->Connect(observer, other.notifier_.GetCallable());
+            other.notifier_.ClearConnections();
+            assert(!other.upstreamControl_.HasObserver(&other.notifier_));
+            other.observer_ = nullptr;
         }
     }
 
@@ -262,7 +485,7 @@ public:
         Observer *observer,
         const Terminus_<O, Upstream_> &other)
         :
-        observer_(observer),
+        observer_(nullptr),
         notifier_{},
         upstreamControl_(other.upstreamControl_)
     {
@@ -284,7 +507,7 @@ public:
         {
             if (other.notifier_.HasConnection())
             {
-                this->Connect(other.notifier_.GetCallable());
+                this->Connect(observer, other.notifier_.GetCallable());
             }
         }
         // else
@@ -297,13 +520,16 @@ public:
         Observer *observer,
         Terminus_<O, Upstream_> &&other)
         :
-        Terminus_(observer, std::move(other.upstreamControl_))
+        Terminus_(std::move(other.upstreamControl_))
     {
         if constexpr (std::is_same_v<Observer, O>)
         {
             if (other.notifier_.HasConnection())
             {
-                this->Connect(other.notifier_.GetCallable());
+                this->Connect(observer, other.notifier_.GetCallable());
+                other.notifier_.ClearConnections();
+                assert(!other.upstreamControl_.HasObserver(&other.notifier_));
+                other.observer_ = nullptr;
             }
         }
     }
@@ -322,7 +548,6 @@ public:
         PEX_LOG("Terminus copy assign: ", this);
 
         this->Disconnect();
-        this->observer_ = observer;
         this->upstreamControl_ = other.upstreamControl_;
         this->upstreamControl_.ClearConnections();
 
@@ -330,7 +555,7 @@ public:
         {
             if (other.notifier_.HasConnection())
             {
-                this->Connect(other.notifier_.GetCallable());
+                this->Connect(observer, other.notifier_.GetCallable());
             }
         }
         // else
@@ -360,7 +585,6 @@ public:
         PEX_LOG("Terminus move assign: ", this);
 
         this->Disconnect();
-        this->observer_ = observer;
         this->upstreamControl_ = std::move(other.upstreamControl_);
         this->upstreamControl_.ClearConnections();
 
@@ -368,7 +592,10 @@ public:
         {
             if (other.notifier_.HasConnection())
             {
-                this->Connect(other.notifier_.GetCallable());
+                this->Connect(observer, other.notifier_.GetCallable());
+                other.notifier_.ClearConnections();
+                assert(!other.upstreamControl_.HasObserver(&other.notifier_));
+                other.observer_ = nullptr;
             }
         }
         // else
@@ -381,22 +608,31 @@ public:
         Observer *observer,
         Terminus_<Observer, Upstream_> &&other)
     {
-        return this->Assign(observer, other);
+        return this->Assign(observer, std::move(other));
     }
 
     ~Terminus_()
     {
         this->Disconnect();
+        PEX_CLEAR_NAME(this);
+        PEX_CLEAR_NAME(&this->notifier_);
+        PEX_CLEAR_NAME(&this->upstreamControl_);
     }
 
-    void Disconnect()
+    void Disconnect() noexcept
     {
-        if (this->upstreamControl_.HasObserver(&this->notifier_))
+        if (!this->observer_)
         {
-            this->upstreamControl_.Disconnect(&this->notifier_);
+            assert(!this->notifier_.HasConnection());
+            assert(!this->upstreamControl_.HasObserver(&this->notifier_));
+
+            return;
         }
 
+        assert(this->upstreamControl_.HasObserver(&this->notifier_));
+        this->upstreamControl_.Disconnect(&this->notifier_);
         this->notifier_.ClearConnections();
+        this->observer_ = nullptr;
     }
 
     bool HasModel() const
@@ -425,12 +661,18 @@ public:
         return this->observer_;
     }
 
-    void Connect(Callable callable)
+    void Connect(Observer *observer, Callable callable)
     {
-        if (!this->observer_)
+        assert(observer != nullptr);
+
+        if (this->observer_)
         {
-            throw std::runtime_error("Terminus has no observer.");
+            // Already connected.
+            assert(this->notifier_.HasObserver(this->observer_));
+            this->notifier_.Disconnect(this->observer_);
         }
+
+        this->observer_ = observer;
 
         if (!this->upstreamControl_.HasObserver(&this->notifier_))
         {
@@ -442,16 +684,10 @@ public:
         }
 
         this->notifier_.Connect(this->observer_, callable);
-    }
 
-    template
-    <
-        template<typename, typename> typename,
-        typename,
-        typename,
-        typename
-    >
-    friend struct ImplementInterface;
+        PEX_NAME(fmt::format("Terminus_({})", static_cast<void *>(observer)));
+        PEX_LINK_OBSERVER(this, observer);
+    }
 
     bool HasConnection() const
     {
@@ -565,88 +801,23 @@ public:
 
     using Model = typename UpstreamControl::Model;
 
-    Terminus(Observer *observer, const Terminus &other)
+    friend class EndpointVector<Terminus>::Wrapper;
+
+private:
+
+    Terminus(Terminus &&other) noexcept
         :
-        Base(observer, other)
+        Base(std::move(other))
     {
 
     }
 
-    Terminus(Observer *observer, Terminus &&other)
-        :
-        Base(observer, std::move(other))
+    Terminus & operator=(Terminus &&other) noexcept
     {
+        this->Base::operator=(std::move(other));
 
+        return *this;
     }
-
-    Terminus(Observer *observer, const ControlType &pex, Callable callable)
-        :
-        Base(observer, pex, callable)
-    {
-
-    }
-
-
-    Terminus(Observer *observer, ControlType &&pex)
-        :
-        Base(observer, std::move(pex))
-    {
-
-    }
-
-    Terminus(Observer *observer, ControlType &&pex, Callable callable)
-        :
-        Base(observer, std::move(pex), callable)
-    {
-
-    }
-
-    Terminus(
-        Observer *observer,
-        typename MakeControl<Upstream_>::Upstream &upstream)
-        :
-        Base(observer, upstream)
-    {
-
-    }
-
-    Terminus(
-        Observer *observer,
-        typename MakeControl<Upstream_>::Upstream &upstream,
-        Callable callable)
-        :
-        Base(observer, upstream, callable)
-    {
-
-    }
-
-    // Copy construct from other observer
-    template<typename O>
-    Terminus(
-        Observer *observer,
-        const Terminus<O, Upstream_> &other)
-        :
-        Base(observer, other)
-    {
-
-    }
-
-    // Move construct from other observer
-    template<typename O>
-    Terminus(
-        Observer *observer,
-        Terminus<O, Upstream_> &&other)
-        :
-        Base(observer, std::move(other))
-    {
-
-    }
-
-    template<typename>
-    friend class Reference;
-
-    template<typename>
-    friend class ConstControlReference;
 
 private:
     const Model & GetModel_() const

@@ -79,11 +79,23 @@ public:
         :
         base_{},
         superModel_{},
-        baseCreated_{}
+        baseWillDelete_{},
+        baseCreated_{},
+        internalBaseCreated_{}
     {
         PEX_NAME(fmt::format("PolyModel<{}>", jive::GetTypeName<Supers>()));
+        PEX_MEMBER(baseWillDelete_);
         PEX_MEMBER(baseCreated_);
+        PEX_MEMBER(internalBaseCreated_);
     };
+
+    ~Model()
+    {
+        PEX_CLEAR_NAME(this);
+        PEX_CLEAR_NAME(&baseWillDelete_);
+        PEX_CLEAR_NAME(&baseCreated_);
+        PEX_CLEAR_NAME(&internalBaseCreated_);
+    }
 
     Value Get() const
     {
@@ -115,26 +127,8 @@ public:
 
     void Set(const Value &value)
     {
-        if (!value.CheckModel(this->base_.get()))
-        {
-            // Create the right kind of ModelBase for this value.
-            this->base_ = value.CreateModel();
-
-            this->superModel_ = dynamic_cast<SuperModel *>(this->base_.get());
-
-            if (!this->superModel_)
-            {
-                throw std::logic_error(
-                    "SuperModel must be derived from ModelBase");
-            }
-
-            this->superModel_->SetValue(value);
-            this->baseCreated_.Trigger();
-        }
-        else
-        {
-            this->superModel_->SetValue(value);
-        }
+        this->SetWithoutNotify_(value);
+        this->DoNotify_();
     }
 
 // TODO: Add this to pex::Reference
@@ -143,6 +137,12 @@ public:
     {
         if (!value.CheckModel(this->base_.get()))
         {
+            if (this->base_)
+            {
+                // Notify that the base_ will be replaced.
+                this->baseWillDelete_.Trigger();
+            }
+
             // Create the right kind of ModelBase for this value.
             this->base_ = value.CreateModel();
             this->superModel_ = dynamic_cast<SuperModel *>(this->base_.get());
@@ -154,6 +154,12 @@ public:
             }
 
             this->superModel_->SetValueWithoutNotify(value);
+
+            // Create the new control before signaling the rest of the library.
+            // Use the slower TriggerMayModify to allow the new poly::Control
+            // to connect itself to this signal.
+            this->internalBaseCreated_.TriggerMayModify();
+
             this->baseCreated_.Trigger();
         }
         else
@@ -167,6 +173,11 @@ public:
         this->superModel_->DoValueNotify();
     }
 
+    pex::control::Signal<> GetBaseWillDelete()
+    {
+        return {this->baseWillDelete_};
+    }
+
     pex::control::Signal<> GetBaseCreated()
     {
         return {this->baseCreated_};
@@ -175,7 +186,9 @@ public:
 private:
     std::unique_ptr<ModelBase> base_;
     SuperModel *superModel_;
+    pex::model::Signal baseWillDelete_;
     pex::model::Signal baseCreated_;
+    pex::model::Signal internalBaseCreated_;
 };
 
 

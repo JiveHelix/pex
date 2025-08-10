@@ -108,7 +108,10 @@ class WeaponsObserver
 public:
     WeaponsObserver(WeaponsControl control)
         :
-        endpoint_(this, control, &WeaponsObserver::OnWeapons)
+        endpoint_(
+            PEX_THIS("WeaponsObserver"),
+            control,
+            &WeaponsObserver::OnWeapons)
     {
 
     }

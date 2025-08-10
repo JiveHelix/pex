@@ -28,11 +28,15 @@ public:
 
     TerminusObserver(Upstream &upstream)
         :
-        terminus_(this, upstream),
+        terminus_(
+            PEX_THIS("TerminusObserver"),
+            upstream,
+            &TerminusObserver::Observe_),
+
         count_(0),
         observedValue{this->terminus_.Get()}
     {
-        this->terminus_.Connect(&TerminusObserver::Observe_);
+
     }
 
     void Set(pex::Argument<Type> value)

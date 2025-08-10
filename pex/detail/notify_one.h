@@ -117,17 +117,58 @@ public:
             std::cout << (ObserverName<Observer>) << " "
                 << LookupPexName(this) << std::endl;
 #endif
-
             std::cout << "Was your model destroyed before your controls?"
                 << std::endl;
 
-            std::cout << "  "
-                << LookupPexName(this->connection_->GetObserver()) << std::endl;
+#ifndef NDEBUG
+            this->PrintObservers(1);
+#endif
 
             assert(false);
         }
 
         PEX_CLEAR_NAME(this);
+    }
+
+    NotifyOne_(const NotifyOne_ &other)
+        :
+#ifndef NDEBUG
+        LogsObservers(other),
+#endif
+        connection_(other.connection_)
+    {
+
+    }
+
+    NotifyOne_(NotifyOne_ &&other) noexcept
+        :
+#ifndef NDEBUG
+        LogsObservers(std::move(other)),
+#endif
+        connection_(std::move(other.connection_))
+    {
+        other.connection_.reset();
+    }
+
+    NotifyOne_ & operator=(const NotifyOne_ &other)
+    {
+#ifndef NDEBUG
+        this->LogsObservers::operator=(other);
+#endif
+        this->connection_ = other.connection_;
+
+        return *this;
+    }
+
+    NotifyOne_ & operator=(NotifyOne_ &&other)
+    {
+#ifndef NDEBUG
+        this->LogsObservers::operator=(std::move(other));
+#endif
+        this->connection_ = std::move(other.connection_);
+        other.connection_.reset();
+
+        return *this;
     }
 
     /** Remove all registered callbacks for the observer. **/

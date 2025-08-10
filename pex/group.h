@@ -311,6 +311,12 @@ struct Group
         Model_ & operator=(const Model_ &) = delete;
         Model_ & operator=(Model_ &&) = delete;
 
+        ~Model_()
+        {
+            CLEAR_PEX_NAMES;
+            PEX_CLEAR_NAME(this);
+        }
+
         bool HasModel() const { return true; }
     };
 
@@ -413,6 +419,12 @@ struct Group
 
             PEX_NAME(fmt::format("{} Control", jive::GetTypeName<Plain>()));
             PEX_NAMES(this);
+        }
+
+        ~Control_()
+        {
+            CLEAR_PEX_NAMES;
+            PEX_CLEAR_NAME(this);
         }
 
         Control_ & operator=(Control_ &&other)

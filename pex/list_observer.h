@@ -21,16 +21,36 @@ public:
 
     using MemberAddedCallable = typename MemberAddedEndpoint::Callable;
 
+    using MemberWillRemoveEndpoint =
+        Endpoint<Observer, typename ListControl::MemberWillRemove>;
+
+    using MemberWillRemoveCallable =
+        typename MemberWillRemoveEndpoint::Callable;
+
     using MemberRemovedEndpoint =
         Endpoint<Observer, typename ListControl::MemberRemoved>;
 
     using MemberRemovedCallable = typename MemberRemovedEndpoint::Callable;
 
+    using MemberWillReplaceEndpoint =
+        Endpoint<Observer, typename ListControl::MemberWillReplace>;
+
+    using MemberWillReplaceCallable =
+        typename MemberWillReplaceEndpoint::Callable;
+
+    using MemberReplacedEndpoint =
+        Endpoint<Observer, typename ListControl::MemberReplaced>;
+
+    using MemberReplacedCallable =
+        typename MemberReplacedEndpoint::Callable;
+
     ListObserver()
         :
         memberAdded(),
         memberWillRemove(),
-        memberRemoved()
+        memberRemoved(),
+        memberWillReplace(),
+        memberReplaced()
     {
 
     }
@@ -39,8 +59,10 @@ public:
         Observer *observer,
         ListControl listControl,
         MemberAddedCallable memberAddedCallable,
-        MemberRemovedCallable memberWillRemoveCallable,
-        MemberRemovedCallable memberRemovedCallable)
+        MemberWillRemoveCallable memberWillRemoveCallable,
+        MemberRemovedCallable memberRemovedCallable,
+        MemberWillReplaceCallable memberWillReplaceCallable,
+        MemberReplacedCallable memberReplacedCallable)
         :
         memberAdded(
             observer,
@@ -55,7 +77,17 @@ public:
         memberRemoved(
             observer,
             listControl.memberRemoved,
-            memberRemovedCallable)
+            memberRemovedCallable),
+
+        memberWillReplace(
+            observer,
+            listControl.memberWillReplace,
+            memberWillReplaceCallable),
+
+        memberReplaced(
+            observer,
+            listControl.memberReplaced,
+            memberReplacedCallable)
     {
 
     }
@@ -64,8 +96,10 @@ public:
         Observer *observer,
         Upstream &upstream,
         MemberAddedCallable memberAddedCallable,
-        MemberRemovedCallable memberWillRemoveCallable,
-        MemberRemovedCallable memberRemovedCallable)
+        MemberWillRemoveCallable memberWillRemoveCallable,
+        MemberRemovedCallable memberRemovedCallable,
+        MemberWillReplaceCallable memberWillReplaceCallable,
+        MemberReplacedCallable memberReplacedCallable)
 
         :
         ListObserver(
@@ -73,7 +107,9 @@ public:
             ListControl(upstream),
             memberAddedCallable,
             memberWillRemoveCallable,
-            memberRemovedCallable)
+            memberRemovedCallable,
+            memberWillReplaceCallable,
+            memberReplacedCallable)
     {
 
     }
@@ -82,7 +118,9 @@ public:
         :
         memberAdded(std::move(other.memberAdded)),
         memberWillRemove(std::move(other.memberWillRemove)),
-        memberRemoved(std::move(other.memberRemoved))
+        memberRemoved(std::move(other.memberRemoved)),
+        memberWillReplace(std::move(other.memberWillReplace)),
+        memberReplaced(std::move(other.memberReplaced))
     {
 
     }
@@ -92,6 +130,8 @@ public:
         this->memberAdded = std::move(other.memberAdded);
         this->memberWillRemove = std::move(other.memberWillRemove);
         this->memberRemoved = std::move(other.memberRemoved);
+        this->memberWillReplace = std::move(other.memberWillReplace);
+        this->memberReplaced = std::move(other.memberReplaced);
 
         return *this;
     }
@@ -102,13 +142,17 @@ public:
         this->memberAdded.Assign(observer, other.memberAdded);
         this->memberWillRemove.Assign(observer, other.memberWillRemove);
         this->memberRemoved.Assign(observer, other.memberRemoved);
+        this->memberWillReplace.Assign(observer, other.memberWillReplace);
+        this->memberReplaced.Assign(observer, other.memberReplaced);
 
         return *this;
     }
 
     MemberAddedEndpoint memberAdded;
-    MemberRemovedEndpoint memberWillRemove;
+    MemberWillRemoveEndpoint memberWillRemove;
     MemberRemovedEndpoint memberRemoved;
+    MemberWillReplaceEndpoint memberWillReplace;
+    MemberReplacedEndpoint memberReplaced;
 };
 
 

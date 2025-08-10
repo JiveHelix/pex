@@ -73,11 +73,9 @@ struct MakeConnector
 
     // Defining constructors here so that Observer and Upstream types can be
     // deduced.
-    MakeConnector(
-        Observer *observer,
-        Upstream &object)
+    MakeConnector(Upstream &object)
         :
-        Base(observer, object)
+        Base(object)
     {
 
     }
@@ -120,16 +118,16 @@ public:
         observer_(observer),
         connector()
     {
-        PEX_NAME("Endpoint");
+        PEX_NAME(fmt::format("Endpoint ({})", pex::LookupPexName(observer)));
         PEX_MEMBER(connector);
     }
 
     Endpoint_(Observer *observer, UpstreamControl upstream)
         :
         observer_(observer),
-        connector(observer, upstream)
+        connector(upstream)
     {
-        PEX_NAME("Endpoint");
+        PEX_NAME(fmt::format("Endpoint ({})", pex::LookupPexName(observer)));
         PEX_MEMBER(connector);
     }
 
@@ -138,16 +136,16 @@ public:
         observer_(observer),
         connector(observer, upstream, callable)
     {
-        PEX_NAME("Endpoint");
+        PEX_NAME(fmt::format("Endpoint ({})", pex::LookupPexName(observer)));
         PEX_MEMBER(connector);
     }
 
     Endpoint_(Observer *observer, typename UpstreamControl::Upstream &model)
         :
         observer_(observer),
-        connector(observer, UpstreamControl(model))
+        connector(UpstreamControl(model))
     {
-        PEX_NAME("Endpoint");
+        PEX_NAME(fmt::format("Endpoint ({})", pex::LookupPexName(observer)));
         PEX_MEMBER(connector);
     }
 
@@ -159,7 +157,7 @@ public:
         observer_(observer),
         connector(observer, UpstreamControl(model), callable)
     {
-        PEX_NAME("Endpoint");
+        PEX_NAME(fmt::format("Endpoint ({})", pex::LookupPexName(observer)));
         PEX_MEMBER(connector);
     }
 
@@ -168,7 +166,7 @@ public:
         observer_(observer),
         connector(observer, other.connector)
     {
-        PEX_NAME("Endpoint");
+        PEX_NAME(fmt::format("Endpoint ({})", pex::LookupPexName(observer)));
         PEX_MEMBER(connector);
     }
 
@@ -183,10 +181,16 @@ public:
     Endpoint_(Endpoint_ &&other)
         :
         observer_(other.observer_),
-        connector(other.observer_, other.connector)
+        connector(other.connector)
     {
-        PEX_NAME("Endpoint");
+        PEX_NAME(fmt::format("Endpoint ({})", pex::LookupPexName(observer_)));
         PEX_MEMBER(connector);
+    }
+
+    ~Endpoint_()
+    {
+        PEX_CLEAR_NAME(this);
+        PEX_CLEAR_NAME(&this->connector);
     }
 
     Endpoint_ & operator=(Endpoint_ &&other)
@@ -199,14 +203,12 @@ public:
 
     void ConnectUpstream(UpstreamControl upstream, Callable callable)
     {
-        this->connector.Assign(
-            this->observer_,
-            Connector(this->observer_, upstream, callable));
+        this->connector.Emplace(this->observer_, upstream, callable);
     }
 
     void Connect(Callable callable)
     {
-        this->connector.Connect(callable);
+        this->connector.Connect(this->observer_, callable);
     }
 
     void Disconnect(Observer *)
@@ -466,7 +468,7 @@ using InternalType = typename InternalType_<Upstream>::Type;
 
 
 template<typename Upstream, typename MemberFunction>
-class BoundEndpoint
+class BoundEndpoint: Separator
 {
 public:
     using Signature = detail::Signature<MemberFunction>;
@@ -486,7 +488,7 @@ public:
         memberFunction_(),
         args_()
     {
-
+        PEX_MEMBER(endpoint);
     }
 
     BoundEndpoint(Observer *observer)
@@ -496,7 +498,12 @@ public:
         memberFunction_(),
         args_()
     {
+        PEX_NAME(
+            fmt::format(
+                "BoundEndpoint ({})",
+                pex::LookupPexName(observer_)));
 
+        PEX_MEMBER(endpoint);
     }
 
     BoundEndpoint(Observer *observer, UpstreamControl upstream)
@@ -506,7 +513,12 @@ public:
         memberFunction_(),
         args_()
     {
+        PEX_NAME(
+            fmt::format(
+                "BoundEndpoint ({})",
+                pex::LookupPexName(observer_)));
 
+        PEX_MEMBER(endpoint);
     }
 
     // Uses helper type ...T to allow forwarding the bound arguments.
@@ -523,6 +535,13 @@ public:
         args_(std::make_tuple(std::forward<T>(args)...))
     {
         this->ConnectInternal_();
+
+        PEX_NAME(
+            fmt::format(
+                "BoundEndpoint ({})",
+                pex::LookupPexName(observer_)));
+
+        PEX_MEMBER(endpoint);
     }
 
     BoundEndpoint(Observer *observer, typename UpstreamControl::Upstream &model)
@@ -534,7 +553,18 @@ public:
         memberFunction_(),
         args_()
     {
+        PEX_NAME(
+            fmt::format(
+                "BoundEndpoint ({})",
+                pex::LookupPexName(observer_)));
 
+        PEX_MEMBER(endpoint);
+    }
+
+    ~BoundEndpoint()
+    {
+        PEX_CLEAR_NAME(this);
+        PEX_CLEAR_NAME(&this->endpoint);
     }
 
     void ConnectInternal_()
@@ -548,7 +578,10 @@ public:
             this->endpoint.Connect(&BoundEndpoint::OnInternal_);
         }
 
-        PEX_NAME("BoundEndpoint");
+        PEX_NAME(
+            fmt::format(
+                "BoundEndpoint ({})",
+                pex::LookupPexName(observer_)));
     }
 
     // Uses helper type ...T to allow forwarding the bound arguments.
@@ -566,6 +599,7 @@ public:
         memberFunction_(memberFunction),
         args_(std::make_tuple(std::forward<T>(args)...))
     {
+        PEX_MEMBER(endpoint);
         this->ConnectInternal_();
     }
 
@@ -578,7 +612,12 @@ public:
         memberFunction_(other.memberFunction_),
         args_(other.args_)
     {
+        PEX_NAME(
+            fmt::format(
+                "BoundEndpoint ({})",
+                pex::LookupPexName(observer_)));
 
+        PEX_MEMBER(endpoint);
     }
 
     BoundEndpoint & Assign(Observer *observer, const BoundEndpoint &other)
@@ -600,7 +639,12 @@ public:
         memberFunction_(other.memberFunction_),
         args_(other.args_)
     {
+        PEX_NAME(
+            fmt::format(
+                "BoundEndpoint ({})",
+                pex::LookupPexName(observer_)));
 
+        PEX_MEMBER(endpoint);
     }
 
     BoundEndpoint & operator=(BoundEndpoint &&other)

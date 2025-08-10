@@ -15,7 +15,7 @@ template
     ::pex::HasMinimalSupers Templates
 >
 template<typename GroupBase>
-std::shared_ptr<MakeControlSuper<typename Templates::Supers>>
+std::unique_ptr<MakeControlSuper<typename Templates::Supers>>
 Poly<Fields, Templates>::GroupTemplates_
     ::Model<GroupBase>::CreateControl()
 {
@@ -25,7 +25,7 @@ Poly<Fields, Templates>::GroupTemplates_
     static_assert(
         std::derived_from<DerivedModel, std::remove_cvref_t<decltype(*this)>>);
 
-    using Control =
+    using DerivedControl =
         typename Poly<Fields, Templates>::Control;
 
     auto derivedModel = dynamic_cast<DerivedModel *>(this);
@@ -35,7 +35,7 @@ Poly<Fields, Templates>::GroupTemplates_
         throw std::logic_error("Expected this class to be a base");
     }
 
-    return std::make_shared<Control>(*derivedModel);
+    return std::make_unique<DerivedControl>(*derivedModel);
 }
 
 #if defined(__GNUG__) && !defined(__clang__) && !defined(_WIN32)
@@ -73,7 +73,7 @@ template
     ::pex::HasMinimalSupers Templates
 >
 template<typename GroupBase>
-std::shared_ptr<MakeControlSuper<typename Templates::Supers>>
+std::unique_ptr<MakeControlSuper<typename Templates::Supers>>
 Poly<Fields, Templates>::GroupTemplates_
     ::TEMPLATE Control<GroupBase>::Copy() const
 {
@@ -86,7 +86,7 @@ Poly<Fields, Templates>::GroupTemplates_
         throw std::logic_error("Expected this class to be a base");
     }
 
-    return std::make_shared<DerivedControl>(*derivedControl);
+    return std::make_unique<DerivedControl>(*derivedControl);
 }
 
 
@@ -119,6 +119,15 @@ Poly<Fields, Templates>::GroupTemplates_
     aggregate_(),
     baseNotifier_()
 {
+    PEX_CONCISE_LOG(this, " from ", LookupPexName(&model));
+
+    auto name = LookupPexName(&model);
+
+    if (name.at(0) == 'T')
+    {
+        throw std::runtime_error("Maybe Terminus_");
+    }
+
     PEX_NAME(
         fmt::format(
             "Poly<Fields, {}>::Control<{}>",
@@ -144,6 +153,8 @@ Poly<Fields, Templates>::GroupTemplates_
     aggregate_(),
     baseNotifier_()
 {
+    PEX_CONCISE_LOG(this);
+
     PEX_NAME(
         fmt::format(
             "Poly<Fields, {}>::Control<{}>",

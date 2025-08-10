@@ -421,7 +421,11 @@ public:
 
     RocketListObserver(RocketListControl rocketListControl)
         :
-        endpoint_(this, rocketListControl, &RocketListObserver::OnRockets_),
+        endpoint_(
+            PEX_THIS("RocketListObserver"),
+            rocketListControl,
+            &RocketListObserver::OnRockets_),
+
         rocketList_(rocketListControl.Get()),
         notificationCount_()
     {
@@ -571,7 +575,11 @@ public:
 
     GamoraObserver(GamoraControl gamoraControl)
         :
-        endpoint_(this, gamoraControl, &GamoraObserver::OnGamora_),
+        endpoint_(
+            PEX_THIS("GamoraObserver"),
+            gamoraControl,
+            &GamoraObserver::OnGamora_),
+
         gamora_(gamoraControl.Get()),
         notificationCount_()
     {
@@ -857,7 +865,11 @@ public:
 
     RocketObserver(RocketControl rocketControl)
         :
-        endpoint_(this, rocketControl, &RocketObserver::OnRocket_),
+        endpoint_(
+            PEX_THIS("RocketObserver"),
+            rocketControl,
+            &RocketObserver::OnRocket_),
+
         rocket_(rocketControl.Get()),
         notificationCount_()
     {

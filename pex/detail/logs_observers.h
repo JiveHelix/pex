@@ -18,11 +18,29 @@ namespace detail
 class LogsObservers
 {
 public:
+    using Bullets = std::array<std::string_view, 4>;
+    static constexpr Bullets bullets{"∆", "•", "§", "◊"};
+
+    static std::string_view GetBullet(int indent)
+    {
+        assert(indent >= 0);
+        static constexpr size_t bulletCount = bullets.size();
+
+        return bullets[static_cast<size_t>(indent) % bulletCount];
+    }
+
     void PrintObservers(int indent = 0) const
     {
+        std::cout << LookupPexName(this, indent);
         std::cout << fields::MakeIndent(indent)
-            << "Observers of "
-            << LookupPexName(this);
+            << GetBullet(indent) << " observed by:";
+
+        if (this->entries_.empty())
+        {
+            std::cout << " None" << std::endl;
+
+            return;
+        }
 
         for (auto it: this->entries_)
         {
@@ -39,7 +57,19 @@ private:
 
     static void PrintObserver(void *observer, int indent = 0)
     {
-        std::cout << fields::MakeIndent(indent) << LookupPexName(observer);
+        std::cout << LookupPexName(observer, indent);
+
+        const void * linkedObserver = GetLinkedObserver(observer);
+
+        while (linkedObserver)
+        {
+            std::cout << fields::MakeIndent(indent)
+                << GetBullet(indent) << " linked observer: "
+                << LookupPexName(linkedObserver, indent + 1) << std::endl;
+
+            linkedObserver = GetLinkedObserver(linkedObserver);
+            ++indent;
+        }
     }
 
 protected:
@@ -78,7 +108,7 @@ protected:
 
         if (found == std::end(this->entries_))
         {
-            throw std::logic_error("Obsever not found");
+            throw std::logic_error("Observer not found");
         }
 
         this->entries_.erase(found);

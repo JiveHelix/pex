@@ -219,6 +219,12 @@ public:
         this->endpoints_.radius.Connect(&EndpointObserver::OnRadius_);
     }
 
+    ~EndpointObserver()
+    {
+        PEX_CLEAR_NAME(this);
+        PEX_CLEAR_NAME(&this->center);
+    }
+
     void OnCenter_(const groups::Point &center_)
     {
         this->center = center_;
@@ -261,6 +267,12 @@ public:
             &RadiusObserver::OnRadius_)
     {
         PEX_MEMBER(endpoint);
+    }
+
+    ~RadiusObserver()
+    {
+        PEX_CLEAR_NAME(this);
+        PEX_CLEAR_NAME(&this->endpoint);
     }
 
     void SetControl(const Control &control)

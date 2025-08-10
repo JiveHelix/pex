@@ -6,6 +6,17 @@
 #include "pex/detail/forward.h"
 
 
+#ifdef ENABLE_PEX_NAMES
+#define PEX_LINK_NOTNULL(address, observer)   \
+    if (observer)                             \
+    {                                         \
+        PEX_LINK_OBSERVER(address, observer); \
+    }
+#else
+#define PEX_LINK_NOTNULL(address, observer)
+#endif
+
+
 namespace pex
 {
 
@@ -55,6 +66,7 @@ struct MakeControl<P, std::enable_if_t<IsListControl<P>>>
 namespace detail
 {
 
+
 template<typename T, typename Enable = void>
 struct ConnectableSelector_
 {
@@ -85,7 +97,7 @@ using ConnectableSelector = typename ConnectableSelector_<T>::Type;
 
 
 template<typename Observer, typename Upstream_>
-class ListConnect
+class ListConnect: Separator
 {
 public:
     static_assert(::pex::IsListNode<Upstream_>);
@@ -118,6 +130,12 @@ public:
     using MemberAddedTerminus =
         ::pex::Terminus<ListConnect, typename ListControl::MemberAdded>;
 
+    using MemberWillReplaceTerminus =
+        Terminus<ListConnect, typename ListControl::MemberWillReplace>;
+
+    using MemberReplacedTerminus =
+        Terminus<ListConnect, typename ListControl::MemberReplaced>;
+
     using ListFlagTerminus =
         ::pex::Terminus<ListConnect, typename ListControl::ListFlag>;
 
@@ -142,6 +160,8 @@ public:
         memberWillRemoveTerminus_(),
         memberRemovedTerminus_(),
         memberAddedTerminus_(),
+        memberWillReplaceTerminus_(),
+        memberReplacedTerminus_(),
         isNotifying_(false),
         isNotifyingTerminus_(),
         cached_()
@@ -149,18 +169,16 @@ public:
 
     }
 
-    ListConnect(
-        Observer *observer,
-        const ListControl &listControl)
+    ListConnect(const ListControl &listControl)
         :
         muteTerminus_(
-            this,
+            PEX_THIS("ListConnect"),
             listControl.CloneMuteControl(),
             &ListConnect::OnMute_),
         muteState_(listControl.CloneMuteControl().Get()),
         listControl_(listControl),
         connectables_(),
-        observer_(observer),
+        observer_(nullptr),
         valueConnection_(),
         signalConnection_(),
 
@@ -178,6 +196,16 @@ public:
             this,
             this->listControl_.memberAdded,
             &ListConnect::OnMemberAdded_),
+
+        memberWillReplaceTerminus_(
+            this,
+            this->listControl_.memberWillReplace,
+            &ListConnect::OnMemberWillReplace_),
+
+        memberReplacedTerminus_(
+            this,
+            this->listControl_.memberReplaced,
+            &ListConnect::OnMemberReplaced_),
 
         isNotifying_(false),
 
@@ -197,7 +225,7 @@ public:
         ValueCallable callable)
         :
         muteTerminus_(
-            this,
+            PEX_THIS("ListConnect"),
             listControl.CloneMuteControl(),
             &ListConnect::OnMute_),
         muteState_(listControl.CloneMuteControl().Get()),
@@ -222,6 +250,16 @@ public:
             this->listControl_.memberAdded,
             &ListConnect::OnMemberAdded_),
 
+        memberWillReplaceTerminus_(
+            this,
+            this->listControl_.memberWillReplace,
+            &ListConnect::OnMemberWillReplace_),
+
+        memberReplacedTerminus_(
+            this,
+            this->listControl_.memberReplaced,
+            &ListConnect::OnMemberReplaced_),
+
         isNotifying_(false),
 
         isNotifyingTerminus_(
@@ -231,6 +269,8 @@ public:
 
         cached_(this->listControl_.Get())
     {
+        assert(this->observer_ != nullptr);
+        PEX_LINK_OBSERVER(this, this->observer_);
         this->RestoreConnections_(0);
     }
 
@@ -240,7 +280,7 @@ public:
         SignalCallable callable)
         :
         muteTerminus_(
-            this,
+            PEX_THIS("ListConnect"),
             listControl.CloneMuteControl(),
             &ListConnect::OnMute_),
         muteState_(listControl.CloneMuteControl().Get()),
@@ -265,6 +305,16 @@ public:
             this->listControl_.memberAdded,
             &ListConnect::OnMemberAdded_),
 
+        memberWillReplaceTerminus_(
+            this,
+            this->listControl_.memberWillReplace,
+            &ListConnect::OnMemberWillReplace_),
+
+        memberReplacedTerminus_(
+            this,
+            this->listControl_.memberReplaced,
+            &ListConnect::OnMemberReplaced_),
+
         isNotifying_(false),
 
         isNotifyingTerminus_(
@@ -274,28 +324,14 @@ public:
 
         cached_()
     {
+        assert(this->observer_ != nullptr);
+        PEX_LINK_OBSERVER(this, this->observer_);
         this->RestoreConnections_(0);
-    }
-
-    ListConnect(
-        Observer *observer,
-        Upstream &upstream)
-        :
-        ListConnect(observer, ListControl(upstream))
-    {
-
     }
 
     ListConnect(Upstream &upstream)
         :
         ListConnect(ListControl(upstream))
-    {
-
-    }
-
-    ListConnect(const ListControl &listControl)
-        :
-        ListConnect(nullptr, listControl)
     {
 
     }
@@ -320,16 +356,16 @@ public:
 
     }
 
-    ListConnect(Observer *observer, const ListConnect &other)
+    ListConnect(const ListConnect &other)
         :
         muteTerminus_(
-            this,
+            PEX_THIS("ListConnect"),
             other.listControl_.CloneMuteControl(),
             &ListConnect::OnMute_),
         muteState_(other.muteState_),
         listControl_(other.listControl_),
         connectables_(),
-        observer_(observer),
+        observer_(nullptr),
         valueConnection_(),
         signalConnection_(),
 
@@ -348,6 +384,16 @@ public:
             this->listControl_.memberAdded,
             &ListConnect::OnMemberAdded_),
 
+        memberWillReplaceTerminus_(
+            this,
+            this->listControl_.memberWillReplace,
+            &ListConnect::OnMemberWillReplace_),
+
+        memberReplacedTerminus_(
+            this,
+            this->listControl_.memberReplaced,
+            &ListConnect::OnMemberReplaced_),
+
         isNotifying_(false),
 
         isNotifyingTerminus_(
@@ -360,19 +406,22 @@ public:
         if (other.valueConnection_)
         {
             this->valueConnection_.emplace(
-                observer,
+                other.observer_,
                 other.valueConnection_->GetCallable());
         }
 
         if (other.signalConnection_)
         {
             this->signalConnection_.emplace(
-                observer,
+                other.observer_,
                 other.signalConnection_->GetCallable());
         }
 
         if (other.valueConnection_ || other.signalConnection_)
         {
+            assert(other.observer_ != nullptr);
+            this->observer_ = other.observer_;
+            PEX_LINK_OBSERVER(this, this->observer_);
             this->RestoreConnections_(0);
         }
     }
@@ -382,25 +431,21 @@ public:
         return this->Assign(other.observer_, other);
     }
 
-    ListConnect(const ListConnect &other)
-        :
-        ListConnect(other.observer_, other)
-    {
-
-    }
-
     ListConnect & Assign(Observer *observer, const ListConnect &other)
     {
+        PEX_LINK_NOTNULL(this, observer);
+
+        this->Disconnect();
+
         this->muteTerminus_.RequireAssign(this, other.muteTerminus_);
         this->muteState_ = other.muteState_;
 
-        this->ClearListConnections_();
-
         this->listControl_ = other.listControl_;
-        this->observer_ = observer;
 
         if (other.valueConnection_)
         {
+            assert(observer != nullptr);
+
             this->valueConnection_.emplace(
                 observer,
                 other.valueConnection_->GetCallable());
@@ -408,6 +453,8 @@ public:
 
         if (other.signalConnection_)
         {
+            assert(observer != nullptr);
+
             this->signalConnection_.emplace(
                 observer,
                 other.signalConnection_->GetCallable());
@@ -415,6 +462,7 @@ public:
 
         if (other.valueConnection_ || other.signalConnection_)
         {
+            this->observer_ = observer;
             this->RestoreConnections_(0);
         }
 
@@ -430,6 +478,14 @@ public:
             this,
             other.memberAddedTerminus_);
 
+        this->memberWillReplaceTerminus_.RequireAssign(
+            this,
+            other.memberWillReplaceTerminus_);
+
+        this->memberReplacedTerminus_.RequireAssign(
+            this,
+            other.memberReplacedTerminus_);
+
         this->isNotifying_ = other.isNotifying_;
 
         this->isNotifyingTerminus_.RequireAssign(
@@ -441,37 +497,12 @@ public:
         return *this;
     }
 
-    void Connect(ValueCallable callable)
-    {
-        if (!this->observer_)
-        {
-            throw std::runtime_error("ListConnect has no observer.");
-        }
-
-        this->cached_ = this->listControl_.Get();
-
-        this->valueConnection_.emplace(this->observer_, callable);
-
-        if (this->connectables_.empty())
-        {
-            this->RestoreConnections_(0);
-        }
-    }
-
     void Connect(Observer *observer, ValueCallable callable)
     {
+        PEX_LINK_OBSERVER(this, observer);
+        this->cached_ = this->listControl_.Get();
         this->observer_ = observer;
-        this->Connect(callable);
-    }
-
-    void Connect(SignalCallable callable)
-    {
-        if (!this->observer_)
-        {
-            throw std::runtime_error("ListConnect has no observer.");
-        }
-
-        this->signalConnection_.emplace(this->observer_, callable);
+        this->valueConnection_.emplace(observer, callable);
 
         if (this->connectables_.empty())
         {
@@ -482,7 +513,15 @@ public:
     void Connect(Observer *observer, SignalCallable callable)
     {
         this->observer_ = observer;
-        this->Connect(callable);
+
+        PEX_LINK_OBSERVER(this, observer_);
+
+        this->signalConnection_.emplace(this->observer_, callable);
+
+        if (this->connectables_.empty())
+        {
+            this->RestoreConnections_(0);
+        }
     }
 
     bool HasObservers() const
@@ -508,7 +547,8 @@ public:
 
     ~ListConnect()
     {
-        this->ClearListConnections_();
+        this->Disconnect();
+        PEX_CLEAR_NAME(this);
     }
 
     const ListControl & GetControl() const
@@ -533,9 +573,19 @@ public:
 
     void Disconnect()
     {
+        if (!this->observer_)
+        {
+            assert(!this->valueConnection_.has_value());
+            assert(!this->signalConnection_.has_value());
+            assert(this->connectables_.empty());
+
+            return;
+        }
+
         this->valueConnection_.reset();
         this->signalConnection_.reset();
         this->ClearListConnections_();
+        this->observer_ = nullptr;
     }
 
     Plain Get() const
@@ -649,6 +699,11 @@ private:
         this->RestoreConnections_(*index);
     }
 
+    void ClearConnection_(size_t index)
+    {
+        this->connectables_.at(index).Disconnect(this);
+    }
+
     void ClearInvalidatedConnections_(size_t firstToClear)
     {
         size_t connectionCount = this->connectables_.size();
@@ -673,6 +728,19 @@ private:
 
     void RestoreConnection_(size_t index)
     {
+        this->connectables_.at(index) =
+            Connectable(
+                this,
+                this->listControl_.at(index),
+                std::bind(
+                    ListConnect::OnItemChanged_,
+                    index,
+                    std::placeholders::_1,
+                    std::placeholders::_2));
+    }
+
+    void RestoreConnectionAtEnd_(size_t index)
+    {
         this->connectables_.emplace_back(
             this,
             this->listControl_[index],
@@ -691,7 +759,7 @@ private:
 
         for (size_t i = firstIndex; i < listCount; ++i)
         {
-            this->RestoreConnection_(i);
+            this->RestoreConnectionAtEnd_(i);
         }
     }
 
@@ -714,6 +782,36 @@ private:
         {
             this->ClearInvalidatedConnections_(*index);
             this->RestoreConnections_(*index);
+        }
+    }
+
+    void OnMemberWillReplace_(const std::optional<size_t> &index)
+    {
+        if (!index)
+        {
+            return;
+        }
+
+        if (this->HasObservers())
+        {
+            this->ClearConnection_(*index);
+        }
+        else
+        {
+            assert(this->connectables_.empty());
+        }
+    }
+
+    void OnMemberReplaced_(const std::optional<size_t> &index)
+    {
+        if (!index)
+        {
+            return;
+        }
+
+        if (this->HasObservers())
+        {
+            this->RestoreConnection_(*index);
         }
     }
 
@@ -754,6 +852,8 @@ private:
     MemberWillRemoveTerminus memberWillRemoveTerminus_;
     MemberRemovedTerminus memberRemovedTerminus_;
     MemberAddedTerminus memberAddedTerminus_;
+    MemberWillReplaceTerminus memberWillReplaceTerminus_;
+    MemberReplacedTerminus memberReplacedTerminus_;
     bool isNotifying_;
     ListFlagTerminus isNotifyingTerminus_;
     ListType cached_;

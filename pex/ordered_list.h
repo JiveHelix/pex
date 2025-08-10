@@ -88,42 +88,6 @@ struct OrderedListTemplate
 };
 
 
-namespace detail
-{
-
-
-template<typename T>
-concept HasListItem = requires { typename T::ListItem; };
-
-
-template<typename T, typename Enable = void>
-struct ListMember_
-{
-    using Type = typename T::value_type;
-};
-
-
-template<typename T>
-struct ListMember_<T, std::enable_if_t<HasListItem<T>>>
-{
-    using Type = typename T::ListItem;
-};
-
-template<typename T>
-using ListMember = typename ListMember_<T>::Type;
-
-
-} // end namespace detail
-
-
-template<typename ListMaker>
-using ListModelItem = typename ModelSelector<ListMaker>::ListItem;
-
-
-template<typename ListMaker>
-using ListControlItem = typename ControlSelector<ListMaker>::ListItem;
-
-
 template<typename T>
 concept IsOrder =
     std::is_same_v<std::remove_reference_t<T>, OrderControl>
@@ -207,23 +171,33 @@ struct OrderedListCustom
         using Selected = control::ListOptionalIndex;
         using MemberAdded = control::ListOptionalIndex;
         using MemberRemoved = control::ListOptionalIndex;
+        using MemberWillRemove = control::ListOptionalIndex;
+        using MemberWillReplace = control::ListOptionalIndex;
+        using MemberReplaced = control::ListOptionalIndex;
         using Count = control::ListCount;
 
     private:
         using CountEndpoint = Endpoint<Model, Count>;
         using MemberRemovedEndpoint = Endpoint<Model, MemberRemoved>;
+        using MemberWillRemoveEndpoint = Endpoint<Model, MemberWillRemove>;
         using MemberAddedEndpoint = Endpoint<Model, MemberAdded>;
+        using MemberWillReplaceEndpoint = Endpoint<Model, MemberWillReplace>;
+        using MemberReplacedEndpoint = Endpoint<Model, MemberReplaced>;
 
         MemberAddedEndpoint memberAddedEndpoint_;
-        MemberRemovedEndpoint memberWillRemoveEndpoint_;
+        MemberWillRemoveEndpoint memberWillRemoveEndpoint_;
         MemberRemovedEndpoint memberRemovedEndpoint_;
+        MemberWillReplaceEndpoint memberWillReplaceEndpoint_;
+        MemberReplacedEndpoint memberReplacedEndpoint_;
 
     public:
         Selected selected;
         Count count;
         MemberAdded memberAdded;
-        MemberRemoved memberWillRemove;
+        MemberWillRemove memberWillRemove;
         MemberRemoved memberRemoved;
+        MemberWillReplace memberWillReplace;
+        MemberReplaced memberReplaced;
 
         using Indices = ModelSelector<IndicesList>;
 
@@ -249,11 +223,23 @@ struct OrderedListCustom
                 this->list.memberRemoved,
                 &Model::OnListMemberRemoved_),
 
+            memberWillReplaceEndpoint_(
+                this,
+                this->list.memberWillReplace,
+                &Model::OnListMemberWillReplace_),
+
+            memberReplacedEndpoint_(
+                this,
+                this->list.memberReplaced,
+                &Model::OnListMemberReplaced_),
+
             selected(this->list.selected),
             count(this->list.count),
             memberAdded(this->list.memberAdded),
             memberWillRemove(this->list.memberWillRemove),
             memberRemoved(this->list.memberRemoved),
+            memberWillReplace(this->list.memberWillReplace),
+            memberReplaced(this->list.memberReplaced),
             moveToTopEndpoints_(),
             moveUpEndpoints_(),
             moveDownEndpoints_(),
@@ -576,13 +562,25 @@ struct OrderedListCustom
             assert(result.second);
         }
 
+        void ClearConnectionsAt_(size_t index)
+        {
+            this->moveToBottomEndpoints_.erase(index);
+            this->moveToTopEndpoints_.erase(index);
+            this->moveUpEndpoints_.erase(index);
+            this->moveDownEndpoints_.erase(index);
+        }
+
         void ClearInvalidatedConnections_(size_t firstToClear)
         {
+            if constexpr (!hasOrder)
+            {
+                return;
+            }
+
             auto keys =
                 GetInvalidatedKeys(
                     firstToClear,
                     this->moveToBottomEndpoints_);
-
 #ifndef NDEBUG
             auto checkMoveToTop =
                 GetInvalidatedKeys(firstToClear, this->moveToTopEndpoints_);
@@ -609,61 +607,22 @@ struct OrderedListCustom
                 assert(keys[i] == checkMoveDown[i]);
             }
 #endif
-
             for (auto &key: keys)
             {
-                this->moveToBottomEndpoints_.erase(key);
-                this->moveToTopEndpoints_.erase(key);
-                this->moveUpEndpoints_.erase(key);
-                this->moveDownEndpoints_.erase(key);
+                this->ClearConnectionsAt_(key);
             }
-
-            ClearInvalidated(
-                firstToClear,
-                this->itemCreatedEndpoints_);
         }
 
-        void OnItemCreated_(size_t index)
+        void RestoreConnection_([[maybe_unused]] size_t index)
         {
-            if constexpr (!hasOrder)
+            if constexpr (hasOrder)
             {
-                return;
-            }
+                auto order =
+                    GetOrderControl<ListMaker>(this->list, index);
 
-            auto order = GetOrderControl<ListMaker>(this->list, index);
-
-            assert(order);
-
-            this->MakeOrderConnections_(*order, index);
-        }
-
-        void RestoreConnection_(size_t index)
-        {
-            auto order =
-                GetOrderControl<ListMaker>(this->list, index);
-
-            if (order)
-            {
-                this->MakeOrderConnections_(*order, index);
-            }
-            else
-            {
-                if constexpr (ListHasVirtualGetOrder<ListMaker>)
+                if (order)
                 {
-                    auto result = this->itemCreatedEndpoints_.try_emplace(
-                        index,
-                        this,
-                        this->GetUnordered(index).GetBaseCreated(),
-                        &Model::OnItemCreated_,
-                        index);
-
-                    assert(result.second);
-                }
-                else
-                {
-                    // order must exist already because there is no
-                    // separate derived creation step.
-                    assert(order);
+                    this->MakeOrderConnections_(*order, index);
                 }
             }
         }
@@ -701,8 +660,11 @@ struct OrderedListCustom
             {
                 assert(this->list.count.Get() == this->list.size());
 
-                this->ClearInvalidatedConnections_(added);
-                this->RestoreConnections_(added);
+                if constexpr (hasOrder)
+                {
+                    this->ClearInvalidatedConnections_(added);
+                    this->RestoreConnections_(added);
+                }
 
                 // We already have enough indices.
                 // This happens when this group is set directly, and indices is
@@ -734,6 +696,40 @@ struct OrderedListCustom
 
             detail::AccessReference(this->indices).SetWithoutNotify(previous);
             assert(this->indices.size() == previous.size());
+        }
+
+        void OnListMemberWillReplace_(const std::optional<size_t> &removedIndex)
+        {
+            if constexpr (!hasOrder)
+            {
+                return;
+            }
+
+            if (!removedIndex)
+            {
+                return;
+            }
+
+            this->ClearConnectionsAt_(*removedIndex);
+        }
+
+        void OnListMemberReplaced_(const std::optional<size_t> &index)
+        {
+            if constexpr (!hasOrder)
+            {
+                return;
+            }
+
+            if (!index)
+            {
+                return;
+            }
+
+            auto order = GetOrderControl<ListMaker>(this->list, *index);
+
+            assert(order);
+
+            this->MakeOrderConnections_(*order, *index);
         }
 
         void OnListMemberWillRemove_(const std::optional<size_t> &removedIndex)
@@ -796,18 +792,10 @@ struct OrderedListCustom
                 decltype(&Model::MoveUp)
             >;
 
-        using ItemCreatedEndpoint =
-            pex::BoundEndpoint
-            <
-                pex::control::Signal<>,
-                decltype(&Model::OnItemCreated_)
-            >;
-
         std::map<size_t, MoveOrderEndpoint> moveToTopEndpoints_;
         std::map<size_t, MoveOrderEndpoint> moveUpEndpoints_;
         std::map<size_t, MoveOrderEndpoint> moveDownEndpoints_;
         std::map<size_t, MoveOrderEndpoint> moveToBottomEndpoints_;
-        std::map<size_t, ItemCreatedEndpoint> itemCreatedEndpoints_;
 
         using IndicesEndpoint = Endpoint<Model, decltype(Model::indices)>;
 
@@ -1162,7 +1150,10 @@ struct OrderedListCustom
         using List = decltype(Base::list);
         using Selected = typename List::Selected;
         using MemberAdded = control::ListOptionalIndex;
+        using MemberWillRemove = control::ListOptionalIndex;
         using MemberRemoved = control::ListOptionalIndex;
+        using MemberWillReplace = control::ListOptionalIndex;
+        using MemberReplaced = control::ListOptionalIndex;
         using Count = typename List::Count;
         using ListItem = typename List::ListItem;
         using Upstream = typename Base::Upstream;
@@ -1184,8 +1175,10 @@ struct OrderedListCustom
         Selected selected;
         Count count;
         MemberAdded memberAdded;
-        MemberRemoved memberWillRemove;
+        MemberWillRemove memberWillRemove;
         MemberRemoved memberRemoved;
+        MemberWillReplace memberWillReplace;
+        MemberReplaced memberReplaced;
 
         Control()
             :
@@ -1195,7 +1188,9 @@ struct OrderedListCustom
             count(),
             memberAdded(),
             memberWillRemove(),
-            memberRemoved()
+            memberRemoved(),
+            memberWillReplace(),
+            memberReplaced()
         {
             PEX_NAME("OrderedList::Control");
         }
@@ -1208,7 +1203,9 @@ struct OrderedListCustom
             count(this->list.count),
             memberAdded(this->upstream_->list.memberAdded),
             memberWillRemove(this->upstream_->list.memberWillRemove),
-            memberRemoved(this->upstream_->list.memberRemoved)
+            memberRemoved(this->upstream_->list.memberRemoved),
+            memberWillReplace(this->upstream_->list.memberWillReplace),
+            memberReplaced(this->upstream_->list.memberReplaced)
         {
             PEX_NAME("OrderedList::Control");
 
@@ -1224,9 +1221,16 @@ struct OrderedListCustom
             count(this->list.count),
             memberAdded(this->upstream_->list.memberAdded),
             memberWillRemove(this->upstream_->list.memberWillRemove),
-            memberRemoved(this->upstream_->list.memberRemoved)
+            memberRemoved(this->upstream_->list.memberRemoved),
+            memberWillReplace(this->upstream_->list.memberWillReplace),
+            memberReplaced(this->upstream_->list.memberReplaced)
         {
             PEX_NAME("OrderedList::Control");
+        }
+
+        ~Control()
+        {
+            PEX_CLEAR_NAME(this);
         }
 
         Control & operator=(const Control &other)
@@ -1238,6 +1242,8 @@ struct OrderedListCustom
             this->memberAdded = other.memberAdded;
             this->memberWillRemove = other.memberWillRemove;
             this->memberRemoved = other.memberRemoved;
+            this->memberWillReplace = other.memberWillReplace;
+            this->memberReplaced = other.memberReplaced;
 
             return *this;
         }

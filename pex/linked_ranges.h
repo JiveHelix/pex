@@ -119,13 +119,8 @@ struct LinkedRanges
                     "Connecting LinkedRanges::Model as observer: ",
                     LookupPexName(this));
 
-                this->lowTerminus_.Assign(
-                    this,
-                    LowTerminus(this, this->low, &Model::OnLow_));
-
-                this->highTerminus_.Assign(
-                    this,
-                    HighTerminus(this, this->high, &Model::OnHigh_));
+                this->lowTerminus_.Emplace(this, this->low, &Model::OnLow_);
+                this->highTerminus_.Emplace(this, this->high, &Model::OnHigh_);
             }
 
             void SetInitial(const Plain &plain)
