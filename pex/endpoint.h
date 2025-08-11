@@ -181,7 +181,7 @@ public:
     Endpoint_(Endpoint_ &&other)
         :
         observer_(other.observer_),
-        connector(other.connector)
+        connector(other.observer_, std::move(other.connector))
     {
         PEX_NAME(fmt::format("Endpoint ({})", pex::LookupPexName(observer_)));
         PEX_MEMBER(connector);

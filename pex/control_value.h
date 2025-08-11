@@ -324,7 +324,6 @@ public:
     template<typename OtherFilter, typename OtherAccess>
     Value_(Value_<Upstream, OtherFilter, OtherAccess> &&other)
         :
-        Base(std::move(other)),
         upstream_(std::move(other.upstream_)),
         filter_()
     {

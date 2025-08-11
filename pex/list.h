@@ -299,7 +299,9 @@ struct List
 
             selectionReceived_(false),
             internalMemberAdded_(),
-            internalMemberReplaced_()
+            internalMemberReplaced_(),
+            baseWillDeleteEndpoints_(),
+            baseCreatedEndpoints_()
         {
             PEX_NAME(
                 fmt::format(
@@ -325,6 +327,10 @@ struct List
             PEX_MEMBER(internalMemberAdded_);
             PEX_MEMBER(internalMemberWillReplace_);
             PEX_MEMBER(internalMemberReplaced_);
+            PEX_MEMBER(baseWillDeleteEndpoints_);
+            PEX_MEMBER(baseCreatedEndpoints_);
+
+            this->RestoreBaseEndpoints_(0);
         }
 
         Model(const Type &items)
@@ -348,6 +354,8 @@ struct List
             PEX_CLEAR_NAME(&internalMemberAdded_);
             PEX_CLEAR_NAME(&internalMemberWillReplace_);
             PEX_CLEAR_NAME(&internalMemberReplaced_);
+            PEX_CLEAR_NAME(&baseWillDeleteEndpoints_);
+            PEX_CLEAR_NAME(&baseCreatedEndpoints_);
         }
 
         ListItem & operator[](size_t index)
@@ -497,8 +505,8 @@ struct List
 
                 this->selectionReceived_ = false;
 
-                this->internalMemberAdded_.Set(newIndex);
                 this->RestoreBaseEndpoints_(newIndex);
+                this->internalMemberAdded_.Set(newIndex);
                 this->memberAdded.Set(newIndex);
             }
 
@@ -640,12 +648,13 @@ struct List
 
             if (newSize < this->items_.size())
             {
+                this->ClearInvalidatedEndpoints_(newSize);
                 this->ReduceCount_(newSize);
             }
             else
             {
                 size_t toInitialize = newSize - this->items_.size();
-
+                size_t firstToRestore = this->items_.size();
                 this->selectionReceived_ = false;
 
                 while (toInitialize--)
@@ -675,6 +684,8 @@ struct List
                     this->internalMemberAdded_.Set(newIndex);
                     this->memberAdded.Set(newIndex);
                 }
+
+                this->RestoreBaseEndpoints_(firstToRestore);
             }
 
             if (
@@ -715,8 +726,9 @@ struct List
             auto scopeMute = detail::ScopeMute<Model>(*this, true);
             bool countChanged = false;
             auto wasSelected = this->selected.Get();
+            auto valueCount = values.size();
 
-            if (values.size() != this->items_.size())
+            if (valueCount != this->items_.size())
             {
                 countChanged = true;
 
@@ -724,12 +736,13 @@ struct List
 
                 this->selectionReceived_ = false;
 
-                if (values.size() < this->items_.size())
+                if (valueCount < this->items_.size())
                 {
-                    this->ReduceCount_(values.size());
+                    this->ClearInvalidatedEndpoints_(valueCount);
+                    this->ReduceCount_(valueCount);
 
                     // Set all of the new values.
-                    for (size_t index = 0; index < values.size(); ++index)
+                    for (size_t index = 0; index < valueCount; ++index)
                     {
                         detail::AccessReference(*this->items_[index])
                             .SetWithoutNotify(values[index]);
@@ -744,8 +757,10 @@ struct List
                             .SetWithoutNotify(values[index]);
                     }
 
+                    size_t firstToRestore = this->items_.size();
+
                     // Create and set the new items.
-                    size_t toInitialize = values.size() - this->items_.size();
+                    size_t toInitialize = valueCount - this->items_.size();
 
                     while (toInitialize--)
                     {
@@ -781,27 +796,29 @@ struct List
                         this->internalMemberAdded_.Set(newIndex);
                         this->memberAdded.Set(newIndex);
                     }
+
+                    this->RestoreBaseEndpoints_(firstToRestore);
                 }
             }
             else
             {
                 // No size changes.
                 // Set all values.
-                for (size_t index = 0; index < values.size(); ++index)
+                for (size_t index = 0; index < valueCount; ++index)
                 {
                     detail::AccessReference(*this->items_[index])
                         .SetWithoutNotify(values[index]);
                 }
             }
 
-            assert(this->items_.size() == values.size());
+            assert(this->items_.size() == valueCount);
 
             // Reselect value if it is still in the list.
             if (countChanged && !this->selectionReceived_)
             {
                 // memberAdded listeners did not make a selection.
                 // Restore the previous selection.
-                if (wasSelected && *wasSelected < values.size())
+                if (wasSelected && *wasSelected < valueCount)
                 {
                     this->selected.Set(wasSelected);
                 }
@@ -811,8 +828,6 @@ struct List
         void ReduceCount_(size_t count_)
         {
             assert(count_ < this->items_.size());
-
-            this->ClearInvalidatedEndpoints_(count_);
 
             // This is a reduction in size.
             // No new elements need to be created.
@@ -850,11 +865,13 @@ struct List
 
             if (count_ < this->items_.size())
             {
+                this->ClearInvalidatedEndpoints_(count_);
                 this->ReduceCount_(count_);
             }
             else
             {
                 size_t toInitialize = count_ - this->items_.size();
+                size_t firstToRestore = this->items_.size();
 
                 this->selectionReceived_ = false;
 
@@ -885,6 +902,8 @@ struct List
                     this->internalMemberAdded_.Set(newIndex);
                     this->memberAdded.Set(newIndex);
                 }
+
+                this->RestoreBaseEndpoints_(firstToRestore);
             }
 
             if (

@@ -267,3 +267,52 @@ TEST_CASE("Reordered OrderedList Erase by index", "[OrderedList]")
     REQUIRE(control.at(3).Get() == 42);
     REQUIRE(observer.GetList().at(3) == 42);
 }
+
+
+template<typename T>
+struct AnimalFields
+{
+    static constexpr auto fields = std::make_tuple(
+        fields::Field(&T::name, "name"),
+        fields::Field(&T::order, "order"));
+};
+
+
+template<template<typename> typename T>
+struct AnimalTemplate
+{
+    T<std::string> name;
+    T<pex::OrderGroup> order;
+
+    static constexpr auto fields = AnimalFields<AnimalTemplate>::fields;
+    static constexpr auto fieldsTypeName = "Animal";
+};
+
+using AnimalGroup = pex::Group<AnimalFields, AnimalTemplate>;
+using Animal = typename AnimalGroup::Plain;
+
+
+TEST_CASE("Member with order member can request reordering.", "[OrderedList]")
+{
+    using Animals = pex::List<AnimalGroup, 0>;
+    static_assert(pex::ListHasOrderMember<Animals>);
+    using OrderedAnimals = pex::OrderedListGroup<Animals>;
+
+    using AnimalsModel = typename OrderedAnimals::Model;
+    using AnimalsControl = typename OrderedAnimals::Control;
+
+    AnimalsModel animalsModel;
+    PEX_ROOT(animalsModel);
+    AnimalsControl animalsControl(animalsModel);
+
+    animalsModel.Append(Animal{"Lion", {}});
+    animalsModel.Append(Animal{"Tiger", {}});
+    animalsModel.Append(Animal{"Bear", {}});
+
+    REQUIRE(animalsModel.size() == 3);
+    REQUIRE(animalsControl.at(0).name.Get() == "Lion");
+    animalsControl.at(0).order.moveDown.Trigger();
+
+    REQUIRE(animalsControl.at(0).name.Get() == "Tiger");
+    REQUIRE(animalsControl.at(1).name.Get() == "Lion");
+}

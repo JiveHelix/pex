@@ -3,7 +3,7 @@
 // #define ENABLE_PEX_LOG
 // #define ENABLE_PEX_CONCISE_LOG
 // #define USE_OBSERVER_NAME
-#define ENABLE_PEX_NAMES
+// #define ENABLE_PEX_NAMES
 
 #include <mutex>
 #include <memory>
@@ -138,7 +138,7 @@ void ResetPexNames();
 
 #ifdef ENABLE_PEX_NAMES
 
-struct Separator { char garbage; };
+struct Separator { char forceMemberUniqueAddress_; };
 
 #define PEX_NAME(name) pex::PexName(this, name)
 

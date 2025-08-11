@@ -575,8 +575,8 @@ public:
         const UpstreamControl &pex,
         Callable callable)
         :
-        choices(observer, pex.choices),
-        selection(observer, pex.selection),
+        choices(pex.choices),
+        selection(pex.selection),
         value(observer, pex.value, callable)
     {
 

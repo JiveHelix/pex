@@ -473,28 +473,6 @@ struct OrderedListCustom
             this->indices.Set(orderedIndices);
         }
 
-        template<typename T>
-        void AssignItem(size_t index, T &&item)
-        {
-            auto storageIndex = this->indices.at(index).Get();
-
-            // Clear the move endpoints before possibly deleting the list
-            // member they are tracking
-            this->moveToTopEndpoints_.erase(storageIndex);
-            this->moveUpEndpoints_.erase(storageIndex);
-            this->moveDownEndpoints_.erase(storageIndex);
-            this->moveToBottomEndpoints_.erase(storageIndex);
-
-            this->list.at(storageIndex).Set(std::forward<T>(item));
-
-            if constexpr (hasOrder)
-            {
-                auto order = GetOrderControl<ListMaker>(this->list, index);
-                assert(order);
-                this->MakeOrderConnections_(*order, storageIndex);
-            }
-        }
-
         void EraseSelected()
         {
             this->list.EraseSelected();
@@ -696,6 +674,9 @@ struct OrderedListCustom
 
             detail::AccessReference(this->indices).SetWithoutNotify(previous);
             assert(this->indices.size() == previous.size());
+
+            this->ClearInvalidatedConnections_(added);
+            this->RestoreConnections_(added);
         }
 
         void OnListMemberWillReplace_(const std::optional<size_t> &removedIndex)
@@ -1293,17 +1274,6 @@ struct OrderedListCustom
             }
 
             this->upstream_->MoveToBottom(storageIndex);
-        }
-
-        template<typename T>
-        void AssignItem(size_t index, T &&item)
-        {
-            if (!this->upstream_)
-            {
-                throw std::logic_error("Unitialized control");
-            }
-
-            this->upstream_->AssignItem(index, std::forward<T>(item));
         }
 
         void EraseSelected()
