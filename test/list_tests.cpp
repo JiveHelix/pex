@@ -89,7 +89,7 @@ TEST_CASE("List can change size", "[List]")
 {
     using List = pex::List<int, 4>;
     using ListModel = typename List::Model;
-    using ListControl = typename List::Control;
+    using ListControl = typename List::template Control<ListModel>;
 
     ListModel listModel;
     ListControl listControl(listModel);
@@ -119,7 +119,7 @@ TEST_CASE("List changes size when set.", "[List]")
 {
     using List = pex::List<int, 4>;
     using ListModel = typename List::Model;
-    using ListControl = typename List::Control;
+    using ListControl = typename List::template Control<ListModel>;
 
     ListModel listModel;
     PEX_ROOT(listModel);
@@ -205,7 +205,7 @@ TEST_CASE("List as group member", "[List]")
     STATIC_REQUIRE(pex::IsList<pex::List<double, 4>>);
 
     using Model = typename GrootGroup::Model;
-    using Control = typename GrootGroup::Control;
+    using Control = typename GrootGroup::template Control<Model>;
 
     Model model;
 
@@ -256,7 +256,8 @@ struct RocketTemplate
 
 using RocketGroup = pex::Group<RocketFields, RocketTemplate>;
 using Rocket = typename RocketGroup::Plain;
-using RocketControl = typename RocketGroup::Control;
+using RocketModel = typename RocketGroup::Model;
+using RocketControl = typename RocketGroup::template Control<RocketModel>;
 
 DECLARE_OUTPUT_STREAM_OPERATOR(Rocket)
 DECLARE_EQUALITY_OPERATORS(Rocket)
@@ -327,7 +328,7 @@ TEMPLATE_TEST_CASE("List of groups", "[List]", ListTag, OrderedListTag)
 
     using GroupUnderTest = DraxGroup<TestType>;
     using Model = typename GroupUnderTest::Model;
-    using Control = typename GroupUnderTest::Control;
+    using Control = typename GroupUnderTest::template Control<Model>;
 
     Model model;
 
@@ -372,7 +373,7 @@ TEMPLATE_TEST_CASE(
 {
     using GroupUnderTest = DraxGroup<TestType>;
     using Model = typename GroupUnderTest::Model;
-    using Control = typename GroupUnderTest::Control;
+    using Control = typename GroupUnderTest::template Control<Model>;
 
     Model model;
     model.name.Set("I am Drax");
@@ -412,7 +413,9 @@ template<typename Tag>
 class RocketListObserver
 {
 public:
-    using RocketListControl = decltype(DraxGroup<Tag>::Control::rockets);
+    using DraxModel = typename DraxGroup<Tag>::Model;
+    using DraxControl = typename DraxGroup<Tag>::template Control<DraxModel>;
+    using RocketListControl = decltype(DraxControl::rockets);
 
     using RocketsEndpoint =
         pex::Endpoint<RocketListObserver, RocketListControl>;
@@ -482,7 +485,7 @@ TEMPLATE_TEST_CASE(
 {
     using GroupUnderTest = DraxGroup<TestType>;
     using Model = typename GroupUnderTest::Model;
-    using Control = typename GroupUnderTest::Control;
+    using Control = typename GroupUnderTest::template Control<Model>;
 
     Model model;
     model.name.Set("I am Drax");
@@ -569,7 +572,11 @@ template<typename Tag>
 class GamoraObserver
 {
 public:
-    using GamoraControl = typename GamoraGroup<Tag>::Control;
+    using GamoraModel = typename GamoraGroup<Tag>::Model;
+
+    using GamoraControl =
+        typename GamoraGroup<Tag>::template Control<GamoraModel>;
+
     using GamoraEndpoint = pex::Endpoint<GamoraObserver, GamoraControl>;
     using Gamora = typename GamoraControl::Type;
 
@@ -617,7 +624,7 @@ TEMPLATE_TEST_CASE(
 {
     using GroupUnderTest = GamoraGroup<TestType>;
     using Model = typename GroupUnderTest::Model;
-    using Control = typename GroupUnderTest::Control;
+    using Control = typename GroupUnderTest::template Control<Model>;
 
     Model model;
     model.name.Set("I am Gamora");
@@ -736,11 +743,18 @@ template<typename Tag>
 class RocketSignalObserver
 {
 public:
-    using RocketsControl = decltype(DraxGroup<Tag>::Control::rockets);
+    using DraxModel = typename DraxGroup<Tag>::Model;
+    using DraxControl = typename DraxGroup<Tag>::template Control<DraxModel>;
+    using RocketsControl = decltype(DraxControl::rockets);
     using RocketListControl = ChooseListControl<RocketsControl, Tag>;
 
     using RocketsConnect =
-        pex::detail::ListConnect<RocketSignalObserver, RocketListControl>;
+        pex::detail::ListConnect
+        <
+            RocketSignalObserver,
+            RocketListControl,
+            pex::ControlSelector
+        >;
 
     RocketSignalObserver(RocketsControl rocketsControl)
         :
@@ -777,7 +791,7 @@ TEMPLATE_TEST_CASE(
     OrderedListTag)
 {
     using Model = typename DraxGroup<TestType>::Model;
-    using Control = typename DraxGroup<TestType>::Control;
+    using Control = typename DraxGroup<TestType>::template Control<Model>;
 
     Model model;
     model.name.Set("I am Drax");
@@ -907,7 +921,7 @@ private:
 TEST_CASE("Subgroup notification happens once.", "[List]")
 {
     using Model = typename StarLordGroup::Model;
-    using Control = typename StarLordGroup::Control;
+    using Control = typename StarLordGroup::template Control<Model>;
 
     Model model;
     model.name.Set("I am Star-Lord");
@@ -957,7 +971,7 @@ TEST_CASE("Subgroup notification happens once.", "[List]")
 TEST_CASE("Delete selected.", "[List]")
 {
     using Model = pex::List<int>::Model;
-    using Control = pex::List<int>::Control;
+    using Control = pex::List<int>::template Control<Model>;
 
     Model model;
     Control control(model);

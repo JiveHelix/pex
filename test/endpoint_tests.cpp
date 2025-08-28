@@ -31,7 +31,7 @@ struct TestTemplate
 
 using TestGroup = pex::Group<TestFields, TestTemplate>;
 using TestModel = typename TestGroup::Model;
-using TestControl = typename TestGroup::Control;
+using TestControl = typename TestGroup::template Control<TestModel>;
 
 using ListControl = decltype(TestControl::values);
 

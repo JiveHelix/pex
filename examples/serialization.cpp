@@ -34,7 +34,7 @@ using FooGroup = pex::Group<FooFields, FooTemplate>;
 using Foo = typename FooGroup::Plain;
 using Model = typename FooGroup::Model;
 
-using Control = typename FooGroup::Control;
+using Control = typename FooGroup::Control<Model>;
 
 
 class Greeter
@@ -58,7 +58,9 @@ private:
     }
 
     Control control_;
-    pex::Endpoint<Greeter, pex::control::Signal<>> sayHello_;
+
+    using Signal = pex::control::Signal<pex::model::Signal>;
+    pex::Endpoint<Greeter, Signal> sayHello_;
 };
 
 

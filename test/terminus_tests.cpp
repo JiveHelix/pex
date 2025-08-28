@@ -13,15 +13,16 @@ using Control = pex::control::Value<Model>;
 template<typename Observer>
 using Terminus = pex::Terminus<Observer, Control>;
 
-using Observer = TerminusObserver<Model, Terminus>;
+using Observer = TerminusObserver<Control, Terminus>;
 
 
 TEST_CASE("Terminus uses new observer after move.", "[terminus]")
 {
     Model value(42);
     PEX_ROOT(value);
+    Control control(value);
 
-    Observer first(value);
+    Observer first(control);
 
     REQUIRE(first.observedValue == 42);
 
@@ -37,7 +38,7 @@ TEST_CASE("Terminus uses new observer after move.", "[terminus]")
 
     REQUIRE(second.observedValue == 44);
 
-    Observer third(value);
+    Observer third(control);
     third = std::move(second);
 
     REQUIRE(third.observedValue == 44);
@@ -51,8 +52,9 @@ TEST_CASE("Terminus uses new observer after copy.", "[terminus]")
 {
     Model value(42);
     PEX_ROOT(value);
+    Control control(value);
 
-    Observer first(value);
+    Observer first(control);
 
     REQUIRE(first.observedValue == 42);
 
@@ -68,7 +70,7 @@ TEST_CASE("Terminus uses new observer after copy.", "[terminus]")
 
     REQUIRE(second.observedValue == 44);
 
-    Observer third(value);
+    Observer third(control);
     third = second;
 
     REQUIRE(third.observedValue == 44);
@@ -184,7 +186,9 @@ TEST_CASE("Terminus group uses new observer after copy.", "[terminus]")
 #endif
 
 
-using GroupControl = typename TerminusTestGroup::Control;
+using GroupControl =
+    typename TerminusTestGroup::template Control<TerminusTestModel>;
+
 using AggregateObserver = TestObserver<GroupControl>;
 
 // This tests that GroupControl can be passed by copy, then used to create
@@ -198,7 +202,7 @@ std::unique_ptr<AggregateObserver> MakeTestObserver(GroupControl control)
 TEST_CASE("pex::Terminus can use Group::Control as its upstream.", "[terminus]")
 {
     STATIC_REQUIRE(!pex::IsModel<GroupControl>);
-    STATIC_REQUIRE(!pex::IsModelSignal<GroupControl>);
+    STATIC_REQUIRE(!pex::IsSignalModel<GroupControl>);
 
     STATIC_REQUIRE(
         !pex::detail::FilterIsMember

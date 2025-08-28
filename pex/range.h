@@ -23,8 +23,7 @@
 #include "pex/reference.h"
 #include "pex/converting_filter.h"
 #include "pex/traits.h"
-#include "pex/make_control.h"
-#include "pex/terminus.h"
+#include <pex/terminus.h>
 
 
 #ifdef USE_OBSERVER_NAME
@@ -179,6 +178,8 @@ template
 class Range: Separator
 {
 public:
+    static constexpr bool isRangeModel = true;
+
     using Type = T;
 
     static_assert(
@@ -540,6 +541,13 @@ public:
         return this->minimum.Get();
     }
 
+    void Notify()
+    {
+        this->value.Notify();
+        this->minimum.Notify();
+        this->maximum.Notify();
+    }
+
     template<typename, typename, typename>
     friend class ::pex::control::Range;
 
@@ -553,11 +561,6 @@ private:
     void SetWithoutNotify_(Argument<Type> value_)
     {
         detail::AccessReference(this->value).SetWithoutNotify(value_);
-    }
-
-    void DoNotify_()
-    {
-        detail::AccessReference(this->value).DoNotify();
     }
 
     void OnReset_()
@@ -578,7 +581,13 @@ public:
     Signal reset;
     Type defaultValue_;
 
-    using ResetTerminus = pex::Terminus<Range, Signal>;
+    using ResetTerminus =
+        pex::Terminus
+        <
+            Range,
+            ::pex::control::Signal<::pex::model::Signal>
+        >;
+
     ResetTerminus resetTerminus_;
 };
 
@@ -751,28 +760,6 @@ private:
 } // namespace model
 
 
-template<typename ...T>
-struct IsModelRange_: std::false_type {};
-
-template<typename ...T>
-struct IsModelRange_<model::Range<T...>>: std::true_type {};
-
-template
-<
-    typename T,
-    typename U,
-    typename V,
-    template<typename, typename, typename> typename W
->
-struct IsModelRange_<model::Range<T, U, V, W>>: std::true_type {};
-
-template<typename ...T>
-struct IsModelRange_<model::AddRange<T...>>: std::true_type {};
-
-template<typename ...T>
-inline constexpr bool IsModelRange = IsModelRange_<T...>::value;
-
-
 template<typename T>
 struct Bounds
 {
@@ -789,50 +776,36 @@ struct Bounds
 namespace control
 {
 
-template<typename T, typename Enable = std::void_t<>>
-struct HasControl_: std::false_type {};
-
-template<typename T>
-struct HasControl_
-<
-    T,
-    std::void_t<typename T::Control>
->
-: std::true_type {};
-
-template<typename T>
-inline constexpr bool HasControl = HasControl_<T>::value;
-
 
 template
 <
-    typename Value,
+    typename Upstream,
     typename Filter,
     typename Access,
     typename Enable = std::void_t<>
 >
 struct ValueControl_
 {
-    using Type = pex::control::Value_<Value, Filter, Access>;
+    using Type = pex::control::Value_<Upstream, Filter, Access>;
 };
 
 
-// A Value may declare its own FilteredControl
+// An Upstream model may declare its own Control
 template
 <
-    typename Value,
+    typename Upstream,
     typename Filter,
     typename Access
 >
 struct ValueControl_
     <
-        Value,
+        Upstream,
         Filter,
         Access,
-        std::void_t<typename Value::template FilteredControl<Filter, Access>>
+        std::void_t<typename Upstream::template Control<Filter, Access>>
     >
 {
-    using Type = typename Value::template FilteredControl<Filter, Access>;
+    using Type = typename Upstream::template FilteredControl<Filter, Access>;
 };
 
 
@@ -855,11 +828,13 @@ public:
     using Unfiltered = typename Upstream::Value::Type;
     using Access = Access_;
 
+    static constexpr bool isRangeControl = true;
+
     static constexpr bool isPexCopyable =
         pex::detail::FilterIsNoneOrStatic<Unfiltered, Filter, Access>;
 
     using Value = ValueControl<typename Upstream::Value, Filter, Access>;
-
+    using Reset = ::pex::control::Signal<decltype(Upstream::reset)>;
     using Type = typename Value::Type;
 
     // Read-only Limit type for accessing range bounds.
@@ -1085,22 +1060,230 @@ public:
     Limit minimum;
     Limit maximum;
 
-    Signal<> reset;
+    Reset reset;
 
     template<typename>
     friend class ::pex::Reference;
+
+    void Notify()
+    {
+        this->value.Notify();
+        this->minimum.Notify();
+        this->maximum.Notify();
+    }
 
 private:
     void SetWithoutNotify_(Argument<Type> value_)
     {
         detail::AccessReference(this->value).SetWithoutNotify(value_);
     }
+};
 
-    void DoNotify_()
+
+template
+<
+    typename Upstream_,
+    typename Filter_ = NoFilter,
+    typename Access_ = pex::GetAndSetTag
+>
+class RangeMux: Separator
+{
+public:
+    using Upstream = Upstream_;
+    using Model = Upstream;
+    using Filter = Filter_;
+    using Unfiltered = typename Upstream::Value::Type;
+    using Access = Access_;
+
+    static constexpr bool isRangeMux = true;
+
+    static constexpr bool isPexCopyable =
+        pex::detail::FilterIsNoneOrStatic<Unfiltered, Filter, Access>;
+
+    using Value =
+        ::pex::control::FilteredMux<typename Upstream::Value, Filter, Access>;
+
+    using Reset = ::pex::control::SignalMux;
+    using Type = typename Value::Type;
+
+    // Read-only Limit type for accessing range bounds.
+    using Limit =
+        pex::control::FilteredMux
+        <
+            typename Upstream::Limit,
+            Filter,
+            pex::GetTag
+        >;
+
+    using LimitType = typename Limit::Type;
+    using Callable = typename Value::Callable;
+
+    RangeMux()
+        :
+        value(),
+        minimum(),
+        maximum(),
+        reset()
     {
-        detail::AccessReference(this->value).DoNotify();
+        PEX_NAME("control::RangeMux");
+        PEX_MEMBER(value);
+        PEX_MEMBER(minimum);
+        PEX_MEMBER(maximum);
+        PEX_MEMBER(reset);
+    }
+
+    RangeMux(Upstream &upstream)
+        :
+        value(upstream.value),
+        minimum(upstream.minimum),
+        maximum(upstream.maximum),
+        reset(upstream.reset)
+    {
+        PEX_NAME("control::RangeMux");
+        PEX_MEMBER(value);
+        PEX_MEMBER(minimum);
+        PEX_MEMBER(maximum);
+        PEX_MEMBER(reset);
+    }
+
+    RangeMux(Upstream &upstream, const Filter &filter)
+        :
+        RangeMux(upstream)
+    {
+        this->SetFilter(filter);
+    }
+
+    void SetFilter(const Filter &filter)
+    {
+        this->value.SetFilter(filter);
+        this->minimum.SetFilter(filter);
+        this->maximum.SetFilter(filter);
+    }
+
+    const Filter & GetFilter() const
+    {
+        return this->value.GetFilter();
+    }
+
+    RangeMux(const RangeMux &other) = delete;
+    RangeMux & operator=(const RangeMux &other) = delete;
+    RangeMux(RangeMux &&other) = delete;
+
+    ~RangeMux()
+    {
+        PEX_CLEAR_NAME(this);
+        PEX_CLEAR_NAME(&this->value);
+        PEX_CLEAR_NAME(&this->minimum);
+        PEX_CLEAR_NAME(&this->maximum);
+        PEX_CLEAR_NAME(&this->reset);
+    }
+
+    RangeMux & operator=(RangeMux &&other)
+    {
+        this->value = std::move(other.value);
+        this->minimum = std::move(other.minimum);
+        this->maximum = std::move(other.maximum);
+        this->reset = std::move(other.reset);
+
+        return *this;
+    }
+
+    explicit operator Type () const
+    {
+        return this->value.Get();
+    }
+
+    bool HasObserver(void *observer)
+    {
+        return this->value.HasObserver(observer);
+    }
+
+    void Connect(void *observer, Callable callable)
+    {
+        this->value.Connect(observer, callable);
+    }
+
+    void Disconnect(void *observer)
+    {
+        this->value.Disconnect(observer);
+    }
+
+    Type Get() const
+    {
+        return this->value.Get();
+    }
+
+    void Set(Argument<Type> value_)
+    {
+        this->value.Set(value_);
+    }
+
+    RangeMux & operator=(Argument<Type> value_)
+    {
+        this->value.Set(value_);
+        return *this;
+    }
+
+    bool HasModel() const
+    {
+        return this->value.HasModel()
+            && this->minimum.HasModel()
+            && this->maximum.HasModel();
+    }
+
+    Bounds<LimitType> GetBounds()
+    {
+        return {
+            this->minimum.Get(),
+            this->maximum.Get()};
+    }
+
+    void ClearConnections()
+    {
+        this->value.ClearConnections();
+        this->minimum.ClearConnections();
+        this->maximum.ClearConnections();
+    }
+
+    Value value;
+    Limit minimum;
+    Limit maximum;
+
+    Reset reset;
+
+    template<typename>
+    friend class ::pex::Reference;
+
+    void Notify()
+    {
+        this->value.Notify();
+        this->minimum.Notify();
+        this->maximum.Notify();
+    }
+
+    void ChangeUpstream(Upstream &upstream)
+    {
+        this->value.ChangeUpstream(upstream.value);
+        this->minimum.ChangeUpstream(upstream.minimum);
+        this->maximum.ChangeUpstream(upstream.maximum);
+        this->reset.ChangeUpstream(upstream.reset);
+    }
+
+private:
+    void SetWithoutNotify_(Argument<Type> value_)
+    {
+        detail::AccessReference(this->value).SetWithoutNotify(value_);
     }
 };
+
+
+template
+<
+    typename Upstream,
+    typename Filter = NoFilter,
+    typename Access = pex::GetAndSetTag
+>
+using RangeFollow = Range<Upstream, Filter, Access>;
 
 
 // Converts values directly between model type and control type.
@@ -1179,267 +1362,6 @@ using LogarithmicRange = Range
 
 } // namespace control
 
-
-template<typename ...T>
-struct IsControlRange_: std::false_type {};
-
-template<typename ...T>
-struct IsControlRange_<control::Range<T...>>: std::true_type {};
-
-template<typename ...T>
-inline constexpr bool IsControlRange = IsControlRange_<T...>::value;
-
-
-// Specializations of MakeControl for Range.
-template<typename P>
-struct MakeControl<P, std::enable_if_t<IsModelRange<P>>>
-{
-    using Control = control::Range<P>;
-    using Upstream = P;
-};
-
-
-template<typename P>
-struct MakeControl<P, std::enable_if_t<IsControlRange<P>>>
-{
-    using Control = P;
-    using Upstream = typename P::Upstream;
-};
-
-
-template<typename P>
-inline constexpr bool IsRange = IsControlRange<P> || IsModelRange<P>;
-
-
-template<typename Observer, typename Upstream_>
-class RangeTerminus
-{
-public:
-    using UpstreamControl = typename MakeControl<Upstream_>::Control;
-
-    using Upstream = typename MakeControl<Upstream_>::Upstream;
-    using Value = pex::Terminus<Observer, typename UpstreamControl::Value>;
-    using Limit = pex::Terminus<Observer, typename UpstreamControl::Limit>;
-    using Type = typename UpstreamControl::Type;
-    using Callable = typename Value::Callable;
-
-    Value value;
-    Limit minimum;
-    Limit maximum;
-
-    static constexpr bool isPexCopyable = UpstreamControl::isPexCopyable;
-
-    RangeTerminus()
-        :
-        value{},
-        minimum{},
-        maximum{}
-    {
-
-    }
-
-    explicit RangeTerminus(const UpstreamControl &pex)
-        :
-        value(pex.value),
-        minimum(pex.minimum),
-        maximum(pex.maximum)
-    {
-
-    }
-
-    RangeTerminus(
-        Observer *observer,
-        const UpstreamControl &pex,
-        Callable callable)
-        :
-        value(observer, pex.value, callable),
-        minimum(pex.minimum),
-        maximum(pex.maximum)
-    {
-
-    }
-
-    RangeTerminus(Observer *observer, UpstreamControl &&pex)
-        :
-        value(observer, std::move(pex.value)),
-        minimum(observer, std::move(pex.minimum)),
-        maximum(observer, std::move(pex.maximum))
-    {
-
-    }
-
-    RangeTerminus(
-        Observer *observer,
-        typename MakeControl<Upstream_>::Upstream &upstream)
-        :
-        value(observer, upstream.value_),
-        minimum(observer, upstream.minimum_),
-        maximum(observer, upstream.maximum_)
-    {
-
-    }
-
-    RangeTerminus(const RangeTerminus &other) = delete;
-    RangeTerminus(RangeTerminus &&other) = delete;
-    RangeTerminus & operator=(const RangeTerminus &) = delete;
-    RangeTerminus & operator=(RangeTerminus &&) = delete;
-
-    // Copy construct
-    RangeTerminus(Observer *observer, const RangeTerminus &other)
-        :
-        value(observer, other.value),
-        minimum(observer, other.minimum),
-        maximum(observer, other.maximum)
-    {
-
-    }
-
-    // Copy construct from other observer
-    template<typename O>
-    RangeTerminus(
-        Observer *observer,
-        const RangeTerminus<O, Upstream_> &other)
-        :
-        value(observer, other.value),
-        minimum(observer, other.minimum),
-        maximum(observer, other.maximum)
-    {
-
-    }
-
-    // Move construct
-    RangeTerminus(Observer *observer, RangeTerminus &&other)
-        :
-        value(observer, std::move(other.value)),
-        minimum(observer, std::move(other.minimum)),
-        maximum(observer, std::move(other.maximum))
-    {
-
-    }
-
-    // Move construct from other observer
-    template<typename O>
-    RangeTerminus(
-        Observer *observer,
-        RangeTerminus<O, Upstream_> &&other)
-        :
-        value(observer, std::move(other.value)),
-        minimum(observer, std::move(other.minimum)),
-        maximum(observer, std::move(other.maximum))
-    {
-
-    }
-
-    void Emplace(const UpstreamControl &control)
-    {
-        this->Disconnect();
-
-        this->value.Emplace(control.value);
-        this->minimum.Emplace(control.minimum);
-        this->maximum.Emplace(control.maximum);
-    }
-
-    void Emplace(
-        Observer *observer,
-        const UpstreamControl &control,
-        Callable callable)
-    {
-        this->Disconnect();
-
-        this->value.Emplace(observer, control.value, callable);
-        this->minimum.Emplace(control.minimum);
-        this->maximum.Emplace(control.maximum);
-
-        this->Connect(observer, callable);
-    }
-
-    // Copy assign
-    RangeTerminus & Assign(
-        Observer *observer,
-        const RangeTerminus<Observer, Upstream_> &other)
-    {
-        this->value.Assign(observer, other.value);
-        this->minimum.Assign(observer, other.minimum);
-        this->maximum.Assign(observer, other.maximum);
-
-        return *this;
-    }
-
-    // Move assign
-    RangeTerminus & Assign(
-        Observer *observer,
-        RangeTerminus<Observer, Upstream_> &&other)
-    {
-        this->value.Assign(observer, std::move(other.value));
-        this->minimum.Assign(observer, std::move(other.minimum));
-        this->maximum.Assign(observer, std::move(other.maximum));
-
-        return *this;
-    }
-
-    void Connect(Observer *observer, Callable callable)
-    {
-        this->value.Connect(observer, callable);
-    }
-
-    void Disconnect(Observer *)
-    {
-        this->Disconnect();
-    }
-
-    void Disconnect()
-    {
-        this->value.Disconnect();
-        this->minimum.Disconnect();
-        this->maximum.Disconnect();
-    }
-
-    explicit operator Type () const
-    {
-        return this->value.Get();
-    }
-
-    explicit operator UpstreamControl () const
-    {
-        UpstreamControl result;
-        result.value = this->value;
-        result.minimum = this->minimum;
-        result.maximum = this->maximum;
-
-        return result;
-    }
-
-    Type Get() const
-    {
-        return this->value.Get();
-    }
-
-    void Set(Argument<Type> value_)
-    {
-        this->value.Set(value_);
-    }
-
-    bool HasModel() const
-    {
-        return this->value.HasModel()
-            && this->minimum.HasModel()
-            && this->maximum.HasModel();
-    }
-
-    template<typename>
-    friend class ::pex::Reference;
-
-private:
-    void SetWithoutNotify_(Argument<Type> value_)
-    {
-        detail::AccessReference(this->value).SetWithoutNotify(value_);
-    }
-
-    void DoNotify_()
-    {
-        detail::AccessReference(this->value).DoNotify();
-    }
-};
 
 
 } // namespace pex

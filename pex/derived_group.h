@@ -2,8 +2,9 @@
 
 
 #include "pex/identity.h"
-#include "pex/poly_derived.h"
-#include "pex/poly_model.h"
+#include "pex/derived_value.h"
+#include "pex/model_wrapper.h"
+#include "pex/control_wrapper.h"
 #include "pex/group.h"
 #include "pex/interface.h"
 
@@ -21,24 +22,25 @@ template
     template<typename> typename Fields,
     ::pex::HasMinimalSupers Templates
 >
-struct Poly
+struct DerivedGroup
 {
     using Supers = typename Templates::Supers;
     using ValueBase = typename Supers::ValueBase;
-    using PolyValue = Value<ValueBase>;
+    using ValueWrapper = ValueWrapperTemplate<ValueBase>;
 
     using ControlBase = MakeControlSuper<Supers>;
 
     using SuperModel = MakeModelSuper<Supers>;
+    using ModelWrapper = ::pex::poly::ModelWrapperTemplate<Supers>;
 
-    using Derived = PolyDerived<Templates>;
-    using TemplateBase = typename Derived::TemplateBase;
+    using DerivedValue = DerivedValueTemplate<Templates>;
+    using TemplateBase = typename DerivedValue::TemplateBase;
 
-    static constexpr bool isPolyGroup = true;
+    static constexpr bool isDerivedGroup = true;
 
     struct GroupTemplates_
     {
-        using Plain = Derived;
+        using Plain = DerivedValue;
 
         template<typename GroupBase>
         class Model
@@ -47,13 +49,15 @@ struct Poly
             public GroupBase
         {
         public:
+            using ModelWrapper = DerivedGroup::ModelWrapper;
+
             using GroupBase::GroupBase;
 
             Model()
                 :
                 GroupBase()
             {
-                PEX_NAME_UNIQUE("poly::Poly::Model");
+                PEX_NAME_UNIQUE("poly::DerivedGroup::Model");
             }
 
             virtual ~Model()
@@ -61,14 +65,14 @@ struct Poly
                 PEX_CLEAR_NAME(this);
             }
 
-            PolyValue GetValue() const override
+            ValueWrapper GetValue() const override
             {
-                return PolyValue(std::make_shared<Derived>(this->Get()));
+                return ValueWrapper(std::make_shared<DerivedValue>(this->Get()));
             }
 
-            void SetValue(const PolyValue &value) override
+            void SetValue(const ValueWrapper &value) override
             {
-                this->Set(value.template RequireDerived<Derived>());
+                this->Set(value.template RequireDerived<DerivedValue>());
             }
 
             std::string_view GetTypeName() const override
@@ -78,15 +82,15 @@ struct Poly
 
             std::unique_ptr<MakeControlSuper<Supers>> CreateControl() override;
 
-            void SetValueWithoutNotify(const PolyValue &value) override
+            void SetValueWithoutNotify(const ValueWrapper &value) override
             {
                 this->SetWithoutNotify_(
-                    value.template RequireDerived<Derived>());
+                    value.template RequireDerived<DerivedValue>());
             }
 
             void DoValueNotify() override
             {
-                this->DoNotify_();
+                this->Notify();
             }
         };
 
@@ -97,8 +101,17 @@ struct Poly
             public GroupBase
         {
         public:
-            // using GroupBase::GroupBase;
             using Upstream = typename GroupBase::Upstream;
+
+            template<typename BaseSignal>
+            using ControlWrapper =
+                ::pex::poly::ControlWrapperTemplate
+                <
+                    DerivedGroup::ModelWrapper,
+                    Supers,
+                    BaseSignal
+                >;
+
             using Aggregate = typename GroupBase::Aggregate;
 
             virtual ~Control()
@@ -117,7 +130,7 @@ struct Poly
                 PEX_CONCISE_LOG(this);
                 PEX_NAME(
                     fmt::format(
-                        "Poly<Fields, {}>::Control<{}>",
+                        "DerivedGroup<Fields, {}>::Control<{}>",
                         jive::GetTypeName<Templates>(),
                         jive::GetTypeName<GroupBase>()));
 
@@ -125,9 +138,17 @@ struct Poly
                 PEX_MEMBER(baseNotifier_);
             }
 
+            Control(ModelWrapper &wrapper)
+                :
+                Control(*wrapper.GetVirtual())
+            {
+
+            }
+
             Control(SuperModel &model);
 
-            Control(const ::pex::poly::Control<Supers> &control);
+            template<typename BaseSignal>
+            Control(const ControlWrapper<BaseSignal> &control);
 
             Control(const Control &other)
                 :
@@ -139,7 +160,7 @@ struct Poly
 
                 PEX_NAME(
                     fmt::format(
-                        "Poly<Fields, {}>::Control<{}>",
+                        "DerivedGroup<Fields, {}>::Control<{}>",
                         jive::GetTypeName<Templates>(),
                         jive::GetTypeName<GroupBase>()));
 
@@ -167,14 +188,15 @@ struct Poly
                 return *this;
             }
 
-            PolyValue GetValue() const override
+            ValueWrapper GetValue() const override
             {
-                return PolyValue(std::make_shared<Derived>(this->Get()));
+                return ValueWrapper(
+                    std::make_shared<DerivedValue>(this->Get()));
             }
 
-            void SetValue(const PolyValue &value) override
+            void SetValue(const ValueWrapper &value) override
             {
-                this->Set(value.template RequireDerived<Derived>());
+                this->Set(value.template RequireDerived<DerivedValue>());
             }
 
             std::string_view GetTypeName() const override
@@ -210,26 +232,28 @@ struct Poly
 
             std::unique_ptr<MakeControlSuper<Supers>> Copy() const override;
 
-            void SetValueWithoutNotify(const PolyValue &value) override
+            void SetValueWithoutNotify(const ValueWrapper &value) override
             {
                 this->SetWithoutNotify_(
-                    value.template RequireDerived<Derived>());
+                    value.template RequireDerived<DerivedValue>());
             }
 
             void DoValueNotify() override
             {
-                this->DoNotify_();
+                this->Notify();
             }
 
         private:
-            static void OnAggregate_(void * context, const Derived &derived)
+            static void OnAggregate_(
+                void * context,
+                const DerivedValue &derived)
             {
                 auto self = static_cast<Control *>(context);
 
                 if (self->baseNotifier_.HasConnections())
                 {
                     self->baseNotifier_.Notify(
-                        PolyValue(std::make_shared<Derived>(derived)));
+                        ValueWrapper(std::make_shared<DerivedValue>(derived)));
                 }
             }
 
@@ -237,12 +261,12 @@ struct Poly
             class BaseNotifier
                 : public ::pex::detail::NotifyMany
                 <
-                    ::pex::detail::ValueConnection<void, PolyValue>,
+                    ::pex::detail::ValueConnection<void, ValueWrapper>,
                     ::pex::GetAndSetTag
                 >
             {
             public:
-                void Notify(const PolyValue &value)
+                void Notify(const ValueWrapper &value)
                 {
                     this->Notify_(value);
                 }
@@ -270,15 +294,15 @@ public:
         typename ::pex::detail::CustomizeControl
         <
             Templates,
-            typename Group_::Control
+            typename Group_::template Control<typename Group_::Model>
         >;
 
 private:
-    // Register the Derived type so that it can be structured from json.
+    // Register the DerivedValue type so that it can be structured from json.
     static const inline bool once =
         []()
         {
-            ValueBase::template RegisterDerived<Derived>(
+            ValueBase::template RegisterDerived<DerivedValue>(
                 std::string(::pex::poly::GetTypeName<Templates>()));
 
             ValueBase::template RegisterModel<Model>(
@@ -298,4 +322,4 @@ private:
 } // end namespace pex
 
 
-#include "pex/detail/poly_impl.h"
+#include "pex/detail/derived_group_impl.h"

@@ -10,7 +10,7 @@
 #include "pex/traits.h"
 #include "pex/detail/mute.h"
 #include "pex/detail/aggregate.h"
-#include "pex/detail/initialize_terminus.h"
+#include "pex/detail/has_model.h"
 #include "pex/detail/choose_not_void.h"
 #include "pex/detail/traits.h"
 
@@ -138,12 +138,57 @@ template<typename Custom, typename T>
 using CustomizeControl = typename CustomizeControl_<Custom, T>::Type;
 
 
+template<typename Custom, typename T, typename = void>
+struct CustomizeMux_
+{
+    using Type = T;
+};
+
+template<typename Custom, typename T>
+struct CustomizeMux_
+<
+    Custom,
+    T,
+    std::enable_if_t<HasMuxTemplate<Custom, T>>
+>
+{
+    using Type = typename Custom::template Mux<T>;
+};
+
+template<typename Custom, typename T>
+using CustomizeMux = typename CustomizeMux_<Custom, T>::Type;
+
+
+template<typename Custom, typename T, typename = void>
+struct CustomizeFollow_
+{
+    using Type = T;
+};
+
+template<typename Custom, typename T>
+struct CustomizeFollow_
+<
+    Custom,
+    T,
+    std::enable_if_t<HasFollowTemplate<Custom, T>>
+>
+{
+    using Type = typename Custom::template Follow<T>;
+};
+
+template<typename Custom, typename T>
+using CustomizeFollow = typename CustomizeFollow_<Custom, T>::Type;
+
+
+
 template
 <
     typename Custom,
     typename PlainBase,
     typename ModelBase,
     typename ControlBase,
+    typename MuxBase,
+    typename FollowBase,
     typename = void
 >
 struct CheckCustom_: std::false_type {};
@@ -153,7 +198,9 @@ template
     typename Custom,
     typename PlainBase,
     typename ModelBase,
-    typename ControlBase
+    typename ControlBase,
+    typename MuxBase,
+    typename FollowBase
 >
 struct CheckCustom_
 <
@@ -161,13 +208,17 @@ struct CheckCustom_
     PlainBase,
     ModelBase,
     ControlBase,
+    MuxBase,
+    FollowBase,
     std::enable_if_t
     <
         (
             HasPlainTemplate<Custom, PlainBase>
             || HasPlain<Custom>
             || HasModelTemplate<Custom, ModelBase>
-            || HasControlTemplate<Custom, ControlBase>)
+            || HasControlTemplate<Custom, ControlBase>
+            || HasMuxTemplate<Custom, MuxBase>
+            || HasFollowTemplate<Custom, FollowBase>)
     >
 >: std::true_type {};
 
@@ -177,10 +228,20 @@ template
     typename Custom,
     typename PlainBase,
     typename ModelBase,
-    typename ControlBase
+    typename ControlBase,
+    typename MuxBase,
+    typename FollowBase
 >
 inline constexpr bool CheckCustom =
-    CheckCustom_<Custom, PlainBase, ModelBase, ControlBase>::value;
+    CheckCustom_
+    <
+        Custom,
+        PlainBase,
+        ModelBase,
+        ControlBase,
+        MuxBase,
+        FollowBase
+    >::value;
 
 
 } // end namespace detail
@@ -216,6 +277,37 @@ protected:
 
 template
 <
+    template<template<typename> typename> typename Template
+>
+class MakeMuxMembers
+    :
+    public Template<MuxSelector>
+{
+protected:
+    MakeMuxMembers()
+        :
+        Template<MuxSelector>{}
+    {
+
+    }
+};
+
+
+template
+<
+    template<template<typename> typename> typename Template
+>
+class MakeFollowMembers
+    :
+    public Template<FollowSelector>
+{
+protected:
+    MakeFollowMembers() = default;
+};
+
+
+template
+<
     template<typename> typename Fields_,
     template<template<typename> typename> typename Template_,
     typename Custom = void
@@ -237,7 +329,9 @@ struct Group
                     Custom,
                     Template<pex::Identity>,
                     Template<ModelSelector>,
-                    Template<ControlSelector>
+                    Template<ControlSelector>,
+                    Template<MuxSelector>,
+                    Template<FollowSelector>
                 >,
         "Expected at least one customization");
 
@@ -260,7 +354,7 @@ struct Group
             Derived
         >;
 
-    struct Control_;
+    // struct Control_;
 
     struct Model_:
         public detail::MuteOwner,
@@ -269,15 +363,20 @@ struct Group
         public ModelAccessors<Model_>
     {
     public:
+        using GroupType = Group;
         static constexpr bool isGroupModel = true;
 
-        using ControlType = typename detail::CustomizeControl<Custom, Control_>;
+        // using ControlType = typename detail::CustomizeControl<Custom, Control_>;
         using Plain = typename Group::Plain;
         using Type = Plain;
         using Defer = DeferGroup<ModelSelector, Model_>;
 
+        // TODO: Pick one
         template<typename T>
         using Pex = pex::ModelSelector<T>;
+
+        template<typename T>
+        using Selector = pex::ModelSelector<T>;
 
         Model_()
             :
@@ -322,6 +421,9 @@ struct Group
 
     using Model = typename detail::CustomizeModel<Custom, Model_>;
 
+    template<template<typename> typename Selector>
+    using Aggregate = detail::Aggregate<Plain, Fields, Template_, Selector>;
+
     template<typename Derived>
     using ControlAccessors = GroupAccessors
         <
@@ -334,20 +436,19 @@ struct Group
 
     using ControlMembers = MakeControlMembers<Template_>;
 
+    template<typename Upstream_>
     struct Control_:
         public detail::Mute,
         public ControlMembers,
-        public ControlAccessors<Control_>
+        public ControlAccessors<Control_<Upstream_>>
     {
+        using GroupType = Group;
         static constexpr bool isGroupControl = true;
 
-        using Aggregate = detail::Aggregate<Plain, Fields, Template_>;
-
+        using Aggregate = typename Group::template Aggregate<ControlSelector>;
         using AccessorsBase = ControlAccessors<Control_>;
-
         using Type = Plain;
-
-        using Upstream = Model;
+        using Upstream = Upstream_;
 
         using Defer = DeferGroup
             <
@@ -363,9 +464,12 @@ struct Group
 
         static constexpr bool isPexCopyable = true;
 
+        // TODO: Pick one
         template<typename T>
-        using Pex =
-            typename pex::ControlSelector<T>;
+        using Pex = typename pex::ControlSelector<T>;
+
+        template<typename T>
+        using Selector = pex::ControlSelector<T>;
 
         Control_()
             :
@@ -377,13 +481,13 @@ struct Group
             PEX_NAMES(this);
         }
 
-        Control_(Model &model)
+        Control_(Upstream &upstream)
             :
-            detail::Mute(model.GetMuteControl()),
+            detail::Mute(upstream.GetMuteControl()),
             ControlMembers{},
             AccessorsBase{}
         {
-            fields::AssignConvert<Fields>(*this, model);
+            fields::AssignConvert<Fields>(*this, upstream);
 
             PEX_NAME(fmt::format("{} Control", jive::GetTypeName<Plain>()));
             PEX_NAMES(this);
@@ -441,18 +545,257 @@ struct Group
         }
     };
 
-    using Control = typename detail::CustomizeControl<Custom, Control_>;
 
-    using Aggregate = typename Control_::Aggregate;
+    template<typename Upstream>
+    using Control =
+        typename detail::CustomizeControl<Custom, Control_<Upstream>>;
+
+
+    template<typename Derived>
+    using MuxAccessors = GroupAccessors
+        <
+            Plain,
+            Fields,
+            Template,
+            MuxSelector,
+            Derived
+        >;
+
+    using MuxMembers = MakeMuxMembers<Template_>;
+
+    struct Mux_:
+        public detail::Mute,
+        public MuxMembers,
+        public MuxAccessors<Mux_>
+    {
+        using GroupType = Group;
+        static constexpr bool isGroupMux = true;
+        static constexpr bool isPexCopyable = false;
+
+        // We must use FollowSelector to track changes to Mux values.
+        using Aggregate = typename Group::template Aggregate<FollowSelector>;
+        using AccessorsBase = MuxAccessors<Mux_>;
+        using Type = Plain;
+        using Upstream = Model;
+
+        using Defer = DeferGroup
+            <
+                MuxSelector,
+                Mux_
+            >;
+
+        // UpstreamType could be the type returned by a filter.
+        // Filters have not been implemented by this class, so it remains the
+        // same as the Type.
+        using UpstreamType = Plain;
+        using Filter = NoFilter;
+
+        // TODO: Pick one
+        template<typename T>
+        using Pex = typename pex::MuxSelector<T>;
+
+        template<typename T>
+        using Selector = typename pex::MuxSelector<T>;
+
+        Mux_()
+            :
+            detail::Mute(),
+            MuxMembers{},
+            AccessorsBase{}
+        {
+            PEX_NAME(fmt::format("{} Control", jive::GetTypeName<Plain>()));
+            PEX_NAMES(this);
+        }
+
+        Mux_(Model &model)
+            :
+            detail::Mute(model.GetMuteControl()),
+            MuxMembers{},
+            AccessorsBase{}
+        {
+            PEX_NAME(fmt::format("{} Control", jive::GetTypeName<Plain>()));
+            PEX_NAMES(this);
+
+            this->ChangeUpstream(model);
+        }
+
+        Mux_(const Mux_ &) = delete;
+
+        Mux_ & operator=(const Mux_ &other) = delete;
+
+        Mux_(Mux_ &&other) = delete;
+
+        ~Mux_()
+        {
+            CLEAR_PEX_NAMES;
+            PEX_CLEAR_NAME(this);
+        }
+
+        Mux_ & operator=(Mux_ &&other) = delete;
+
+        detail::MuteControl GetMuteControl()
+        {
+            return this->CloneMuteControl();
+        }
+
+        bool HasModel() const
+        {
+            return pex::detail::HasModel<Fields>(*this);
+        }
+
+        void ChangeUpstream(Upstream &upstream)
+        {
+            auto swapper = [this, &upstream](
+                const auto &thisField,
+                const auto &upstreamField) -> void
+            {
+                (this->*(thisField.member)).ChangeUpstream(
+                    upstream.*(upstreamField.member));
+            };
+
+            jive::ZipApply(
+                swapper,
+                Fields<Mux_>::fields,
+                Fields<Upstream>::fields);
+        }
+    };
+
+    using Mux = typename detail::CustomizeMux<Custom, Mux_>;
+
+    template<typename Derived>
+    using FollowAccessors = GroupAccessors
+        <
+            Plain,
+            Fields,
+            Template,
+            FollowSelector,
+            Derived
+        >;
+
+    using FollowMembers = MakeFollowMembers<Template_>;
+
+    struct Follow_:
+        public detail::Mute,
+        public FollowMembers,
+        public FollowAccessors<Follow_>
+    {
+        using GroupType = Group;
+
+        // This structure behaves like a group control.
+        static constexpr bool isGroupControl = true;
+
+        using Aggregate = typename Group::template Aggregate<FollowSelector>;
+        using AccessorsBase = FollowAccessors<Follow_>;
+        using Type = Plain;
+        using Upstream = Mux;
+
+        using Defer = DeferGroup
+            <
+                FollowSelector,
+                Follow_
+            >;
+
+        // UpstreamType could be the type returned by a filter.
+        // Filters have not been implemented by this class, so it remains the
+        // same as the Type.
+        using UpstreamType = Plain;
+        using Filter = NoFilter;
+
+        static constexpr bool isPexCopyable = true;
+
+        // TODO: Pick one
+        template<typename T>
+        using Pex = typename pex::FollowSelector<T>;
+
+        template<typename T>
+        using Selector = typename pex::FollowSelector<T>;
+
+        Follow_()
+            :
+            detail::Mute(),
+            FollowMembers{},
+            AccessorsBase{}
+        {
+            PEX_NAME(fmt::format("{} Follow", jive::GetTypeName<Plain>()));
+            PEX_NAMES(this);
+        }
+
+        Follow_(Upstream &upstream)
+            :
+            detail::Mute(upstream.GetMuteControl()),
+            FollowMembers{},
+            AccessorsBase{}
+        {
+            fields::AssignConvert<Fields>(*this, upstream);
+
+            PEX_NAME(fmt::format("{} Follow", jive::GetTypeName<Plain>()));
+            PEX_NAMES(this);
+        }
+
+        Follow_(const Follow_ &other)
+            :
+            detail::Mute(other),
+            FollowMembers{},
+            AccessorsBase{}
+        {
+            fields::Assign<Fields>(*this, other);
+
+            PEX_NAME(fmt::format("{} Follow", jive::GetTypeName<Plain>()));
+            PEX_NAMES(this);
+        }
+
+        Follow_ & operator=(const Follow_ &other)
+        {
+            this->detail::Mute::operator=(other);
+            fields::Assign<Fields>(*this, other);
+
+            return *this;
+        }
+
+        Follow_(Follow_ &&other)
+            :
+            detail::Mute(other),
+            FollowMembers{},
+            AccessorsBase{}
+        {
+            fields::MoveAssign<Fields>(*this, std::move(other));
+
+            PEX_NAME(fmt::format("{} Follow", jive::GetTypeName<Plain>()));
+            PEX_NAMES(this);
+        }
+
+        ~Follow_()
+        {
+            CLEAR_PEX_NAMES;
+            PEX_CLEAR_NAME(this);
+        }
+
+        Follow_ & operator=(Follow_ &&other)
+        {
+            this->detail::Mute::operator=(other);
+            fields::MoveAssign<Fields>(*this, std::move(other));
+
+            return *this;
+        }
+
+        bool HasModel() const
+        {
+            return pex::detail::HasModel<Fields>(*this);
+        }
+    };
+
+    using Follow = typename detail::CustomizeFollow<Custom, Follow_>;
 
     static typename Model::Defer MakeDefer(Model &model)
     {
         return typename Model::Defer(model);
     }
 
-    static typename Control::Defer MakeDefer(Control &control)
+    template<typename Upstream>
+    static typename Control<Upstream>::Defer MakeDefer(
+        Control<Upstream> &control)
     {
-        return typename Control::Defer(control);
+        return typename Control<Upstream>::Defer(control);
     }
 };
 

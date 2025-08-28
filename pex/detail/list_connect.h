@@ -2,7 +2,7 @@
 
 #include "pex/list.h"
 #include "pex/selectors.h"
-#include "pex/make_control.h"
+#include "pex/promote_control.h"
 #include "pex/detail/forward.h"
 
 
@@ -21,82 +21,79 @@ namespace pex
 {
 
 
-template<typename T>
-concept HasControlType = requires
-{
-    typename T::ControlType;
-};
-
-
-template<typename T, typename Enable = void>
-struct GetControlType_
-{
-    using Type = pex::control::Value<T>;
-};
-
-
-template<typename T>
-struct GetControlType_<T, std::enable_if_t<HasControlType<T>>>
-{
-    using Type = typename T::ControlType;
-};
-
-
-template<typename T>
-using GetControlType = typename GetControlType_<T>::Type;
-
-
-// Specializations of MakeControl for List.
-template<typename P>
-struct MakeControl<P, std::enable_if_t<IsListModel<P>>>
-{
-    using Control = typename P::ControlType;
-    using Upstream = P;
-};
-
-
-template<typename P>
-struct MakeControl<P, std::enable_if_t<IsListControl<P>>>
-{
-    using Control = P;
-    using Upstream = typename P::Upstream;
-};
-
-
 namespace detail
 {
 
 
-template<typename T, typename Enable = void>
+template
+<
+    typename T,
+    template<typename> typename Selector,
+    typename Enable = void
+>
 struct ConnectableSelector_
 {
-    using Type = typename MakeControl<T>::Control;
+    using Type = typename PromoteControl<T>::Type;
 };
 
-template<typename T>
-struct ConnectableSelector_<T, std::enable_if_t<IsGroupModel<T>>>
+template<typename T, template<typename> typename Selector>
+struct ConnectableSelector_
+<
+    T,
+    Selector,
+    std::enable_if_t<IsGroupNode<T>>
+>
 {
-    using Type = GroupConnect<void, typename T::ControlType>;
+    using Type = GroupConnect<void, T, Selector>;
 };
 
-template<typename T>
-struct ConnectableSelector_<T, std::enable_if_t<IsGroupControl<T>>>
+
+template<typename T, template<typename> typename Selector>
+struct ConnectableSelector_
+<
+    T,
+    Selector,
+    std::enable_if_t<IsListNode<T>>
+>
 {
-    using Type = GroupConnect<void, T>;
+    using Type = ListConnect<void, T, Selector>;
 };
 
-template<typename T>
-struct ConnectableSelector_<T, std::enable_if_t<IsListControl<T>>>
+
+template<typename T, template<typename> typename Selector>
+using ConnectableSelector = typename ConnectableSelector_<T, Selector>::Type;
+
+
+template<typename Observer, typename Item, typename = void>
+struct IndexedCallable_
 {
-    using Type = ListConnect<void, T>;
+    using type =
+        void (Observer::*)(size_t index, Argument<Item> value);
+};
+
+template<typename Observer, typename Item>
+struct IndexedCallable_
+<
+    Observer,
+    Item,
+    std::enable_if_t<std::is_void_v<Observer>>
+>
+{
+    using type =
+        std::function<void(Observer *, size_t index, Argument<Item> value)>;
 };
 
 
-template<typename T>
-using ConnectableSelector = typename ConnectableSelector_<T>::Type;
+template<typename Observer, typename Item>
+using IndexedCallable = typename IndexedCallable_<Observer, Item>::type;
 
 
-template<typename Observer, typename Upstream_>
+template
+<
+    typename Observer,
+    typename Upstream_,
+    template<typename> typename Selector
+>
 class ListConnect: Separator
 {
 public:
@@ -105,15 +102,15 @@ public:
     static constexpr auto observerName = "pex::ListConnect";
     static constexpr bool isListConnect = true;
 
-    using ListControl = typename MakeControl<Upstream_>::Control;
+    using ListControl = typename PromoteControl<Upstream_>::Type;
 
     using Connectable =
-        ConnectableSelector<typename ListControl::ListItem>;
+        ConnectableSelector<typename ListControl::ListItem, Selector>;
 
     using Connectables = std::vector<Connectable>;
 
     using UpstreamControl = ListControl;
-    using Upstream = typename MakeControl<Upstream_>::Upstream;
+    using Upstream = typename PromoteControl<Upstream_>::Upstream;
 
     using ListType = typename ListControl::Type;
     using Plain = ListType;
@@ -143,6 +140,7 @@ public:
     using ValueCallable = typename ValueConnection_::Callable;
     using Callable = ValueCallable;
 
+    using IndexedCallable = ::pex::detail::IndexedCallable<Observer, Item>;
     using SignalConnection_ = SignalConnection<Observer>;
     using SignalCallable = typename SignalConnection_::Callable;
 
@@ -157,6 +155,7 @@ public:
         observer_(nullptr),
         valueConnection_(),
         signalConnection_(),
+        indexedCallable_(),
         memberWillRemoveTerminus_(),
         memberRemovedTerminus_(),
         memberAddedTerminus_(),
@@ -181,6 +180,7 @@ public:
         observer_(nullptr),
         valueConnection_(),
         signalConnection_(),
+        indexedCallable_(),
 
         memberWillRemoveTerminus_(
             this,
@@ -234,6 +234,7 @@ public:
         observer_(observer),
         valueConnection_(std::in_place_t{}, observer, callable),
         signalConnection_(),
+        indexedCallable_(),
 
         memberWillRemoveTerminus_(
             this,
@@ -289,6 +290,7 @@ public:
         observer_(observer),
         valueConnection_(),
         signalConnection_(std::in_place_t{}, observer, callable),
+        indexedCallable_(),
 
         memberWillRemoveTerminus_(
             this,
@@ -368,6 +370,7 @@ public:
         observer_(nullptr),
         valueConnection_(),
         signalConnection_(),
+        indexedCallable_(),
 
         memberWillRemoveTerminus_(
             this,
@@ -417,7 +420,16 @@ public:
                 other.signalConnection_->GetCallable());
         }
 
-        if (other.valueConnection_ || other.signalConnection_)
+        if (other.indexedCallable_)
+        {
+            assert(other.observer_);
+            this->indexedCallable_ = other.indexedCallable_;
+        }
+
+        if (
+            other.valueConnection_
+            || other.signalConnection_
+            || other.indexedCallable_)
         {
             assert(other.observer_ != nullptr);
             this->observer_ = other.observer_;
@@ -460,7 +472,16 @@ public:
                 other.signalConnection_->GetCallable());
         }
 
-        if (other.valueConnection_ || other.signalConnection_)
+        if (other.indexedCallable_)
+        {
+            assert(observer != nullptr);
+            this->indexedCallable_ = other.indexedCallable_;
+        }
+
+        if (
+            other.valueConnection_
+            || other.signalConnection_
+            || other.indexedCallable_)
         {
             this->observer_ = observer;
             this->RestoreConnections_(0);
@@ -512,11 +533,21 @@ public:
 
     void Connect(Observer *observer, SignalCallable callable)
     {
+        PEX_LINK_OBSERVER(this, observer);
         this->observer_ = observer;
-
-        PEX_LINK_OBSERVER(this, observer_);
-
         this->signalConnection_.emplace(this->observer_, callable);
+
+        if (this->connectables_.empty())
+        {
+            this->RestoreConnections_(0);
+        }
+    }
+
+    void Connect(Observer *observer, IndexedCallable callable)
+    {
+        PEX_LINK_OBSERVER(this, observer);
+        this->observer_ = observer;
+        this->indexedCallable_ = callable;
 
         if (this->connectables_.empty())
         {
@@ -528,7 +559,8 @@ public:
     {
         bool result =
             this->valueConnection_.has_value()
-            || this->signalConnection_.has_value();
+            || this->signalConnection_.has_value()
+            || this->indexedCallable_.has_value();
 
 #ifndef NDEBUG
         if (!result)
@@ -577,6 +609,7 @@ public:
         {
             assert(!this->valueConnection_.has_value());
             assert(!this->signalConnection_.has_value());
+            assert(!this->indexedCallable_.has_value());
             assert(this->connectables_.empty());
 
             return;
@@ -584,6 +617,7 @@ public:
 
         this->valueConnection_.reset();
         this->signalConnection_.reset();
+        this->indexedCallable_.reset();
         this->ClearListConnections_();
         this->observer_ = nullptr;
     }
@@ -645,6 +679,20 @@ private:
         if (self->signalConnection_.has_value())
         {
             (*self->signalConnection_)();
+        }
+
+        if (self->indexedCallable_.has_value())
+        {
+            assert(self->observer_ != NULL);
+
+            if constexpr (std::is_void_v<Observer>)
+            {
+                (*self->indexedCallable_)(self->observer_, index, item);
+            }
+            else
+            {
+                (self->observer_->*(*self->indexedCallable_))(index, item);
+            }
         }
     }
 
@@ -841,7 +889,7 @@ private:
     }
 
 private:
-    using MuteTerminus = pex::Terminus<ListConnect, MuteModel>;
+    using MuteTerminus = pex::Terminus<ListConnect, MuteControl>;
     MuteTerminus muteTerminus_;
     Mute_ muteState_;
     ListControl listControl_;
@@ -849,6 +897,7 @@ private:
     Observer *observer_;
     std::optional<ValueConnection_> valueConnection_;
     std::optional<SignalConnection_> signalConnection_;
+    std::optional<IndexedCallable> indexedCallable_;
     MemberWillRemoveTerminus memberWillRemoveTerminus_;
     MemberRemovedTerminus memberRemovedTerminus_;
     MemberAddedTerminus memberAddedTerminus_;

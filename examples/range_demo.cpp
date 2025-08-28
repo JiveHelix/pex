@@ -79,7 +79,7 @@ struct PoseTemplate
 using PoseGroup = pex::Group<PoseFields, PoseTemplate>;
 using Pose = typename PoseGroup::Plain;
 using PoseModel = typename PoseGroup::Model;
-using PoseControl = typename PoseGroup::Control;
+using PoseControl = typename PoseGroup::Control<PoseModel>;
 
 
 class PoseObserver

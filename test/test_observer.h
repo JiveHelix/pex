@@ -7,7 +7,7 @@
 template<typename Upstream>
 struct Defaults
 {
-    using Control = pex::control::Value<Upstream>;
+    using Control = typename pex::PromoteControl<Upstream>::Type;
 
     template<typename Observer>
     using Terminus = pex::Terminus<Observer, Control>;
@@ -17,20 +17,22 @@ struct Defaults
 template
 <
     typename Upstream,
-    template<typename> typename Terminus = Defaults<Upstream>::template Terminus
+    template<typename> typename Terminus =
+        Defaults<Upstream>::template Terminus
 >
 class TerminusObserver
 {
 public:
     static constexpr auto observerName = "TerminusObserver";
+    using Control = typename pex::PromoteControl<Upstream>::Type;
 
-    using Type = typename Upstream::Type;
+    using Type = typename Control::Type;
 
-    TerminusObserver(Upstream &upstream)
+    TerminusObserver(const Control &control)
         :
         terminus_(
             PEX_THIS("TerminusObserver"),
-            upstream,
+            control,
             &TerminusObserver::Observe_),
 
         count_(0),

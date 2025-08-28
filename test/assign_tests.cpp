@@ -8,6 +8,7 @@
 #include <pex/identity.h>
 #include <pex/selectors.h>
 #include <pex/detail/log.h>
+#include <pex/terminus.h>
 
 
 template<typename Control>

@@ -55,7 +55,10 @@ public:
 
 using OrderGroup = Group<OrderFields, OrderTemplate>;
 using OrderModel = typename OrderGroup::Model;
-using OrderControl = typename OrderGroup::Control;
+
+template<typename Upstream>
+using OrderControl = typename OrderGroup::template Control<Upstream>;
+
 using Order = typename OrderGroup::Plain;
 
 
@@ -89,8 +92,27 @@ struct OrderedListTemplate
 
 
 template<typename T>
+struct IsOrderControl_
+{
+    template<typename U>
+    static std::true_type Probe(OrderGroup::template Control_<U> const *);
+
+    static std::false_type Probe(...);
+
+    static constexpr bool value =
+        decltype(Probe(std::declval<std::remove_cvref_t<T> const *>()))::value;
+};
+
+template<typename T>
+inline constexpr bool IsOrderControl = IsOrderControl_<T>::value;
+
+
+static_assert(IsOrderControl<OrderControl<OrderModel>>);
+
+
+template<typename T>
 concept IsOrder =
-    std::is_same_v<std::remove_reference_t<T>, OrderControl>
+    IsOrderControl<std::remove_reference_t<T>>
     || std::is_same_v<std::remove_reference_t<T>, OrderModel>;
 
 
@@ -131,13 +153,13 @@ concept ListHasOrder =
 
 
 template<typename ListMaker>
-std::optional<OrderControl> GetOrderControl(
+std::optional<OrderControl<OrderModel>> GetOrderControl(
     ModelSelector<ListMaker> &list,
     size_t storageIndex)
 {
     if constexpr (ListHasOrderMember<ListMaker>)
     {
-        return OrderControl(list.at(storageIndex).order);
+        return OrderControl<OrderModel>(list.at(storageIndex).order);
     }
     else if constexpr (ListHasVirtualGetOrder<ListMaker>)
     {
@@ -148,7 +170,7 @@ std::optional<OrderControl> GetOrderControl(
             return std::nullopt;
         }
 
-        return OrderControl(virtualItem->GetOrder());
+        return OrderControl<OrderModel>(virtualItem->GetOrder());
     }
     else
     {
@@ -500,7 +522,7 @@ struct OrderedListCustom
         }
 
         void MakeOrderConnections_(
-            OrderControl &order,
+            OrderControl<OrderModel> &order,
             size_t storageIndex)
         {
             auto result = this->moveToTopEndpoints_.try_emplace(
@@ -769,7 +791,7 @@ struct OrderedListCustom
         using MoveOrderEndpoint =
             pex::BoundEndpoint
             <
-                control::Signal<>,
+                control::Signal<model::Signal>,
                 decltype(&Model::MoveUp)
             >;
 
@@ -1125,6 +1147,165 @@ struct OrderedListCustom
 
 
     template<typename Base>
+    class Mux: public Base
+    {
+    public:
+        using List = decltype(Base::list);
+        using Selected = typename List::Selected;
+        using MemberAdded = typename List::MemberAdded;
+        using MemberWillRemove = typename List::MemberWillRemove;
+        using MemberRemoved = typename List::MemberRemoved;
+        using MemberWillReplace = typename List::MemberWillReplace;
+        using MemberReplaced = typename List::MemberReplaced;
+        using Count = typename List::Count;
+        using ListItem = typename List::ListItem;
+        using Upstream = typename Base::Upstream;
+
+        static_assert(IsValueContainer<decltype(Base::indices)>);
+
+    private:
+        // In group customizations, 'Upstream' is always the group's Model.
+        Upstream *upstream_;
+
+    public:
+        Selected selected;
+        Count count;
+        MemberAdded memberAdded;
+        MemberWillRemove memberWillRemove;
+        MemberRemoved memberRemoved;
+        MemberWillReplace memberWillReplace;
+        MemberReplaced memberReplaced;
+
+        Mux()
+            :
+            Base(),
+            upstream_(nullptr),
+            selected(),
+            count(),
+            memberAdded(),
+            memberWillRemove(),
+            memberRemoved(),
+            memberWillReplace(),
+            memberReplaced()
+        {
+            PEX_NAME("OrderedList::Mux");
+        }
+
+        Mux(typename Base::Upstream &upstream)
+            :
+            Base(upstream),
+            upstream_(&upstream),
+            selected(this->list.selected),
+            count(this->list.count),
+            memberAdded(this->upstream_->list.memberAdded),
+            memberWillRemove(this->upstream_->list.memberWillRemove),
+            memberRemoved(this->upstream_->list.memberRemoved),
+            memberWillReplace(this->upstream_->list.memberWillReplace),
+            memberReplaced(this->upstream_->list.memberReplaced)
+        {
+            PEX_NAME("OrderedList::Mux");
+
+            assert(this->list.count.Get() == this->indices.size());
+            assert(this->list.Get().size() == this->list.count.Get());
+        }
+
+        Mux(const Mux &other) = delete;
+
+        ~Mux()
+        {
+            PEX_CLEAR_NAME(this);
+        }
+
+        Mux & operator=(const Mux &other) = delete;
+
+        void ChangeUpstream(typename Base::Upstream &upstream)
+        {
+            this->Base::ChangeUpstream(upstream),
+
+            this->selected.ChangeUpstream(upstream.list.selected);
+            this->count.ChangeUpstream(upstream.list.count);
+            this->memberAdded.ChangeUpstream(upstream.list.memberAdded);
+
+            this->memberWillRemove.ChangeUpstream(
+                upstream.list.memberWillRemove);
+
+            this->memberRemoved.ChangeUpstream(upstream.list.memberRemoved);
+
+            this->memberWillReplace.ChangeUpstream(
+                upstream.list.memberWillReplace);
+
+            this->memberReplaced.ChangeUpstream(
+                upstream.upstream.list.memberReplaced);
+
+            this->upstream_ = &upstream;
+        }
+
+        size_t GetStorageIndex(size_t orderedIndex) const
+        {
+            return this->upstream_->GetStorageIndex(orderedIndex);
+        }
+
+        template<typename Derived>
+        void Prepend(const Derived &item)
+        {
+            if (!this->upstream_)
+            {
+                throw PexError("No connection to model");
+            }
+
+            this->upstream_->Prepend(item);
+        }
+
+        template<typename Derived>
+        std::optional<size_t> Append(const Derived &item)
+        {
+            return this->list.Append(item);
+        }
+
+        void Set(const typename List::Type &listType)
+        {
+            this->list.Set(listType);
+        }
+
+        void MoveToTop(size_t storageIndex)
+        {
+            if (!this->upstream_)
+            {
+                throw std::logic_error("Unitialized control");
+            }
+
+            this->upstream_->MoveToTop(storageIndex);
+        }
+
+        void MoveToBottom(size_t storageIndex)
+        {
+            if (!this->upstream_)
+            {
+                throw std::logic_error("Unitialized control");
+            }
+
+            this->upstream_->MoveToBottom(storageIndex);
+        }
+
+        void EraseSelected()
+        {
+            assert(this->upstream_);
+            this->upstream_->EraseSelected();
+        }
+
+        size_t size() const
+        {
+            return this->list.size();
+        }
+
+        bool empty() const
+        {
+            return this->list.empty();
+        }
+    };
+
+
+    template<typename Base>
     class Control: public Base, public Iterable<Control<Base>, Base>
     {
     public:
@@ -1227,6 +1408,28 @@ struct OrderedListCustom
             this->memberReplaced = other.memberReplaced;
 
             return *this;
+        }
+
+        void ChangeUpstream(typename Base::Upstream &upstream)
+        {
+            this->Base::ChangeUpstream(upstream),
+
+            this->selected.ChangeUpstream(upstream.list.selected);
+            this->count.ChangeUpstream(upstream.list.count);
+            this->memberAdded.ChangeUpstream(upstream.list.memberAdded);
+
+            this->memberWillRemove.ChangeUpstream(
+                upstream.list.memberWillRemove);
+
+            this->memberRemoved.ChangeUpstream(upstream.list.memberRemoved);
+
+            this->memberWillReplace.ChangeUpstream(
+                upstream.list.memberWillReplace);
+
+            this->memberReplaced.ChangeUpstream(
+                upstream.upstream.list.memberReplaced);
+
+            this->upstream_ = &upstream;
         }
 
         size_t GetStorageIndex(size_t orderedIndex) const

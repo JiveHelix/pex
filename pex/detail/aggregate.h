@@ -86,48 +86,50 @@ struct Getter
     }
 };
 
-template<typename T, typename Enable = void>
-struct IsAggregate_: std::false_type {};
 
+template<template<typename> typename Selector>
+struct AggregateSelector_
+{
+    template<typename T, typename Enable = void>
+    struct Template
+    {
+        using Type = Selector<T>;
+    };
+};
+
+template<template<typename> typename Selector>
 template<typename T>
-struct IsAggregate_
+struct AggregateSelector_<Selector>::Template
 <
     T,
-    std::enable_if_t<T::isAggregate>
+    std::enable_if_t<IsGroup<T>>
 >
-: std::true_type {};
-
-template<typename T>
-inline constexpr bool IsAggregate = IsAggregate_<T>::value;
-
-
-
-// AggregateSelector selects group members that are themselves groups.
-template<typename T, typename Enable = void>
-struct AggregateSelector_
 {
-    using Type = ControlSelector<T>;
+    using Type = typename T::template Aggregate<Selector>;
 };
 
-template<typename T>
-struct AggregateSelector_<T, std::enable_if_t<IsGroup<T>>>
-{
-    using Type = typename T::Aggregate;
-};
 
+template<template<typename> typename Selector>
 template<typename T>
-struct AggregateSelector_
+struct AggregateSelector_<Selector>::Template
 <
     T,
     std::enable_if_t<IsList<T>>
 >
 {
-    using Type = ListConnect<void, ControlSelector<T>>;
+    using Type = ListConnect<void, Selector<T>, Selector>;
 };
 
 
-template<typename T>
-using AggregateSelector = typename AggregateSelector_<T>::Type;
+template<template<typename> typename Selector>
+struct AggregateSelector
+{
+    template<typename T>
+    using Template =
+        typename AggregateSelector_<Selector>::template Template<T>::Type;
+};
+
+
 
 
 
@@ -136,7 +138,8 @@ template
 <
     typename Plain,
     template<typename> typename Fields,
-    template<template<typename> typename> typename Template
+    template<template<typename> typename> typename Template,
+    template<typename> typename Selector
 >
 struct Aggregate
     :
@@ -146,8 +149,14 @@ struct Aggregate
         GetAndSetTag
     >,
     Separator,
-    public Template<AggregateSelector>,
-    public Getter<Plain, Fields, Aggregate<Plain, Fields, Template>>
+    public Template<AggregateSelector<Selector>::template Template>,
+    public
+        Getter
+        <
+            Plain,
+            Fields,
+            Aggregate<Plain, Fields, Template, Selector>
+        >
 {
     using SignalConnection_ = SignalConnection<void>;
     using SignalCallable = typename SignalConnection_::Callable;
@@ -464,7 +473,7 @@ private:
 private:
     Mute_ isMuted_;
 
-    using MuteTerminus = pex::Terminus<Aggregate, MuteModel>;
+    using MuteTerminus = pex::Terminus<Aggregate, MuteControl>;
     MuteTerminus muteTerminus_;
 
     bool isModified_;

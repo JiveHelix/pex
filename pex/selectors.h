@@ -7,12 +7,13 @@
 #include "pex/select.h"
 #include "pex/signal.h"
 #include "pex/interface.h"
-#include "pex/poly_model.h"
-#include "pex/poly_control.h"
+#include "pex/model_wrapper.h"
+#include "pex/control_wrapper.h"
 
 
 namespace pex
 {
+
 
 namespace detail
 {
@@ -24,7 +25,7 @@ struct RangeTypes
     using Type = typename RangeMaker::Type;
 
     using Model =
-        pex::model::Range
+        ::pex::model::Range
         <
             Type,
             typename RangeMaker::Minimum,
@@ -32,7 +33,11 @@ struct RangeTypes
             RangeMaker::template Value
         >;
 
-    using Control = pex::control::Range<Model>;
+    template<typename Upstream>
+    using Control = ::pex::control::Range<Upstream>;
+
+    using Mux = ::pex::control::RangeMux<Model>;
+    using Follow = ::pex::control::RangeFollow<Mux>;
 };
 
 
@@ -50,7 +55,11 @@ struct SelectTypes
             typename SelectMaker::Access
         >;
 
-    using Control = pex::control::Select<Model>;
+    template<typename Upstream>
+    using Control = ::pex::control::Select<Upstream>;
+
+    using Mux = ::pex::control::SelectMux<Model>;
+    using Follow = ::pex::control::SelectFollow<Mux>;
 };
 
 
@@ -113,9 +122,9 @@ struct ModelSelector_<T, std::enable_if_t<IsMakeSelect<T>>>
 };
 
 template<typename T>
-struct ModelSelector_<T, std::enable_if_t<IsMakeCustom<T>>>
+struct ModelSelector_<T, std::enable_if_t<IsDefineNodes<T>>>
 {
-    using Type = typename T::Custom;
+    using Type = typename T::Model;
 };
 
 template<typename T>
@@ -125,7 +134,7 @@ struct ModelSelector_<T, std::enable_if_t<(IsGroup<T>)>>
 };
 
 template<typename T>
-struct ModelSelector_<T, std::enable_if_t<(IsPolyGroup<T>)>>
+struct ModelSelector_<T, std::enable_if_t<(IsDerivedGroup<T>)>>
 {
     using Type = typename T::Model;
 };
@@ -140,7 +149,7 @@ struct ModelSelector_<T, std::enable_if_t<IsList<T>>>
 template<typename T>
 struct ModelSelector_<T, std::enable_if_t<IsMakePoly<T>>>
 {
-    using Type = poly::Model<typename T::Supers>;
+    using Type = poly::ModelWrapperTemplate<typename T::Supers>;
 };
 
 /***** ControlSelector *****/
@@ -174,7 +183,7 @@ struct ControlSelector_
 template<typename T>
 struct ControlSelector_<T, std::enable_if_t<IsMakeSignal<T>>>
 {
-    using Type = control::Signal<>;
+    using Type = control::Signal<typename ModelSelector_<T>::Type>;
 };
 
 template<typename T>
@@ -191,43 +200,232 @@ struct ControlSelector_<T, std::enable_if_t<IsFiltered<T>>>
 template<typename T>
 struct ControlSelector_<T, std::enable_if_t<IsMakeRange<T>>>
 {
-    using Type = typename RangeTypes<T>::Control;
+    using Type = typename RangeTypes<T>
+        ::template Control<typename ModelSelector_<T>::Type>;
 };
 
 template<typename T>
 struct ControlSelector_<T, std::enable_if_t<IsMakeSelect<T>>>
 {
-    using Type = typename SelectTypes<T>::Control;
+    using Type = typename SelectTypes<T>
+        ::template Control<typename ModelSelector_<T>::Type>;
 };
 
 template<typename T>
-struct ControlSelector_<T, std::enable_if_t<IsMakeCustom<T>>>
+struct ControlSelector_<T, std::enable_if_t<IsDefineNodes<T>>>
 {
-    using Type = typename T::Control;
+    using Type = typename T::template Control<typename ModelSelector_<T>::Type>;
 };
 
 template<typename T>
 struct ControlSelector_<T, std::enable_if_t<(IsGroup<T>)>>
 {
-    using Type = typename T::Control;
+    using Type =
+        typename T::template Control<typename ModelSelector_<T>::Type>;
 };
 
 template<typename T>
-struct ControlSelector_<T, std::enable_if_t<(IsPolyGroup<T>)>>
+struct ControlSelector_<T, std::enable_if_t<(IsDerivedGroup<T>)>>
 {
-    using Type = typename T::Control;
+    using Type =
+        typename T::Control;
 };
 
 template<typename T>
 struct ControlSelector_<T, std::enable_if_t<IsList<T>>>
 {
-    using Type = typename T::Control;
+    using Type =
+        typename T::template Control<typename ModelSelector_<T>::Type>;
 };
 
 template<typename T>
 struct ControlSelector_<T, std::enable_if_t<IsMakePoly<T>>>
 {
-    using Type = poly::Control<typename T::Supers>;
+    using Type =
+        poly::ControlWrapperTemplate
+        <
+            typename ModelSelector_<T>::Type,
+            typename T::Supers
+        >;
+};
+
+
+/***** MuxSelector *****/
+template<typename T, typename = void>
+struct MuxSelector_
+{
+    using Type = control::Mux<typename ModelSelector_<T>::Type>;
+};
+
+
+template<typename T>
+struct MuxSelector_
+<
+    T,
+    std::enable_if_t<jive::IsValueContainer<T>::value>
+>
+{
+    using Type = control::ValueContainerMux<typename ModelSelector_<T>::Type>;
+};
+
+template<typename T>
+struct MuxSelector_
+<
+    T,
+    std::enable_if_t<jive::IsKeyValueContainer<T>::value>
+>
+{
+    using Type = control::KeyValueContainerMux
+        <
+            typename ModelSelector_<T>::Type
+        >;
+};
+
+template<typename T>
+struct MuxSelector_<T, std::enable_if_t<IsMakeSignal<T>>>
+{
+    using Type = control::SignalMux;
+};
+
+template<typename T>
+struct MuxSelector_<T, std::enable_if_t<IsFiltered<T>>>
+{
+    using Type = control::Value_
+    <
+        typename ControlSelector_<T>::Type,
+        NoFilter,
+        typename T::Access
+    >;
+};
+
+template<typename T>
+struct MuxSelector_<T, std::enable_if_t<IsMakeRange<T>>>
+{
+    using Type = typename RangeTypes<T>::Mux;
+};
+
+template<typename T>
+struct MuxSelector_<T, std::enable_if_t<IsMakeSelect<T>>>
+{
+    using Type = typename SelectTypes<T>::Mux;
+};
+
+template<typename T>
+struct MuxSelector_<T, std::enable_if_t<IsDefineNodes<T>>>
+{
+    using Type = typename T::Mux;
+};
+
+template<typename T>
+struct MuxSelector_<T, std::enable_if_t<(IsGroup<T>)>>
+{
+    using Type = typename T::Mux;
+};
+
+template<typename T>
+struct MuxSelector_<T, std::enable_if_t<(IsDerivedGroup<T>)>>
+{
+    using Type = typename T::Mux;
+};
+
+template<typename T>
+struct MuxSelector_<T, std::enable_if_t<IsList<T>>>
+{
+    using Type = typename T::Mux;
+};
+
+template<typename T>
+struct MuxSelector_<T, std::enable_if_t<IsMakePoly<T>>>
+{
+    using Type = typename ControlSelector_<T>::Type;
+};
+
+
+/***** FollowSelector *****/
+template<typename T, typename = void>
+struct FollowSelector_
+{
+    using Type = control::Value<typename MuxSelector_<T>::Type>;
+};
+
+
+template<typename T>
+struct FollowSelector_
+<
+    T,
+    std::enable_if_t<jive::IsValueContainer<T>::value>
+>
+{
+    using Type = control::ValueContainer<typename MuxSelector_<T>::Type>;
+};
+
+template<typename T>
+struct FollowSelector_
+<
+    T,
+    std::enable_if_t<jive::IsKeyValueContainer<T>::value>
+>
+{
+    using Type = control::KeyValueContainer<typename MuxSelector_<T>::Type>;
+};
+
+template<typename T>
+struct FollowSelector_<T, std::enable_if_t<IsMakeSignal<T>>>
+{
+    using Type = control::Signal<typename MuxSelector_<T>::Type>;
+};
+
+template<typename T>
+struct FollowSelector_<T, std::enable_if_t<IsFiltered<T>>>
+{
+    using Type = control::Value_
+    <
+        typename MuxSelector_<T>::Type,
+        NoFilter,
+        typename T::Access
+    >;
+};
+
+template<typename T>
+struct FollowSelector_<T, std::enable_if_t<IsMakeRange<T>>>
+{
+    using Type = typename RangeTypes<T>::Follow;
+};
+
+template<typename T>
+struct FollowSelector_<T, std::enable_if_t<IsMakeSelect<T>>>
+{
+    using Type = typename SelectTypes<T>::Follow;
+};
+
+template<typename T>
+struct FollowSelector_<T, std::enable_if_t<IsDefineNodes<T>>>
+{
+    using Type = typename T::Follow;
+};
+
+template<typename T>
+struct FollowSelector_<T, std::enable_if_t<(IsGroup<T>)>>
+{
+    using Type = typename T::Follow;
+};
+
+template<typename T>
+struct FollowSelector_<T, std::enable_if_t<(IsDerivedGroup<T>)>>
+{
+    using Type = typename T::Follow;
+};
+
+template<typename T>
+struct FollowSelector_<T, std::enable_if_t<IsList<T>>>
+{
+    using Type = typename T::Follow;
+};
+
+template<typename T>
+struct FollowSelector_<T, std::enable_if_t<IsMakePoly<T>>>
+{
+    using Type = typename ControlSelector_<T>::Type;
 };
 
 
@@ -240,6 +438,14 @@ using ModelSelector = typename detail::ModelSelector_<T>::Type;
 
 template<typename T>
 using ControlSelector = typename detail::ControlSelector_<T>::Type;
+
+
+template<typename T>
+using MuxSelector = typename detail::MuxSelector_<T>::Type;
+
+
+template<typename T>
+using FollowSelector = typename detail::FollowSelector_<T>::Type;
 
 
 } // end namespace pex

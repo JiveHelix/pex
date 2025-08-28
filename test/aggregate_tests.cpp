@@ -97,10 +97,54 @@ DECLARE_EQUALITY_OPERATORS(Stuff)
 } // end namespace aggregate
 
 
+template<typename T, typename = void>
+struct HasMemberDisconnect_: std::false_type {};
+
+template<typename T>
+struct HasMemberDisconnect_
+<
+    T,
+    std::void_t
+    <
+        decltype(std::declval<T>().Disconnect(NULL))
+    >
+>: std::true_type {};
+
+
+template<typename T>
+inline constexpr bool HasMemberDisconnect = HasMemberDisconnect_<T>::value;
+
+
+
+TEST_CASE("control::Value has member function Disconnect", "[aggregate]")
+{
+    using Control = pex::control::Value<pex::model::Value<double>>;
+    STATIC_REQUIRE(HasMemberDisconnect<Control>);
+}
+
+
+TEST_CASE("ControlSelector has member function Disconnect", "[aggregate]")
+{
+    using Control = pex::ControlSelector<double>;
+    STATIC_REQUIRE(HasMemberDisconnect<Control>);
+}
+
+TEST_CASE("AggregateSelector has member function Disconnect", "[aggregate]")
+{
+    using Control =
+        typename pex::detail::AggregateSelector<pex::ControlSelector>
+            ::template Template<double>;
+
+    static_assert(pex::IsControl<Control>);
+
+    STATIC_REQUIRE(HasMemberDisconnect<Control>);
+}
+
+
 TEST_CASE("Setting Aggregate does not repeat notifications", "[aggregate]")
 {
     using Model = typename aggregate::StuffGroup::Model;
-    using Control = typename aggregate::StuffGroup::Control;
+    using Control = typename aggregate::StuffGroup::template Control<Model>;
     Model model;
     PEX_ROOT(model);
     Control control(model);
@@ -130,7 +174,7 @@ TEST_CASE("Setting Aggregate does not repeat notifications", "[aggregate]")
 TEST_CASE("Deferred Aggregate does not repeat notifications", "[aggregate]")
 {
     using Model = typename aggregate::StuffGroup::Model;
-    using Control = typename aggregate::StuffGroup::Control;
+    using Control = typename aggregate::StuffGroup::template Control<Model>;
     Model model;
     PEX_ROOT(model);
     Control control(model);
@@ -166,7 +210,7 @@ TEST_CASE("Deferred Aggregate does not repeat notifications", "[aggregate]")
 TEST_CASE("Deferred member struct does not repeat notifications", "[aggregate]")
 {
     using Model = typename aggregate::StuffGroup::Model;
-    using Control = typename aggregate::StuffGroup::Control;
+    using Control = typename aggregate::StuffGroup::template Control<Model>;
     Model model;
     PEX_ROOT(model);
     Control control(model);

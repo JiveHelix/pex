@@ -2,8 +2,8 @@
 
 
 #include <fmt/core.h>
-#include "pex/poly_value.h"
-#include "pex/poly_model.h"
+#include "pex/value_wrapper.h"
+#include "pex/model_wrapper.h"
 #include "pex/traits.h"
 
 
@@ -15,51 +15,68 @@ namespace poly
 {
 
 
-template<HasValueBase Supers>
-class Control
+template
+<
+    typename Upstream_,
+    HasValueBase Supers,
+    typename BaseSignal = pex::control::Signal<::pex::model::Signal>
+>
+class ControlWrapperTemplate
 {
 public:
     using Access = GetAccess<Supers>;
     using ValueBase = typename Supers::ValueBase;
-    using Value = ::pex::poly::Value<ValueBase>;
-    using Type = Value;
+    using ValueWrapper = ::pex::poly::ValueWrapperTemplate<ValueBase>;
+    using Type = ValueWrapper;
     using Plain = Type;
 
     using SuperControl = MakeControlSuper<Supers>;
 
     using Callable = typename SuperControl::Callable;
-    using Upstream = Model<Supers>;
+    using Upstream = Upstream_;
 
     static constexpr bool isPexCopyable = true;
-    static constexpr bool isPolyControl = true;
-    static constexpr auto observerName = "pex::poly::Control";
+    static constexpr bool isControlWrapper = true;
+    static constexpr auto observerName = "ControlWrapper";
 
-    Control()
+    ControlWrapperTemplate()
         :
         upstream_(),
         base_(),
+        baseWillDelete(),
         baseCreated(),
+        baseWillDeleteTerminus_(),
         baseCreatedTerminus_()
     {
         PEX_NAME(fmt::format("PolyControl<{}>", jive::GetTypeName<Supers>()));
 
+        PEX_MEMBER(baseWillDelete);
         PEX_MEMBER(baseCreated);
+        PEX_MEMBER(baseWillDeleteTerminus_);
         PEX_MEMBER(baseCreatedTerminus_);
     }
 
-    Control(Upstream &upstream)
+    ControlWrapperTemplate(Upstream &upstream)
         :
         upstream_(&upstream),
         base_(),
+        baseWillDelete(this->upstream_->baseWillDelete_),
         baseCreated(this->upstream_->baseCreated_),
 
-        baseCreatedTerminus_(
+        baseWillDeleteTerminus_(
             PEX_THIS(
                 fmt::format("PolyControl<{}>", jive::GetTypeName<Supers>())),
+            this->upstream_->internalBaseWillDelete_,
+            &ControlWrapperTemplate::OnBaseWillDelete_),
+
+        baseCreatedTerminus_(
+            this,
             this->upstream_->internalBaseCreated_,
-            &Control::OnBaseCreated_)
+            &ControlWrapperTemplate::OnBaseCreated_)
     {
+        PEX_MEMBER(baseWillDelete);
         PEX_MEMBER(baseCreated);
+        PEX_MEMBER(baseWillDeleteTerminus_);
         PEX_MEMBER(baseCreatedTerminus_);
 
         auto modelBase = upstream.GetVirtual();
@@ -76,24 +93,33 @@ public:
             LookupPexName(&upstream));
     }
 
-    Control(const Control &other)
+    ControlWrapperTemplate(const ControlWrapperTemplate &other)
         :
         upstream_(other.upstream_),
         base_(),
+        baseWillDelete(this->upstream_->baseWillDelete_),
         baseCreated(this->upstream_->baseCreated_),
 
-        baseCreatedTerminus_(
+        baseWillDeleteTerminus_(
             PEX_THIS(
                 fmt::format("PolyControl<{}>", jive::GetTypeName<Supers>())),
+
+            this->upstream_->internalBaseWillDelete_,
+            &ControlWrapperTemplate::OnBaseWillDelete_),
+
+        baseCreatedTerminus_(
+            this,
             this->upstream_->internalBaseCreated_,
-            &Control::OnBaseCreated_)
+            &ControlWrapperTemplate::OnBaseCreated_)
     {
         if (other.base_)
         {
             this->base_ = other.base_->Copy();
         }
 
+        PEX_MEMBER(baseWillDelete);
         PEX_MEMBER(baseCreated);
+        PEX_MEMBER(baseWillDeleteTerminus_);
         PEX_MEMBER(baseCreatedTerminus_);
 
         PEX_LOG(
@@ -103,18 +129,27 @@ public:
             LookupPexName(&other));
     }
 
-    Control(Control &&other) noexcept
+    ControlWrapperTemplate(ControlWrapperTemplate &&other) noexcept
         :
         upstream_(std::move(other.upstream_)),
         base_(std::move(other.base_)),
+        baseWillDelete(this->upstream_->baseWillDelete_),
         baseCreated(this->upstream_->baseCreated_),
-        baseCreatedTerminus_(
+
+        baseWillDeleteTerminus_(
             PEX_THIS(
                 fmt::format("PolyControl<{}>", jive::GetTypeName<Supers>())),
+            this->upstream_->internalBaseWillDelete_,
+            &ControlWrapperTemplate::OnBaseWillDelete_),
+
+        baseCreatedTerminus_(
+            this,
             this->upstream_->internalBaseCreated_,
-            &Control::OnBaseCreated_)
+            &ControlWrapperTemplate::OnBaseCreated_)
     {
+        PEX_MEMBER(baseWillDelete);
         PEX_MEMBER(baseCreated);
+        PEX_MEMBER(baseWillDeleteTerminus_);
         PEX_MEMBER(baseCreatedTerminus_);
 
         PEX_LOG(
@@ -124,18 +159,30 @@ public:
             LookupPexName(&other));
     }
 
-    Control(void *observer, Upstream &upstream, Callable callable)
+    ControlWrapperTemplate(
+        void *observer,
+        Upstream &upstream,
+        Callable callable)
         :
         upstream_(upstream),
         base_(),
+        baseWillDelete(this->upstream_->baseWillDelete_),
         baseCreated(this->upstream_->baseCreated_),
-        baseCreatedTerminus_(
+
+        baseWillDeleteTerminus_(
             PEX_THIS(
                 fmt::format("PolyControl<{}>", jive::GetTypeName<Supers>())),
+            this->upstream_->internalBaseWillDelete_,
+            &ControlWrapperTemplate::OnBaseWillDelete_),
+
+        baseCreatedTerminus_(
+            this,
             this->upstream_->internalBaseCreated_,
-            &Control::OnBaseCreated_)
+            &ControlWrapperTemplate::OnBaseCreated_)
     {
+        PEX_MEMBER(baseWillDelete);
         PEX_MEMBER(baseCreated);
+        PEX_MEMBER(baseWillDeleteTerminus_);
         PEX_MEMBER(baseCreatedTerminus_);
 
         auto modelBase = upstream.GetVirtual();
@@ -153,18 +200,30 @@ public:
             LookupPexName(&upstream));
     }
 
-    Control(void *observer, const Control &other, Callable callable)
+    ControlWrapperTemplate(
+        void *observer,
+        const ControlWrapperTemplate &other,
+        Callable callable)
         :
         upstream_(other.upstream_),
         base_(),
+        baseWillDelete(this->upstream_->baseWillDelete_),
         baseCreated(this->upstream_->baseCreated_),
-        baseCreatedTerminus_(
+
+        baseWillDeleteTerminus_(
             PEX_THIS(
                 fmt::format("PolyControl<{}>", jive::GetTypeName<Supers>())),
+            this->upstream_->internalBaseWillDelete_,
+            &ControlWrapperTemplate::OnBaseWillDelete_),
+
+        baseCreatedTerminus_(
+            this,
             this->upstream_->internalBaseCreated_,
-            &Control::OnBaseCreated_)
+            &ControlWrapperTemplate::OnBaseCreated_)
     {
+        PEX_MEMBER(baseWillDelete);
         PEX_MEMBER(baseCreated);
+        PEX_MEMBER(baseWillDeleteTerminus_);
         PEX_MEMBER(baseCreatedTerminus_);
 
         if (!other.base_)
@@ -183,7 +242,7 @@ public:
         this->Connect(observer, callable);
     }
 
-    Control & operator=(const Control &other)
+    ControlWrapperTemplate & operator=(const ControlWrapperTemplate &other)
     {
         PEX_CONCISE_LOG(
             " operator= copy ",
@@ -202,7 +261,12 @@ public:
             this->base_.reset();
         }
 
+        this->baseWillDelete = other.baseWillDelete;
         this->baseCreated = other.baseCreated;
+
+        this->baseWillDeleteTerminus_.RequireAssign(
+            this,
+            other.baseWillDeleteTerminus_);
 
         this->baseCreatedTerminus_.RequireAssign(
             this,
@@ -211,7 +275,7 @@ public:
         return *this;
     }
 
-    Control & operator=(Control &&other)
+    ControlWrapperTemplate & operator=(ControlWrapperTemplate &&other)
     {
         PEX_CONCISE_LOG(
             " operator= move ",
@@ -230,7 +294,13 @@ public:
         }
 
         assert(!other.base_);
+
+        this->baseWillDelete = other.baseWillDelete;
         this->baseCreated = std::move(other.baseCreated);
+
+        this->baseWillDeleteTerminus_.RequireAssign(
+            this,
+            other.baseWillDeleteTerminus_);
 
         this->baseCreatedTerminus_.RequireAssign(
             this,
@@ -239,14 +309,16 @@ public:
         return *this;
     }
 
-    ~Control()
+    ~ControlWrapperTemplate()
     {
         PEX_CLEAR_NAME(this);
         PEX_CLEAR_NAME(&baseCreated);
         PEX_CLEAR_NAME(&baseCreatedTerminus_);
+        PEX_CLEAR_NAME(&baseWillDeleteTerminus_);
+
     }
 
-    Value Get() const
+    ValueWrapper Get() const
     {
         assert(this->base_);
         return this->base_->GetValue();
@@ -282,7 +354,7 @@ public:
         return *result;
     }
 
-    void Set(const Value &value)
+    void Set(const ValueWrapper &value)
     {
         assert(this->base_);
         this->base_->SetValue(value);
@@ -315,16 +387,16 @@ public:
         return (this->upstream_->GetVirtual() != nullptr);
     }
 
-// TODO: Add this to pex::Reference
-// protected:
-    void SetWithoutNotify_(const Value &value)
-    {
-        this->base_->SetValueWithoutNotify(value);
-    }
-
-    void DoNotify_()
+    void Notify()
     {
         this->base_->DoValueNotify();
+    }
+
+// TODO: Add this to pex::Reference
+// protected:
+    void SetWithoutNotify_(const ValueWrapper &value)
+    {
+        this->base_->SetValueWithoutNotify(value);
     }
 
 private:
@@ -338,30 +410,90 @@ private:
         }
     }
 
+    void OnBaseWillDelete_()
+    {
+        this->base_.reset();
+    }
+
 private:
-    using BaseCreatedTerminus =
-        ::pex::Terminus<Control, pex::control::Signal<>>;
+    using BaseTerminus =
+        ::pex::Terminus<ControlWrapperTemplate, ::pex::control::Signal<::pex::model::Signal>>;
 
     Upstream *upstream_;
     std::unique_ptr<SuperControl> base_;
 
 public:
-    using BaseCreatedControl = pex::control::Signal<>;
-    BaseCreatedControl baseCreated;
+    BaseSignal baseWillDelete;
+    BaseSignal baseCreated;
 
 private:
-    BaseCreatedTerminus baseCreatedTerminus_;
+    BaseTerminus baseWillDeleteTerminus_;
+    BaseTerminus baseCreatedTerminus_;
 };
 
 
+#if 0
 template<typename Supers>
-struct IsPolyControl_: std::false_type {};
+using MuxBase =
+    ControlWrapperTemplate
+    <
+        ModelWrapperTemplate<Supers>,
+        Supers,
+        pex::control::SignalMux
+    >;
+
 
 template<typename Supers>
-struct IsPolyControl_<Control<Supers>>: std::true_type {};
+class Mux : public MuxBase<Supers>
+{
+public:
+    using Base = MuxBase<Supers>;
+    using Upstream = typename Base::Upstream;
+    static constexpr bool isPexCopyable = false;
 
-template<typename Supers>
-inline constexpr bool IsPolyControl = IsPolyControl_<Supers>::value;
+    Mux(const Mux &) = delete;
+    Mux(Mux &&) = delete;
+    Mux & operator=(const Mux &) = delete;
+    Mux & operator=(Mux &&) = delete;
+
+    using Base::Base;
+
+    void ChangeUpstream(Upstream &upstream)
+    {
+        if (this->base_)
+        {
+            ::pex::model::Signal temporaryBaseWillDelete;
+            this->baseWillDelete.ChangeUpstream(temporaryBaseWillDelete);
+            temporaryBaseWillDelete.Trigger();
+        }
+
+        this->upstream_ = upstream;
+
+        auto modelBase = this->upstream_->GetVirtual();
+
+        if (modelBase)
+        {
+            this->base_ = modelBase->CreateControl();
+            ::pex::model::Signal temporaryBaseCreated;
+            this->baseCreated.ChangeUpstream(temporaryBaseCreated);
+            temporaryBaseCreated.Trigger();
+        }
+
+        this->baseCreated.ChangeUpstream(upstream.baseCreated);
+        this->baseWillDelete.ChangeUpstream(upstream.baseWillDelete);
+
+        this->baseCreatedTerminus_.Emplace(
+            this,
+            upstream.internalBaseCreated_,
+            &Base::OnBaseCreated_);
+
+        this->baseWillDeleteTerminus_.Emplace(
+            this,
+            upstream.internalBaseWillDelete_,
+            &Base::OnBaseWillDelete_);
+    }
+};
+#endif
 
 
 } // end namespace poly
@@ -371,7 +503,7 @@ template<typename T>
 struct IsControl_
 <
     T,
-    std::enable_if_t<poly::IsPolyControl<T>>
+    std::enable_if_t<IsControlWrapper<T>>
 >: std::true_type {};
 
 

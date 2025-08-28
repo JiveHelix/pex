@@ -57,10 +57,10 @@ struct SomeTemplate
 
 using SomeGroup = pex::Group<SomeFields, SomeTemplate>;
 using SomeModel = typename SomeGroup::Model;
-using SomeControl = typename SomeGroup::Control;
+using SomeControl = typename SomeGroup::template Control<SomeModel>;
 using SomePlain = typename SomeGroup::Plain;
 
-static_assert(pex::IsModelSelect<decltype(SomeModel::rate)>);
+static_assert(pex::IsSelectModel<decltype(SomeModel::rate)>);
 
 
 TEST_CASE("Select is member of Group", "[select]")
@@ -87,8 +87,6 @@ TEST_CASE("Select is member of Group", "[select]")
     REQUIRE(model.rate.Get() == Approx(42.0));
 }
 
-
-using SomeControl = typename SomeGroup::Control;
 
 template<typename Observer>
 using SomeEndpointGroup = pex::EndpointGroup<Observer, SomeControl>;
@@ -170,10 +168,10 @@ struct AnotherTemplate
 
 using AnotherGroup = pex::Group<AnotherFields, AnotherTemplate>;
 using AnotherModel = typename AnotherGroup::Model;
-using AnotherControl = typename AnotherGroup::Control;
+using AnotherControl = typename AnotherGroup::template Control<AnotherModel>;
 using AnotherPlain = typename AnotherGroup::Plain;
 
-static_assert(pex::IsModelSelect<decltype(AnotherModel::rate)>);
+static_assert(pex::IsSelectModel<decltype(AnotherModel::rate)>);
 
 
 TEST_CASE("Rate has default choices.", "[select]")

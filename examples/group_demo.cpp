@@ -31,7 +31,7 @@ using WeaponsGroup = pex::Group<WeaponsFields, WeaponsTemplate>;
 using WeaponsPlain = typename WeaponsGroup::Plain;
 using WeaponsModel = typename WeaponsGroup::Model;
 
-using WeaponsControl = typename WeaponsGroup::Control;
+using WeaponsControl = typename WeaponsGroup::Control<WeaponsModel>;
 
 
 template<typename T>
@@ -62,7 +62,7 @@ using GpsGroup = pex::Group<GpsFields, GpsTemplate>;
 using GpsPlain = typename GpsGroup::Plain;
 using GpsModel = typename GpsGroup::Model;
 
-using GpsControl = typename GpsGroup::Control;
+using GpsControl = typename GpsGroup::Control<GpsModel>;
 
 
 inline GpsPlain DefaultGps()
@@ -100,7 +100,7 @@ struct AggregateTemplate
 
 using AggregateGroup = pex::Group<AggregateFields, AggregateTemplate>;
 using AggregateModel = typename AggregateGroup::Model;
-using AggregateControl = typename AggregateGroup::Control;
+using AggregateControl = typename AggregateGroup::Control<AggregateModel>;
 
 
 class WeaponsObserver

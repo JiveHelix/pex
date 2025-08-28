@@ -9,7 +9,7 @@ TEST_CASE("OrderedList iterates in order", "[OrderedList]")
     using OrderedListGroup = pex::OrderedListGroup<List>;
 
     using Model = typename OrderedListGroup::Model;
-    using Control = typename OrderedListGroup::Control;
+    using Control = typename OrderedListGroup::template Control<Model>;
 
     Model model;
     Control control(model);
@@ -42,7 +42,9 @@ TEST_CASE("OrderedList iterates in order", "[OrderedList]")
 class ReorderObserver
 {
 public:
-    ReorderObserver(pex::control::Signal<> reorder)
+    using Signal = pex::control::Signal<pex::model::Signal>;
+
+    ReorderObserver(Signal reorder)
         :
         endpoint_(
             PEX_THIS("ReorderObserver"),
@@ -58,7 +60,7 @@ public:
         ++this->count;
     }
 
-    pex::Endpoint<ReorderObserver, pex::control::Signal<>> endpoint_;
+    pex::Endpoint<ReorderObserver, Signal> endpoint_;
     size_t count;
 };
 
@@ -69,7 +71,7 @@ TEST_CASE("OrderedList signals when order changes", "[OrderedList]")
     using OrderedListGroup = pex::OrderedListGroup<List>;
 
     using Model = typename OrderedListGroup::Model;
-    using Control = typename OrderedListGroup::Control;
+    using Control = typename OrderedListGroup::template Control<Model>;
 
     Model model;
     Control control(model);
@@ -93,7 +95,7 @@ TEST_CASE("OrderedList can delete selected", "[OrderedList]")
     using OrderedListGroup = pex::OrderedListGroup<List>;
 
     using Model = typename OrderedListGroup::Model;
-    using Control = typename OrderedListGroup::Control;
+    using Control = typename OrderedListGroup::template Control<Model>;
 
     Model model;
     Control control(model);
@@ -191,7 +193,7 @@ TEST_CASE("OrderedList Erase by index", "[OrderedList]")
     using OrderedListGroup = pex::OrderedListGroup<List>;
 
     using Model = typename OrderedListGroup::Model;
-    using Control = typename OrderedListGroup::Control;
+    using Control = typename OrderedListGroup::template Control<Model>;
 
     Model model;
     PEX_ROOT(model);
@@ -227,7 +229,7 @@ TEST_CASE("Reordered OrderedList Erase by index", "[OrderedList]")
     using OrderedListGroup = pex::OrderedListGroup<List>;
 
     using Model = typename OrderedListGroup::Model;
-    using Control = typename OrderedListGroup::Control;
+    using Control = typename OrderedListGroup::template Control<Model>;
 
     Model model;
     PEX_ROOT(model);
@@ -299,7 +301,9 @@ TEST_CASE("Member with order member can request reordering.", "[OrderedList]")
     using OrderedAnimals = pex::OrderedListGroup<Animals>;
 
     using AnimalsModel = typename OrderedAnimals::Model;
-    using AnimalsControl = typename OrderedAnimals::Control;
+
+    using AnimalsControl =
+        typename OrderedAnimals::template Control<AnimalsModel>;
 
     AnimalsModel animalsModel;
     PEX_ROOT(animalsModel);

@@ -3,7 +3,7 @@
 
 #include "pex/interface.h"
 #include "pex/traits.h"
-#include "pex/poly_value.h"
+#include "pex/value_wrapper.h"
 
 
 namespace pex
@@ -27,7 +27,7 @@ struct Identity_
     std::enable_if_t
     <
         IsFiltered<T>
-        || IsMakeCustom<T>
+        || IsDefineNodes<T>
         || IsGroup<T>
         || IsList<T>
         || IsMakeRange<T>
@@ -39,10 +39,10 @@ struct Identity_
 
 
 template<typename T>
-struct Identity_<T, std::enable_if_t<IsPolyGroup<T>>
+struct Identity_<T, std::enable_if_t<IsDerivedGroup<T>>
 >
 {
-    using Type = typename T::Derived;
+    using Type = typename T::DerivedValue;
 };
 
 
@@ -50,7 +50,7 @@ template<typename T>
 struct Identity_<T, std::enable_if_t<IsMakePoly<T>>
 >
 {
-    using Type = poly::Value<typename T::Supers::ValueBase>;
+    using Type = poly::ValueWrapperTemplate<typename T::Supers::ValueBase>;
 };
 
 

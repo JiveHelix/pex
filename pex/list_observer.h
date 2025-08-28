@@ -12,9 +12,9 @@ template<typename Observer, typename Upstream_>
 class ListObserver
 {
 public:
-    using ListControl = typename MakeControl<Upstream_>::Control;
+    using ListControl = typename PromoteControl<Upstream_>::Type;
     using ListItem = typename ListControl::ListItem;
-    using Upstream = typename MakeControl<Upstream_>::Upstream;
+    using Upstream = typename PromoteControl<Upstream_>::Upstream;
 
     using MemberAddedEndpoint =
         Endpoint<Observer, typename ListControl::MemberAdded>;

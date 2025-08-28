@@ -18,7 +18,6 @@
 #include "pex/reference.h"
 #include "pex/find_index.h"
 #include "pex/traits.h"
-#include "pex/make_control.h"
 
 
 namespace pex
@@ -32,6 +31,9 @@ namespace control
 
 template<typename>
 class Select;
+
+template<typename>
+class SelectMux;
 
 
 } // end namespace control
@@ -94,6 +96,8 @@ template
 class Select: public Separator
 {
 public:
+    static constexpr bool isSelectModel = true;
+
     using Type = T;
 
     using Value = pex::model::Value<Type>;
@@ -109,13 +113,16 @@ public:
     using Control = pex::control::Value<Selection>;
 
     template<typename Observer>
-    using Terminus = pex::Terminus<Observer, Selection>;
+    using Terminus = pex::Terminus<Observer, Control>;
 
     template<typename>
     friend class ::pex::Reference;
 
     template <typename>
     friend class ::pex::control::Select;
+
+    template <typename>
+    friend class ::pex::control::SelectMux;
 
     template <typename, typename>
     friend class ::pex::SelectTerminus;
@@ -155,7 +162,7 @@ public:
 
         terminus_(
             PEX_THIS("SelectModel"),
-            PEX_MEMBER_PASS(selection_),
+            Control(PEX_MEMBER_PASS(selection_)),
             &Select::OnSelection_)
     {
         this->Initialize_();
@@ -168,7 +175,7 @@ public:
         selection_(0, SelectFilter(this->choices_.Get())),
         terminus_(
             PEX_THIS("SelectModel"),
-            PEX_MEMBER_PASS(selection_),
+            Control(PEX_MEMBER_PASS(selection_)),
             &Select::OnSelection_)
     {
         this->Initialize_();
@@ -312,6 +319,10 @@ public:
             .SetWithoutNotify(value);
     }
 
+    void Notify()
+    {
+        this->selection_.Notify();
+    }
 
 private:
     void OnSelection_(size_t index)
@@ -344,11 +355,6 @@ private:
             .SetWithoutNotify(value);
     }
 
-    void DoNotify_()
-    {
-        detail::AccessReference(this->selection_).DoNotify();
-    }
-
 private:
     Value value_;
     Choices choices_;
@@ -360,17 +366,6 @@ private:
 } // namespace model
 
 
-template<typename T>
-struct IsModelSelect_: std::false_type {};
-
-template<typename T, typename Choices, typename Access>
-struct IsModelSelect_<pex::model::Select<T, Choices, Access>>
-    : std::true_type {};
-
-template<typename T>
-inline constexpr bool IsModelSelect = IsModelSelect_<T>::value;
-
-
 namespace control
 {
 
@@ -379,6 +374,8 @@ template<typename Upstream_>
 class Select
 {
 public:
+    static constexpr bool isSelectControl = true;
+
     using Upstream = Upstream_;
 
     using Filter = ::pex::NoFilter;
@@ -429,7 +426,7 @@ public:
 
     Select(Upstream &upstream)
     {
-        if constexpr (IsModelSelect<Upstream>)
+        if constexpr (IsSelectModel<Upstream>)
         {
             this->choices = Choices(upstream.choices_);
             this->selection = Selection(upstream.selection_);
@@ -470,6 +467,11 @@ public:
         this->value.Disconnect(observer);
     }
 
+    void Notify()
+    {
+        this->selection.Notify();
+    }
+
 private:
     void SetWithoutNotify_(pex::Argument<Type> value_)
     {
@@ -480,11 +482,6 @@ private:
                     ConstControlReference(this->choices).Get()));
     }
 
-    void DoNotify_()
-    {
-        detail::AccessReference(this->selection).DoNotify();
-    }
-
 public:
     Choices choices;
     Selection selection;
@@ -492,211 +489,74 @@ public:
 };
 
 
-} // namespace control
-
-
-template<typename ...T>
-struct IsControlSelect_: std::false_type {};
-
-template<typename ...T>
-struct IsControlSelect_<control::Select<T...>>: std::true_type {};
-
-template<typename ...T>
-inline constexpr bool IsControlSelect = IsControlSelect_<T...>::value;
-
-
-// Specializations of MakeControl for SelectTerminus.
-template<typename P>
-struct MakeControl<P, std::enable_if_t<IsModelSelect<P>>>
-{
-    using Control = control::Select<P>;
-    using Upstream = P;
-};
-
-
-template<typename P>
-struct MakeControl<P, std::enable_if_t<IsControlSelect<P>>>
-{
-    using Control = P;
-    using Upstream = typename P::Upstream;
-};
-
-
-template<typename P>
-inline constexpr bool IsSelect = IsControlSelect<P> || IsModelSelect<P>;
-
-
-template<typename Observer, typename Upstream_>
-class SelectTerminus
+template<typename Upstream_>
+class SelectMux
 {
 public:
+    static_assert(IsSelectModel<Upstream_>);
+
     using Upstream = Upstream_;
+
+    using Filter = ::pex::NoFilter;
+
+    using Access = GetAndSetTag;
+    using ChoicesAccess = typename Upstream::ChoicesAccess;
 
     static constexpr bool choicesMayChange =
         HasAccess<typename Upstream::ChoicesAccess, SetTag>;
 
-    static constexpr bool isPexCopyable = true;
+    using Type = typename Upstream::Type;
 
-    using UpstreamControl = typename MakeControl<Upstream>::Control;
+    static constexpr bool isSelectMux = true;
+    static constexpr bool isPexCopyable = false;
 
-    using Type = typename UpstreamControl::Type;
+    using Selection = ::pex::control::Mux
+        <
+            typename Upstream::Selection,
+            Filter,
+            ::pex::GetAndSetTag
+        >;
 
-    using Selection =
-        pex::Terminus<Observer, typename UpstreamControl::Selection>;
-
+    // Choices is read-only to users of this Control.
     using Choices =
-        pex::Terminus<Observer, typename UpstreamControl::Choices>;
+        ::pex::control::Mux
+        <
+            typename Upstream::Choices,
+            Filter,
+            ::pex::GetTag
+        >;
 
+    // Value is read-only to users of this Control.
     using Value =
-        pex::Terminus<Observer, typename UpstreamControl::Value>;
+        ::pex::control::Mux
+        <
+            typename Upstream::Value,
+            Filter,
+            ::pex::GetTag
+        >;
 
-    using Callable = typename Value::Callable;
+    template<typename>
+    friend class ::pex::Reference;
 
-    SelectTerminus()
+    SelectMux()
         :
-        choices{},
-        selection{},
-        value{}
+        choices(),
+        selection(),
+        value()
     {
 
     }
 
-    explicit SelectTerminus(const UpstreamControl &pex)
-        :
-        choices(pex.choices),
-        selection(pex.selection),
-        value(pex.value)
+    SelectMux(Upstream &upstream)
     {
-
+        this->ChangeUpstream(upstream);
     }
 
-    SelectTerminus(
-        Observer *observer,
-        const UpstreamControl &pex,
-        Callable callable)
-        :
-        choices(pex.choices),
-        selection(pex.selection),
-        value(observer, pex.value, callable)
+    void ChangeUpstream(Upstream &upstream)
     {
-
-    }
-
-    SelectTerminus(Observer *observer, UpstreamControl &&pex)
-        :
-        choices(observer, std::move(pex.choices)),
-        selection(observer, std::move(pex.selection)),
-        value(observer, std::move(pex.value))
-    {
-
-    }
-
-    explicit SelectTerminus(typename MakeControl<Upstream>::Upstream &upstream)
-        :
-        choices(upstream.choices_),
-        selection(upstream.selection_),
-        value(upstream.value_)
-    {
-
-    }
-
-    SelectTerminus(const SelectTerminus &other) = delete;
-    SelectTerminus(SelectTerminus &&other) = delete;
-    SelectTerminus & operator=(const SelectTerminus &) = delete;
-    SelectTerminus & operator=(SelectTerminus &&) = delete;
-
-    // Copy construct
-    SelectTerminus(Observer *observer, const SelectTerminus &other)
-        :
-        choices(observer, other.choices),
-        selection(observer, other.selection),
-        value(observer, other.value)
-    {
-
-    }
-
-    // Copy construct from other observer
-    template<typename O>
-    SelectTerminus(
-        Observer *observer,
-        const SelectTerminus<O, Upstream> &other)
-        :
-        choices(observer, other.choices),
-        selection(observer, other.selection),
-        value(observer, other.value)
-    {
-
-    }
-
-    // Move construct
-    SelectTerminus(Observer *observer, SelectTerminus &&other)
-        :
-        choices(observer, std::move(other.choices)),
-        selection(observer, std::move(other.selection)),
-        value(observer, std::move(other.value))
-    {
-
-    }
-
-    // Move construct from other observer
-    template<typename O>
-    SelectTerminus(
-        Observer *observer,
-        SelectTerminus<O, Upstream> &&other)
-        :
-        choices(observer, std::move(other.choices)),
-        selection(observer, std::move(other.selection)),
-        value(observer, std::move(other.value))
-    {
-
-    }
-
-    void Disconnect(Observer *)
-    {
-        this->Disconnect();
-    }
-
-    void Disconnect()
-    {
-        this->choices.Disconnect();
-        this->selection.Disconnect();
-        this->value.Disconnect();
-    }
-
-    // Copy assign
-    template<typename O>
-    SelectTerminus & Assign(
-        Observer *observer,
-        const SelectTerminus<O, Upstream> &other)
-    {
-        this->choices.Assign(observer, other.choices);
-        this->selection.Assign(observer, other.selection);
-        this->value.Assign(observer, other.value);
-
-        return *this;
-    }
-
-    // Move assign
-    template<typename O>
-    SelectTerminus & Assign(
-        Observer *observer,
-        SelectTerminus<O, Upstream> &&other)
-    {
-        this->choices.Assign(observer, std::move(other.choices));
-        this->selection.Assign(observer, std::move(other.selection));
-        this->value.Assign(observer, std::move(other.value));
-
-        return *this;
-    }
-
-    void Connect(Observer *observer, Callable callable)
-    {
-        this->value.Connect(observer, callable);
-    }
-
-    explicit operator Type () const
-    {
-        return this->value.Get();
+        this->choices.ChangeUpstream(upstream.choices_);
+        this->selection.ChangeUpstream(upstream.selection_);
+        this->value.ChangeUpstream(upstream.value_);
     }
 
     Type Get() const
@@ -704,15 +564,32 @@ public:
         return this->value.Get();
     }
 
+    explicit operator Type () const
+    {
+        return this->value.Get();
+    }
+
     bool HasModel() const
     {
-        return this->choices.HasModel()
+        return this->value.HasModel()
             && this->selection.HasModel()
             && this->value.HasModel();
     }
 
-    template<typename>
-    friend class ::pex::Reference;
+    void Connect(void *observer, typename Value::Callable callable)
+    {
+        this->value.Connect(observer, callable);
+    }
+
+    void Disconnect(void *observer)
+    {
+        this->value.Disconnect(observer);
+    }
+
+    void Notify()
+    {
+        this->selection.Notify();
+    }
 
 private:
     void SetWithoutNotify_(pex::Argument<Type> value_)
@@ -721,12 +598,7 @@ private:
             SetWithoutNotify(
                 RequireIndex(
                     value_,
-                    this->choices.Get()));
-    }
-
-    void DoNotify_()
-    {
-        detail::AccessReference(this->selection).DoNotify();
+                    ConstControlReference(this->choices).Get()));
     }
 
 public:
@@ -734,6 +606,15 @@ public:
     Selection selection;
     Value value;
 };
+
+
+template<typename Upstream>
+using SelectFollow = Select<Upstream>;
+
+
+} // namespace control
+
+
 
 
 } // namespace pex

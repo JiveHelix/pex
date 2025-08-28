@@ -14,6 +14,7 @@ add_catch2_test(
         range_tests.cpp
         select_tests.cpp
         signal_tests.cpp
+        swap_tests.cpp
         terminus_tests.cpp
         traits_tests.cpp
         value_tests.cpp

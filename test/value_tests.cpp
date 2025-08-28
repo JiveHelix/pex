@@ -45,7 +45,8 @@ TEMPLATE_TEST_CASE(
     using Model = pex::model::Value<TestType>;
     Model model{original};
     PEX_ROOT(model);
-    TerminusObserver<Model> observer(model);
+    using Control = pex::control::Value<Model>;
+    TerminusObserver<Control> observer{Control(model)};
 
     if constexpr (std::is_floating_point_v<TestType>)
     {
@@ -103,7 +104,8 @@ TEMPLATE_TEST_CASE(
     using Model = pex::model::Value<TestType>;
     Model model{original};
     PEX_ROOT(model);
-    TerminusObserver<Model> observer(model);
+    using Control = pex::control::Value<Model>;
+    TerminusObserver<Control> observer{Control(model)};
 
     if constexpr (std::is_floating_point_v<TestType>)
     {
@@ -139,7 +141,8 @@ TEST_CASE("std::string propagation", "[value]")
     using Model = pex::model::Value<std::string>;
     Model model(original);
     PEX_ROOT(model);
-    TerminusObserver<Model> observer(model);
+    using Control = pex::control::Value<Model>;
+    TerminusObserver<Control> observer{Control(model)};
 
     REQUIRE(observer.observedValue == original);
     model.Set(propagated);
@@ -181,10 +184,11 @@ TEMPLATE_TEST_CASE(
     using Model = pex::model::Value<TestType>;
     Model model{original};
     PEX_ROOT(model);
-    TerminusObserver<Model> observer1(model);
-    TerminusObserver<Model> observer2(model);
-    TerminusObserver<Model> observer3(model);
-    TerminusObserver<Model> observer4(model);
+    using Control = pex::control::Value<Model>;
+    TerminusObserver<Control> observer1{Control(model)};
+    TerminusObserver<Control> observer2{Control(model)};
+    TerminusObserver<Control> observer3{Control(model)};
+    TerminusObserver<Control> observer4{Control(model)};
 
     if constexpr (std::is_floating_point_v<TestType>)
     {

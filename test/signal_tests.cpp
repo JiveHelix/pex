@@ -14,11 +14,11 @@ class Observer
 {
 public:
     static constexpr auto observerName = "signal_tests::Observer";
-    using Control = pex::control::Signal<Access>;
+    using Control = pex::control::Signal<pex::model::Signal, Access>;
 
     Observer(pex::model::Signal &model)
         :
-        terminus_(model),
+        terminus_(Control(model)),
         observedCount{0}
     {
         if constexpr (pex::HasAccess<pex::GetTag, Access>)
@@ -111,10 +111,10 @@ TEST_CASE("Signal fan out from write-only control", "[signal]")
 TEST_CASE("Signal Terminus is detected", "[signal]")
 {
     using ModelSignal = pex::model::Signal;
-    using ControlSignal = pex::control::Signal<>;
+    using ControlSignal = pex::control::Signal<ModelSignal>;
     using TerminusSignal = pex::Terminus<void, ControlSignal>;
-    STATIC_REQUIRE(pex::IsModelSignal<ModelSignal>);
-    STATIC_REQUIRE(pex::IsControlSignal<ControlSignal>);
+    STATIC_REQUIRE(pex::IsSignalModel<ModelSignal>);
+    STATIC_REQUIRE(pex::IsSignalControl<ControlSignal>);
     STATIC_REQUIRE(pex::IsSignal<ModelSignal>);
     STATIC_REQUIRE(pex::IsSignal<ControlSignal>);
     STATIC_REQUIRE(pex::IsSignal<typename TerminusSignal::Upstream>);
@@ -126,7 +126,7 @@ TEST_CASE(
     "[signal]")
 {
     using ModelSignal = pex::model::Signal;
-    using ControlSignal = pex::control::Signal<>;
+    using ControlSignal = pex::control::Signal<ModelSignal>;
 
     std::unique_ptr<ControlSignal> control;
     ModelSignal model;

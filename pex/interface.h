@@ -24,15 +24,16 @@ namespace pex
 struct MakeSignal {};
 
 
-template<typename Custom_>
-struct MakeCustom
+template<typename Nodes>
+struct DefineNodes
 {
-    static constexpr bool isMakeCustom = true;
+    static constexpr bool isDefineNodes = true;
 
-    using Custom = Custom_;
-    using Type = typename Custom::Type;
-
-    using Control = typename Custom::Control;
+    using Type = typename Nodes::Type;
+    using Model = typename Nodes::Model;
+    using Control = typename Nodes::Control;
+    using Mux = typename Nodes::Mux;
+    using Follow = typename Nodes::Follow;
 };
 
 
@@ -154,7 +155,7 @@ template<typename T>
 inline constexpr bool IsMakeSignal = detail::IsMakeSignal_<T>::value;
 
 template<typename ...T>
-inline constexpr bool IsMakeCustom = detail::IsMakeCustom_<T...>::value;
+inline constexpr bool IsDefineNodes = detail::IsDefineNodes_<T...>::value;
 
 template<typename ...T>
 inline constexpr bool IsFiltered = detail::IsFiltered_<T...>::value;

@@ -86,7 +86,7 @@ static_assert(pex::IsMakeSelect<pex::MakeSelect<std::string>>);
 
 using PointGroup = pex::Group<PointFields, PointTemplate, PointGroupTemplates_>;
 using PointModel = typename PointGroup::Model;
-using PointControl = typename PointGroup::Control;
+using PointControl = typename PointGroup::template Control<PointModel>;
 
 
 static_assert(
@@ -167,9 +167,9 @@ public:
 TEST_CASE("Terminus aggregate observer receives message.", "[groups]")
 {
     using Model = typename groups::CircleGroup::Model;
-    using Control = typename groups::CircleGroup::Control;
+    using Control = typename groups::CircleGroup::template Control<Model>;
 
-    using TestObserver = Observer<groups::Circle, groups::CircleGroup::Control>;
+    using TestObserver = Observer<groups::Circle, Control>;
 
     Model model{};
 
@@ -202,7 +202,8 @@ TEST_CASE("Terminus aggregate member observer receives message.", "[groups]")
 class EndpointObserver: Separator
 {
 public:
-    using Control = typename groups::CircleGroup::Control;
+    using Model = typename groups::CircleGroup::Model;
+    using Control = typename groups::CircleGroup::template Control<Model>;
     using Endpoints = pex::EndpointGroup<EndpointObserver, Control>;
 
     using RadiusEndpoint =
@@ -247,7 +248,8 @@ private:
 class RadiusObserver
 {
 public:
-    using Control = typename groups::CircleGroup::Control;
+    using Model = typename groups::CircleGroup::Model;
+    using Control = typename groups::CircleGroup::template Control<Model>;
 
     using RadiusEndpoint =
         pex::Endpoint<RadiusObserver, decltype(Control::radius)>;
@@ -295,7 +297,7 @@ public:
 TEST_CASE("EndpointGroup receives message.", "[groups]")
 {
     using Model = typename groups::CircleGroup::Model;
-    using Control = typename groups::CircleGroup::Control;
+    using Control = typename groups::CircleGroup::template Control<Model>;
 
     Model model{};
     Control control(model);
@@ -320,7 +322,7 @@ TEST_CASE("EndpointGroup receives message.", "[groups]")
 TEST_CASE("Default constructed single Endpoint receives message.", "[groups]")
 {
     using Model = typename groups::CircleGroup::Model;
-    using Control = typename groups::CircleGroup::Control;
+    using Control = typename groups::CircleGroup::template Control<Model>;
 
     Model model{};
     Control control(model);
@@ -336,7 +338,7 @@ TEST_CASE("Default constructed single Endpoint receives message.", "[groups]")
 TEST_CASE("Single Endpoint receives message.", "[groups]")
 {
     using Model = typename groups::CircleGroup::Model;
-    using Control = typename groups::CircleGroup::Control;
+    using Control = typename groups::CircleGroup::template Control<Model>;
 
     Model model{};
     Control control(model);
@@ -352,7 +354,7 @@ TEST_CASE(
     "[groups]")
 {
     using Model = typename groups::CircleGroup::Model;
-    using Control = typename groups::CircleGroup::Control;
+    using Control = typename groups::CircleGroup::template Control<Model>;
 
     Model model{};
     Control control(model);
@@ -367,7 +369,7 @@ TEST_CASE(
 TEST_CASE("Default constructed Endpoint is set.", "[groups]")
 {
     using Model = typename groups::CircleGroup::Model;
-    using Control = typename groups::CircleGroup::Control;
+    using Control = typename groups::CircleGroup::template Control<Model>;
 
     Model model{};
     Control control(model);
@@ -384,7 +386,7 @@ TEST_CASE("Default constructed Endpoint is set.", "[groups]")
 TEST_CASE("Endpoint is set.", "[groups]")
 {
     using Model = typename groups::CircleGroup::Model;
-    using Control = typename groups::CircleGroup::Control;
+    using Control = typename groups::CircleGroup::template Control<Model>;
 
     Model model{};
     Control control(model);
@@ -400,7 +402,7 @@ TEST_CASE("Endpoint is set.", "[groups]")
 TEST_CASE("Setting a group value propagates to model and observer.", "[groups]")
 {
     using Model = typename groups::CircleGroup::Model;
-    using Control = typename groups::CircleGroup::Control;
+    using Control = typename groups::CircleGroup::template Control<Model>;
 
     Model model{};
 
@@ -466,7 +468,7 @@ TEST_CASE(
     "Deferring a group only notifies members that were changed.", "[groups]")
 {
     using Model = typename groups::CircleGroup::Model;
-    using Control = typename groups::CircleGroup::Control;
+    using Control = typename groups::CircleGroup::template Control<Model>;
 
     Model model{};
     Control control(model);
@@ -523,7 +525,7 @@ DECLARE_EQUALITY_OPERATORS(CircleWithSignal)
 TEST_CASE("Presence of signal allows observation.", "[groups]")
 {
     using Model = typename CircleWithSignalGroup::Model;
-    using Control = typename CircleWithSignalGroup::Control;
+    using Control = typename CircleWithSignalGroup::template Control<Model>;
 
     using TestObserver = Observer<CircleWithSignal, Control>;
 

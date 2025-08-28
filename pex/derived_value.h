@@ -43,7 +43,7 @@ template
     typename Templates
 >
 requires ::pex::HasMinimalSupers<Templates>
-class PolyDerived_
+class DerivedValueTemplate_
     :
     public Templates::Supers::ValueBase,
     public Templates::template Template<pex::Identity>
@@ -59,20 +59,20 @@ public:
     using Json = typename ValueBase::Json;
     using TemplateBase = typename Templates::template Template<pex::Identity>;
 
-    PolyDerived_()
+    DerivedValueTemplate_()
         :
         ValueBase(),
         TemplateBase()
     {
-        // this->ReportAddress("PolyDerived_()");
+
     }
 
-    PolyDerived_(const TemplateBase &other)
+    DerivedValueTemplate_(const TemplateBase &other)
         :
         ValueBase(),
         TemplateBase(other)
     {
-        // this->ReportAddress("PolyDerived_(const TemplateBase &)");
+
     }
 
     std::ostream & Describe(
@@ -83,7 +83,7 @@ public:
         return fields::DescribeFields(
             outputStream,
             *this,
-            PolyDerived_::fields,
+            DerivedValueTemplate_::fields,
             style,
             indent);
     }
@@ -95,7 +95,7 @@ public:
 
     bool operator==(const VirtualBase &other) const override
     {
-        auto otherPolyBase = dynamic_cast<const PolyDerived_ *>(&other);
+        auto otherPolyBase = dynamic_cast<const DerivedValueTemplate_ *>(&other);
 
         if (!otherPolyBase)
         {
@@ -120,9 +120,15 @@ public:
     // everything is copied.
     std::shared_ptr<ValueBase> Copy() const override
     {
-        if constexpr (::pex::detail::HasDerived<Templates>)
+        static_assert(
+            !::pex::detail::HasDerived<Templates>,
+            "Obsolete customization: Change 'Derived' to 'DerivedValue'");
+
+        if constexpr (::pex::detail::HasDerivedValue<Templates>)
         {
-            using Type = typename Templates::template Derived<PolyDerived_>;
+            using Type = typename Templates
+                ::template DerivedValue<DerivedValueTemplate_>;
+
             auto self = dynamic_cast<const Type *>(this);
 
             if (!self)
@@ -135,7 +141,7 @@ public:
         }
         else
         {
-            return std::make_shared<PolyDerived_>(*this);
+            return std::make_shared<DerivedValueTemplate_>(*this);
         }
     }
 };
@@ -146,26 +152,34 @@ template
     typename Templates,
     typename = void
 >
-struct MakePolyDerived
+struct MakeDerivedValue
 {
-    using Type = PolyDerived_<Templates>;
+    static_assert(
+        !::pex::detail::HasDerived<Templates>,
+        "Obsolete customization: Change 'Derived' to 'DerivedValue'");
+
+    using Type = DerivedValueTemplate_<Templates>;
 };
 
 
 template<typename Templates>
-struct MakePolyDerived
+struct MakeDerivedValue
 <
     Templates,
-    std::enable_if_t<::pex::detail::HasDerived<Templates>>
+    std::enable_if_t<::pex::detail::HasDerivedValue<Templates>>
 >
 {
+    static_assert(
+        !::pex::detail::HasDerived<Templates>,
+        "Obsolete customization: Change 'Derived' to 'DerivedValue'");
+
     using Type =
-        typename Templates::template Derived<PolyDerived_<Templates>>;
+        typename Templates::template DerivedValue<DerivedValueTemplate_<Templates>>;
 };
 
 
 template<typename Templates>
-using PolyDerived = typename MakePolyDerived<Templates>::Type;
+using DerivedValueTemplate = typename MakeDerivedValue<Templates>::Type;
 
 
 } // end namespace poly

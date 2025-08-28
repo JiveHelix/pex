@@ -47,7 +47,7 @@ template <HasValueBase Supers>
 using MakeModelSuper = typename MakeModelSuper_<Supers>::Type;
 
 
-template<HasValueBase Supers>
+template<typename Upstream, HasValueBase, typename BaseSignal>
 class Control;
 
 
@@ -57,47 +57,54 @@ class Control;
 // unique_ptr?
 //
 template<HasValueBase Supers>
-class Model
+class ModelWrapperTemplate
 {
 public:
     using Access = GetAccess<Supers>;
     using ValueBase = typename Supers::ValueBase;
-    using Value = ::pex::poly::Value<ValueBase>;
-    using Type = Value;
-    using ModelBase = typename Value::ModelBase;
+    using ValueWrapper = ::pex::poly::ValueWrapperTemplate<ValueBase>;
+    using Type = ValueWrapper;
+    using ModelBase = typename ValueWrapper::ModelBase;
     using SuperModel = MakeModelSuper<Supers>;
 
-    static constexpr bool isPolyModel = true;
+    static constexpr bool isModelWrapper = true;
     static_assert(std::is_base_of_v<ModelBase, SuperModel>);
 
-    using ControlType = Control<Supers>;
+    using Signal = ::pex::control::Signal<::pex::model::Signal>;
 
-    template<HasValueBase>
-    friend class Control;
+    template<typename Upstream, HasValueBase, typename>
+    friend class ControlWrapperTemplate;
 
-    Model()
+    ModelWrapperTemplate()
         :
         base_{},
         superModel_{},
         baseWillDelete_{},
         baseCreated_{},
-        internalBaseCreated_{}
+        internalBaseCreated_{},
+        internalBaseWillDelete_{}
     {
-        PEX_NAME(fmt::format("PolyModel<{}>", jive::GetTypeName<Supers>()));
+        PEX_NAME(
+            fmt::format(
+                "ModelWrapperTemplate<{}>",
+                jive::GetTypeName<Supers>()));
+
         PEX_MEMBER(baseWillDelete_);
         PEX_MEMBER(baseCreated_);
         PEX_MEMBER(internalBaseCreated_);
+        PEX_MEMBER(internalBaseWillDelete_);
     };
 
-    ~Model()
+    ~ModelWrapperTemplate()
     {
         PEX_CLEAR_NAME(this);
         PEX_CLEAR_NAME(&baseWillDelete_);
         PEX_CLEAR_NAME(&baseCreated_);
         PEX_CLEAR_NAME(&internalBaseCreated_);
+        PEX_CLEAR_NAME(&internalBaseWillDelete_);
     }
 
-    Value Get() const
+    ValueWrapper Get() const
     {
         return this->superModel_->GetValue();
     }
@@ -125,15 +132,20 @@ public:
         return *result;
     }
 
-    void Set(const Value &value)
+    void Set(const ValueWrapper &value)
     {
         this->SetWithoutNotify_(value);
-        this->DoNotify_();
+        this->Notify();
+    }
+
+    void Notify()
+    {
+        this->superModel_->DoValueNotify();
     }
 
 // TODO: Add this to pex::Reference
 // protected:
-    void SetWithoutNotify_(const Value &value)
+    void SetWithoutNotify_(const ValueWrapper &value)
     {
         if (!value.CheckModel(this->base_.get()))
         {
@@ -141,6 +153,8 @@ public:
             {
                 // Notify that the base_ will be replaced.
                 this->baseWillDelete_.Trigger();
+
+                this->internalBaseWillDelete_.TriggerMayModify();
             }
 
             // Create the right kind of ModelBase for this value.
@@ -156,7 +170,7 @@ public:
             this->superModel_->SetValueWithoutNotify(value);
 
             // Create the new control before signaling the rest of the library.
-            // Use the slower TriggerMayModify to allow the new poly::Control
+            // Use the slower TriggerMayModify to allow the new ControlWrapper
             // to connect itself to this signal.
             this->internalBaseCreated_.TriggerMayModify();
 
@@ -168,17 +182,12 @@ public:
         }
     }
 
-    void DoNotify_()
-    {
-        this->superModel_->DoValueNotify();
-    }
-
-    pex::control::Signal<> GetBaseWillDelete()
+    Signal GetBaseWillDelete()
     {
         return {this->baseWillDelete_};
     }
 
-    pex::control::Signal<> GetBaseCreated()
+    Signal GetBaseCreated()
     {
         return {this->baseCreated_};
     }
@@ -189,6 +198,7 @@ private:
     pex::model::Signal baseWillDelete_;
     pex::model::Signal baseCreated_;
     pex::model::Signal internalBaseCreated_;
+    pex::model::Signal internalBaseWillDelete_;
 };
 
 

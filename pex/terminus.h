@@ -5,7 +5,7 @@
 #include "pex/detail/value_connection.h"
 #include "pex/detail/signal_connection.h"
 #include "pex/reference.h"
-#include "pex/make_control.h"
+// #include "pex/promote_control.h"
 
 
 namespace pex
@@ -95,7 +95,7 @@ struct MakeConnection
     <
         Observer,
         Control,
-        std::enable_if_t<IsControlSignal<Control>>
+        std::enable_if_t<IsSignalControl<Control>>
     >
 {
     using Connection = detail::SignalConnection<Observer>;
@@ -246,13 +246,13 @@ private:
 template<typename Observer, typename Upstream_>
 class Terminus_: Separator
 {
+    static_assert(IsCopyable<Upstream_>);
 
 public:
-    using ControlType =
-        typename MakeControl<Upstream_>::Control;
+    // using ControlType = typename PromoteControl<Upstream_>::Type;
+    using ControlType = Upstream_;
 
     using UpstreamControl = ControlType;
-    using Model = typename UpstreamControl::Model;
     using Connection = MakeConnection<Observer, ControlType>;
     using Notifier = typename Connection::Notifier;
     using Callable = typename Connection::Callable;
@@ -366,8 +366,8 @@ public:
         this->upstreamControl_.ClearConnections();
         this->Connect(observer, callable);
     }
-
-    explicit Terminus_(typename MakeControl<Upstream_>::Upstream &upstream)
+#if 0
+    explicit Terminus_(typename PromoteControl<Upstream_>::Upstream &upstream)
         :
         observer_(nullptr),
         notifier_{},
@@ -383,7 +383,7 @@ public:
 
     Terminus_(
         Observer *observer,
-        typename MakeControl<Upstream_>::Upstream &upstream,
+        typename PromoteControl<Upstream_>::Upstream &upstream,
         Callable callable)
         :
         observer_(nullptr),
@@ -397,6 +397,7 @@ public:
         this->upstreamControl_.ClearConnections();
         this->Connect(observer, callable);
     }
+#endif
 
     // It does not make sense to copy callbacks to the same observer.
     // Every copy would mean extra meaningless notifications.
@@ -709,6 +710,28 @@ protected:
 };
 
 
+template<typename T, typename Enable = void>
+struct ExtractModel_
+{
+    using Type = typename T::Model;
+};
+
+
+template<typename T>
+struct ExtractModel_
+<
+    T,
+    std::enable_if_t<IsModel<T>>
+>
+{
+    using Type = T;
+};
+
+
+template<typename T>
+using ExtractModel = typename ExtractModel_<T>::Type;
+
+
 template
 <
     template<typename, typename> typename Derived_,
@@ -719,10 +742,13 @@ template
 struct ImplementInterface
 {
     using Derived = Derived_<Observer, Upstream_>;
-    using Upstream = typename MakeControl<Upstream_>::Control;
+    // using Upstream = typename PromoteControl<Upstream_>::Type;
+    using Upstream = Upstream_;
     using Type = typename Upstream::Type;
     using Filter = typename Upstream::Filter;
     using Access = typename Upstream::Access;
+
+    using Model = ExtractModel<Upstream>;
 
     Type Get() const
     {
@@ -739,6 +765,11 @@ struct ImplementInterface
         return Type(static_cast<const Derived *>(this)->upstreamControl_);
     }
 
+    void Notify()
+    {
+        static_cast<Derived *>(this)->upstreamControl_.Notify();
+    }
+
 protected:
     void SetWithoutNotify_(Argument<Type> value)
     {
@@ -747,10 +778,11 @@ protected:
                 .SetWithoutNotify(value);
     }
 
-    void DoNotify_()
+private:
+    const Model & GetModel_() const
     {
-        detail::AccessReference(
-            static_cast<Derived *>(this)->upstreamControl_).DoNotify();
+        assert(this->HasModel());
+        return this->upstreamControl_.GetModel_();
     }
 };
 
@@ -771,7 +803,8 @@ struct ImplementInterface
 {
 public:
     using Derived = Derived_<Observer, Upstream_>;
-    using Upstream = typename MakeControl<Upstream_>::Control;
+    // using Upstream = typename PromoteControl<Upstream_>::Type;
+    using Upstream = Upstream_;
     using Connection = detail::SignalConnection<Observer>;
     using Callable = typename Connection::Callable;
 
@@ -796,10 +829,8 @@ public:
 
     using ControlType = typename Base::ControlType;
 
-    using UpstreamControl =
-        typename MakeControl<Upstream_>::Control;
-
-    using Model = typename UpstreamControl::Model;
+    // using UpstreamControl = typename PromoteControl<Upstream_>::Type;
+    using UpstreamControl = Upstream_;
 
     friend class EndpointVector<Terminus>::Wrapper;
 
@@ -817,13 +848,6 @@ private:
         this->Base::operator=(std::move(other));
 
         return *this;
-    }
-
-private:
-    const Model & GetModel_() const
-    {
-        assert(this->HasModel());
-        return this->upstreamControl_.GetModel_();
     }
 };
 

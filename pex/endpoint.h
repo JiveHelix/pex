@@ -5,8 +5,8 @@
 #include <fields/core.h>
 #include "pex/detail/group_connect.h"
 #include "pex/terminus.h"
-#include "pex/range.h"
-#include "pex/select.h"
+#include "pex/range_terminus.h"
+#include "pex/select_terminus.h"
 #include "pex/list.h"
 #include "pex/detail/list_connect.h"
 
@@ -31,12 +31,12 @@ template<typename T>
 struct MakeConnector_<T, std::enable_if_t<IsGroupNode<T>>>
 {
     template<typename Observer>
-    using Type = detail::GroupConnect<Observer, T>;
+    using Type = detail::GroupConnect<Observer, T, T::template Selector>;
 };
 
 
 template<typename T>
-struct MakeConnector_<T, std::enable_if_t<IsRange<T>>>
+struct MakeConnector_<T, std::enable_if_t<IsRangeNode<T>>>
 {
     template<typename Observer>
     using Type = RangeTerminus<Observer, T>;
@@ -44,7 +44,7 @@ struct MakeConnector_<T, std::enable_if_t<IsRange<T>>>
 
 
 template<typename T>
-struct MakeConnector_<T, std::enable_if_t<IsSelect<T>>>
+struct MakeConnector_<T, std::enable_if_t<IsSelectNode<T>>>
 {
     template<typename Observer>
     using Type = SelectTerminus<Observer, T>;
@@ -55,7 +55,7 @@ template<typename T>
 struct MakeConnector_<T, std::enable_if_t<::pex::IsListNode<T>>>
 {
     template<typename Observer>
-    using Type = ListConnect<Observer, T>;
+    using Type = ListConnect<Observer, T, T::template Selector>;
 };
 
 
@@ -64,7 +64,8 @@ struct MakeConnector_<T, std::enable_if_t<::pex::IsListNode<T>>>
 
 template<typename Observer, typename Upstream>
 struct MakeConnector
-    : public detail::MakeConnector_<Upstream>::template Type<Observer>
+    :
+    public detail::MakeConnector_<Upstream>::template Type<Observer>
 {
     using Base =
         typename detail::MakeConnector_<Upstream>::template Type<Observer>;
@@ -92,7 +93,7 @@ struct MakeConnector
 };
 
 
-template<typename Observer, typename Upstream>
+template<typename Observer, typename Upstream_>
 class Endpoint_
 {
     static_assert(
@@ -100,8 +101,11 @@ class Endpoint_
         "Designed for typed observers");
 
 public:
-    using Connector = MakeConnector<Observer, Upstream>;
-    using UpstreamControl = typename Connector::UpstreamControl;
+    using Promoter = PromoteControl<Upstream_>;
+    using Control = typename Promoter::Type;
+    using Upstream = typename Promoter::Upstream;
+
+    using Connector = MakeConnector<Observer, Control>;
     using Callable = typename Connector::Callable;
 
     Endpoint_()
@@ -122,7 +126,7 @@ public:
         PEX_MEMBER(connector);
     }
 
-    Endpoint_(Observer *observer, UpstreamControl upstream)
+    Endpoint_(Observer *observer, Control upstream)
         :
         observer_(observer),
         connector(upstream)
@@ -131,7 +135,7 @@ public:
         PEX_MEMBER(connector);
     }
 
-    Endpoint_(Observer *observer, UpstreamControl upstream, Callable callable)
+    Endpoint_(Observer *observer, Control upstream, Callable callable)
         :
         observer_(observer),
         connector(observer, upstream, callable)
@@ -140,10 +144,10 @@ public:
         PEX_MEMBER(connector);
     }
 
-    Endpoint_(Observer *observer, typename UpstreamControl::Upstream &model)
+    Endpoint_(Observer *observer, Upstream &upstream)
         :
         observer_(observer),
-        connector(UpstreamControl(model))
+        connector(Control(upstream))
     {
         PEX_NAME(fmt::format("Endpoint ({})", pex::LookupPexName(observer)));
         PEX_MEMBER(connector);
@@ -151,11 +155,11 @@ public:
 
     Endpoint_(
         Observer *observer,
-        typename UpstreamControl::Upstream &model,
+        Upstream &upstream,
         Callable callable)
         :
         observer_(observer),
-        connector(observer, UpstreamControl(model), callable)
+        connector(observer, Control(upstream), callable)
     {
         PEX_NAME(fmt::format("Endpoint ({})", pex::LookupPexName(observer)));
         PEX_MEMBER(connector);
@@ -201,7 +205,7 @@ public:
         return *this;
     }
 
-    void ConnectUpstream(UpstreamControl upstream, Callable callable)
+    void ConnectUpstream(Control upstream, Callable callable)
     {
         this->connector.Emplace(this->observer_, upstream, callable);
     }
@@ -221,9 +225,9 @@ public:
         this->connector.Disconnect();
     }
 
-    explicit operator UpstreamControl () const
+    explicit operator Control () const
     {
-        return static_cast<UpstreamControl>(this->connector);
+        return static_cast<Control>(this->connector);
     }
 
 protected:
@@ -239,8 +243,8 @@ class ValueEndpoint_: public Endpoint_<Observer, Upstream>
 {
 public:
     using Base = Endpoint_<Observer, Upstream>;
-    using UpstreamControl = typename Base::UpstreamControl;
-    using Type = typename UpstreamControl::Type;
+    using Control = typename Base::Control;
+    using Type = typename Control::Type;
 
     using Base::Base;
 
@@ -467,17 +471,18 @@ using InternalType = typename InternalType_<Upstream>::Type;
 } // end namespace detail
 
 
-template<typename Upstream, typename MemberFunction>
+template<typename Upstream_, typename MemberFunction>
 class BoundEndpoint: Separator
 {
 public:
     using Signature = detail::Signature<MemberFunction>;
     using Observer = typename Signature::Class;
-    using Args = detail::BoundArgs<Signature, Upstream>;
+    using Args = detail::BoundArgs<Signature, Upstream_>;
 
-    using InternalEndpoint = Endpoint<BoundEndpoint, Upstream>;
+    using InternalEndpoint = Endpoint<BoundEndpoint, Upstream_>;
     using Connector = typename InternalEndpoint::Connector;
-    using UpstreamControl = typename InternalEndpoint::UpstreamControl;
+    using Control = typename InternalEndpoint::Control;
+    using Upstream = typename InternalEndpoint::Upstream;
 
     static constexpr auto observerName = "BoundEndpoint";
 
@@ -506,7 +511,7 @@ public:
         PEX_MEMBER(endpoint);
     }
 
-    BoundEndpoint(Observer *observer, UpstreamControl upstream)
+    BoundEndpoint(Observer *observer, Control upstream)
         :
         endpoint(PEX_THIS("BoundEndpoint"), upstream),
         observer_(observer),
@@ -525,7 +530,7 @@ public:
     template<typename ...T>
     BoundEndpoint(
         Observer *observer,
-        UpstreamControl upstream,
+        Control upstream,
         MemberFunction memberFunction,
         T &&...args)
         :
@@ -544,11 +549,11 @@ public:
         PEX_MEMBER(endpoint);
     }
 
-    BoundEndpoint(Observer *observer, typename UpstreamControl::Upstream &model)
+    BoundEndpoint(Observer *observer, Upstream &upstream)
         :
         endpoint(
             PEX_THIS("BoundEndpoint"),
-            UpstreamControl(model)),
+            Control(upstream)),
         observer_(observer),
         memberFunction_(),
         args_()
@@ -588,13 +593,13 @@ public:
     template<typename ...T>
     BoundEndpoint(
         Observer *observer,
-        typename UpstreamControl::Upstream &model,
+        Upstream &upstream,
         MemberFunction memberFunction,
         T &&...args)
         :
         endpoint(
             PEX_THIS("BoundEndpoint"),
-            UpstreamControl(model)),
+            Control(upstream)),
         observer_(observer),
         memberFunction_(memberFunction),
         args_(std::make_tuple(std::forward<T>(args)...))
@@ -660,20 +665,20 @@ public:
     // Uses helper type ...T to allow forwarding the bound arguments.
     template<typename ...T>
     void ConnectUpstream(
-        UpstreamControl upstream,
+        Control control,
         MemberFunction memberFunction,
         T &&...args)
     {
         if constexpr (IsSignal<Upstream>)
         {
             this->endpoint.ConnectUpstream(
-                upstream,
+                control,
                 &BoundEndpoint::OnInternalSignal_);
         }
         else
         {
             this->endpoint.ConnectUpstream(
-                upstream,
+                control,
                 &BoundEndpoint::OnInternal_);
         }
 
@@ -700,9 +705,9 @@ public:
         this->endpoint.Disconnect();
     }
 
-    explicit operator UpstreamControl () const
+    explicit operator Control () const
     {
-        return static_cast<UpstreamControl>(this->endpoint);
+        return static_cast<Control>(this->endpoint);
     }
 
 private:

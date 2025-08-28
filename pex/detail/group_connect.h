@@ -2,7 +2,7 @@
 
 
 #include <fields/describe.h>
-#include "pex/make_control.h"
+#include "pex/promote_control.h"
 #include "pex/detail/aggregate.h"
 
 
@@ -10,28 +10,16 @@ namespace pex
 {
 
 
-// Specializations of MakeControl for Groups.
-template<typename P>
-struct MakeControl<P, std::enable_if_t<IsGroupModel<P>>>
-{
-    using Control = typename P::ControlType;
-    using Upstream = P;
-};
-
-
-template<typename P>
-struct MakeControl<P, std::enable_if_t<IsGroupControl<P>>>
-{
-    using Control = P;
-    using Upstream = typename P::Upstream;
-};
-
-
 namespace detail
 {
 
 
-template<typename Observer, typename Upstream_>
+template
+<
+    typename Observer,
+    typename Upstream_,
+    template<typename> typename Selector
+>
 class GroupConnect
 {
 public:
@@ -39,8 +27,8 @@ public:
 
     static_assert(IsGroupNode<Upstream_>);
 
-    using UpstreamControl = typename MakeControl<Upstream_>::Control;
-    using Upstream = typename MakeControl<Upstream_>::Upstream;
+    using UpstreamControl = typename PromoteControl<Upstream_>::Type;
+    using Upstream = typename PromoteControl<Upstream_>::Upstream;
 
     using Plain = typename UpstreamControl::Plain;
     using Type = Plain;
@@ -51,7 +39,7 @@ public:
     template<template<typename> typename T>
     using Template = typename UpstreamControl::template GroupTemplate<T>;
 
-    using Aggregate = detail::Aggregate<Plain, Fields, Template>;
+    using Aggregate = detail::Aggregate<Plain, Fields, Template, Selector>;
 
     using ValueConnection = detail::ValueConnection<Observer, Plain>;
     using Callable = typename ValueConnection::Callable;

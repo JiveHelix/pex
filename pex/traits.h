@@ -46,76 +46,59 @@ template<template<typename...> class Base, typename Derived>
 using IsBaseOf = typename IsBaseOf_<Base, Derived>::Type;
 
 
-template<typename T, typename enable = void>
-struct IsModelSignal_: std::false_type {};
+template<typename T>
+concept IsSignalModel = T::isSignalModel;
 
 template<typename T>
-struct IsModelSignal_
+concept IsSignalControl = T::isSignalControl;
+
+
+template<typename T>
+concept IsSignal = IsSignalModel<T> || IsSignalControl<T>;
+
+
+template<typename T>
+concept IsPexCopyable = T::isPexCopyable;
+
+
+template<typename T, typename = void>
+struct FilterIsNoneOrFree_: std::true_type {};
+
+
+template<typename T>
+struct FilterIsNoneOrFree_
 <
     T,
     std::enable_if_t
     <
-        std::is_same_v<T, pex::model::Signal>
+        detail::FilterIsMember
+        <
+            typename T::UpstreamType,
+            typename T::Filter
+        >
     >
->: std::true_type {};
-
-template<typename T>
-inline constexpr bool IsModelSignal = IsModelSignal_<T>::value;
-
-
-template<typename T, typename Enable = void>
-struct DefinesIsControlSignal_: std::false_type {};
-
-template<typename T>
-struct DefinesIsControlSignal_
-<
-    T,
-    std::enable_if_t<T::isControlSignal>
->
-: std::true_type {};
-
-template<typename T>
-inline constexpr bool DefinesIsControlSignal =
-    DefinesIsControlSignal_<T>::value;
-
-template<typename T, typename Enable = void>
-struct IsControlSignal_: std::false_type {};
-
-template<typename T>
-struct IsControlSignal_
-    <
-        T,
-        std::enable_if_t<DefinesIsControlSignal<T>>
-    >: std::true_type {};
-
-template<typename T>
-inline constexpr bool IsControlSignal = IsControlSignal_<T>::value;
+>: std::false_type {};
 
 
 template<typename T>
-concept IsSignal = IsModelSignal<T> || IsControlSignal<T>;
+inline constexpr bool FilterIsNoneOrFree = FilterIsNoneOrFree_<T>::value;
 
 
-template<typename T, typename Enable = void>
-struct DefinesPexCopyable_: std::false_type {};
-
-template<typename T>
-struct DefinesPexCopyable_
-<
-    T,
-    std::enable_if_t<T::isPexCopyable>
->
-: std::true_type {};
-
-template<typename T>
-inline constexpr bool DefinesPexCopyable = DefinesPexCopyable_<T>::value;
-
-
-/** If Pex is a pex::model::Value, it cannot be copied. Also, if it
+/** If T is a pex::model::Value, it cannot be copied. Also, if it
  ** has a Filter with member functions, then allowing it to be copied
- ** breaks the ability to change the Filter instance. These Pex values must not
+ ** breaks the ability to change the Filter instance. These values must not
  ** be copied.
  **/
+template<typename T>
+concept IsCopyable =
+    !IsModel<T>
+    && !IsSignalModel<T>
+    && FilterIsNoneOrFree<T>
+    && IsPexCopyable<T>;
+
+
+
+#if 0
 template<typename Pex, typename = void>
 struct IsCopyable_: std::false_type {};
 
@@ -128,20 +111,21 @@ struct IsCopyable_
     <
         !IsModel<Pex>
         &&
-        !IsModelSignal<Pex>
+        !IsSignalModel<Pex>
         &&
         !detail::FilterIsMember
         <
             typename Pex::UpstreamType,
             typename Pex::Filter
         >
-        && DefinesPexCopyable<Pex>
+        && IsPexCopyable<Pex>
     >
 >: std::true_type {};
 
 
 template<typename Pex>
 inline constexpr bool IsCopyable = IsCopyable_<Pex>::value;
+#endif
 
 
 template<typename T>
@@ -315,38 +299,22 @@ inline constexpr bool ConvertsToPlain = ConvertsToPlain_<Pex>::value;
 
 
 
-template<typename T, typename = void>
-struct IsGroupModel_: std::false_type {};
+template<typename T>
+concept IsGroupModel = T::isGroupModel;
 
 template<typename T>
-struct IsGroupModel_<T, std::enable_if_t<T::isGroupModel>>
-    :
-    std::true_type
-{
-
-};
+concept IsGroupControl = T::isGroupControl;
 
 template<typename T>
-inline constexpr bool IsGroupModel = IsGroupModel_<T>::value;
-
-
-template<typename T, typename = void>
-struct IsGroupControl_: std::false_type {};
-
-template<typename T>
-struct IsGroupControl_<T, std::enable_if_t<T::isGroupControl>>
-    :
-    std::true_type
-{
-
-};
-
-template<typename T>
-inline constexpr bool IsGroupControl = IsGroupControl_<T>::value;
+concept IsGroupMux = T::isGroupMux;
 
 
 template<typename T>
-inline constexpr bool IsGroupNode = IsGroupModel<T> || IsGroupControl<T>;
+inline constexpr bool IsGroupNode =
+    IsGroupModel<T>
+    || IsGroupControl<T>
+    || IsGroupMux<T>;
+
 
 template<typename T>
 concept IsGroup = T::isGroup;
@@ -362,17 +330,52 @@ template<typename T>
 concept IsListModel = T::isListModel;
 
 template<typename T>
-concept IsListNode = IsListModel<T> || IsListControl<T>;
+concept IsListMux = T::isListMux;
 
 template<typename T>
-concept IsPolyGroup = T::isPolyGroup;
+concept IsListNode = IsListModel<T> || IsListControl<T> || IsListMux<T>;
 
 template<typename T>
-concept IsPolyControl = T::isPolyControl;
+concept IsDerivedGroup = T::isDerivedGroup;
 
 template<typename T>
-concept IsPolyModel = T::isPolyModel;
+concept IsControlWrapper = T::isControlWrapper;
 
+template<typename T>
+concept IsModelWrapper = T::isModelWrapper;
+
+template<typename T>
+concept IsRangeModel = T::isRangeModel;
+
+template<typename T>
+concept IsRangeControl = T::isRangeControl;
+
+template<typename T>
+concept IsRangeMux = T::isRangeMux;
+
+template<typename T>
+concept IsRangeNode =
+    IsRangeModel<T>
+    || IsRangeControl<T>
+    || IsRangeMux<T>;
+
+template<typename T>
+concept IsSelectModel = T::isSelectModel;
+
+template<typename T>
+concept IsSelectControl = T::isSelectControl;
+
+template<typename T>
+concept IsSelectMux = T::isSelectMux;
+
+template<typename T>
+concept IsSelectNode =
+    IsSelectModel<T>
+    || IsSelectControl<T>
+    || IsSelectMux<T>;
+
+template<typename T>
+concept IsAggregate = T::isAggregate;
 
 template<typename T>
 concept HasValueBase = requires { typename T::ValueBase; };

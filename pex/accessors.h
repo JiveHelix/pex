@@ -13,6 +13,7 @@
 namespace pex
 {
 
+#if 0
 template
 <
     template<typename> typename Fields,
@@ -34,6 +35,7 @@ void Assign(Target &target, Source &source)
         Fields<Target>::fields,
         Fields<Source>::fields);
 }
+#endif
 
 
 template<typename Target, typename Source>
@@ -72,7 +74,7 @@ template<typename Target>
 std::enable_if_t<detail::CanBeSet<Target>>
 DoNotify(Target &target)
 {
-    detail::AccessReference(target).DoNotify();
+    target.Notify();
 }
 
 template<typename Target>
@@ -239,8 +241,20 @@ public:
             setInitial,
             Fields<Derived>::fields,
             Fields<Plain>::fields);
+    }
 
-        // this->DoNotify_();
+    void Notify()
+    {
+        auto derived = static_cast<Derived *>(this);
+
+        auto doNotify = [derived] (auto thisField)
+        {
+            DoNotify(derived->*(thisField.member));
+        };
+
+        jive::ForEach(
+            Fields<Derived>::fields,
+            doNotify);
     }
 
     template<typename>
@@ -263,20 +277,6 @@ protected:
             setWithoutNotify,
             Fields<Derived>::fields,
             Fields<Plain>::fields);
-    }
-
-    void DoNotify_()
-    {
-        auto derived = static_cast<Derived *>(this);
-
-        auto doNotify = [derived] (auto thisField)
-        {
-            DoNotify(derived->*(thisField.member));
-        };
-
-        jive::ForEach(
-            Fields<Derived>::fields,
-            doNotify);
     }
 };
 

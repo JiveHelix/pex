@@ -226,6 +226,16 @@ public:
         return this->connection_.has_value();
     }
 
+    void ConnectOnce(Observer *observer, Callable callable)
+    {
+        if (this->HasObserver(observer))
+        {
+            return;
+        }
+
+        this->Connect(observer, callable);
+    }
+
 protected:
     void ClearConnections_()
     {

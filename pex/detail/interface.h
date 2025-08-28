@@ -24,27 +24,27 @@ struct IsMakeSignal_
 
 
 template<typename T, typename Enable = void>
-struct DefinesMakeCustom_: std::false_type {};
+struct DefinesIsDefineNodes_: std::false_type {};
 
 template<typename T>
-struct DefinesMakeCustom_
+struct DefinesIsDefineNodes_
 <
     T,
-    std::enable_if_t<T::isMakeCustom>
+    std::enable_if_t<T::isDefineNodes>
 >: std::true_type {};
 
 template<typename T>
-inline constexpr bool DefinesMakeCustom = DefinesMakeCustom_<T>::value;
+inline constexpr bool DefinesIsDefineNodes = DefinesIsDefineNodes_<T>::value;
 
 
 template<typename T, typename Enable = void>
-struct IsMakeCustom_: std::false_type {};
+struct IsDefineNodes_: std::false_type {};
 
 template<typename T>
-struct IsMakeCustom_
+struct IsDefineNodes_
 <
     T,
-    std::enable_if_t<DefinesMakeCustom<T>>
+    std::enable_if_t<DefinesIsDefineNodes<T>>
 >: std::true_type {};
 
 

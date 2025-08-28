@@ -3,7 +3,7 @@
 #include <fields/fields.h>
 #include <pex/interface.h>
 #include <pex/group.h>
-#include <pex/range.h>
+#include <pex/range_terminus.h>
 #include <pex/selectors.h>
 
 
@@ -185,7 +185,9 @@ struct LinkedRanges
 
     using Group = pex::Group<Fields, Template, Custom>;
     using Settings = typename Group::Plain;
-    using Control = typename Group::Control;
+
+    template<typename Upstream>
+    using Control = typename Group::template Control<Upstream>;
 };
 
 

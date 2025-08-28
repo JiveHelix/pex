@@ -64,7 +64,7 @@ public:
     // on this->upstream_ after the copy.
     // We may have copied connections made to upstream_ by other, and we no
     // longer need them.
-    static constexpr bool mustClearConnections = IsCopyable<Upstream>;
+    static constexpr bool upstreamIsCopyable = IsCopyable<Upstream>;
 
     // If Upstream_ is a already a control::Value_, then UpstreamHolder is that
     // control::Value_, else it is Direct<Upstream>
@@ -151,7 +151,7 @@ public:
     {
         PEX_NAME_UNIQUE("pex::control::Value");
 
-        if constexpr (mustClearConnections)
+        if constexpr (upstreamIsCopyable)
         {
             this->upstream_.ClearConnections();
         }
@@ -170,7 +170,7 @@ public:
     {
         PEX_NAME_UNIQUE("pex::control::Value");
 
-        if constexpr (mustClearConnections)
+        if constexpr (upstreamIsCopyable)
         {
             this->upstream_.ClearConnections();
         }
@@ -184,7 +184,7 @@ public:
     {
         PEX_NAME_UNIQUE("pex::control::Value");
 
-        if constexpr (mustClearConnections)
+        if constexpr (upstreamIsCopyable)
         {
             this->upstream_.ClearConnections();
         }
@@ -201,7 +201,7 @@ public:
         :
         Value_(pex)
     {
-        if constexpr (mustClearConnections)
+        if constexpr (upstreamIsCopyable)
         {
             this->upstream_.ClearConnections();
         }
@@ -242,7 +242,7 @@ public:
 
         PEX_NAME_UNIQUE("pex::control::Value");
 
-        if constexpr (mustClearConnections)
+        if constexpr (upstreamIsCopyable)
         {
             this->upstream_.ClearConnections();
         }
@@ -291,7 +291,7 @@ public:
 
         this->upstream_ = other.upstream_;
 
-        if constexpr (mustClearConnections)
+        if constexpr (upstreamIsCopyable)
         {
             this->upstream_.ClearConnections();
         }
@@ -315,7 +315,6 @@ public:
 
         return *this;
     }
-
 
     /**
      ** Allow copy and assignment from another Value that has a different
@@ -343,7 +342,7 @@ public:
 
         PEX_NAME_UNIQUE("pex::control::Value");
 
-        if constexpr (mustClearConnections)
+        if constexpr (upstreamIsCopyable)
         {
             this->upstream_.ClearConnections();
         }
@@ -386,7 +385,7 @@ public:
 
         using OtherType = detail::FilteredType<UpstreamType, OtherFilter>;
 
-        if constexpr (mustClearConnections)
+        if constexpr (upstreamIsCopyable)
         {
             this->upstream_.ClearConnections();
         }
@@ -420,7 +419,7 @@ public:
 
         PEX_NAME_UNIQUE("pex::control::Value");
 
-        if constexpr (mustClearConnections)
+        if constexpr (upstreamIsCopyable)
         {
             this->upstream_.ClearConnections();
         }
@@ -452,7 +451,7 @@ public:
 
         PEX_NAME_UNIQUE("pex::control::Value");
 
-        if constexpr (mustClearConnections)
+        if constexpr (upstreamIsCopyable)
         {
             this->upstream_.ClearConnections();
         }
@@ -486,7 +485,7 @@ public:
 
         this->upstream_ = other.upstream_;
 
-        if constexpr (mustClearConnections)
+        if constexpr (upstreamIsCopyable)
         {
             this->upstream_.ClearConnections();
         }
@@ -517,7 +516,7 @@ public:
         this->upstream_ = std::move(other.upstream_);
         this->filter_ = std::move(other.filter_);
 
-        if constexpr (mustClearConnections)
+        if constexpr (upstreamIsCopyable)
         {
             this->upstream_.ClearConnections();
         }
@@ -664,6 +663,11 @@ public:
         this->upstreamConnection_.reset();
     }
 
+    void Notify()
+    {
+        this->upstream_.Notify();
+    }
+
 protected:
     void SetWithoutNotify_(Argument<Type> value)
     {
@@ -679,11 +683,6 @@ protected:
         {
             this->upstream_.SetWithoutNotify_(this->FilterOnSet_(value));
         }
-    }
-
-    void DoNotify_()
-    {
-        this->upstream_.DoNotify_();
     }
 
     UpstreamType FilterOnSet_(Argument<Type> value) const
@@ -791,6 +790,21 @@ protected:
         }
     }
 
+    void ChangeUpstream_(PexArgument<Upstream> upstream)
+    {
+        this->upstreamConnection_.reset();
+
+        this->upstream_ = upstream;
+
+        if (this->HasConnections())
+        {
+            this->upstreamConnection_.emplace(
+                this->upstream_,
+                this,
+                &Value_::OnUpstreamChanged_);
+        }
+    }
+
 public:
     const Model & GetModel_() const
     {
@@ -842,7 +856,7 @@ public:
         requires (HasAccess<SetTag, Access>)
     {
         this->SetWithoutNotify_(index, value);
-        this->DoNotify_();
+        this->Notify();
     }
 
     Type Get(size_t index) const
@@ -919,7 +933,7 @@ public:
         requires (HasAccess<SetTag, Access>)
     {
         this->SetWithoutNotify_(key, value);
-        this->DoNotify_();
+        this->Notify();
     }
 
     Type Get(const KeyType &key) const
@@ -1025,6 +1039,82 @@ extern template class Value_<model::Value_<float, NoFilter>>;
 extern template class Value_<model::Value_<double, NoFilter>>;
 
 extern template class Value_<model::Value_<std::string, NoFilter>>;
+
+
+template
+<
+    typename Upstream,
+    typename Filter = NoFilter,
+    typename Access = GetAndSetTag
+>
+class Mux: public Value_<Upstream, Filter, Access>
+{
+public:
+    static constexpr bool isPexCopyable = false;
+    using Base = Value_<Upstream, Filter, Access>;
+
+    Mux()
+        :
+        Base{}
+    {
+
+    }
+
+    Mux(const Mux<Upstream> &) = delete;
+    Mux(Mux<Upstream> &&) = delete;
+    Mux & operator=(const Mux &) = delete;
+    Mux & operator=(Mux &&) = delete;
+
+    void ChangeUpstream(PexArgument<Upstream> upstream)
+    {
+        this->ChangeUpstream_(upstream);
+    }
+};
+
+
+template
+<
+    typename Upstream,
+    typename Filter,
+    typename Access = GetAndSetTag
+>
+using FilteredMux = Mux<Upstream, Filter, Access>;
+
+
+template<typename Upstream>
+class ValueContainerMux: public ValueContainer<Upstream>
+{
+public:
+    static constexpr bool isPexCopyable = false;
+
+    ValueContainerMux(const ValueContainerMux<Upstream> &) = delete;
+    ValueContainerMux(ValueContainerMux<Upstream> &&) = delete;
+    ValueContainerMux & operator=(const ValueContainerMux &) = delete;
+    ValueContainerMux & operator=(ValueContainerMux &&) = delete;
+
+    void ChangeUpstream(PexArgument<Upstream> upstream)
+    {
+        this->ChangeUpstream_(upstream);
+    }
+};
+
+
+template<typename Upstream>
+class KeyValueContainerMux: public KeyValueContainer<Upstream>
+{
+public:
+    static constexpr bool isPexCopyable = false;
+
+    KeyValueContainerMux(const KeyValueContainerMux<Upstream> &) = delete;
+    KeyValueContainerMux(KeyValueContainerMux<Upstream> &&) = delete;
+    KeyValueContainerMux & operator=(const KeyValueContainerMux &) = delete;
+    KeyValueContainerMux & operator=(KeyValueContainerMux &&) = delete;
+
+    void ChangeUpstream(PexArgument<Upstream> upstream)
+    {
+        this->ChangeUpstream_(upstream);
+    }
+};
 
 
 } // namespace control

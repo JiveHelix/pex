@@ -14,7 +14,7 @@ namespace poly
 {
 
 
-// Interface that will be implemented for us in PolyDerived.
+// Interface that will be implemented for us in DerivedValue.
 template
 <
     typename Json_,

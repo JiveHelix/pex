@@ -46,6 +46,8 @@ class Signal
     public detail::NotifyMany<detail::SignalConnection<void>, GetAndSetTag>
 {
 public:
+    static constexpr bool isSignalModel = true;
+
     using Callable =
         typename detail::SignalConnection<void>::Callable;
 
@@ -71,32 +73,32 @@ public:
 namespace control
 {
 
-template<typename Access = GetAndSetTag>
+template<typename Upstream_, typename Access = GetAndSetTag>
 class Signal
     :
     public detail::NotifyOne<detail::SignalConnection<void>, Access>
 {
 public:
-    using Model = ::pex::model::Signal;
     using Base = detail::NotifyOne<detail::SignalConnection<void>, Access>;
 
-    static constexpr bool isControlSignal = true;
+    static constexpr bool isSignalControl = true;
+    static constexpr bool isPexCopyable = true;
 
-    using Upstream = pex::model::Signal;
+    using Upstream = Upstream_;
 
     using Callable =
         typename detail::SignalConnection<void>::Callable;
 
     class UpstreamConnection
     {
-        Model *upstream_;
+        Upstream *upstream_;
         Signal *observer_;
 
     public:
         using FunctionPointer = void (*)(void *);
 
         UpstreamConnection(
-            Model *upstream,
+            Upstream *upstream,
             Signal *observer,
             FunctionPointer callable)
             :
@@ -118,15 +120,15 @@ public:
         }
     };
 
-    Signal(): Base{}, model_(nullptr)
+    Signal(): Base{}, upstream_(nullptr)
     {
         PEX_NAME_UNIQUE("control::Signal");
     }
 
-    Signal(model::Signal &model)
+    Signal(Upstream &upstream)
         :
         Base{},
-        model_(&model),
+        upstream_(&upstream),
         upstreamConnection_()
     {
         PEX_NAME_UNIQUE("control::Signal");
@@ -138,9 +140,9 @@ public:
         PEX_LOG("control::Signal::~Signal : ", LookupPexName(this));
     }
 
-    Signal(void *observer, model::Signal &model, Callable callable)
+    Signal(void *observer, Upstream &upstream, Callable callable)
         :
-        Signal(model)
+        Signal(upstream)
     {
         this->Connect(observer, callable);
     }
@@ -152,19 +154,19 @@ public:
         this->Connect(observer, callable);
     }
 
-    /** Signals the model node, which echoes the signal back to all of the
+    /** Signals the upstream node, which echoes the signal back to all of the
      ** interfaces, including this one.
      **/
     void Trigger()
     {
-        REQUIRE_HAS_VALUE(this->model_);
-        this->model_->Trigger();
+        REQUIRE_HAS_VALUE(this->upstream_);
+        this->upstream_->Trigger();
     }
 
     Signal(const Signal &other)
         :
         Base(other),
-        model_(other.model_),
+        upstream_(other.upstream_),
         upstreamConnection_()
     {
         PEX_NAME_UNIQUE("control::Signal");
@@ -172,7 +174,7 @@ public:
         if (this->HasConnection())
         {
             this->upstreamConnection_.emplace(
-                this->model_,
+                this->upstream_,
                 this,
                 &Signal::OnModelSignaled_);
         }
@@ -181,7 +183,7 @@ public:
     Signal(Signal &&other)
         :
         Base(std::move(other)),
-        model_(std::move(other.model_)),
+        upstream_(std::move(other.upstream_)),
         upstreamConnection_()
     {
         other.upstreamConnection_.reset();
@@ -191,7 +193,7 @@ public:
         if (this->HasConnection())
         {
             this->upstreamConnection_.emplace(
-                this->model_,
+                this->upstream_,
                 this,
                 &Signal::OnModelSignaled_);
         }
@@ -206,12 +208,12 @@ public:
         // Do not copy connections to other.
         this->upstreamConnection_.reset();
 
-        this->model_ = other.model_;
+        this->upstream_ = other.upstream_;
 
         if (this->HasConnection())
         {
             this->upstreamConnection_.emplace(
-                this->model_,
+                this->upstream_,
                 this,
                 &Signal::OnModelSignaled_);
         }
@@ -229,12 +231,12 @@ public:
         // Do not copy connections to other.
         this->upstreamConnection_.reset();
 
-        this->model_ = std::move(other.model_);
+        this->upstream_ = std::move(other.upstream_);
 
         if (this->HasConnection())
         {
             this->upstreamConnection_.emplace(
-                this->model_,
+                this->upstream_,
                 this,
                 &Signal::OnModelSignaled_);
         }
@@ -244,7 +246,7 @@ public:
 
     static void OnModelSignaled_(void * observer)
     {
-        // The model value has changed.
+        // The upstream value has changed.
         // Update our observers.
         auto self = static_cast<Signal *>(observer);
         self->Notify_();
@@ -257,7 +259,7 @@ public:
 
     bool HasModel() const
     {
-        return (this->model_ != nullptr);
+        return (this->upstream_ != nullptr);
     }
 
     explicit operator DescribeSignal () const
@@ -276,7 +278,7 @@ public:
         if (!this->upstreamConnection_)
         {
             this->upstreamConnection_.emplace(
-                this->model_,
+                this->upstream_,
                 this,
                 &Signal::OnModelSignaled_);
         }
@@ -289,7 +291,7 @@ public:
         if (!this->upstreamConnection_)
         {
             this->upstreamConnection_.emplace(
-                this->model_,
+                this->upstream_,
                 this,
                 &Signal::OnModelSignaled_);
         }
@@ -309,19 +311,48 @@ public:
         }
     }
 
-    template<typename>
+    template<typename, typename>
     friend class Signal;
 
-    const model::Signal & GetModel_() const
+protected:
+    void ChangeUpstream_(Upstream &upstream)
     {
-        assert(this->model_);
+        this->upstream_ = &upstream;
 
-        return *this->model_;
+        if (this->HasConnection())
+        {
+            this->upstreamConnection_.emplace(
+                this->upstream_,
+                this,
+                &Signal::OnModelSignaled_);
+        }
     }
 
 private:
-    model::Signal * model_;
+    Upstream *upstream_;
     std::optional<UpstreamConnection> upstreamConnection_;
+};
+
+
+class SignalMux: public Signal<::pex::model::Signal>
+{
+public:
+    using Base = Signal<::pex::model::Signal>;
+    using Upstream = typename Base::Upstream;
+    static constexpr bool isPexCopyable = false;
+
+    SignalMux(const SignalMux &) = delete;
+    SignalMux(SignalMux &&) = delete;
+
+    SignalMux & operator=(const SignalMux &) = delete;
+    SignalMux & operator=(SignalMux &&) = delete;
+
+    using Base::Base;
+
+    void ChangeUpstream(Upstream &upstream)
+    {
+        this->ChangeUpstream_(upstream);
+    }
 };
 
 

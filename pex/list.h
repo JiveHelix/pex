@@ -7,12 +7,13 @@
 #include <jive/vector.h>
 #include "pex/model_value.h"
 #include "pex/control_value.h"
-#include "pex/terminus.h"
 #include "pex/signal.h"
 #include "pex/detail/mute.h"
 #include "pex/detail/log.h"
 #include "pex/reference.h"
 #include "pex/selectors.h"
+#include "pex/terminus.h"
+#include <pex/detail/forward.h>
 
 
 namespace pex
@@ -21,10 +22,6 @@ namespace pex
 
 namespace detail
 {
-
-
-template<typename, typename>
-class ListConnect;
 
 
 template<typename T>
@@ -119,6 +116,32 @@ using ListOptionalIndex = Value<::pex::model::ListOptionalIndex>;
 
 
 } // end namespace control
+
+
+namespace mux
+{
+
+
+using ListFlag = ::pex::control::Mux<::pex::model::ListFlag>;
+using ListCount = ::pex::control::Mux<::pex::model::ListCount>;
+using ListOptionalIndex = ::pex::control::Mux<::pex::model::ListOptionalIndex>;
+
+
+} // end namespace mux
+
+
+namespace follow
+{
+
+
+using ListFlag = ::pex::control::Value<::pex::mux::ListFlag>;
+using ListCount = ::pex::control::Value<::pex::mux::ListCount>;
+
+using ListOptionalIndex =
+    ::pex::control::Value<::pex::mux::ListOptionalIndex>;
+
+
+} // end namespace mux
 
 
 #ifdef ENABLE_PEX_NAMES
@@ -217,7 +240,19 @@ struct List
     static constexpr bool isList = true;
     static constexpr size_t initialCount = initialCount_;
 
-    class Control;
+    template<typename Upstream, typename Types>
+    class Control_;
+
+    struct ControlTypes
+    {
+        template<typename T>
+        using Selector = ControlSelector<T>;
+
+        using ListItem = Selector<Member>;
+        using Count = ::pex::control::ListCount;
+        using ListOptionalIndex = ::pex::control::ListOptionalIndex;
+        using ListFlag = ::pex::control::ListFlag;
+    };
 
     using Item = typename ModelSelector<Member>::Type;
     using Type = std::vector<Item>;
@@ -231,8 +266,11 @@ struct List
         static constexpr bool isListModel = true;
         static constexpr auto observerName = "pex::List::Model";
 
-        using ControlType = Control;
-        using ListItem = ModelSelector<Member>;
+        // using ControlType = Control_<ControlTypes>;
+        template<typename T>
+        using Selector = ModelSelector<T>;
+
+        using ListItem = Selector<Member>;
         using Item = typename ListItem::Type;
         using Type = std::vector<Item>;
         using Count = ::pex::model::ListCount;
@@ -250,9 +288,10 @@ struct List
         template<typename>
         friend class ::pex::Reference;
 
-        friend class Control;
-
         template<typename, typename>
+        friend class Control_;
+
+        template<typename, typename, template<typename> typename>
         friend class ::pex::detail::ListConnect;
 
     private:
@@ -289,12 +328,13 @@ struct List
                         "pex::List<{}>::Model",
                         jive::GetTypeName<Member>())),
 
-                PEX_MEMBER_PASS(count),
+                typename ControlTypes::Count(PEX_MEMBER_PASS(count)),
                 &Model::OnCount_),
 
             selectedTerminus_(
                 this,
-                PEX_MEMBER_PASS(selected),
+                typename ControlTypes::ListOptionalIndex(
+                    PEX_MEMBER_PASS(selected)),
                 &Model::OnSelected_),
 
             selectionReceived_(false),
@@ -456,7 +496,7 @@ struct List
 
             if (!this->IsMuted())
             {
-                this->DoNotify_();
+                this->Notify();
             }
         }
 
@@ -635,6 +675,7 @@ struct List
             this->RestoreBaseEndpoints_(index);
         }
 
+        // TODO: Make this protected?
         void ResizeWithoutNotify(size_t newSize)
         {
             if (newSize == this->items_.size())
@@ -698,8 +739,7 @@ struct List
             }
         }
 
-    private:
-        void DoNotify_()
+        void Notify()
         {
             // Ignore all notifications from list members.
             // At the end of this scope, a signal notification may be sent by
@@ -710,14 +750,15 @@ struct List
 
             for (auto &item: this->items_)
             {
-                detail::AccessReference(*item).DoNotify();
+                item->Notify();
             }
 
             // We don't want count echoed back to us here.
             jive::ScopeFlag ignoreCount(this->ignoreCount_);
-            detail::AccessReference(this->count).DoNotify();
+            this->count.Notify();
         }
 
+    private:
         void SetWithoutNotify_(const Type &values)
         {
             // Mute while setting item values.
@@ -988,12 +1029,20 @@ struct List
 
     private:
 
+        static_assert(IsCopyable<::pex::control::Signal<::pex::model::Signal>>);
+
         using BaseActionTerminus =
-            ::pex::Terminus<void, pex::control::Signal<>>;
+            ::pex::Terminus<void, ::pex::control::Signal<::pex::model::Signal>>;
 
         std::vector<std::unique_ptr<ListItem>> items_;
-        ::pex::Terminus<Model, Count> countTerminus_;
-        ::pex::Terminus<Model, Selected> selectedTerminus_;
+        using CountTerminus =
+            ::pex::Terminus<Model, typename ControlTypes::Count>;
+
+        using SelectedTerminus =
+            ::pex::Terminus<Model, typename ControlTypes::ListOptionalIndex>;
+
+        CountTerminus countTerminus_;
+        SelectedTerminus selectedTerminus_;
         bool selectionReceived_;
 
         MemberWillRemove internalMemberWillRemove_;
@@ -1005,8 +1054,8 @@ struct List
         EndpointVector<BaseActionTerminus> baseCreatedEndpoints_;
     };
 
-
-    class Control: public detail::Mute
+    template<typename Upstream_, typename Types>
+    class Control_: public detail::Mute
     {
 
     public:
@@ -1015,28 +1064,33 @@ struct List
 
         using Access = GetAndSetTag;
 
-        using Upstream = Model;
+        using Upstream = Upstream_;
         using Type = typename Upstream::Type;
         using Item = typename Upstream::Item;
-        using ListItem = ControlSelector<Member>;
-        using Count = ::pex::control::ListCount;
-        using Selected = ::pex::control::ListOptionalIndex;
-        using MemberAdded = ::pex::control::ListOptionalIndex;
-        using MemberWillRemove = ::pex::control::ListOptionalIndex;
-        using MemberRemoved = ::pex::control::ListOptionalIndex;
-        using MemberWillReplace = ::pex::control::ListOptionalIndex;
-        using MemberReplaced = ::pex::control::ListOptionalIndex;
-        using ListFlag = ::pex::control::ListFlag;
+        using ListItem = typename Types::ListItem;
+        using Count = typename Types::Count;
+        using ListOptionalIndex = typename Types::ListOptionalIndex;
+
+        template<typename T>
+        using Selector = typename Types::template Selector<T>;
+
+        using Selected = ListOptionalIndex;
+        using MemberAdded = ListOptionalIndex;
+        using MemberWillRemove = ListOptionalIndex;
+        using MemberRemoved = ListOptionalIndex;
+        using MemberWillReplace = ListOptionalIndex;
+        using MemberReplaced = ListOptionalIndex;
+        using ListFlag = typename Types::ListFlag;
 
         using MemberWillRemoveTerminus =
-            ::pex::Terminus<Control, MemberWillRemove>;
+            ::pex::Terminus<Control_, MemberWillRemove>;
 
-        using MemberAddedTerminus = ::pex::Terminus<Control, MemberAdded>;
+        using MemberAddedTerminus = ::pex::Terminus<Control_, MemberAdded>;
 
         using MemberWillReplaceTerminus =
-            ::pex::Terminus<Control, MemberWillReplace>;
+            ::pex::Terminus<Control_, MemberWillReplace>;
 
-        using MemberReplacedTerminus = ::pex::Terminus<Control, MemberReplaced>;
+        using MemberReplacedTerminus = ::pex::Terminus<Control_, MemberReplaced>;
 
         using Vector = std::vector<ListItem>;
         using Iterator = typename Vector::iterator;
@@ -1044,17 +1098,17 @@ struct List
         using ReverseIterator = typename Vector::reverse_iterator;
         using ConstReverseIterator = typename Vector::const_reverse_iterator;
 
-        using Defer = DeferList<Member, ControlSelector, Control>;
+        using Defer = DeferList<Member, ControlSelector, Control_>;
 
         static_assert(IsControl<ListItem> || IsGroupControl<ListItem>);
 
         template<typename>
         friend class ::pex::Reference;
 
-        template<typename, typename>
+        template<typename, typename, template<typename> typename>
         friend class ::pex::detail::ListConnect;
 
-        template<typename, typename>
+        template<typename, typename, template<typename> typename>
         friend class ::pex::detail::ListConnect;
 
         Count count;
@@ -1066,7 +1120,7 @@ struct List
         MemberReplaced memberReplaced;
         ListFlag isNotifying;
 
-        Control()
+        Control_()
             :
             detail::Mute(),
             count(),
@@ -1090,7 +1144,7 @@ struct List
                     jive::GetTypeName<Member>()));
         }
 
-        Control(Upstream &upstream)
+        Control_(Upstream &upstream)
             :
             detail::Mute(upstream.CloneMuteControl()),
             count(upstream.count),
@@ -1110,23 +1164,23 @@ struct List
                         "pex::List<{}>::Control",
                         jive::GetTypeName<Member>())),
 
-                this->upstream_->internalMemberWillRemove_,
-                &Control::OnMemberWillRemove_),
+                MemberWillRemove(this->upstream_->internalMemberWillRemove_),
+                &Control_::OnMemberWillRemove_),
 
             memberAddedTerminus_(
                 this,
-                this->upstream_->internalMemberAdded_,
-                &Control::OnMemberAdded_),
+                MemberAdded(this->upstream_->internalMemberAdded_),
+                &Control_::OnMemberAdded_),
 
             memberWillReplaceTerminus_(
                 this,
-                this->upstream_->internalMemberWillReplace_,
-                &Control::OnMemberWillReplace_),
+                MemberWillReplace(this->upstream_->internalMemberWillReplace_),
+                &Control_::OnMemberWillReplace_),
 
             memberReplacedTerminus_(
                 this,
-                this->upstream_->internalMemberReplaced_,
-                &Control::OnMemberReplaced_),
+                MemberReplaced(this->upstream_->internalMemberReplaced_),
+                &Control_::OnMemberReplaced_),
 
             items_()
         {
@@ -1138,7 +1192,7 @@ struct List
             }
         }
 
-        Control(const Control &other)
+        Control_(const Control_ &other)
             :
             detail::Mute(other),
             count(other.count),
@@ -1158,23 +1212,23 @@ struct List
                         "pex::List<{}>::Control",
                         jive::GetTypeName<Member>())),
 
-                this->upstream_->internalMemberWillRemove_,
-                &Control::OnMemberWillRemove_),
+                MemberWillRemove(this->upstream_->internalMemberWillRemove_),
+                &Control_::OnMemberWillRemove_),
 
             memberAddedTerminus_(
                 this,
-                this->upstream_->internalMemberAdded_,
-                &Control::OnMemberAdded_),
+                MemberAdded(this->upstream_->internalMemberAdded_),
+                &Control_::OnMemberAdded_),
 
             memberWillReplaceTerminus_(
                 this,
-                this->upstream_->internalMemberWillReplace_,
-                &Control::OnMemberWillReplace_),
+                MemberWillReplace(this->upstream_->internalMemberWillReplace_),
+                &Control_::OnMemberWillReplace_),
 
             memberReplacedTerminus_(
                 this,
-                this->upstream_->internalMemberReplaced_,
-                &Control::OnMemberReplaced_),
+                MemberReplaced(this->upstream_->internalMemberReplaced_),
+                &Control_::OnMemberReplaced_),
 
             items_(other.items_)
         {
@@ -1189,13 +1243,13 @@ struct List
             REGISTER_ITEMREF_NAMES(this, this->items_);
         }
 
-        ~Control()
+        ~Control_()
         {
             CLEAR_ITEMREF_NAMES(this->items_);
             PEX_CLEAR_NAME(this);
         }
 
-        Control & operator=(const Control &other)
+        Control_ & operator=(const Control_ &other)
         {
             this->detail::Mute::operator=(other);
             this->count = other.count;
@@ -1411,8 +1465,7 @@ struct List
             return this->upstream_->Append(item);
         }
 
-    private:
-        void DoNotify_()
+        void Notify()
         {
 #ifndef NDEBUG
             if (!this->upstream_)
@@ -1420,9 +1473,10 @@ struct List
                 throw std::logic_error("List::Control is uninitialized");
             }
 #endif
-            this->upstream_->DoNotify_();
+            this->upstream_->Notify();
         }
 
+    private:
         void SetWithoutNotify_(const Type &values)
         {
 #ifndef NDEBUG
@@ -1501,44 +1555,139 @@ struct List
         MemberReplacedTerminus memberReplacedTerminus_;
         Vector items_;
     };
+
+
+    template<typename Upstream>
+    using Control = Control_<Upstream, ControlTypes>;
+
+
+    struct MuxTypes
+    {
+        template<typename T>
+        using Selector = MuxSelector<T>;
+
+        using ListItem = Selector<Member>;
+        using Count = ::pex::mux::ListCount;
+        using ListOptionalIndex = ::pex::mux::ListOptionalIndex;
+        using ListFlag = ::pex::mux::ListFlag;
+    };
+
+    class Mux: public Control_<Model, MuxTypes>
+    {
+    public:
+        using Base = Control_<Model, MuxTypes>;
+        using Upstream = typename Base::Upstream;
+
+        Mux(const Mux &) = delete;
+        Mux(Mux &&) = delete;
+        Mux & operator=(const Mux &) = delete;
+        Mux & operator=(Mux &&) = delete;
+
+        using Base::Base;
+
+        void ChangeUpstream(Upstream &upstream)
+        {
+            this->detail::Mute::operator=(upstream.CloneMuteControl());
+
+            // We must signal all listeners that the list element are about to
+            // change. We must create temporary model nodes to contro these
+            // messages without affecting the upstream.
+
+            pex::model::ListCount temporaryCount;
+            pex::model::ListOptionalIndex temporaryMemberWillRemove;
+            pex::model::ListOptionalIndex temporaryMemberRemoved;
+            pex::model::ListOptionalIndex temporaryMemberAdded;
+            pex::model::ListOptionalIndex temporarySelected;
+
+            temporaryCount.Set(this->count.Get());
+            this->count.ChangeUpstream(temporaryCount);
+            this->memberWillRemove.ChangeUpstream(temporaryMemberWillRemove);
+            this->memberRemoved.ChangeUpstream(temporaryMemberRemoved);
+            this->memberAdded.ChangeUpstream(temporaryMemberAdded);
+            this->selected.ChangeUpstream(temporarySelected);
+
+            size_t itemCount = this->items_.size();
+            auto deferCount = MakeDefer(temporaryCount);
+
+            if (itemCount > 0)
+            {
+                temporarySelected.Set({});
+
+                CLEAR_ITEMREF_NAMES(this->items_);
+                this->ClearInvalidatedEndpoints_(0);
+
+                // Remove all members prior to the swap
+                for (size_t i = itemCount; i > 0; --i)
+                {
+                    size_t thisIndex = i - 1;
+                    deferCount.Set(thisIndex);
+                    temporaryMemberWillRemove.Set(thisIndex);
+                    jive::SafeErase(this->items_, thisIndex);
+                    temporaryMemberRemoved.Set(thisIndex);
+                }
+            }
+
+            size_t newItemCount = upstream.size();
+
+            for (size_t i = 0; i < newItemCount; ++i)
+            {
+                this->items_.emplace(
+                    jive::SafeInsertIterator(this->items_, i),
+                    upstream[i]);
+
+                deferCount.Set(i + 1);
+                temporaryMemberAdded.Set(i);
+            }
+
+            this->RestoreBaseEndpoints_(0);
+            REGISTER_ITEMREF_NAMES(this, this->items_);
+
+            // Swap controls to new upstream.
+            this->upstream_ = &upstream;
+            this->count.ChangeUpstream(upstream.count);
+            this->selected.ChangeUpstream(upstream.selected);
+            this->memberAdded.ChangeUpstream(upstream.memberAdded);
+            this->memberWillRemove.ChangeUpstream(upstream.memberWillRemove);
+            this->memberRemoved.ChangeUpstream(upstream.memberRemoved);
+            this->memberWillReplace.ChangeUpstream(upstream.memberWillReplace);
+            this->memberReplaced.ChangeUpstream(upstream.memberReplaced);
+            this->isNotifying.ChangeUpstream(upstream.isNotifying);
+
+            this->memberWillRemoveTerminus_.Emplace(
+                this,
+                this->upstream_->internalMemberWillRemove_,
+                &Base::OnMemberWillRemove_);
+
+            this->memberAddedTerminus_.Emplace(
+                this,
+                this->upstream_->internalMemberAdded_,
+                &Base::OnMemberAdded_);
+
+            this->memberWillReplaceTerminus_.Emplace(
+                this,
+                this->upstream_->internalMemberWillReplace_,
+                &Base::OnMemberWillReplace_);
+
+            this->memberReplacedTerminus_.Emplace(
+                this,
+                this->upstream_->internalMemberReplaced_,
+                &Base::OnMemberReplaced_);
+        }
+    };
+
+    struct FollowTypes
+    {
+        template<typename T>
+        using Selector = FollowSelector<T>;
+
+        using ListItem = Selector<Member>;
+        using Count = ::pex::follow::ListCount;
+        using ListOptionalIndex = ::pex::follow::ListOptionalIndex;
+        using ListFlag = ::pex::follow::ListFlag;
+    };
+
+    using Follow = Control_<Mux, FollowTypes>;
 };
 
 
 } // end namespace pex
-
-
-#if 0
-namespace std
-{
-
-template<typename Upstream, typename Control>
-typename pex::control::List<Upstream, Control>::Iterator
-begin(pex::control::List<Upstream, Control> &listControl)
-{
-    return listControl.begin();
-}
-
-template<typename Upstream, typename Control>
-typename pex::control::List<Upstream, Control>::Iterator
-end(pex::control::List<Upstream, Control> &listControl)
-{
-    return listControl.end();
-}
-
-template<typename Upstream, typename Control>
-typename pex::control::List<Upstream, Control>::ConstIterator
-begin(const pex::control::List<Upstream, Control> &listControl)
-{
-    return listControl.begin();
-}
-
-template<typename Upstream, typename Control>
-typename pex::control::List<Upstream, Control>::ConstIterator
-end(const pex::control::List<Upstream, Control> &listControl)
-{
-    return listControl.end();
-}
-
-} // end namespace std
-
-#endif

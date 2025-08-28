@@ -146,7 +146,7 @@ public:
     void Set(Argument<Type> value) requires (HasAccess<SetTag, Access>)
     {
         this->SetWithoutNotify_(value);
-        this->DoNotify_();
+        this->Notify();
     }
 
     Type Get() const
@@ -185,6 +185,11 @@ public:
     // hold a reference to a model value.
     bool HasModel() const { return true; }
 
+    void Notify()
+    {
+        this->Notify_(this->value_);
+    }
+
 protected:
     void SetWithoutNotify_(Argument<Type> value)
     {
@@ -196,11 +201,6 @@ protected:
         {
             this->value_ = this->FilterOnSet_(value);
         }
-    }
-
-    void DoNotify_()
-    {
-        this->Notify_(this->value_);
     }
 
     Type FilterOnSet_(Argument<Type> value) const
@@ -311,7 +311,7 @@ public:
 
     ~Publisher()
     {
-        this->model_.DoNotify_();
+        this->model_.Notify();
     }
 
 private:
@@ -362,7 +362,7 @@ public:
         requires (HasAccess<SetTag, Access>)
     {
         this->SetWithoutNotify_(index, value);
-        this->DoNotify_();
+        this->Notify();
     }
 
     Type Get(size_t index) const
@@ -445,7 +445,7 @@ public:
         requires (HasAccess<SetTag, Access>)
     {
         this->SetWithoutNotify_(key, value);
-        this->DoNotify_();
+        this->Notify();
     }
 
     Type Get(const KeyType &key) const
@@ -672,8 +672,6 @@ public:
                 " to ",
                 LookupPexName(this->model_));
 
-
-
             this->model_->ConnectOnce(observer, callable);
         }
     }
@@ -690,6 +688,11 @@ public:
     bool HasModel() const
     {
         return (this->model_ != nullptr);
+    }
+
+    void Notify()
+    {
+        this->model_->Notify();
     }
 
     size_t GetNotificationOrder(void *observer)
@@ -712,11 +715,6 @@ protected:
     void SetWithoutNotify_(Argument<Type> value)
     {
         this->model_->SetWithoutNotify_(value);
-    }
-
-    void DoNotify_()
-    {
-        this->model_->DoNotify_();
     }
 
     const Model & GetModel_() const
@@ -764,7 +762,7 @@ public:
         requires (HasAccess<SetTag, Access>)
     {
         this->SetWithoutNotify_(index, value);
-        this->DoNotify_();
+        this->Notify();
     }
 
     Type Get(size_t index) const
@@ -835,7 +833,7 @@ public:
         requires (HasAccess<SetTag, Access>)
     {
         this->SetWithoutNotify_(key, value);
-        this->DoNotify_();
+        this->Notify();
     }
 
     Type Get(const KeyType &key) const

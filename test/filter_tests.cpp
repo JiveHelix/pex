@@ -16,12 +16,15 @@
 #include "pex/group.h"
 #include "pex/converting_filter.h"
 #include "pex/range.h"
+#include <pex/terminus.h>
 
 
 template<typename Control>
 class Observer
 {
 public:
+    static_assert(pex::IsCopyable<Control>);
+
     using Type = typename Control::Type;
     static constexpr auto observerName = "filter_tests::Observer";
 
@@ -226,7 +229,7 @@ TEST_CASE("Use ReadOnly interface to create read-only control", "[filters]")
 {
     using Group = pex::Group<CoffeeFields, CoffeeTemplate>;
     using Model = typename Group::Model;
-    using Control = typename Group::Control;
+    using Control = typename Group::template Control<Model>;
 
     Model model{};
     Control control(model);
@@ -242,7 +245,7 @@ TEST_CASE(
 {
     using Group = pex::Group<CoffeeFields, CoffeeTemplate>;
     using Model = typename Group::Model;
-    using Control = typename Group::Control;
+    using Control = typename Group::template Control<Model>;
     using Coffee = typename Group::Plain;
 
     Model model{{0, 11.99}};
@@ -308,12 +311,22 @@ TEST_CASE("Observe filtered value", "[filters]")
         pex::GetAndSetTag
     >;
 
+    // pex::control::LinearFilter has internal state, so its Set and Get
+    // functions are member functions.
+    static_assert(!pex::IsCopyable<FilteredControl>);
+
+    using FilteredCopyable = pex::control::Value<FilteredControl>;
+    static_assert(pex::IsCopyable<FilteredCopyable>);
+
     Model model;
     PEX_ROOT(model);
     Control control(model);
 
-    auto observer = Observer(
-        FilteredControl(control, pex::control::LinearFilter<double>(1000)));
+    FilteredControl filteredControl(
+        control,
+        pex::control::LinearFilter<double>(1000));
+
+    auto observer = Observer(FilteredCopyable(filteredControl));
 
     model.Set(3.14);
 
@@ -333,8 +346,11 @@ TEST_CASE("LinearRange is observable", "[filters]")
     weightRange.SetMaximum(150.0);
 
     WeightControl control(weightRange);
+    FilteredWeight filteredWeight(control);
 
-    auto observer = Observer(FilteredWeight(control).value);
+    using FilteredCopyable = pex::control::Range<FilteredWeight>;
+
+    auto observer = Observer(FilteredCopyable(filteredWeight).value);
 
     control.value.Set(125.0);
 

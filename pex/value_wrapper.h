@@ -20,7 +20,7 @@ CREATE_EXCEPTION(PolyError, PexError);
 
 // Manages polymorphic member value_ (ValueBase_).
 template<typename ValueBase_>
-class Value
+class ValueWrapperTemplate
 {
 public:
     using ValueBase = ValueBase_;
@@ -28,49 +28,49 @@ public:
 
     static constexpr auto fieldsTypeName = ValueBase::polyTypeName;
 
-    Value()
+    ValueWrapperTemplate()
         :
         value_{}
     {
 
     }
 
-    Value(const std::shared_ptr<ValueBase> &value)
+    ValueWrapperTemplate(const std::shared_ptr<ValueBase> &value)
         :
         value_(value)
     {
 
     }
 
-    Value(const ValueBase &value)
+    ValueWrapperTemplate(const ValueBase &value)
         :
         value_(value.Copy())
     {
 
     }
 
-    Value(const Value &other)
+    ValueWrapperTemplate(const ValueWrapperTemplate &other)
         :
         value_(other.value_->Copy())
     {
 
     }
 
-    Value & operator=(const Value &other)
+    ValueWrapperTemplate & operator=(const ValueWrapperTemplate &other)
     {
         this->value_ = other.value_->Copy();
 
         return *this;
     }
 
-    Value(Value &&other)
+    ValueWrapperTemplate(ValueWrapperTemplate &&other)
         :
         value_(std::move(other.value_))
     {
 
     }
 
-    Value & operator=(Value &&other)
+    ValueWrapperTemplate & operator=(ValueWrapperTemplate &&other)
     {
         this->value_ = std::move(other.value_);
 
@@ -78,19 +78,19 @@ public:
     }
 
     template<typename Derived, typename ...Args>
-    static Value Create(Args && ...args)
+    static ValueWrapperTemplate Create(Args && ...args)
     {
         using TemplateBase = typename Derived::TemplateBase;
 
-        return Value(
+        return ValueWrapperTemplate(
             std::make_shared<Derived>(
                 TemplateBase{std::forward<Args>(args)...}));
     }
 
     template<typename Derived>
-    static Value Default()
+    static ValueWrapperTemplate Default()
     {
-        return Value(std::make_shared<Derived>());
+        return ValueWrapperTemplate(std::make_shared<Derived>());
     }
 
     std::ostream & Describe(
@@ -132,7 +132,7 @@ public:
     }
 
     template<typename Json>
-    static Value Structure(const Json &jsonValues)
+    static ValueWrapperTemplate Structure(const Json &jsonValues)
     {
         return {ValueBase::Structure(jsonValues)};
     }
@@ -165,7 +165,7 @@ public:
     }
 #endif
 
-    Value & operator=(std::shared_ptr<ValueBase> value)
+    ValueWrapperTemplate & operator=(std::shared_ptr<ValueBase> value)
     {
         this->value_ = value.Copy();
         return *this;
@@ -186,7 +186,7 @@ public:
         return this->value_;
     }
 
-    bool operator==(const Value &other) const
+    bool operator==(const ValueWrapperTemplate &other) const
     {
         if (!(this->value_ && other.value_))
         {

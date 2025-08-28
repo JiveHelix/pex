@@ -125,6 +125,11 @@ public:
         this->pex_ = nullptr;
     }
 
+    void Notify()
+    {
+        this->pex_->Notify();
+    }
+
 protected:
     void SetWithoutNotify_(Argument<Type> value)
     {
@@ -134,11 +139,6 @@ protected:
     void SetWithoutFilter_(Argument<Type> value)
     {
         this->pex_->SetWithoutFilter_(value);
-    }
-
-    void DoNotify_()
-    {
-        this->pex_->DoNotify_();
     }
 
 private:
@@ -313,7 +313,7 @@ public:
     void Set(Argument<Type> value)
     {
         this->SetWithoutNotify_(value);
-        this->DoNotify_();
+        this->Notify();
     }
 
     void SetWithoutNotify(Argument<Type> value)
@@ -324,11 +324,6 @@ public:
     void SetWithoutFilter(Argument<Type> value)
     {
         this->SetWithoutFilter_(value);
-    }
-
-    void DoNotify()
-    {
-        this->DoNotify_();
     }
 };
 
@@ -403,7 +398,7 @@ public:
     {
         if (this->pex_ && this->isChanged_)
         {
-            this->DoNotify_();
+            this->Notify();
         }
 
         Base::operator=(std::move(other));
@@ -428,14 +423,14 @@ public:
     ~Defer()
     {
         // Notify on destruction
-        this->DoNotify();
+        this->Notify();
     }
 
-    void DoNotify()
+    void Notify()
     {
         if (this->pex_ && this->isChanged_)
         {
-            this->DoNotify_();
+            this->Base::Notify();
             this->isChanged_ = false;
         }
 
@@ -488,7 +483,7 @@ public:
     {
         if (this->pex_ && this->isChanged_)
         {
-            this->DoNotify_();
+            this->Notify();
         }
 
         Base::operator=(std::move(other));
@@ -520,14 +515,14 @@ public:
     ~DeferValueContainer()
     {
         // Notify on destruction
-        this->DoNotify();
+        this->Notify();
     }
 
-    void DoNotify()
+    void Notify()
     {
         if (this->pex_ && this->isChanged_)
         {
-            this->DoNotify_();
+            this->Base::Notify();
             this->isChanged_ = false;
         }
 
@@ -579,7 +574,7 @@ public:
     {
         if (this->pex_ && this->isChanged_)
         {
-            this->DoNotify_();
+            this->Notify();
         }
 
         Base::operator=(std::move(other));
@@ -611,14 +606,14 @@ public:
     ~DeferKeyValueContainer()
     {
         // Notify on destruction
-        this->DoNotify();
+        this->Notify();
     }
 
-    void DoNotify()
+    void Notify()
     {
         if (this->pex_ && this->isChanged_)
         {
-            this->DoNotify_();
+            this->Base::Notify();
             this->isChanged_ = false;
         }
 
@@ -651,7 +646,7 @@ public:
     {
         if (this->pex_)
         {
-            this->DoNotify_();
+            this->Notify();
         }
 
         Base::operator=(std::move(other));
@@ -712,7 +707,7 @@ struct DeferSelector
     struct DeferHelper_
     <
         T,
-        std::enable_if_t<IsPolyModel<Selector<T>>>
+        std::enable_if_t<IsModelWrapper<Selector<T>>>
     >
     {
         // This member expands to a PolyModel.
@@ -724,7 +719,7 @@ struct DeferSelector
     struct DeferHelper_
     <
         T,
-        std::enable_if_t<IsPolyControl<Selector<T>>>
+        std::enable_if_t<IsControlWrapper<Selector<T>>>
     >
     {
         // This member expands to a PolyControl.
@@ -915,9 +910,9 @@ public:
 
     ~DeferGroup()
     {
-        // The DoNotify calls will only send notifications if they haven't
+        // The Notify calls will only send notifications if they haven't
         // already.
-        this->DoNotify();
+        this->Notify();
     }
 
     using Plain = typename Upstream::Plain;
@@ -927,7 +922,7 @@ public:
         return this->upstream_->Get();
     }
 
-    void DoNotify()
+    void Notify()
     {
         if (!this->scopeMute_.IsMuted())
         {
@@ -942,7 +937,7 @@ public:
 
             if constexpr (!std::is_same_v<DescribeSignal, MemberType>)
             {
-                (this->*(deferField.member)).DoNotify();
+                (this->*(deferField.member)).Notify();
             }
         };
 
@@ -1056,7 +1051,7 @@ public:
 
     ~DeferList()
     {
-        this->DoNotify();
+        this->Notify();
     }
 
     DeferList(DeferList &&other)
@@ -1099,15 +1094,15 @@ public:
         return this->upstream_->Get();
     }
 
-    void DoNotify()
+    void Notify()
     {
         for (auto &item: this->items_)
         {
-            item.DoNotify();
+            item.Notify();
         }
 
-        this->count.DoNotify();
-        this->selected.DoNotify();
+        this->count.Notify();
+        this->selected.Notify();
 
         this->scopeMute_.Unmute();
     }
@@ -1341,11 +1336,11 @@ auto MakeDefer(Pex &pex)
         // Group types define a Defer type.
         return typename Pex::Defer(pex);
     }
-    else if constexpr (IsPolyModel<Pex>)
+    else if constexpr (IsModelWrapper<Pex>)
     {
         return PolyDefer<Pex, typename Pex::SuperModel>(pex);
     }
-    else if constexpr (IsPolyControl<Pex>)
+    else if constexpr (IsControlWrapper<Pex>)
     {
         return PolyDefer<Pex, typename Pex::SuperControl>(pex);
     }

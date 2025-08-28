@@ -27,6 +27,21 @@ template<typename T>
 inline constexpr bool HasDerived = HasDerived_<T>::value;
 
 
+template<typename T, typename = void>
+struct HasDerivedValue_: std::false_type {};
+
+template<typename T>
+struct HasDerivedValue_
+<
+    T,
+    std::void_t<typename T::template DerivedValue<TraitsTest>>
+>
+: std::true_type {};
+
+template<typename T>
+inline constexpr bool HasDerivedValue = HasDerivedValue_<T>::value;
+
+
 template<typename T, typename Base, typename = void>
 struct HasModelTemplate_: std::false_type {};
 
@@ -57,6 +72,38 @@ struct HasControlTemplate_
 
 template<typename T, typename Base>
 inline constexpr bool HasControlTemplate = HasControlTemplate_<T, Base>::value;
+
+
+template<typename T, typename Base, typename = void>
+struct HasMuxTemplate_: std::false_type {};
+
+template<typename T, typename Base>
+struct HasMuxTemplate_
+<
+    T,
+    Base,
+    std::void_t<typename T::template Mux<Base>>
+>
+: std::true_type {};
+
+template<typename T, typename Base>
+inline constexpr bool HasMuxTemplate = HasMuxTemplate_<T, Base>::value;
+
+
+template<typename T, typename Base, typename = void>
+struct HasFollowTemplate_: std::false_type {};
+
+template<typename T, typename Base>
+struct HasFollowTemplate_
+<
+    T,
+    Base,
+    std::void_t<typename T::template Follow<Base>>
+>
+: std::true_type {};
+
+template<typename T, typename Base>
+inline constexpr bool HasFollowTemplate = HasFollowTemplate_<T, Base>::value;
 
 
 template<typename T, typename = void>
