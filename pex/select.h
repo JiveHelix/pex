@@ -190,6 +190,18 @@ public:
         PEX_CLEAR_NAME(&this->selection_);
     }
 
+    Select(const Select &) = delete;
+    Select(Select &&) = delete;
+    Select & operator=(const Select &) = delete;
+    Select & operator=(Select &&) = delete;
+
+    Select & operator=(pex::Argument<Type> value)
+    {
+        this->SetValue(value);
+
+        return *this;
+    }
+
     void Initialize_()
     {
         PEX_NAME("SelectModel");
@@ -198,8 +210,6 @@ public:
         PEX_MEMBER(selection_);
     }
 
-    // Unlike model::Value and control::Value, which Set/Get the same type,
-    // this class Gets the actual value, but Sets the index of the selection.
     Type Get() const
     {
         return this->value_.Get();

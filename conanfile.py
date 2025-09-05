@@ -3,7 +3,7 @@ from conan import ConanFile
 
 class PexConan(ConanFile):
     name = "pex"
-    version = "1.0.0"
+    version = "1.1.0"
 
     python_requires = "boiler/0.1"
     python_requires_extend = "boiler.LibraryConanFile"
@@ -18,7 +18,7 @@ class PexConan(ConanFile):
         self.test_requires("catch2/2.13.8")
 
     def requirements(self):
-        self.requires("jive/[~1.3]", transitive_headers=True)
-        self.requires("fields/[~1.4]", transitive_headers=True)
+        self.requires("jive/[~1.4]", transitive_headers=True)
+        self.requires("fields/[~1.5]", transitive_headers=True)
         self.requires("fmt/[~10]", transitive_headers=True)
         self.requires("nlohmann_json/[~3.11]")

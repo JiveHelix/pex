@@ -410,6 +410,13 @@ struct Group
         Model_ & operator=(const Model_ &) = delete;
         Model_ & operator=(Model_ &&) = delete;
 
+        Model_ & operator=(const Plain &plain)
+        {
+            this->Set(plain);
+
+            return *this;
+        }
+
         ~Model_()
         {
             CLEAR_PEX_NAMES;

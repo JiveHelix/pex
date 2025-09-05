@@ -1232,7 +1232,7 @@ struct OrderedListCustom
                 upstream.list.memberWillReplace);
 
             this->memberReplaced.ChangeUpstream(
-                upstream.upstream.list.memberReplaced);
+                upstream.list.memberReplaced);
 
             this->upstream_ = &upstream;
         }

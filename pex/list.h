@@ -1617,6 +1617,8 @@ struct List
     template<typename Upstream>
     using Control = Control_<Upstream, ControlTypes>;
 
+    using DefaultControl = Control<Model>;
+
 
     class Mux
         :

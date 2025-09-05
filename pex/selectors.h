@@ -305,11 +305,9 @@ struct MuxSelector_<T, std::enable_if_t<IsMakeSignal<T>>>
 template<typename T>
 struct MuxSelector_<T, std::enable_if_t<IsFiltered<T>>>
 {
-    using Type = control::Value_
+    using Type = control::Mux
     <
-        typename ControlSelector_<T>::Type,
-        NoFilter,
-        typename T::Access
+        typename ModelSelector_<T>::Type
     >;
 };
 

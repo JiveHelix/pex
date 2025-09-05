@@ -74,7 +74,8 @@ public:
     using Access = Access_;
     using This = Value_<Upstream_, Filter, Access>;
 
-    using UpstreamType = typename UpstreamHolder::Type; using Type = detail::FilteredType<UpstreamType, Filter>;
+    using UpstreamType = typename UpstreamHolder::Type;
+    using Type = detail::FilteredType<UpstreamType, Filter>;
     using Plain = Type;
 
     using Connection = ValueConnection<void, UpstreamType, Filter>;
@@ -1083,6 +1084,9 @@ class ValueContainerMux: public ValueContainer<Upstream>
 public:
     static constexpr bool isPexCopyable = false;
 
+    using Base = ValueContainer<Upstream>;
+    using Base::Base;
+
     ValueContainerMux(const ValueContainerMux<Upstream> &) = delete;
     ValueContainerMux(ValueContainerMux<Upstream> &&) = delete;
     ValueContainerMux & operator=(const ValueContainerMux &) = delete;
@@ -1100,6 +1104,9 @@ class KeyValueContainerMux: public KeyValueContainer<Upstream>
 {
 public:
     static constexpr bool isPexCopyable = false;
+
+    using Base = ValueContainer<Upstream>;
+    using Base::Base;
 
     KeyValueContainerMux(const KeyValueContainerMux<Upstream> &) = delete;
     KeyValueContainerMux(KeyValueContainerMux<Upstream> &&) = delete;
