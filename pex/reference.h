@@ -189,8 +189,6 @@ class ValueContainerReference: public Reference<Pex>
 public:
     using Base = Reference<Pex>;
     using Base::Base;
-
-    using Base::Base;
     using Base::Set;
     using Base::Get;
 
