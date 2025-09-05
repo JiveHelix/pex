@@ -28,7 +28,6 @@ namespace detail
 template
 <
     typename T,
-    template<typename> typename Selector,
     typename Enable = void
 >
 struct ConnectableSelector_
@@ -36,32 +35,30 @@ struct ConnectableSelector_
     using Type = typename PromoteControl<T>::Type;
 };
 
-template<typename T, template<typename> typename Selector>
+template<typename T>
 struct ConnectableSelector_
 <
     T,
-    Selector,
     std::enable_if_t<IsGroupNode<T>>
 >
 {
-    using Type = GroupConnect<void, T, Selector>;
+    using Type = GroupConnect<void, T>;
 };
 
 
-template<typename T, template<typename> typename Selector>
+template<typename T>
 struct ConnectableSelector_
 <
     T,
-    Selector,
     std::enable_if_t<IsListNode<T>>
 >
 {
-    using Type = ListConnect<void, T, Selector>;
+    using Type = ListConnect<void, T>;
 };
 
 
-template<typename T, template<typename> typename Selector>
-using ConnectableSelector = typename ConnectableSelector_<T, Selector>::Type;
+template<typename T>
+using ConnectableSelector = typename ConnectableSelector_<T>::Type;
 
 
 template<typename Observer, typename Item, typename = void>
@@ -91,8 +88,7 @@ using IndexedCallable = typename IndexedCallable_<Observer, Item>::type;
 template
 <
     typename Observer,
-    typename Upstream_,
-    template<typename> typename Selector
+    typename Upstream_
 >
 class ListConnect: Separator
 {
@@ -105,7 +101,7 @@ public:
     using ListControl = typename PromoteControl<Upstream_>::Type;
 
     using Connectable =
-        ConnectableSelector<typename ListControl::ListItem, Selector>;
+        ConnectableSelector<typename ListControl::ListItem>;
 
     using Connectables = std::vector<Connectable>;
 
@@ -172,9 +168,9 @@ public:
         :
         muteTerminus_(
             PEX_THIS("ListConnect"),
-            listControl.CloneMuteControl(),
+            listControl.CloneMuteNode(),
             &ListConnect::OnMute_),
-        muteState_(listControl.CloneMuteControl().Get()),
+        muteState_(listControl.CloneMuteNode().Get()),
         listControl_(listControl),
         connectables_(),
         observer_(nullptr),
@@ -226,9 +222,9 @@ public:
         :
         muteTerminus_(
             PEX_THIS("ListConnect"),
-            listControl.CloneMuteControl(),
+            listControl.CloneMuteNode(),
             &ListConnect::OnMute_),
-        muteState_(listControl.CloneMuteControl().Get()),
+        muteState_(listControl.CloneMuteNode().Get()),
         listControl_(listControl),
         connectables_(),
         observer_(observer),
@@ -282,9 +278,9 @@ public:
         :
         muteTerminus_(
             PEX_THIS("ListConnect"),
-            listControl.CloneMuteControl(),
+            listControl.CloneMuteNode(),
             &ListConnect::OnMute_),
-        muteState_(listControl.CloneMuteControl().Get()),
+        muteState_(listControl.CloneMuteNode().Get()),
         listControl_(listControl),
         connectables_(),
         observer_(observer),
@@ -362,7 +358,7 @@ public:
         :
         muteTerminus_(
             PEX_THIS("ListConnect"),
-            other.listControl_.CloneMuteControl(),
+            other.listControl_.CloneMuteNode(),
             &ListConnect::OnMute_),
         muteState_(other.muteState_),
         listControl_(other.listControl_),
@@ -889,7 +885,9 @@ private:
     }
 
 private:
-    using MuteTerminus = pex::Terminus<ListConnect, MuteControl>;
+    using MuteNode = decltype(std::declval<ListControl>().CloneMuteNode());
+    using MuteTerminus = pex::Terminus<ListConnect, MuteNode>;
+
     MuteTerminus muteTerminus_;
     Mute_ muteState_;
     ListControl listControl_;

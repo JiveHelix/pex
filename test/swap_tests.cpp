@@ -159,7 +159,11 @@ TEST_CASE("Can swap control to a different model", "[swap_tests]")
         >);
 
     Model model0;
+    PEX_ROOT(model0);
+
     Model model1;
+    PEX_ROOT(model1);
+
     Mux mux(model0);
     Follow follow(mux);
 
@@ -191,4 +195,148 @@ TEST_CASE("Can swap control to a different model", "[swap_tests]")
     REQUIRE(observer.observedValue.center.x == -10);
     REQUIRE(observer.observedValue.center.y == -12);
     REQUIRE(observer.observedValue.radius == 25);
+}
+
+
+namespace swap
+{
+
+
+template<typename T>
+struct FooFields
+{
+    static constexpr auto fields = std::make_tuple(
+        fields::Field(&T::name, "name"),
+        fields::Field(&T::circles, "circles"));
+};
+
+
+template<template<typename> typename T>
+struct FooTemplate
+{
+    T<std::string> name;
+    T<pex::List<CircleGroup>> circles;
+
+    static constexpr auto fields = FooFields<FooTemplate<T>>::fields;
+    static constexpr auto fieldsTypeName = "Foo";
+};
+
+
+using FooGroup = pex::Group<FooFields, FooTemplate>;
+using FooModel = typename FooGroup::Model;
+using FooControl = typename FooGroup::DefaultControl;
+using FooMux = typename FooGroup::Mux;
+using FooFollow = typename FooGroup::Follow;
+using Foo = typename FooGroup::Plain;
+
+DECLARE_EQUALITY_OPERATORS(Foo)
+
+
+} // end namespace swap
+
+
+TEST_CASE("Can swap control with list to a different model", "[swap_tests]")
+{
+    swap::FooModel model0;
+    swap::FooModel model1;
+
+    PEX_ROOT(model0);
+    PEX_ROOT(model1);
+
+    swap::FooMux mux(model0);
+    swap::FooFollow follow(mux);
+
+    TestObserver<swap::FooFollow> observer(follow);
+
+    PEX_ROOT(observer);
+
+    using ModelCircles = decltype(swap::FooModel::circles);
+    static_assert(pex::IsListModel<ModelCircles>);
+
+    static_assert(
+        pex::IsListNode
+        <
+            typename pex::List<swap::CircleGroup>::Follow
+        >);
+
+    static_assert(
+        pex::IsListControl<typename pex::PromoteControl<ModelCircles>::Type>);
+
+    using MuxCircles = decltype(swap::FooMux::circles);
+    static_assert(pex::IsListMux<MuxCircles>);
+
+    static_assert(
+        pex::IsListFollow<typename pex::PromoteControl<MuxCircles>::Type>);
+
+    static_assert(
+        std::is_same_v
+        <
+            typename pex::PromoteControl<MuxCircles>::Type,
+            typename ModelCircles::ListType::Follow
+        >);
+
+    TestObserver<swap::FooModel> modelObserver0(model0);
+    PEX_ROOT(modelObserver0);
+    TestObserver<swap::FooMux> muxObserver(mux);
+    PEX_ROOT(muxObserver);
+
+    model0.name = "foo0";
+    model1.name = "foo1";
+
+    for (int i = 0; i < 3; ++i)
+    {
+        model0.circles.Append(swap::Circle{{3.0, 4.0, "feet"}, double(i)});
+
+        model1.circles.Append(
+            swap::Circle{{5.0, 6.0, "furlongs"}, double(i + 10)});
+    }
+
+    REQUIRE(follow.circles.size() == 3);
+    REQUIRE(follow.name.Get() == "foo0");
+    REQUIRE(follow.circles.at(1).radius.Get() == Approx(1));
+    REQUIRE(follow.circles.at(1).center.units.Get() == "feet");
+
+    REQUIRE(observer.observedValue.circles.size() == 3);
+    REQUIRE(observer.observedValue.name == "foo0");
+    REQUIRE(observer.observedValue.circles.at(1).radius == Approx(1));
+    REQUIRE(observer.observedValue.circles.at(1).center.units == "feet");
+
+    REQUIRE(modelObserver0.observedValue.circles.size() == 3);
+    REQUIRE(modelObserver0.observedValue.name == "foo0");
+    REQUIRE(modelObserver0.observedValue.circles.at(1).radius == Approx(1));
+    REQUIRE(modelObserver0.observedValue.circles.at(1).center.units == "feet");
+
+    REQUIRE(muxObserver.observedValue.circles.size() == 3);
+    REQUIRE(muxObserver.observedValue.name == "foo0");
+    REQUIRE(muxObserver.observedValue.circles.at(1).radius == Approx(1));
+    REQUIRE(muxObserver.observedValue.circles.at(1).center.units == "feet");
+
+    mux.ChangeUpstream(model1);
+    model1.Notify();
+
+    REQUIRE(follow.circles.size() == 3);
+    REQUIRE(follow.name.Get() == "foo1");
+    REQUIRE(follow.circles.at(1).radius.Get() == Approx(11));
+    REQUIRE(follow.circles.at(1).center.units.Get() == "furlongs");
+
+    REQUIRE(observer.observedValue.circles.size() == 3);
+    REQUIRE(observer.observedValue.name == "foo1");
+    REQUIRE(observer.observedValue.circles.at(1).radius == Approx(11));
+    REQUIRE(observer.observedValue.circles.at(1).center.units == "furlongs");
+
+    // Check that the list can change size.
+    model0.circles.Erase(1);
+
+    mux.ChangeUpstream(model0);
+    model0.Notify();
+
+    REQUIRE(follow.circles.size() == 2);
+    REQUIRE(follow.name.Get() == "foo0");
+    REQUIRE(follow.circles.at(1).radius.Get() == Approx(2));
+    REQUIRE(follow.circles.at(1).center.units.Get() == "feet");
+
+    REQUIRE(observer.observedValue.circles.size() == 2);
+    REQUIRE(observer.observedValue.name == "foo0");
+    REQUIRE(observer.observedValue.circles.at(1).radius == Approx(2));
+    REQUIRE(observer.observedValue.circles.at(1).center.units == "feet");
 }

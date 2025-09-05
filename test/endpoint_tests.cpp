@@ -36,7 +36,7 @@ using TestControl = typename TestGroup::template Control<TestModel>;
 using ListControl = decltype(TestControl::values);
 
 
-class TestObserver
+class TestObserver: Separator
 {
 public:
     using MemberWillRemoveEndpoint =
@@ -50,7 +50,7 @@ public:
         listControl(testControl.values),
 
         memberWillRemoveEndpoint_(
-            this,
+            PEX_THIS("TestObserver"),
             testControl.values.memberWillRemove,
             &TestObserver::OnMemberWillRemove_),
 
@@ -74,6 +74,11 @@ public:
                 &TestObserver::OnValue_,
                 i);
         }
+    }
+
+    ~TestObserver()
+    {
+        PEX_CLEAR_NAME(this);
     }
 
     void OnValue_(int value, size_t index)

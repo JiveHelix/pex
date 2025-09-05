@@ -20,7 +20,7 @@ template
     template<typename> typename Terminus =
         Defaults<Upstream>::template Terminus
 >
-class TerminusObserver
+class TerminusObserver: Separator
 {
 public:
     static constexpr auto observerName = "TerminusObserver";
@@ -41,6 +41,11 @@ public:
 
     }
 
+    ~TerminusObserver()
+    {
+        PEX_CLEAR_NAME(this);
+    }
+
     void Set(pex::Argument<Type> value)
     {
         this->terminus_.Set(value);
@@ -48,7 +53,7 @@ public:
 
     TerminusObserver(TerminusObserver &&other)
         :
-        terminus_(this, std::move(other.terminus_)),
+        terminus_(PEX_THIS("TerminusObserver"), std::move(other.terminus_)),
         count_(other.count_),
         observedValue(std::move(other.observedValue))
     {
@@ -68,7 +73,7 @@ public:
 
     TerminusObserver(const TerminusObserver &other)
         :
-        terminus_(this, other.terminus_),
+        terminus_(PEX_THIS("TerminusObserver"), other.terminus_),
         count_(other.count_),
         observedValue(std::move(other.observedValue))
     {
@@ -106,7 +111,7 @@ public:
 
 
 template<typename Object>
-class TestObserver
+class TestObserver: Separator
 {
 public:
     static constexpr auto observerName = "TestObserver";
@@ -115,7 +120,7 @@ public:
 
     TestObserver(Object &object)
         :
-        connect_(this, object, &TestObserver::Observe_),
+        connect_(PEX_THIS("TestObserver"), object, &TestObserver::Observe_),
         count_(0),
         observedValue{object.Get()}
     {
@@ -131,6 +136,11 @@ public:
     TestObserver & operator=(TestObserver &&) = delete;
     TestObserver(const TestObserver &) = delete;
     TestObserver & operator=(const TestObserver &) = delete;
+
+    ~TestObserver()
+    {
+        PEX_CLEAR_NAME(this);
+    }
 
     size_t GetCount() const
     {

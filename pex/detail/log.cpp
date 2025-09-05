@@ -83,6 +83,7 @@ void PexLinkObserver(const void *address, const void *observer)
 {
     assert(HasPexName(observer));
     assert(HasPexName(address));
+    assert(address != observer);
 
     observerByLinkedAddress[address] = observer;
 }
@@ -119,13 +120,6 @@ void PexName(void *address, const std::string &name)
     if (namesByAddress.count(address))
     {
         auto &entry = namesByAddress[address];
-
-        if (entry.name == "y" && name == "x")
-        {
-            throw std::logic_error("whoops");
-        }
-
-        // fmt::print("Rename:{} {} to {}\n", __LINE__, entry.name, name);
         entry.name = name;
     }
     else
@@ -163,13 +157,6 @@ void PexName(void *address, void *parent, const std::string &name)
     {
         auto &entry = namesByAddress[address];
         entry.parent = parent;
-
-        if (entry.name == "y" && name == "x")
-        {
-            throw std::logic_error("whoops");
-        }
-
-        // fmt::print("Rename:{} {} to {}\n", __LINE__, entry.name, name);
         entry.name = name;
     }
     else
@@ -264,6 +251,8 @@ const void * GetParent(const void *address)
 
 std::string LookupPexName(const void *address, int indent)
 {
+    assert(indent < 64);
+
     auto indentString = fields::MakeIndent(indent);
 
     if (address == nullptr)

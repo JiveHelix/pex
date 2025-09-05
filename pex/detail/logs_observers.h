@@ -67,7 +67,14 @@ private:
                 << GetBullet(indent) << " linked observer: "
                 << LookupPexName(linkedObserver, indent + 1) << std::endl;
 
+            auto previous = linkedObserver;
             linkedObserver = GetLinkedObserver(linkedObserver);
+
+            if (linkedObserver && (linkedObserver == previous))
+            {
+                throw std::logic_error("Observer cannot be linked to itself.");
+            }
+
             ++indent;
         }
     }

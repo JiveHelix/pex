@@ -73,6 +73,7 @@ public:
 namespace control
 {
 
+
 template<typename Upstream_, typename Access = GetAndSetTag>
 class Signal
     :
@@ -332,6 +333,9 @@ private:
     Upstream *upstream_;
     std::optional<UpstreamConnection> upstreamConnection_;
 };
+
+
+using DefaultSignal = Signal<::pex::model::Signal>;
 
 
 class SignalMux: public Signal<::pex::model::Signal>

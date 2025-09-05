@@ -418,7 +418,7 @@ TEST_CASE("Setting a group value propagates to model and observer.", "[groups]")
 
 
 template<typename Object>
-class CenterObserver
+class CenterObserver: Separator
 {
 public:
     static constexpr auto observerName = "CenterObserver";
@@ -427,11 +427,16 @@ public:
 
     CenterObserver(Object &object)
         :
-        connect_(this, object, &CenterObserver::Observe_),
+        connect_(PEX_THIS("CenterObserver"), object, &CenterObserver::Observe_),
         count_(0),
         observedValue{object.Get()}
     {
 
+    }
+
+    ~CenterObserver()
+    {
+        PEX_CLEAR_NAME(this);
     }
 
     void Set(pex::Argument<Type> value)

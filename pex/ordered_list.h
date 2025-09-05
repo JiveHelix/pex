@@ -55,10 +55,7 @@ public:
 
 using OrderGroup = Group<OrderFields, OrderTemplate>;
 using OrderModel = typename OrderGroup::Model;
-
-template<typename Upstream>
-using OrderControl = typename OrderGroup::template Control<Upstream>;
-
+using OrderControl = typename OrderGroup::DefaultControl;
 using Order = typename OrderGroup::Plain;
 
 
@@ -107,7 +104,7 @@ template<typename T>
 inline constexpr bool IsOrderControl = IsOrderControl_<T>::value;
 
 
-static_assert(IsOrderControl<OrderControl<OrderModel>>);
+static_assert(IsOrderControl<OrderControl>);
 
 
 template<typename T>
@@ -153,13 +150,13 @@ concept ListHasOrder =
 
 
 template<typename ListMaker>
-std::optional<OrderControl<OrderModel>> GetOrderControl(
+std::optional<OrderControl> GetOrderControl(
     ModelSelector<ListMaker> &list,
     size_t storageIndex)
 {
     if constexpr (ListHasOrderMember<ListMaker>)
     {
-        return OrderControl<OrderModel>(list.at(storageIndex).order);
+        return OrderControl(list.at(storageIndex).order);
     }
     else if constexpr (ListHasVirtualGetOrder<ListMaker>)
     {
@@ -170,7 +167,7 @@ std::optional<OrderControl<OrderModel>> GetOrderControl(
             return std::nullopt;
         }
 
-        return OrderControl<OrderModel>(virtualItem->GetOrder());
+        return OrderControl(virtualItem->GetOrder());
     }
     else
     {
@@ -522,7 +519,7 @@ struct OrderedListCustom
         }
 
         void MakeOrderConnections_(
-            OrderControl<OrderModel> &order,
+            OrderControl &order,
             size_t storageIndex)
         {
             auto result = this->moveToTopEndpoints_.try_emplace(

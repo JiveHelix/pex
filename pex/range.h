@@ -24,6 +24,7 @@
 #include "pex/converting_filter.h"
 #include "pex/traits.h"
 #include <pex/terminus.h>
+#include <pex/default_value_node.h>
 
 
 #ifdef USE_OBSERVER_NAME
@@ -173,7 +174,8 @@ template
     // Defaults to numeric_limits<T>::lowest() and ::max()
     typename initialMinimum = void,
     typename initialMaximum = void,
-    template<typename, typename, typename> typename ValueTemplate = Value_
+    template<typename, typename, typename>
+        typename ValueNode_ = ::pex::DefaultValueNode
 >
 class Range: Separator
 {
@@ -189,7 +191,8 @@ public:
     // TODO: Make Access a template parameter.
     using Access = GetAndSetTag;
 
-    using Value = ValueTemplate<T, RangeFilter<T>, Access>;
+    using ValueNode = ValueNode_<T, RangeFilter<T>, Access>;
+    using Value = typename ValueNode::Model;
     using LimitType = jive::RemoveOptional<Type>;
 
     static constexpr auto defaultMinimum =
@@ -779,42 +782,6 @@ namespace control
 
 template
 <
-    typename Upstream,
-    typename Filter,
-    typename Access,
-    typename Enable = std::void_t<>
->
-struct ValueControl_
-{
-    using Type = pex::control::Value_<Upstream, Filter, Access>;
-};
-
-
-// An Upstream model may declare its own Control
-template
-<
-    typename Upstream,
-    typename Filter,
-    typename Access
->
-struct ValueControl_
-    <
-        Upstream,
-        Filter,
-        Access,
-        std::void_t<typename Upstream::template Control<Filter, Access>>
-    >
-{
-    using Type = typename Upstream::template FilteredControl<Filter, Access>;
-};
-
-
-template<typename ...Args>
-using ValueControl = typename ValueControl_<Args...>::Type;
-
-
-template
-<
     typename Upstream_,
     typename Filter_ = NoFilter,
     typename Access_ = pex::GetAndSetTag
@@ -833,8 +800,17 @@ public:
     static constexpr bool isPexCopyable =
         pex::detail::FilterIsNoneOrStatic<Unfiltered, Filter, Access>;
 
-    using Value = ValueControl<typename Upstream::Value, Filter, Access>;
-    using Reset = ::pex::control::Signal<decltype(Upstream::reset)>;
+    using ValueNode = typename Upstream::ValueNode;
+
+    using Value =
+        typename Upstream::ValueNode::template Control
+        <
+            typename Upstream::Value,
+            Filter,
+            Access
+        >;
+
+    using Reset = ::pex::control::DefaultSignal;
     using Type = typename Value::Type;
 
     // Read-only Limit type for accessing range bounds.
@@ -1080,40 +1056,22 @@ private:
 };
 
 
-template
-<
-    typename Upstream_,
-    typename Filter_ = NoFilter,
-    typename Access_ = pex::GetAndSetTag
->
+template<typename Upstream_>
 class RangeMux: Separator
 {
 public:
     using Upstream = Upstream_;
     using Model = Upstream;
-    using Filter = Filter_;
     using Unfiltered = typename Upstream::Value::Type;
-    using Access = Access_;
 
     static constexpr bool isRangeMux = true;
 
-    static constexpr bool isPexCopyable =
-        pex::detail::FilterIsNoneOrStatic<Unfiltered, Filter, Access>;
-
-    using Value =
-        ::pex::control::FilteredMux<typename Upstream::Value, Filter, Access>;
-
+    using ValueNode = typename Upstream::ValueNode;
+    using Value = typename ValueNode::Mux;
     using Reset = ::pex::control::SignalMux;
     using Type = typename Value::Type;
 
-    // Read-only Limit type for accessing range bounds.
-    using Limit =
-        pex::control::FilteredMux
-        <
-            typename Upstream::Limit,
-            Filter,
-            pex::GetTag
-        >;
+    using Limit = pex::control::Mux<typename Upstream::Limit>;
 
     using LimitType = typename Limit::Type;
     using Callable = typename Value::Callable;
@@ -1144,25 +1102,6 @@ public:
         PEX_MEMBER(minimum);
         PEX_MEMBER(maximum);
         PEX_MEMBER(reset);
-    }
-
-    RangeMux(Upstream &upstream, const Filter &filter)
-        :
-        RangeMux(upstream)
-    {
-        this->SetFilter(filter);
-    }
-
-    void SetFilter(const Filter &filter)
-    {
-        this->value.SetFilter(filter);
-        this->minimum.SetFilter(filter);
-        this->maximum.SetFilter(filter);
-    }
-
-    const Filter & GetFilter() const
-    {
-        return this->value.GetFilter();
     }
 
     RangeMux(const RangeMux &other) = delete;
@@ -1283,7 +1222,17 @@ template
     typename Filter = NoFilter,
     typename Access = pex::GetAndSetTag
 >
-using RangeFollow = Range<Upstream, Filter, Access>;
+struct RangeFollow: public Range<Upstream, Filter, Access>
+{
+public:
+    static constexpr bool isRangeControl = false;
+    static constexpr bool isRangeFollow = true;
+
+    using Base = Range<Upstream, Filter, Access>;
+    using Base::Base;
+};
+
+
 
 
 // Converts values directly between model type and control type.

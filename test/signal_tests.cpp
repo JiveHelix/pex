@@ -10,7 +10,7 @@
 
 
 template<typename Access = pex::GetAndSetTag>
-class Observer
+class Observer: Separator
 {
 public:
     static constexpr auto observerName = "signal_tests::Observer";
@@ -21,11 +21,18 @@ public:
         terminus_(Control(model)),
         observedCount{0}
     {
+        PEX_NAME("Observer");
+
         if constexpr (pex::HasAccess<pex::GetTag, Access>)
         {
             PEX_LOG("Connect");
             this->terminus_.Connect(this, &Observer::Observe_);
         }
+    }
+
+    ~Observer()
+    {
+        PEX_CLEAR_NAME(this);
     }
 
     void Trigger()

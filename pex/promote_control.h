@@ -24,8 +24,18 @@ namespace pex
 template<typename Pex, typename enable = void>
 struct PromoteControl
 {
+    static_assert(!IsListNode<Pex>);
+    static_assert(!IsSelectNode<Pex>);
+    static_assert(!IsGroupNode<Pex>);
+    static_assert(!IsRangeNode<Pex>);
+
     using Type = control::Value_<Pex>;
     using Upstream = Pex;
+
+    template<typename U>
+    using Selector = ControlSelector<U>;
+
+    static constexpr auto selectorName = "ControlSelector";
 };
 
 
@@ -38,6 +48,11 @@ struct PromoteControl
 {
     using Type = Pex;
     using Upstream = typename Pex::Upstream;
+
+    template<typename U>
+    using Selector = ControlSelector<U>;
+
+    static constexpr auto selectorName = "ControlSelector";
 };
 
 
@@ -46,6 +61,11 @@ struct PromoteControl<Pex, std::enable_if_t<IsSignalControl<Pex>>>
 {
     using Type = Pex;
     using Upstream = typename Pex::Upstream;
+
+    template<typename U>
+    using Selector = ControlSelector<U>;
+
+    static constexpr auto selectorName = "ControlSelector";
 };
 
 
@@ -54,6 +74,11 @@ struct PromoteControl<Pex, std::enable_if_t<IsSignalModel<Pex>>>
 {
     using Type = control::Signal<Pex>;
     using Upstream = Pex;
+
+    template<typename U>
+    using Selector = ControlSelector<U>;
+
+    static constexpr auto selectorName = "ControlSelector";
 };
 
 
@@ -62,6 +87,11 @@ struct PromoteControl<P, std::enable_if_t<IsRangeModel<P>>>
 {
     using Type = control::Range<P>;
     using Upstream = P;
+
+    template<typename U>
+    using Selector = ControlSelector<U>;
+
+    static constexpr auto selectorName = "ControlSelector";
 };
 
 
@@ -70,6 +100,11 @@ struct PromoteControl<P, std::enable_if_t<IsRangeControl<P>>>
 {
     using Type = P;
     using Upstream = typename P::Upstream;
+
+    template<typename U>
+    using Selector = ControlSelector<U>;
+
+    static constexpr auto selectorName = "ControlSelector";
 };
 
 
@@ -78,6 +113,24 @@ struct PromoteControl<P, std::enable_if_t<IsRangeMux<P>>>
 {
     using Type = control::RangeFollow<P>;
     using Upstream = P;
+
+    template<typename U>
+    using Selector = FollowSelector<U>;
+
+    static constexpr auto selectorName = "FollowSelector";
+};
+
+
+template<typename P>
+struct PromoteControl<P, std::enable_if_t<IsRangeFollow<P>>>
+{
+    using Type = P;
+    using Upstream = typename P::Upstream;
+
+    template<typename U>
+    using Selector = FollowSelector<U>;
+
+    static constexpr auto selectorName = "FollowSelector";
 };
 
 
@@ -86,6 +139,11 @@ struct PromoteControl<P, std::enable_if_t<IsGroupModel<P>>>
 {
     using Type = typename P::GroupType::template Control<P>;
     using Upstream = P;
+
+    template<typename U>
+    using Selector = ControlSelector<U>;
+
+    static constexpr auto selectorName = "ControlSelector";
 };
 
 
@@ -94,6 +152,11 @@ struct PromoteControl<P, std::enable_if_t<IsGroupControl<P>>>
 {
     using Type = P;
     using Upstream = typename P::Upstream;
+
+    template<typename U>
+    using Selector = ControlSelector<U>;
+
+    static constexpr auto selectorName = "ControlSelector";
 };
 
 template<typename P>
@@ -101,7 +164,26 @@ struct PromoteControl<P, std::enable_if_t<IsGroupMux<P>>>
 {
     using Type = typename P::GroupType::Follow;
     using Upstream = P;
+
+    template<typename U>
+    using Selector = FollowSelector<U>;
+
+    static constexpr auto selectorName = "FollowSelector";
 };
+
+
+template<typename P>
+struct PromoteControl<P, std::enable_if_t<IsGroupFollow<P>>>
+{
+    using Type = P;
+    using Upstream = typename P::Upstream;
+
+    template<typename U>
+    using Selector = FollowSelector<U>;
+
+    static constexpr auto selectorName = "FollowSelector";
+};
+
 
 #if 0
 template<typename P>
@@ -118,6 +200,11 @@ struct PromoteControl<P, std::enable_if_t<IsListModel<P>>>
 {
     using Type = typename P::ListType::template Control<P>;
     using Upstream = P;
+
+    template<typename U>
+    using Selector = ControlSelector<U>;
+
+    static constexpr auto selectorName = "ControlSelector";
 };
 
 
@@ -126,6 +213,11 @@ struct PromoteControl<P, std::enable_if_t<IsListControl<P>>>
 {
     using Type = P;
     using Upstream = typename P::Upstream;
+
+    template<typename U>
+    using Selector = ControlSelector<U>;
+
+    static constexpr auto selectorName = "ControlSelector";
 };
 
 template<typename P>
@@ -133,6 +225,23 @@ struct PromoteControl<P, std::enable_if_t<IsListMux<P>>>
 {
     using Type = typename P::ListType::Follow;
     using Upstream = P;
+
+    template<typename U>
+    using Selector = FollowSelector<U>;
+
+    static constexpr auto selectorName = "FollowSelector";
+};
+
+template<typename P>
+struct PromoteControl<P, std::enable_if_t<IsListFollow<P>>>
+{
+    using Type = P;
+    using Upstream = typename P::Upstream;
+
+    template<typename U>
+    using Selector = FollowSelector<U>;
+
+    static constexpr auto selectorName = "FollowSelector";
 };
 
 
@@ -141,6 +250,11 @@ struct PromoteControl<P, std::enable_if_t<IsSelectModel<P>>>
 {
     using Type = control::Select<P>;
     using Upstream = P;
+
+    template<typename U>
+    using Selector = ControlSelector<U>;
+
+    static constexpr auto selectorName = "ControlSelector";
 };
 
 
@@ -149,6 +263,11 @@ struct PromoteControl<P, std::enable_if_t<IsSelectControl<P>>>
 {
     using Type = P;
     using Upstream = typename P::Upstream;
+
+    template<typename U>
+    using Selector = ControlSelector<U>;
+
+    static constexpr auto selectorName = "ControlSelector";
 };
 
 
@@ -157,6 +276,24 @@ struct PromoteControl<P, std::enable_if_t<IsSelectMux<P>>>
 {
     using Type = control::SelectFollow<P>;
     using Upstream = P;
+
+    template<typename U>
+    using Selector = FollowSelector<U>;
+
+    static constexpr auto selectorName = "FollowSelector";
+};
+
+
+template<typename P>
+struct PromoteControl<P, std::enable_if_t<IsSelectFollow<P>>>
+{
+    using Type = P;
+    using Upstream = typename P::Upstream;
+
+    template<typename U>
+    using Selector = FollowSelector<U>;
+
+    static constexpr auto selectorName = "FollowSelector";
 };
 
 

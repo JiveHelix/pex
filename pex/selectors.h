@@ -30,7 +30,7 @@ struct RangeTypes
             Type,
             typename RangeMaker::Minimum,
             typename RangeMaker::Maximum,
-            RangeMaker::template Value
+            RangeMaker::template ValueNode
         >;
 
     template<typename Upstream>
@@ -152,6 +152,14 @@ struct ModelSelector_<T, std::enable_if_t<IsMakePoly<T>>>
     using Type = poly::ModelWrapperTemplate<typename T::Supers>;
 };
 
+
+template<typename T>
+struct ModelSelector_<T, std::enable_if_t<IsMakeMute<T>>>
+{
+    using Type = detail::MuteModel;
+};
+
+
 /***** ControlSelector *****/
 template<typename T, typename = void>
 struct ControlSelector_
@@ -250,6 +258,13 @@ struct ControlSelector_<T, std::enable_if_t<IsMakePoly<T>>>
 };
 
 
+template<typename T>
+struct ControlSelector_<T, std::enable_if_t<IsMakeMute<T>>>
+{
+    using Type = detail::MuteControlType;
+};
+
+
 /***** MuxSelector *****/
 template<typename T, typename = void>
 struct MuxSelector_
@@ -340,6 +355,12 @@ struct MuxSelector_<T, std::enable_if_t<IsMakePoly<T>>>
     using Type = typename ControlSelector_<T>::Type;
 };
 
+template<typename T>
+struct MuxSelector_<T, std::enable_if_t<IsMakeMute<T>>>
+{
+    using Type = detail::MuteMuxType;
+};
+
 
 /***** FollowSelector *****/
 template<typename T, typename = void>
@@ -401,7 +422,7 @@ struct FollowSelector_<T, std::enable_if_t<IsMakeSelect<T>>>
 template<typename T>
 struct FollowSelector_<T, std::enable_if_t<IsDefineNodes<T>>>
 {
-    using Type = typename T::Follow;
+    using Type = typename T::template Follow<>;
 };
 
 template<typename T>
@@ -426,6 +447,13 @@ template<typename T>
 struct FollowSelector_<T, std::enable_if_t<IsMakePoly<T>>>
 {
     using Type = typename ControlSelector_<T>::Type;
+};
+
+
+template<typename T>
+struct FollowSelector_<T, std::enable_if_t<IsMakeMute<T>>>
+{
+    using Type = detail::MuteFollowType;
 };
 
 

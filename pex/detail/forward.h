@@ -12,8 +12,7 @@ namespace detail
 template
 <
     typename Observer,
-    typename Upstream_,
-    template<typename> typename Selector
+    typename Upstream_
 >
 class GroupConnect;
 
@@ -21,8 +20,7 @@ class GroupConnect;
 template
 <
     typename Observer,
-    typename Upstream_,
-    template<typename> typename Selector
+    typename Upstream_
 >
 class ListConnect;
 

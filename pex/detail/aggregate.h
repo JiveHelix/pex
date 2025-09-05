@@ -117,7 +117,7 @@ struct AggregateSelector_<Selector>::Template
     std::enable_if_t<IsList<T>>
 >
 {
-    using Type = ListConnect<void, Selector<T>, Selector>;
+    using Type = ListConnect<void, Selector<T>>;
 };
 
 
@@ -215,6 +215,8 @@ public:
 #ifdef ENABLE_PEX_NAMES
         PEX_NAME(fmt::format("Aggregate {}", jive::GetTypeName<Plain>()));
         this->RegisterPexNames();
+
+        PEX_MEMBER(muteTerminus_);
 #endif
     }
 
@@ -230,6 +232,8 @@ public:
 #ifdef ENABLE_PEX_NAMES
         PEX_NAME(fmt::format("Aggregate {}", jive::GetTypeName<Plain>()));
         this->RegisterPexNames();
+
+        PEX_MEMBER(muteTerminus_);
 #endif
         this->AssignUpstream(upstream);
     }
@@ -238,7 +242,8 @@ public:
     void AssignUpstream(Upstream &upstream)
     {
         this->UnmakeConnections_();
-        this->muteTerminus_.Emplace(upstream.CloneMuteControl());
+
+        this->muteTerminus_.Emplace(upstream.CloneMuteNode());
 
         auto doAssign = [this, &upstream](
             const auto &aggregateField,
@@ -267,6 +272,8 @@ public:
 
 #ifdef ENABLE_PEX_NAMES
         this->ClearPexNames();
+
+        PEX_CLEAR_NAME(&this->muteTerminus_);
 #endif
     }
 
@@ -473,7 +480,8 @@ private:
 private:
     Mute_ isMuted_;
 
-    using MuteTerminus = pex::Terminus<Aggregate, MuteControl>;
+    using MuteNode = Selector<MakeMute>;
+    using MuteTerminus = pex::Terminus<Aggregate, MuteNode>;
     MuteTerminus muteTerminus_;
 
     bool isModified_;

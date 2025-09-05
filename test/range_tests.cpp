@@ -121,7 +121,7 @@ TEST_CASE("Chaining ranges together to add a filter.", "[range]")
 
 
 template<typename Control>
-struct Observer
+struct Observer: Separator
 {
     static constexpr auto observerName = "range_tests::Observer";
 
@@ -133,6 +133,11 @@ struct Observer
             &Observer::OnValue_)
     {
 
+    }
+
+    ~Observer()
+    {
+        PEX_CLEAR_NAME(this);
     }
 
     void OnValue_(int value)

@@ -358,7 +358,7 @@ struct Group
 
     struct Model_:
         public detail::MuteOwner,
-        public detail::Mute,
+        public detail::MuteControl,
         public Template_<ModelSelector>,
         public ModelAccessors<Model_>
     {
@@ -381,7 +381,7 @@ struct Group
         Model_()
             :
             detail::MuteOwner(),
-            detail::Mute(this->GetMuteControl()),
+            detail::MuteControl(this->GetMuteNode()),
             Template<ModelSelector>{},
             ModelAccessors<Model_>{}
         {
@@ -395,7 +395,7 @@ struct Group
         Model_(const Plain &plain)
             :
             detail::MuteOwner(),
-            detail::Mute(this->GetMuteControl()),
+            detail::MuteControl(this->GetMuteNode()),
             Template<ModelSelector>{},
             ModelAccessors<Model_>{}
         {
@@ -438,7 +438,7 @@ struct Group
 
     template<typename Upstream_>
     struct Control_:
-        public detail::Mute,
+        public detail::MuteControl,
         public ControlMembers,
         public ControlAccessors<Control_<Upstream_>>
     {
@@ -473,7 +473,7 @@ struct Group
 
         Control_()
             :
-            detail::Mute(),
+            detail::MuteControl(),
             ControlMembers{},
             AccessorsBase{}
         {
@@ -483,7 +483,7 @@ struct Group
 
         Control_(Upstream &upstream)
             :
-            detail::Mute(upstream.GetMuteControl()),
+            detail::MuteControl(upstream.GetMuteNode()),
             ControlMembers{},
             AccessorsBase{}
         {
@@ -495,7 +495,7 @@ struct Group
 
         Control_(const Control_ &other)
             :
-            detail::Mute(other),
+            detail::MuteControl(other),
             ControlMembers{},
             AccessorsBase{}
         {
@@ -507,7 +507,7 @@ struct Group
 
         Control_ & operator=(const Control_ &other)
         {
-            this->detail::Mute::operator=(other);
+            this->detail::MuteControl::operator=(other);
             fields::Assign<Fields>(*this, other);
 
             return *this;
@@ -515,7 +515,7 @@ struct Group
 
         Control_(Control_ &&other)
             :
-            detail::Mute(other),
+            detail::MuteControl(other),
             ControlMembers{},
             AccessorsBase{}
         {
@@ -533,7 +533,7 @@ struct Group
 
         Control_ & operator=(Control_ &&other)
         {
-            this->detail::Mute::operator=(other);
+            this->detail::MuteControl::operator=(other);
             fields::MoveAssign<Fields>(*this, std::move(other));
 
             return *this;
@@ -550,6 +550,7 @@ struct Group
     using Control =
         typename detail::CustomizeControl<Custom, Control_<Upstream>>;
 
+    using DefaultControl = Control<Model>;
 
     template<typename Derived>
     using MuxAccessors = GroupAccessors
@@ -564,7 +565,7 @@ struct Group
     using MuxMembers = MakeMuxMembers<Template_>;
 
     struct Mux_:
-        public detail::Mute,
+        public detail::MuteMux,
         public MuxMembers,
         public MuxAccessors<Mux_>
     {
@@ -599,7 +600,7 @@ struct Group
 
         Mux_()
             :
-            detail::Mute(),
+            detail::MuteMux(),
             MuxMembers{},
             AccessorsBase{}
         {
@@ -609,7 +610,7 @@ struct Group
 
         Mux_(Model &model)
             :
-            detail::Mute(model.GetMuteControl()),
+            detail::MuteMux(model.GetMuteNode()),
             MuxMembers{},
             AccessorsBase{}
         {
@@ -633,9 +634,9 @@ struct Group
 
         Mux_ & operator=(Mux_ &&other) = delete;
 
-        detail::MuteControl GetMuteControl()
+        detail::MuteFollow GetMuteNode()
         {
-            return this->CloneMuteControl();
+            return this->CloneMuteNode();
         }
 
         bool HasModel() const
@@ -645,6 +646,8 @@ struct Group
 
         void ChangeUpstream(Upstream &upstream)
         {
+            this->detail::MuteMux::ChangeUpstream(upstream.GetMuteNode());
+
             auto swapper = [this, &upstream](
                 const auto &thisField,
                 const auto &upstreamField) -> void
@@ -675,14 +678,14 @@ struct Group
     using FollowMembers = MakeFollowMembers<Template_>;
 
     struct Follow_:
-        public detail::Mute,
+        public detail::MuteFollow,
         public FollowMembers,
         public FollowAccessors<Follow_>
     {
         using GroupType = Group;
 
         // This structure behaves like a group control.
-        static constexpr bool isGroupControl = true;
+        static constexpr bool isGroupFollow = true;
 
         using Aggregate = typename Group::template Aggregate<FollowSelector>;
         using AccessorsBase = FollowAccessors<Follow_>;
@@ -712,7 +715,7 @@ struct Group
 
         Follow_()
             :
-            detail::Mute(),
+            detail::MuteFollow(),
             FollowMembers{},
             AccessorsBase{}
         {
@@ -722,7 +725,7 @@ struct Group
 
         Follow_(Upstream &upstream)
             :
-            detail::Mute(upstream.GetMuteControl()),
+            detail::MuteFollow(upstream.GetMuteNode()),
             FollowMembers{},
             AccessorsBase{}
         {
@@ -734,7 +737,7 @@ struct Group
 
         Follow_(const Follow_ &other)
             :
-            detail::Mute(other),
+            detail::MuteFollow(other),
             FollowMembers{},
             AccessorsBase{}
         {
@@ -746,7 +749,7 @@ struct Group
 
         Follow_ & operator=(const Follow_ &other)
         {
-            this->detail::Mute::operator=(other);
+            this->detail::MuteFollow::operator=(other);
             fields::Assign<Fields>(*this, other);
 
             return *this;
@@ -754,7 +757,7 @@ struct Group
 
         Follow_(Follow_ &&other)
             :
-            detail::Mute(other),
+            detail::MuteFollow(other),
             FollowMembers{},
             AccessorsBase{}
         {
@@ -772,7 +775,7 @@ struct Group
 
         Follow_ & operator=(Follow_ &&other)
         {
-            this->detail::Mute::operator=(other);
+            this->detail::MuteFollow::operator=(other);
             fields::MoveAssign<Fields>(*this, std::move(other));
 
             return *this;

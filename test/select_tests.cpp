@@ -92,7 +92,7 @@ template<typename Observer>
 using SomeEndpointGroup = pex::EndpointGroup<Observer, SomeControl>;
 
 
-struct TestObserver
+struct TestObserver: Separator
 {
     static constexpr auto observerName = "select_tests::TestObserver";
 
@@ -105,6 +105,11 @@ struct TestObserver
         endpoints_{PEX_THIS("TestObserver"), control}
     {
         this->endpoints_.rate.Connect(&TestObserver::OnObserve_);
+    }
+
+    ~TestObserver()
+    {
+        PEX_CLEAR_NAME(this);
     }
 
     void OnObserve_(double rate)

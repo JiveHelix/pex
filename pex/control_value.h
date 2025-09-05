@@ -1043,15 +1043,13 @@ extern template class Value_<model::Value_<std::string, NoFilter>>;
 
 template
 <
-    typename Upstream,
-    typename Filter = NoFilter,
-    typename Access = GetAndSetTag
+    typename Upstream
 >
-class Mux: public Value_<Upstream, Filter, Access>
+class Mux: public Value_<Upstream, ::pex::NoFilter, typename Upstream::Access>
 {
 public:
     static constexpr bool isPexCopyable = false;
-    using Base = Value_<Upstream, Filter, Access>;
+    using Base = Value_<Upstream, ::pex::NoFilter, typename Upstream::Access>;
 
     Mux()
         :
@@ -1065,20 +1063,18 @@ public:
     Mux & operator=(const Mux &) = delete;
     Mux & operator=(Mux &&) = delete;
 
+    Mux(PexArgument<Upstream> upstream)
+        :
+        Base{}
+    {
+        this->ChangeUpstream_(upstream);
+    }
+
     void ChangeUpstream(PexArgument<Upstream> upstream)
     {
         this->ChangeUpstream_(upstream);
     }
 };
-
-
-template
-<
-    typename Upstream,
-    typename Filter,
-    typename Access = GetAndSetTag
->
-using FilteredMux = Mux<Upstream, Filter, Access>;
 
 
 template<typename Upstream>
@@ -1120,18 +1116,15 @@ public:
 } // namespace control
 
 
-template<typename T, typename = void>
-struct IsControl_: std::false_type {};
+template<typename T>
+concept IsControl = IsBaseOf<pex::control::Value_, T> || IsControlWrapper<T>;
 
 template<typename T>
-struct IsControl_
-<
-    T,
-    std::enable_if_t<IsBaseOf<pex::control::Value_, T>::value>
->: std::true_type {};
+concept IsMux = IsBaseOf<pex::control::Mux, T>;
+
 
 template<typename T>
-inline constexpr bool IsControl = IsControl_<T>::value;
+concept IsFollow = IsControl<T> && IsMux<typename T::Upstream>;
 
 
 } // namespace pex

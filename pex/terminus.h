@@ -112,7 +112,7 @@ class Terminus;
 
 
 template<typename Item>
-class EndpointVector
+class TerminusVector
 {
 private:
     template<typename, typename>
@@ -140,11 +140,11 @@ private:
 
 public:
 
-    class EndpointRef
+    class TerminusRef
     {
         Wrapper & wrapper_;
 
-        EndpointRef(Wrapper &wrapper)
+        TerminusRef(Wrapper &wrapper)
             :
             wrapper_(wrapper)
         {
@@ -152,14 +152,14 @@ public:
         }
 
     public:
-        // EndpointRef cannot be copied or moved, so it always refers to
+        // TerminusRef cannot be copied or moved, so it always refers to
         // a member of this vector.
         //
         // Assignment is only allowed by move semantics, disabling copying of
         // the underlying endpoint.
-        EndpointRef(const EndpointRef &) = delete;
-        EndpointRef(EndpointRef &&) = delete;
-        EndpointRef & operator=(const EndpointRef &) = delete;
+        TerminusRef(const TerminusRef &) = delete;
+        TerminusRef(TerminusRef &&) = delete;
+        TerminusRef & operator=(const TerminusRef &) = delete;
 
         Item & operator=(Item &&other)
         {
@@ -174,7 +174,7 @@ public:
         }
     };
 
-    EndpointVector()
+    TerminusVector()
         :
         items_{}
     {
@@ -222,20 +222,20 @@ public:
         return this->items_.size();
     }
 
-    EndpointRef operator[](size_t index)
+    TerminusRef operator[](size_t index)
     {
         return this->items_[index];
     }
 
-    const EndpointRef operator[](size_t index) const
+    const TerminusRef operator[](size_t index) const
     {
         return this->items_[index];
     }
 
-    EndpointVector(const EndpointVector &) = delete;
-    EndpointVector(EndpointVector &&) = delete;
-    EndpointVector & operator=(const EndpointVector &) = delete;
-    EndpointVector & operator=(EndpointVector &&) = delete;
+    TerminusVector(const TerminusVector &) = delete;
+    TerminusVector(TerminusVector &&) = delete;
+    TerminusVector & operator=(const TerminusVector &) = delete;
+    TerminusVector & operator=(TerminusVector &&) = delete;
 
 
 private:
@@ -249,7 +249,6 @@ class Terminus_: Separator
     static_assert(IsCopyable<Upstream_>);
 
 public:
-    // using ControlType = typename PromoteControl<Upstream_>::Type;
     using ControlType = Upstream_;
 
     using UpstreamControl = ControlType;
@@ -832,7 +831,7 @@ public:
     // using UpstreamControl = typename PromoteControl<Upstream_>::Type;
     using UpstreamControl = Upstream_;
 
-    friend class EndpointVector<Terminus>::Wrapper;
+    friend class TerminusVector<Terminus>::Wrapper;
 
 private:
 

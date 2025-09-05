@@ -63,7 +63,9 @@ struct Mute_
 
 
 using MuteModel = typename ::pex::model::Value<Mute_>;
-using MuteControl = typename ::pex::control::Value<MuteModel>;
+using MuteControlType = typename ::pex::control::Value<MuteModel>;
+using MuteMuxType = typename ::pex::control::Mux<MuteModel>;
+using MuteFollowType = typename ::pex::control::Value<MuteMuxType>;
 
 
 class MuteOwner
@@ -81,9 +83,17 @@ public:
     MuteOwner & operator=(const MuteOwner &) = delete;
     MuteOwner & operator=(MuteOwner &&) = delete;
 
-    MuteControl GetMuteControl()
+#if 0
+    template<typename MuteNode>
+    MuteNode GetMuteNode()
     {
-        return MuteControl(this->mute_);
+        return MuteNode(this->mute_);
+    }
+#endif
+
+    MuteModel & GetMuteNode()
+    {
+        return this->mute_;
     }
 
     void DoMute(bool isSilenced)
@@ -106,100 +116,187 @@ private:
 };
 
 
+template<typename Upstream>
 class Mute: Separator
 {
 public:
+    using MuteNode = typename ::pex::control::Value<Upstream>;
+
     Mute()
         :
-        muteControl_()
+        muteNode_()
     {
         PEX_NAME("Mute");
-        PEX_MEMBER(muteControl_);
+        PEX_MEMBER(muteNode_);
     }
 
-    Mute(MuteControl muteControl)
+    Mute(Upstream &upstream)
         :
-        muteControl_(muteControl)
+        muteNode_(upstream)
     {
         PEX_NAME("Mute");
-        PEX_MEMBER(muteControl_);
+        PEX_MEMBER(muteNode_);
+    }
+
+    Mute(const MuteNode &muteNode)
+        :
+        muteNode_(muteNode)
+    {
+        PEX_NAME("Mute");
+        PEX_MEMBER(muteNode_);
     }
 
     Mute(const Mute &other)
         :
-        muteControl_(other.muteControl_)
+        muteNode_(other.muteNode_)
     {
         PEX_NAME("Mute");
-        PEX_MEMBER(muteControl_);
+        PEX_MEMBER(muteNode_);
     }
 
     ~Mute()
     {
         PEX_CLEAR_NAME(this);
-        PEX_CLEAR_NAME(&this->muteControl_);
+        PEX_CLEAR_NAME(&this->muteNode_);
     }
 
     Mute & operator=(const Mute &other)
     {
-        this->muteControl_ = other.muteControl_;
+        this->muteNode_ = other.muteNode_;
         return *this;
     }
 
-    MuteControl CloneMuteControl() const
+    MuteNode CloneMuteNode() const
     {
-        return this->muteControl_;
+        return this->muteNode_;
     }
 
-    MuteControl & GetMuteControlReference()
+    MuteNode & GetMuteNodeReference()
     {
-        return this->muteControl_;
+        return this->muteNode_;
     }
 
     bool IsMuted() const
     {
-        return this->muteControl_.Get();
+        return this->muteNode_.Get();
     }
 
     bool IsSilenced() const
     {
-        return this->muteControl_.Get().isSilenced;
+        return this->muteNode_.Get().isSilenced;
     }
 
     void DoMute(bool isSilenced)
     {
-        this->muteControl_.Set({true, isSilenced});
+        this->muteNode_.Set({true, isSilenced});
     }
 
     void DoUnmute()
     {
-        Mute_ muteState = this->muteControl_.Get();
+        Mute_ muteState = this->muteNode_.Get();
 
         // Leave isSilenced unchanged.
         muteState.isMuted = false;
 
-        this->muteControl_.Set(muteState);
+        this->muteNode_.Set(muteState);
     }
 
 private:
-    MuteControl muteControl_;
+    MuteNode muteNode_;
 };
 
 
-template<typename Upstream>
+using MuteControl = Mute<MuteModel>;
+using MuteFollow = Mute<MuteMuxType>;
+
+
+class MuteMux: Separator
+{
+public:
+    using MuteNode = MuteMuxType;
+
+    MuteMux()
+        :
+        muteNode_()
+    {
+        PEX_NAME("MuteMux");
+        PEX_MEMBER(muteNode_);
+    }
+
+    MuteMux(MuteModel &muteModel)
+        :
+        muteNode_(muteModel)
+    {
+        PEX_NAME("MuteMux");
+        PEX_MEMBER(muteNode_);
+    }
+
+    ~MuteMux()
+    {
+        PEX_CLEAR_NAME(this);
+        PEX_CLEAR_NAME(&this->muteNode_);
+    }
+
+    void ChangeUpstream(MuteModel &upstream)
+    {
+        this->muteNode_.ChangeUpstream(upstream);
+    }
+
+    MuteFollowType CloneMuteNode()
+    {
+        return MuteFollowType(this->muteNode_);
+    }
+
+    MuteNode & GetMuteNode()
+    {
+        return this->muteNode_;
+    }
+
+    bool IsMuted() const
+    {
+        return this->muteNode_.Get();
+    }
+
+    bool IsSilenced() const
+    {
+        return this->muteNode_.Get().isSilenced;
+    }
+
+    void DoMute(bool isSilenced)
+    {
+        this->muteNode_.Set({true, isSilenced});
+    }
+
+    void DoUnmute()
+    {
+        Mute_ muteState = this->muteNode_.Get();
+
+        // Leave isSilenced unchanged.
+        muteState.isMuted = false;
+
+        this->muteNode_.Set(muteState);
+    }
+
+private:
+    MuteNode muteNode_;
+};
+
+
+template<typename MuteNode>
 class ScopeMute
 {
 public:
     ScopeMute()
         :
-        upstream_(nullptr),
+        muteNode_(nullptr),
         isMuted_(false)
     {
 
     }
 
-    ScopeMute(Upstream &upstream, bool isSilenced)
+    ScopeMute(MuteNode &upstream, bool isSilenced)
         :
-        upstream_(&upstream),
+        muteNode_(&upstream),
         isMuted_(false)
     {
         this->Mute(isSilenced);
@@ -207,23 +304,23 @@ public:
 
     ScopeMute(ScopeMute &&other)
         :
-        upstream_(other.upstream_),
+        muteNode_(other.muteNode_),
         isMuted_(other.isMuted_)
     {
-        other.upstream_ = nullptr;
+        other.muteNode_ = nullptr;
         other.isMuted_ = false;
     }
 
     ScopeMute & operator=(ScopeMute &&other)
     {
-        if (this->upstream_ && this->isMuted_)
+        if (this->muteNode_ && this->isMuted_)
         {
             throw std::logic_error("Assign to armed ScopeMute");
         }
 
-        this->upstream_ = other.upstream_;
+        this->muteNode_ = other.muteNode_;
         this->isMuted_ = other.isMuted_;
-        other.upstream_ = nullptr;
+        other.muteNode_ = nullptr;
         other.isMuted_ = false;
 
         return *this;
@@ -241,12 +338,12 @@ public:
 
     void Mute(bool isSilenced)
     {
-        if (!this->upstream_)
+        if (!this->muteNode_)
         {
             throw std::logic_error("ScopeMute is uninitialized");
         }
 
-        this->upstream_->GetMuteControlReference().Set({true, isSilenced});
+        this->muteNode_->GetMuteNodeReference().Set({true, isSilenced});
         this->isMuted_ = true;
     }
 
@@ -254,30 +351,30 @@ public:
     {
         if (this->isMuted_)
         {
-            assert(this->upstream_);
+            assert(this->muteNode_);
 
-            auto &muteControl =
-                this->upstream_->GetMuteControlReference();
+            auto &muteNode =
+                this->muteNode_->GetMuteNodeReference();
 
-            Mute_ muteState = muteControl.Get();
+            Mute_ muteState = muteNode.Get();
 
             // Leave isSilenced unchanged.
             muteState.isMuted = false;
 
-            muteControl.Set(muteState);
+            muteNode.Set(muteState);
             this->isMuted_ = false;
         }
     }
 
     void Clear()
     {
-        if (!this->upstream_ || !this->isMuted_)
+        if (!this->muteNode_ || !this->isMuted_)
         {
             return;
         }
 
-        auto &muteControl =
-            this->upstream_->GetMuteControlReference();
+        auto &muteNode =
+            this->muteNode_->GetMuteNodeReference();
 
         Mute_ muteState;
 
@@ -286,12 +383,12 @@ public:
         muteState.isMuted = false;
         muteState.isSilenced = true;
 
-        muteControl.Set(muteState);
+        muteNode.Set(muteState);
         this->isMuted_ = false;
     }
 
 private:
-    Upstream *upstream_;
+    MuteNode *muteNode_;
     bool isMuted_;
 };
 

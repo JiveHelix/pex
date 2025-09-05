@@ -11,6 +11,7 @@
 
 #pragma once
 
+#include <pex/default_value_node.h>
 #include "pex/no_filter.h"
 #include "pex/access_tag.h"
 #include "pex/model_value.h"
@@ -23,6 +24,8 @@ namespace pex
 
 struct MakeSignal {};
 
+struct MakeMute {};
+
 
 template<typename Nodes>
 struct DefineNodes
@@ -31,9 +34,26 @@ struct DefineNodes
 
     using Type = typename Nodes::Type;
     using Model = typename Nodes::Model;
-    using Control = typename Nodes::Control;
+
+    template
+    <
+        typename Upstream,
+        typename ControlFilter = NoFilter,
+        typename Access = GetAndSetTag
+    >
+    using Control =
+        typename Nodes::template Control<Upstream, ControlFilter, Access>;
+
+    using DefaultControl = Control<Model>;
+
     using Mux = typename Nodes::Mux;
-    using Follow = typename Nodes::Follow;
+
+    template
+    <
+        typename ControlFilter = NoFilter,
+        typename Access = GetAndSetTag
+    >
+    using Follow = typename Nodes::template Follow<ControlFilter, Access>;
 };
 
 
@@ -42,7 +62,8 @@ template
     typename T,
     typename Minimum_ = void,
     typename Maximum_ = void,
-    template<typename, typename, typename> typename Value_ = pex::model::Value_
+    template<typename, typename, typename>
+    typename ValueNode_ = DefaultValueNode
 >
 struct MakeRange
 {
@@ -51,7 +72,7 @@ struct MakeRange
     using Maximum = Maximum_;
 
     template<typename U, typename V, typename W>
-    using Value = Value_<U, V, W>;
+    using ValueNode = ValueNode_<U, V, W>;
 };
 
 
@@ -153,6 +174,9 @@ namespace pex
 
 template<typename T>
 inline constexpr bool IsMakeSignal = detail::IsMakeSignal_<T>::value;
+
+template<typename T>
+inline constexpr bool IsMakeMute = detail::IsMakeMute_<T>::value;
 
 template<typename ...T>
 inline constexpr bool IsDefineNodes = detail::IsDefineNodes_<T...>::value;

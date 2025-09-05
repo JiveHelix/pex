@@ -31,7 +31,7 @@ template<typename T>
 struct MakeConnector_<T, std::enable_if_t<IsGroupNode<T>>>
 {
     template<typename Observer>
-    using Type = detail::GroupConnect<Observer, T, T::template Selector>;
+    using Type = detail::GroupConnect<Observer, T>;
 };
 
 
@@ -55,7 +55,7 @@ template<typename T>
 struct MakeConnector_<T, std::enable_if_t<::pex::IsListNode<T>>>
 {
     template<typename Observer>
-    using Type = ListConnect<Observer, T, T::template Selector>;
+    using Type = ListConnect<Observer, T>;
 };
 
 

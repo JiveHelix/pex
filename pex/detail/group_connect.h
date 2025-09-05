@@ -17,8 +17,7 @@ namespace detail
 template
 <
     typename Observer,
-    typename Upstream_,
-    template<typename> typename Selector
+    typename Upstream_
 >
 class GroupConnect
 {
@@ -26,6 +25,9 @@ public:
     static constexpr bool isGroupConnect = true;
 
     static_assert(IsGroupNode<Upstream_>);
+
+    template<typename U>
+    using Selector = typename PromoteControl<Upstream_>::template Selector<U>;
 
     using UpstreamControl = typename PromoteControl<Upstream_>::Type;
     using Upstream = typename PromoteControl<Upstream_>::Upstream;
@@ -77,7 +79,10 @@ public:
         valueConnection_(std::in_place_t{}, observer, callable)
     {
         PEX_NAME(
-            fmt::format("GroupConnect for {}", pex::LookupPexName(observer)));
+            fmt::format(
+                "GroupConnect ({}) for {}",
+                PromoteControl<Upstream_>::selectorName,
+                pex::LookupPexName(observer)));
 
         PEX_MEMBER(aggregate_);
 

@@ -33,6 +33,11 @@ public:
 
     }
 
+    ~ListChangedObserver()
+    {
+        PEX_CLEAR_NAME(this);
+    }
+
     void OnMemberAdded_(const std::optional<size_t> &index)
     {
         if (this->list_.count.Get() != this->list_.size())
@@ -740,7 +745,7 @@ auto & GetList(Control &control)
 
 
 template<typename Tag>
-class RocketSignalObserver
+class RocketSignalObserver: Separator
 {
 public:
     using DraxModel = typename DraxGroup<Tag>::Model;
@@ -749,23 +754,23 @@ public:
     using RocketListControl = ChooseListControl<RocketsControl, Tag>;
 
     using RocketsConnect =
-        pex::detail::ListConnect
-        <
-            RocketSignalObserver,
-            RocketListControl,
-            pex::ControlSelector
-        >;
+        pex::detail::ListConnect<RocketSignalObserver, RocketListControl>;
 
     RocketSignalObserver(RocketsControl rocketsControl)
         :
         endpoint_(
-            this,
+            PEX_THIS("RocketSignalObserver"),
             GetList<Tag>(rocketsControl),
             &RocketSignalObserver::OnRockets_),
 
         notificationCount_()
     {
 
+    }
+
+    ~RocketSignalObserver()
+    {
+        PEX_CLEAR_NAME(this);
     }
 
     void OnRockets_()

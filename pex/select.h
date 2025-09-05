@@ -18,6 +18,7 @@
 #include "pex/reference.h"
 #include "pex/find_index.h"
 #include "pex/traits.h"
+#include <pex/terminus.h>
 
 
 namespace pex
@@ -510,30 +511,13 @@ public:
     static constexpr bool isSelectMux = true;
     static constexpr bool isPexCopyable = false;
 
-    using Selection = ::pex::control::Mux
-        <
-            typename Upstream::Selection,
-            Filter,
-            ::pex::GetAndSetTag
-        >;
+    using Selection = ::pex::control::Mux<typename Upstream::Selection>;
 
     // Choices is read-only to users of this Control.
-    using Choices =
-        ::pex::control::Mux
-        <
-            typename Upstream::Choices,
-            Filter,
-            ::pex::GetTag
-        >;
+    using Choices = ::pex::control::Mux<typename Upstream::Choices>;
 
     // Value is read-only to users of this Control.
-    using Value =
-        ::pex::control::Mux
-        <
-            typename Upstream::Value,
-            Filter,
-            ::pex::GetTag
-        >;
+    using Value = ::pex::control::Mux<typename Upstream::Value>;
 
     template<typename>
     friend class ::pex::Reference;
@@ -609,7 +593,15 @@ public:
 
 
 template<typename Upstream>
-using SelectFollow = Select<Upstream>;
+struct SelectFollow: public Select<Upstream>
+{
+public:
+    static constexpr auto isSelectControl = false;
+    static constexpr auto isSelectFollow = true;
+
+    using Base = Select<Upstream>;
+    using Base::Base;
+};
 
 
 } // namespace control

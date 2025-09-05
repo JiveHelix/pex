@@ -23,6 +23,20 @@ struct IsMakeSignal_
 >: std::true_type {};
 
 
+template<typename T, typename enable = void>
+struct IsMakeMute_: std::false_type {};
+
+template<typename T>
+struct IsMakeMute_
+<
+    T,
+    std::enable_if_t
+    <
+        std::is_same_v<T, MakeMute>
+    >
+>: std::true_type {};
+
+
 template<typename T, typename Enable = void>
 struct DefinesIsDefineNodes_: std::false_type {};
 

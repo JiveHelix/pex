@@ -5,6 +5,7 @@
 #include "pex/value_wrapper.h"
 #include "pex/model_wrapper.h"
 #include "pex/traits.h"
+#include "pex/terminus.h"
 
 
 namespace pex
@@ -497,14 +498,6 @@ public:
 
 
 } // end namespace poly
-
-
-template<typename T>
-struct IsControl_
-<
-    T,
-    std::enable_if_t<IsControlWrapper<T>>
->: std::true_type {};
 
 
 } // end namespace pex

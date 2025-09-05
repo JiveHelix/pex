@@ -542,8 +542,7 @@ using TestControl =
 
 static_assert(pex::IsControl<TestControl>);
 
-using SelectedTestControl =
-    pex::detail::ConnectableSelector<TestControl, pex::ControlSelector>;
+using SelectedTestControl = pex::detail::ConnectableSelector<TestControl>;
 
 static_assert(std::is_same_v<TestControl, SelectedTestControl>);
 

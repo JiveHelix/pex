@@ -20,7 +20,7 @@
 
 
 template<typename Control>
-class Observer
+class Observer: Separator
 {
 public:
     static_assert(pex::IsCopyable<Control>);
@@ -33,6 +33,7 @@ public:
         terminus_(control),
         observedValue{this->terminus_.Get()}
     {
+        PEX_NAME("Observer");
         this->terminus_.Connect(this, &Observer::Observe_);
     }
 
@@ -41,7 +42,13 @@ public:
         terminus_(std::move(control)),
         observedValue{this->terminus_.Get()}
     {
+        PEX_NAME("Observer");
         this->terminus_.Connect(this, &Observer::Observe_);
+    }
+
+    ~Observer()
+    {
+        PEX_CLEAR_NAME(this);
     }
 
 private:

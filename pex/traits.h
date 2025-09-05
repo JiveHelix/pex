@@ -31,6 +31,8 @@ template<typename Pex>
 inline constexpr bool IsDirect = IsDirect_<Pex>::value;
 
 
+// Differs from std::is_base_of in that it allows checks against templated base
+// classes without knowing the template parameters.
 template<template<typename...> typename Base, typename Derived>
 struct IsBaseOf_
 {
@@ -40,10 +42,11 @@ struct IsBaseOf_
     static constexpr std::false_type DoTest_(...);
 
     using Type = decltype(DoTest_(std::declval<Derived *>()));
+    static constexpr bool value = Type::value;
 };
 
 template<template<typename...> class Base, typename Derived>
-using IsBaseOf = typename IsBaseOf_<Base, Derived>::Type;
+inline constexpr bool IsBaseOf = IsBaseOf_<Base, Derived>::value;
 
 
 template<typename T>
@@ -308,12 +311,16 @@ concept IsGroupControl = T::isGroupControl;
 template<typename T>
 concept IsGroupMux = T::isGroupMux;
 
+template<typename T>
+concept IsGroupFollow = T::isGroupFollow;
+
 
 template<typename T>
 inline constexpr bool IsGroupNode =
     IsGroupModel<T>
     || IsGroupControl<T>
-    || IsGroupMux<T>;
+    || IsGroupMux<T>
+    || IsGroupFollow<T>;
 
 
 template<typename T>
@@ -333,7 +340,14 @@ template<typename T>
 concept IsListMux = T::isListMux;
 
 template<typename T>
-concept IsListNode = IsListModel<T> || IsListControl<T> || IsListMux<T>;
+concept IsListFollow = T::isListFollow;
+
+template<typename T>
+concept IsListNode =
+    IsListModel<T>
+    || IsListControl<T>
+    || IsListMux<T>
+    || IsListFollow<T>;
 
 template<typename T>
 concept IsDerivedGroup = T::isDerivedGroup;
@@ -354,10 +368,14 @@ template<typename T>
 concept IsRangeMux = T::isRangeMux;
 
 template<typename T>
+concept IsRangeFollow = T::isRangeFollow;
+
+template<typename T>
 concept IsRangeNode =
     IsRangeModel<T>
     || IsRangeControl<T>
-    || IsRangeMux<T>;
+    || IsRangeMux<T>
+    || IsRangeFollow<T>;
 
 template<typename T>
 concept IsSelectModel = T::isSelectModel;
@@ -369,10 +387,14 @@ template<typename T>
 concept IsSelectMux = T::isSelectMux;
 
 template<typename T>
+concept IsSelectFollow = T::isSelectFollow;
+
+template<typename T>
 concept IsSelectNode =
     IsSelectModel<T>
     || IsSelectControl<T>
-    || IsSelectMux<T>;
+    || IsSelectMux<T>
+    || IsSelectFollow<T>;
 
 template<typename T>
 concept IsAggregate = T::isAggregate;

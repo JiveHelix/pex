@@ -234,6 +234,35 @@ void ClearItemrefNames(Items &items)
 #endif
 
 
+namespace detail
+{
+
+
+template<typename T, typename = void>
+struct PromoteCopyable_
+{
+    using Type = T;
+};
+
+
+template<typename T>
+struct PromoteCopyable_
+<
+    T,
+    std::enable_if_t<IsModel<T> || IsMux<T>>
+>
+{
+    using Type = ::pex::control::Value_<T>;
+};
+
+
+template<typename T>
+using PromoteCopyable = typename PromoteCopyable_<T>::Type;
+
+
+} // end namespace detail
+
+
 template<typename Member, size_t initialCount_ = 0>
 struct List
 {
@@ -242,6 +271,8 @@ struct List
 
     template<typename Upstream, typename Types>
     class Control_;
+
+    class Mux;
 
     struct ControlTypes
     {
@@ -260,9 +291,12 @@ struct List
     class Model
         :
         public detail::MuteOwner,
-        public detail::Mute
+        public detail::MuteControl
     {
     public:
+        using MuteUpstream = detail::MuteModel;
+
+        using ListType = List;
         static constexpr bool isListModel = true;
         static constexpr auto observerName = "pex::List::Model";
 
@@ -291,7 +325,9 @@ struct List
         template<typename, typename>
         friend class Control_;
 
-        template<typename, typename, template<typename> typename>
+        friend class Mux;
+
+        template<typename, typename>
         friend class ::pex::detail::ListConnect;
 
     private:
@@ -310,7 +346,7 @@ struct List
         Model()
             :
             detail::MuteOwner(),
-            detail::Mute(this->GetMuteControl()),
+            detail::MuteControl(this->GetMuteNode()),
             ignoreCount_(false),
             count(initialCount),
             selected(),
@@ -629,25 +665,6 @@ struct List
             }
         }
 
-    protected:
-        void Remove_(size_t index)
-        {
-            this->memberWillRemove.Set(index);
-
-            // Allow the internal controls to respond to memberWillRemove after
-            // outside observers have disconnected.
-            this->internalMemberWillRemove_.Set(index);
-
-            assert(this->baseCreatedEndpoints_.size() <= index);
-
-            jive::SafeErase(this->items_, index);
-
-            detail::AccessReference(this->count)
-                .SetWithoutNotify(this->items_.size());
-
-            this->memberRemoved.Set(index);
-        }
-
     public:
         void Erase(size_t index)
         {
@@ -759,6 +776,24 @@ struct List
         }
 
     private:
+        void Remove_(size_t index)
+        {
+            this->memberWillRemove.Set(index);
+
+            // Allow the internal controls to respond to memberWillRemove after
+            // outside observers have disconnected.
+            this->internalMemberWillRemove_.Set(index);
+
+            assert(this->baseCreatedEndpoints_.size() <= index);
+
+            jive::SafeErase(this->items_, index);
+
+            detail::AccessReference(this->count)
+                .SetWithoutNotify(this->items_.size());
+
+            this->memberRemoved.Set(index);
+        }
+
         void SetWithoutNotify_(const Type &values)
         {
             // Mute while setting item values.
@@ -1029,12 +1064,11 @@ struct List
 
     private:
 
-        static_assert(IsCopyable<::pex::control::Signal<::pex::model::Signal>>);
-
         using BaseActionTerminus =
-            ::pex::Terminus<void, ::pex::control::Signal<::pex::model::Signal>>;
+            ::pex::Terminus<void, ::pex::control::DefaultSignal>;
 
         std::vector<std::unique_ptr<ListItem>> items_;
+
         using CountTerminus =
             ::pex::Terminus<Model, typename ControlTypes::Count>;
 
@@ -1050,15 +1084,17 @@ struct List
         MemberWillReplace internalMemberWillReplace_;
         MemberReplaced internalMemberReplaced_;
 
-        EndpointVector<BaseActionTerminus> baseWillDeleteEndpoints_;
-        EndpointVector<BaseActionTerminus> baseCreatedEndpoints_;
+        TerminusVector<BaseActionTerminus> baseWillDeleteEndpoints_;
+        TerminusVector<BaseActionTerminus> baseCreatedEndpoints_;
     };
 
     template<typename Upstream_, typename Types>
-    class Control_: public detail::Mute
+    class Control_: public detail::Mute<typename Upstream_::MuteUpstream>
     {
-
     public:
+        using Base = detail::Mute<typename Upstream_::MuteUpstream>;
+
+        using ListType = List;
         static constexpr bool isListControl = true;
         static constexpr auto observerName = "pex::List::Control";
 
@@ -1083,14 +1119,32 @@ struct List
         using ListFlag = typename Types::ListFlag;
 
         using MemberWillRemoveTerminus =
-            ::pex::Terminus<Control_, MemberWillRemove>;
+            ::pex::Terminus
+            <
+                Control_,
+                detail::PromoteCopyable<MemberWillRemove>
+            >;
 
-        using MemberAddedTerminus = ::pex::Terminus<Control_, MemberAdded>;
+        using MemberAddedTerminus =
+            ::pex::Terminus
+            <
+                Control_,
+                detail::PromoteCopyable<MemberAdded>
+            >;
 
         using MemberWillReplaceTerminus =
-            ::pex::Terminus<Control_, MemberWillReplace>;
+            ::pex::Terminus
+            <
+                Control_,
+                detail::PromoteCopyable<MemberWillReplace>
+            >;
 
-        using MemberReplacedTerminus = ::pex::Terminus<Control_, MemberReplaced>;
+        using MemberReplacedTerminus =
+            ::pex::Terminus
+            <
+                Control_,
+                detail::PromoteCopyable<MemberReplaced>
+            >;
 
         using Vector = std::vector<ListItem>;
         using Iterator = typename Vector::iterator;
@@ -1100,15 +1154,18 @@ struct List
 
         using Defer = DeferList<Member, ControlSelector, Control_>;
 
-        static_assert(IsControl<ListItem> || IsGroupControl<ListItem>);
+        static_assert(
+            IsControl<ListItem>
+            || IsGroupControl<ListItem>
+            || IsMux<ListItem>
+            || IsFollow<ListItem>
+            || IsGroupMux<ListItem>
+            || IsGroupFollow<ListItem>);
 
         template<typename>
         friend class ::pex::Reference;
 
-        template<typename, typename, template<typename> typename>
-        friend class ::pex::detail::ListConnect;
-
-        template<typename, typename, template<typename> typename>
+        template<typename, typename>
         friend class ::pex::detail::ListConnect;
 
         Count count;
@@ -1122,7 +1179,7 @@ struct List
 
         Control_()
             :
-            detail::Mute(),
+            Base(),
             count(),
             selected(),
             memberAdded(),
@@ -1132,11 +1189,11 @@ struct List
             memberReplaced(),
             isNotifying(),
             upstream_(nullptr),
+            items_(),
             memberWillRemoveTerminus_(),
             memberAddedTerminus_(),
             memberWillReplaceTerminus_(),
-            memberReplacedTerminus_(),
-            items_()
+            memberReplacedTerminus_()
         {
             PEX_NAME(
                 fmt::format(
@@ -1146,7 +1203,7 @@ struct List
 
         Control_(Upstream &upstream)
             :
-            detail::Mute(upstream.CloneMuteControl()),
+            Base(upstream.GetMuteNode()),
             count(upstream.count),
             selected(upstream.selected),
             memberAdded(upstream.memberAdded),
@@ -1156,6 +1213,7 @@ struct List
             memberReplaced(upstream.memberReplaced),
             isNotifying(upstream.isNotifying),
             upstream_(&upstream),
+            items_(),
 
             memberWillRemoveTerminus_(
 
@@ -1180,9 +1238,7 @@ struct List
             memberReplacedTerminus_(
                 this,
                 MemberReplaced(this->upstream_->internalMemberReplaced_),
-                &Control_::OnMemberReplaced_),
-
-            items_()
+                &Control_::OnMemberReplaced_)
         {
             assert(this->upstream_ != nullptr);
 
@@ -1194,7 +1250,7 @@ struct List
 
         Control_(const Control_ &other)
             :
-            detail::Mute(other),
+            Base(other),
             count(other.count),
             selected(other.selected),
             memberAdded(other.memberAdded),
@@ -1204,6 +1260,7 @@ struct List
             memberReplaced(other.memberReplaced),
             isNotifying(other.isNotifying),
             upstream_(other.upstream_),
+            items_(other.items_),
 
             memberWillRemoveTerminus_(
 
@@ -1228,9 +1285,7 @@ struct List
             memberReplacedTerminus_(
                 this,
                 MemberReplaced(this->upstream_->internalMemberReplaced_),
-                &Control_::OnMemberReplaced_),
-
-            items_(other.items_)
+                &Control_::OnMemberReplaced_)
         {
             assert(other.upstream_ != nullptr);
             assert(this->memberAddedTerminus_.HasModel());
@@ -1251,7 +1306,7 @@ struct List
 
         Control_ & operator=(const Control_ &other)
         {
-            this->detail::Mute::operator=(other);
+            this->Base::operator=(other);
             this->count = other.count;
             this->selected = other.selected;
             this->memberAdded = other.memberAdded;
@@ -1547,13 +1602,15 @@ struct List
             this->items_.at(*index) = ListItem((*this->upstream_)[*index]);
         }
 
-    private:
+    protected:
         Upstream *upstream_;
+        Vector items_;
+
+    private:
         MemberWillRemoveTerminus memberWillRemoveTerminus_;
         MemberAddedTerminus memberAddedTerminus_;
         MemberWillReplaceTerminus memberWillReplaceTerminus_;
         MemberReplacedTerminus memberReplacedTerminus_;
-        Vector items_;
     };
 
 
@@ -1561,89 +1618,320 @@ struct List
     using Control = Control_<Upstream, ControlTypes>;
 
 
-    struct MuxTypes
-    {
-        template<typename T>
-        using Selector = MuxSelector<T>;
-
-        using ListItem = Selector<Member>;
-        using Count = ::pex::mux::ListCount;
-        using ListOptionalIndex = ::pex::mux::ListOptionalIndex;
-        using ListFlag = ::pex::mux::ListFlag;
-    };
-
-    class Mux: public Control_<Model, MuxTypes>
+    class Mux
+        :
+        public detail::MuteMux
     {
     public:
-        using Base = Control_<Model, MuxTypes>;
-        using Upstream = typename Base::Upstream;
+        using MuteUpstream = detail::MuteMuxType;
+
+        using ListType = List;
+        static constexpr bool isListMux = true;
+
+        using Upstream = Model;
 
         Mux(const Mux &) = delete;
         Mux(Mux &&) = delete;
         Mux & operator=(const Mux &) = delete;
         Mux & operator=(Mux &&) = delete;
 
-        using Base::Base;
+        static constexpr auto observerName = "pex::List::Mux";
+
+        template<typename T>
+        using Selector = MuxSelector<T>;
+
+        using ListItem = Selector<Member>;
+        using Item = typename ListItem::Type;
+        using Type = std::vector<Item>;
+        using Count = ::pex::mux::ListCount;
+        using ListOptionalIndex = ::pex::mux::ListOptionalIndex;
+
+
+        using Selected = ListOptionalIndex;
+        using MemberAdded = ListOptionalIndex;
+        using MemberWillRemove = ListOptionalIndex;
+        using MemberRemoved = ListOptionalIndex;
+        using MemberWillReplace = ListOptionalIndex;
+        using MemberReplaced = ListOptionalIndex;
+        using ListFlag = ::pex::mux::ListFlag;
+
+        using CopyableOptionalIndex =
+            detail::PromoteCopyable<ListOptionalIndex>;
+
+        using MemberWillRemoveTerminus =
+            ::pex::Terminus
+            <
+                Mux,
+                CopyableOptionalIndex
+            >;
+
+        using MemberAddedTerminus =
+            ::pex::Terminus
+            <
+                Mux,
+                CopyableOptionalIndex
+            >;
+
+        using MemberWillReplaceTerminus =
+            ::pex::Terminus
+            <
+                Mux,
+                CopyableOptionalIndex
+            >;
+
+        using MemberReplacedTerminus =
+            ::pex::Terminus
+            <
+                Mux,
+                CopyableOptionalIndex
+            >;
+
+        using Access = GetAndSetTag;
+
+        using Defer = DeferList<Member, Selector, Mux>;
+
+        template<typename>
+        friend class ::pex::Reference;
+
+        template<typename, typename>
+        friend class Control_;
+
+        template<typename, typename>
+        friend class ::pex::detail::ListConnect;
+
+    public:
+        Count count;
+        Selected selected;
+        MemberAdded memberAdded;
+        MemberWillRemove memberWillRemove;
+        MemberRemoved memberRemoved;
+        MemberWillReplace memberWillReplace;
+        MemberReplaced memberReplaced;
+        ListFlag isNotifying;
+
+        Mux()
+            :
+            detail::MuteMux(),
+            count(),
+            selected(),
+            memberAdded(),
+            memberWillRemove(),
+            memberRemoved(),
+            memberWillReplace(),
+            memberReplaced(),
+            isNotifying(),
+            items_(),
+
+            internalMemberWillRemove_(),
+            internalMemberAdded_(),
+            internalMemberWillReplace_(),
+            internalMemberReplaced_(),
+
+            memberWillRemoveTerminus_(),
+            memberAddedTerminus_(),
+            memberWillReplaceTerminus_(),
+            memberReplacedTerminus_()
+        {
+            PEX_NAME(
+                fmt::format(
+                    "pex::List<{}>::Mux",
+                    jive::GetTypeName<Member>()));
+
+            PEX_MEMBER(memberAdded);
+            PEX_MEMBER(memberWillRemove);
+            PEX_MEMBER(memberRemoved);
+            PEX_MEMBER(memberWillReplace);
+            PEX_MEMBER(memberReplaced);
+            PEX_MEMBER(isNotifying);
+
+            PEX_MEMBER(internalMemberWillRemove_);
+            PEX_MEMBER(internalMemberAdded_);
+            PEX_MEMBER(internalMemberWillReplace_);
+            PEX_MEMBER(internalMemberReplaced_);
+        }
+
+        Mux(Upstream &upstream)
+            :
+            detail::MuteMux(upstream.GetMuteNode()),
+            count(upstream.count),
+            selected(upstream.selected),
+            memberAdded(upstream.memberAdded),
+            memberWillRemove(upstream.memberWillRemove),
+            memberRemoved(upstream.memberRemoved),
+            memberWillReplace(upstream.memberWillReplace),
+            memberReplaced(upstream.memberReplaced),
+            isNotifying(upstream.isNotifying),
+            upstream_(&upstream),
+            items_(),
+
+            internalMemberWillRemove_(upstream.internalMemberWillRemove_),
+            internalMemberAdded_(upstream.internalMemberAdded_),
+            internalMemberWillReplace_(upstream.internalMemberWillReplace_),
+            internalMemberReplaced_(upstream.internalMemberReplaced_),
+
+            memberWillRemoveTerminus_(
+
+                PEX_THIS(
+                    fmt::format(
+                        "pex::List<{}>::Control",
+                        jive::GetTypeName<Member>())),
+
+                MemberWillRemove(this->upstream_->internalMemberWillRemove_),
+                &Mux::OnMemberWillRemove_),
+
+            memberAddedTerminus_(
+                this,
+                MemberAdded(this->upstream_->internalMemberAdded_),
+                &Mux::OnMemberAdded_),
+
+            memberWillReplaceTerminus_(
+                this,
+                MemberWillReplace(this->upstream_->internalMemberWillReplace_),
+                &Mux::OnMemberWillReplace_),
+
+            memberReplacedTerminus_(
+                this,
+                MemberReplaced(this->upstream_->internalMemberReplaced_),
+                &Mux::OnMemberReplaced_)
+        {
+            assert(this->upstream_ != nullptr);
+
+            for (size_t index = 0; index < this->count.Get(); ++index)
+            {
+                this->items_.emplace_back(
+                    std::make_unique<ListItem>((*this->upstream_)[index]));
+            }
+        }
 
         void ChangeUpstream(Upstream &upstream)
         {
-            this->detail::Mute::operator=(upstream.CloneMuteControl());
+            this->detail::MuteMux::ChangeUpstream(upstream.GetMuteNode());
 
-            // We must signal all listeners that the list element are about to
+            // We must signal all listeners that the list elements are about to
             // change. We must create temporary model nodes to contro these
             // messages without affecting the upstream.
 
             pex::model::ListCount temporaryCount;
             pex::model::ListOptionalIndex temporaryMemberWillRemove;
             pex::model::ListOptionalIndex temporaryMemberRemoved;
+            pex::model::ListOptionalIndex temporaryMemberWillReplace;
+            pex::model::ListOptionalIndex temporaryMemberReplaced;
             pex::model::ListOptionalIndex temporaryMemberAdded;
+
+            pex::model::ListOptionalIndex temporaryInternalMemberWillReplace;
+            pex::model::ListOptionalIndex temporaryInternalMemberReplaced;
+            pex::model::ListOptionalIndex temporaryInternalMemberWillRemove;
+            pex::model::ListOptionalIndex temporaryInternalMemberAdded;
+
             pex::model::ListOptionalIndex temporarySelected;
 
-            temporaryCount.Set(this->count.Get());
+            PEX_ROOT(temporaryCount);
+            PEX_ROOT(temporaryMemberWillRemove);
+            PEX_ROOT(temporaryMemberRemoved);
+            PEX_ROOT(temporaryMemberWillReplace);
+            PEX_ROOT(temporaryMemberReplaced);
+            PEX_ROOT(temporaryMemberAdded);
+
+            PEX_ROOT(temporaryInternalMemberWillReplace);
+            PEX_ROOT(temporaryInternalMemberReplaced);
+            PEX_ROOT(temporaryInternalMemberWillRemove);
+            PEX_ROOT(temporaryInternalMemberAdded);
+
+            PEX_ROOT(temporarySelected);
+
+
+            if (this->count.HasModel())
+            {
+                temporaryCount.Set(this->count.Get());
+            }
+            else
+            {
+                temporaryCount.Set(0);
+            }
+
             this->count.ChangeUpstream(temporaryCount);
             this->memberWillRemove.ChangeUpstream(temporaryMemberWillRemove);
             this->memberRemoved.ChangeUpstream(temporaryMemberRemoved);
+            this->memberWillReplace.ChangeUpstream(temporaryMemberWillReplace);
+            this->memberReplaced.ChangeUpstream(temporaryMemberReplaced);
             this->memberAdded.ChangeUpstream(temporaryMemberAdded);
+
+            this->internalMemberWillReplace_
+                .ChangeUpstream(temporaryInternalMemberWillReplace);
+
+            this->internalMemberReplaced_
+                .ChangeUpstream(temporaryInternalMemberReplaced);
+
+            this->internalMemberWillRemove_
+                .ChangeUpstream(temporaryInternalMemberWillRemove);
+
+            this->internalMemberAdded_
+                .ChangeUpstream(temporaryInternalMemberAdded);
+
             this->selected.ChangeUpstream(temporarySelected);
 
             size_t itemCount = this->items_.size();
             auto deferCount = MakeDefer(temporaryCount);
 
+            this->upstream_ = &upstream;
+
             if (itemCount > 0)
             {
                 temporarySelected.Set({});
-
                 CLEAR_ITEMREF_NAMES(this->items_);
-                this->ClearInvalidatedEndpoints_(0);
+            }
 
-                // Remove all members prior to the swap
-                for (size_t i = itemCount; i > 0; --i)
+            size_t replaceCount = std::min(itemCount, upstream.size());
+
+            for (size_t i = 0; i < replaceCount; ++i)
+            {
+                if constexpr (HasGetVirtual<ListItem>)
                 {
-                    size_t thisIndex = i - 1;
-                    deferCount.Set(thisIndex);
-                    temporaryMemberWillRemove.Set(thisIndex);
-                    jive::SafeErase(this->items_, thisIndex);
-                    temporaryMemberRemoved.Set(thisIndex);
+                    // virtual wrappers do not support ChangeUpstream.
+                    // Use internal handlers to replace items with new items
+                    // that have the correct underlying derived type.
+                    temporaryMemberWillReplace.Set(i);
+                    temporaryInternalMemberWillReplace.Set(i);
+
+                    temporaryInternalMemberReplaced.Set(i);
+                    temporaryMemberReplaced.Set(i);
+                }
+                else
+                {
+                    // This is not a polymorphic list.
+                    // Each item supports ChangeUpstream.
+                    this->items_.at(i)->ChangeUpstream(this->upstream_->at(i));
                 }
             }
 
-            size_t newItemCount = upstream.size();
-
-            for (size_t i = 0; i < newItemCount; ++i)
+            if (upstream.size() < itemCount)
             {
-                this->items_.emplace(
-                    jive::SafeInsertIterator(this->items_, i),
-                    upstream[i]);
+                size_t removeCount = itemCount - upstream.size();
 
-                deferCount.Set(i + 1);
-                temporaryMemberAdded.Set(i);
+                for (size_t i = 0; i < removeCount; ++i)
+                {
+                    size_t index = i + replaceCount;
+                    temporaryMemberWillRemove.Set(index);
+                    temporaryInternalMemberWillRemove.Set(index);
+
+                    temporaryMemberRemoved.Set(index);
+                }
+            }
+            else if (upstream.size() > itemCount)
+            {
+                size_t addCount = upstream.size() - itemCount;
+
+                for (size_t i = 0; i < addCount; ++i)
+                {
+                    size_t index = i + replaceCount;
+                    temporaryInternalMemberAdded.Set(index);
+                    temporaryMemberAdded.Set(index);
+                }
             }
 
-            this->RestoreBaseEndpoints_(0);
             REGISTER_ITEMREF_NAMES(this, this->items_);
 
             // Swap controls to new upstream.
-            this->upstream_ = &upstream;
             this->count.ChangeUpstream(upstream.count);
             this->selected.ChangeUpstream(upstream.selected);
             this->memberAdded.ChangeUpstream(upstream.memberAdded);
@@ -1653,27 +1941,306 @@ struct List
             this->memberReplaced.ChangeUpstream(upstream.memberReplaced);
             this->isNotifying.ChangeUpstream(upstream.isNotifying);
 
+            this->internalMemberWillRemove_.ChangeUpstream(
+                upstream.internalMemberWillRemove_);
+
+            this->internalMemberAdded_.ChangeUpstream(
+                upstream.internalMemberAdded_);
+
+            this->internalMemberWillReplace_.ChangeUpstream(
+                upstream.internalMemberWillReplace_);
+
+            this->internalMemberReplaced_.ChangeUpstream(
+                upstream.internalMemberReplaced_);
+
             this->memberWillRemoveTerminus_.Emplace(
                 this,
-                this->upstream_->internalMemberWillRemove_,
-                &Base::OnMemberWillRemove_);
+                CopyableOptionalIndex(this->internalMemberWillRemove_),
+                &Mux::OnMemberWillRemove_);
 
             this->memberAddedTerminus_.Emplace(
                 this,
-                this->upstream_->internalMemberAdded_,
-                &Base::OnMemberAdded_);
+                CopyableOptionalIndex(this->internalMemberAdded_),
+                &Mux::OnMemberAdded_);
 
             this->memberWillReplaceTerminus_.Emplace(
                 this,
-                this->upstream_->internalMemberWillReplace_,
-                &Base::OnMemberWillReplace_);
+                CopyableOptionalIndex(this->internalMemberWillReplace_),
+                &Mux::OnMemberWillReplace_);
 
             this->memberReplacedTerminus_.Emplace(
                 this,
-                this->upstream_->internalMemberReplaced_,
-                &Base::OnMemberReplaced_);
+                CopyableOptionalIndex(this->internalMemberReplaced_),
+                &Mux::OnMemberReplaced_);
         }
+
+        ~Mux()
+        {
+            PEX_CLEAR_NAME(this);
+            PEX_CLEAR_NAME(&memberAdded);
+            PEX_CLEAR_NAME(&memberWillRemove);
+            PEX_CLEAR_NAME(&memberRemoved);
+            PEX_CLEAR_NAME(&memberWillReplace);
+            PEX_CLEAR_NAME(&memberReplaced);
+            PEX_CLEAR_NAME(&isNotifying);
+
+            PEX_CLEAR_NAME(&internalMemberWillRemove_);
+            PEX_CLEAR_NAME(&internalMemberAdded_);
+            PEX_CLEAR_NAME(&internalMemberWillReplace_);
+            PEX_CLEAR_NAME(&internalMemberReplaced_);
+
+            CLEAR_ITEM_NAMES(this->items_);
+        }
+
+        ListItem & operator[](size_t index)
+        {
+#ifndef NDEBUG
+            auto &pointer = this->items_.at(index);
+
+            if (!pointer)
+            {
+                throw std::logic_error("item unitialized");
+            }
+
+            return *pointer;
+#else
+            auto &pointer = this->items_[index];
+
+            return *pointer;
+#endif
+        }
+
+        ListItem & at(size_t index)
+        {
+            auto &pointer = this->items_.at(index);
+
+            if (!pointer)
+            {
+                throw std::logic_error("item unitialized");
+            }
+
+            return *pointer;
+        }
+
+        const ListItem & at(size_t index) const
+        {
+            const auto &pointer = this->items_.at(index);
+
+            if (!pointer)
+            {
+                throw std::logic_error("item unitialized");
+            }
+
+            return *pointer;
+        }
+
+        size_t size() const
+        {
+            return this->items_.size();
+        }
+
+        bool empty() const
+        {
+            return this->items_.empty();
+        }
+
+        Type Get() const
+        {
+            return this->upstream_->Get();
+        }
+
+        void Set(const Type &values)
+        {
+            this->upstream_->Set(values);
+        }
+
+        template<typename Derived>
+        std::optional<size_t> Append(const Derived &item)
+        {
+            // TODO: The user asked to Append an item, but forgot to connect
+            // their control to the model?
+            // This feels like it should be a hard error.
+            if (!this->upstream_)
+            {
+                return {};
+            }
+
+            return this->upstream_->Append(item);
+        }
+
+        bool HasModel() const
+        {
+            if (!this->upstream_)
+            {
+                return false;
+            }
+
+            if (!this->count.HasModel())
+            {
+                return false;
+            }
+
+            if (!this->selected.HasModel())
+            {
+                return false;
+            }
+
+            if (!this->memberAdded.HasModel())
+            {
+                return false;
+            }
+
+            if (!this->memberWillRemove.HasModel())
+            {
+                return false;
+            }
+
+            if (!this->memberWillReplace.HasModel())
+            {
+                return false;
+            }
+
+            if (!this->memberReplaced.HasModel())
+            {
+                return false;
+            }
+
+            if (!this->isNotifying.HasModel())
+            {
+                return false;
+            }
+
+            if (!this->internalMemberAdded_.HasModel())
+            {
+                return false;
+            }
+
+            if (!this->internalMemberWillRemove_.HasModel())
+            {
+                return false;
+            }
+
+            if (!this->internalMemberWillReplace_.HasModel())
+            {
+                return false;
+            }
+
+            if (!this->internalMemberReplaced_.HasModel())
+            {
+                return false;
+            }
+
+            for (auto &item: this->items_)
+            {
+                if (!item->HasModel())
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+    public:
+
+        void Notify()
+        {
+#ifndef NDEBUG
+            if (!this->upstream_)
+            {
+                throw std::logic_error("List::Control is uninitialized");
+            }
+#endif
+            this->upstream_->Notify();
+        }
+
+    private:
+        void SetWithoutNotify_(const Type &values)
+        {
+#ifndef NDEBUG
+            if (!this->upstream_)
+            {
+                throw std::logic_error("List::Control is uninitialized");
+            }
+#endif
+            this->upstream_->SetWithoutNotify_(values);
+        }
+
+        void OnMemberWillRemove_(const std::optional<size_t> &index)
+        {
+            if (!index)
+            {
+                return;
+            }
+
+            jive::SafeErase(this->items_, *index);
+        }
+
+        void OnMemberAdded_(const std::optional<size_t> &index)
+        {
+            if (!index)
+            {
+                return;
+            }
+
+            this->items_.emplace(
+                jive::SafeInsertIterator(this->items_, *index),
+                std::make_unique<ListItem>((*this->upstream_)[*index]));
+
+#ifdef ENABLE_PEX_NAMES
+            if constexpr (HasGetVirtual<ListItem>)
+            {
+                pex::PexName(
+                    this->items_.at(*index)->GetVirtual(),
+                    this,
+                    fmt::format("item {}", *index));
+            }
+            else
+            {
+                pex::PexName(
+                    this->items_.at(*index).get(),
+                    this,
+                    fmt::format("item {}", *index));
+            }
+#endif
+        }
+
+        void OnMemberWillReplace_(const std::optional<size_t> &index)
+        {
+            if (!index)
+            {
+                return;
+            }
+
+            this->items_.at(*index).reset();
+        }
+
+        void OnMemberReplaced_(const std::optional<size_t> &index)
+        {
+            if (!index)
+            {
+                return;
+            }
+
+            this->items_.at(*index) =
+                std::make_unique<ListItem>((*this->upstream_)[*index]);
+        }
+
+    private:
+        Upstream *upstream_;
+        std::vector<std::unique_ptr<ListItem>> items_;
+
+        MemberWillRemove internalMemberWillRemove_;
+        MemberAdded internalMemberAdded_;
+        MemberWillReplace internalMemberWillReplace_;
+        MemberReplaced internalMemberReplaced_;
+
+        MemberWillRemoveTerminus memberWillRemoveTerminus_;
+        MemberAddedTerminus memberAddedTerminus_;
+        MemberWillReplaceTerminus memberWillReplaceTerminus_;
+        MemberReplacedTerminus memberReplacedTerminus_;
     };
+
 
     struct FollowTypes
     {
@@ -1686,7 +2253,17 @@ struct List
         using ListFlag = ::pex::follow::ListFlag;
     };
 
-    using Follow = Control_<Mux, FollowTypes>;
+
+    struct Follow: public Control_<Mux, FollowTypes>
+    {
+    public:
+        static constexpr bool isListControl = false;
+        static constexpr bool isListFollow = true;
+
+        using Base = Control_<Mux, FollowTypes>;
+
+        using Base::Base;
+    };
 };
 
 
