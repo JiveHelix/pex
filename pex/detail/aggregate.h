@@ -131,6 +131,33 @@ struct AggregateSelector
 
 
 
+template<typename T>
+concept HasGetValue = requires(T t)
+{
+    { t.GetValue() };
+};
+
+
+template<typename T, typename = void>
+struct CallbackType_
+{
+    using Type = typename T::Type;
+};
+
+
+template<typename T>
+struct CallbackType_
+<
+    T,
+    std::enable_if_t<HasGetValue<T>>
+>
+{
+    using Type = std::remove_cvref_t<decltype(std::declval<T>().GetValue())>;
+};
+
+
+template<typename T>
+using CallbackType = typename CallbackType_<T>::Type;
 
 
 // Internal helper to allow observation of aggregate types.
@@ -330,7 +357,7 @@ private:
     {
         if constexpr (!IsSignal<Member>)
         {
-            using MemberType = typename Member::Type;
+            using MemberType = CallbackType<Member>;
 
             member.Connect(
                 this,
