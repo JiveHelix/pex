@@ -19,6 +19,6 @@ class PexConan(ConanFile):
 
     def requirements(self):
         self.requires("jive/[~1.4]", transitive_headers=True)
-        self.requires("fields/[~1.5]", transitive_headers=True)
+        self.requires("fields/[>=1.5 <2]", transitive_headers=True)
         self.requires("fmt/[~10]", transitive_headers=True)
         self.requires("nlohmann_json/[~3.11]")
