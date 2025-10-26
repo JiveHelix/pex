@@ -51,7 +51,7 @@ struct PointTemplate
 
 
 using ModelSelectString =
-    pex::model::Select<std::string, pex::SelectType<Units>>;
+    pex::model::Select<std::string, pex::SelectType<Units, false>>;
 
 using ControlSelectString = pex::control::Select<ModelSelectString>;
 

@@ -616,7 +616,7 @@ public:
             HasAccess<GetTag, Access>,
             "Cannot Get a write-only value.");
 
-        if constexpr (std::is_same_v<NoFilter, Filter>)
+        if constexpr (detail::FilterIsNone<Filter>)
         {
             return this->upstream_.Get();
         }
@@ -637,7 +637,7 @@ public:
             HasAccess<SetTag, Access>,
             "Cannot Set a read-only value.");
 
-        if constexpr (std::is_same_v<NoFilter, Filter>)
+        if constexpr (detail::FilterIsNone<Filter>)
         {
             this->upstream_.Set(value);
         }
@@ -676,7 +676,7 @@ protected:
             HasAccess<SetTag, Access>,
             "Cannot Set a read-only value.");
 
-        if constexpr (std::is_same_v<NoFilter, Filter>)
+        if constexpr (detail::FilterIsNone<Filter>)
         {
             this->upstream_.SetWithoutNotify_(value);
         }
@@ -688,7 +688,7 @@ protected:
 
     UpstreamType FilterOnSet_(Argument<Type> value) const
     {
-        if constexpr (std::is_same_v<NoFilter, Filter>)
+        if constexpr (detail::FilterIsNone<Filter>)
         {
             return value;
         }
@@ -731,7 +731,7 @@ protected:
 
     Type FilterOnGet_(Argument<UpstreamType> value) const
     {
-        if constexpr (std::is_same_v<NoFilter, Filter>)
+        if constexpr (detail::FilterIsNone<Filter>)
         {
             return value;
         }
@@ -781,7 +781,7 @@ protected:
         // Update our observer.
         auto self = static_cast<Value_ *>(observer);
 
-        if constexpr (!std::is_same_v<NoFilter, Filter>)
+        if constexpr (!detail::FilterIsNone<Filter>)
         {
             self->Notify_(self->FilterOnGet_(value));
         }

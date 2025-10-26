@@ -396,6 +396,27 @@ concept IsSelectNode =
     || IsSelectMux<T>
     || IsSelectFollow<T>;
 
+
+template<typename T>
+concept IsOptionalSelectModel = T::isOptionalSelectModel;
+
+template<typename T>
+concept IsOptionalSelectControl = T::isOptionalSelectControl;
+
+template<typename T>
+concept IsOptionalSelectMux = T::isOptionalSelectMux;
+
+template<typename T>
+concept IsOptionalSelectFollow = T::isOptionalSelectFollow;
+
+template<typename T>
+concept IsOptionalSelectNode =
+    IsOptionalSelectModel<T>
+    || IsOptionalSelectControl<T>
+    || IsOptionalSelectMux<T>
+    || IsOptionalSelectFollow<T>;
+
+
 template<typename T>
 concept IsAggregate = T::isAggregate;
 

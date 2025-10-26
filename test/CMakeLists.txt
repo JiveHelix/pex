@@ -5,6 +5,7 @@ add_catch2_test(
     SOURCES
         aggregate_tests.cpp
         assign_tests.cpp
+        choice_muxer_tests.cpp
         endpoint_tests.cpp
         filter_tests.cpp
         group_tests.cpp

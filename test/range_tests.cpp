@@ -202,6 +202,18 @@ TEST_CASE("Linked ranges has comparison operators", "[range]")
             pex::Limit<10>
         >;
 
+    static_assert(
+        !pex::detail::FilterIsMember
+        <
+            double,
+            pex::detail::PlainFilter
+            <
+                double,
+                pex::NoFilter,
+                pex::GetTag
+            >
+        >);
+
     using TestSettings = typename TestRanges::Settings;
 
     STATIC_REQUIRE(jive::HasEqualTo<TestSettings>);

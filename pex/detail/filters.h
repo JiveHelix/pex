@@ -12,7 +12,7 @@
 #pragma once
 
 #include <type_traits>
-// #include <jive/optional.h>
+#include <jive/optional.h>
 #include "pex/access_tag.h"
 
 namespace pex
@@ -27,53 +27,50 @@ namespace detail
  ** Filter::Get can be either static or member, and the return type may
  ** differ from the argument type.
  **/
-template<typename T, typename Filter, typename = void>
-struct GetterIsStatic_: std::false_type {};
-
-template<typename T>
-struct GetterIsStatic_<T, NoFilter, void>: std::false_type {};
 
 template<typename T, typename Filter>
-struct GetterIsStatic_
-<
-    T,
-    Filter,
-    std::enable_if_t
-    <
-        std::is_invocable_v
-        <
-            decltype(&Filter::Get),
-            jive::RemoveOptional<T>
-        >
-    >
-> : std::true_type {};
+concept MemberGetterTakesOptional =
+    requires(Filter f)
+    {
+        requires std::is_member_function_pointer_v<decltype(&Filter::Get)>;
+
+        { std::invoke(&Filter::Get, f, std::declval<jive::MakeOptional<T>>()) };
+    };
 
 template<typename T, typename Filter>
-inline constexpr bool GetterIsStatic = GetterIsStatic_<T, Filter>::value;
+concept MemberGetterRequiresType =
+    requires(T t, Filter f)
+    {
+        requires !MemberGetterTakesOptional<T, Filter>;
+        requires std::is_member_function_pointer_v<decltype(&Filter::Get)>;
 
-
-template<typename T, typename Filter, typename = void>
-struct GetterIsMember_: std::false_type {};
-
-template<typename T>
-struct GetterIsMember_<T, NoFilter, void>: std::false_type {};
-
-template<typename T, typename Filter>
-struct GetterIsMember_
-<
-    T,
-    Filter,
-    std::enable_if_t
-    <
-        std::is_invocable_v
-        <
-            decltype(&Filter::Get), Filter, jive::RemoveOptional<T>
-        >
-    >
-> : std::true_type {};
+        { std::invoke(&Filter::Get, f, t) };
+    };
 
 template<typename T, typename Filter>
-inline constexpr bool GetterIsMember = GetterIsMember_<T, Filter>::value;
+concept StaticGetterTakesOptional =
+    requires
+    {
+        { Filter::Get(std::declval<jive::MakeOptional<T>>()) };
+    };
+
+template<typename T, typename Filter>
+concept StaticGetterRequiresType =
+    requires(T t)
+    {
+        requires !StaticGetterTakesOptional<T, Filter>;
+
+        { Filter::Get(t) };
+    };
+
+template<typename T, typename Filter>
+concept GetterIsMember =
+    MemberGetterRequiresType<T, Filter> || MemberGetterTakesOptional<T, Filter>;
+
+
+template<typename T, typename Filter>
+concept GetterIsStatic =
+    StaticGetterRequiresType<T, Filter> || StaticGetterTakesOptional<T, Filter>;
 
 
 /** Filter can change the type of the value.
@@ -98,7 +95,24 @@ struct FilteredType_
 <
     T,
     Filter,
-    std::enable_if_t<GetterIsMember<T, Filter>>>
+    std::enable_if_t<MemberGetterTakesOptional<T, Filter>>>
+{
+    using Type =
+            std::invoke_result_t
+            <
+                decltype(&Filter::Get),
+                Filter,
+                T
+            >;
+};
+
+
+template<typename T, typename Filter>
+struct FilteredType_
+<
+    T,
+    Filter,
+    std::enable_if_t<MemberGetterRequiresType<T, Filter>>>
 {
     using Type =
         jive::MatchOptional
@@ -113,11 +127,22 @@ struct FilteredType_
         >;
 };
 
+
 template<typename T, typename Filter>
 struct FilteredType_<
     T,
     Filter,
-    std::enable_if_t<GetterIsStatic<T, Filter>>>
+    std::enable_if_t<StaticGetterTakesOptional<T, Filter>>>
+{
+    using Type = std::invoke_result_t<decltype(&Filter::Get), T>;
+};
+
+
+template<typename T, typename Filter>
+struct FilteredType_<
+    T,
+    Filter,
+    std::enable_if_t<StaticGetterRequiresType<T, Filter>>>
 {
     using Type =
         jive::MatchOptional
@@ -130,6 +155,7 @@ struct FilteredType_<
         >;
 };
 
+
 template<typename T, typename Filter>
 using FilteredType = typename FilteredType_<T, Filter>::Type;
 
@@ -137,227 +163,104 @@ using FilteredType = typename FilteredType_<T, Filter>::Type;
 /** Setter Checks
  **
  ** Set can be either static or member, and it may modify the type.
+ ** If it modifies the type, the argument to the set function must match the
+ ** return value of the Get function. If there is no get function, Set must not
+ ** modify the type.
+ **
  ** Use the FilteredType helper class to select the correct argument to the
  ** Set function.
  **/
-template<typename T, typename Filter, typename = void>
-struct SetterIsStatic_: std::false_type {};
-
-template<typename T>
-struct SetterIsStatic_<T, NoFilter, void>: std::false_type {};
 
 template<typename T, typename Filter>
-struct SetterIsStatic_
-<
-    T,
-    Filter,
-    std::enable_if_t
-    <
-        std::is_invocable_r_v
-        <
-            jive::RemoveOptional<T>,
-            decltype(&Filter::Set),
-            jive::RemoveOptional<FilteredType<T, Filter>>
-        >
-    >
-> : std::true_type {};
+concept MemberSetterTakesOptional =
+    requires(Filter f)
+    {
+        requires std::is_member_function_pointer_v<decltype(&Filter::Set)>;
+
+        {
+            std::invoke(
+                &Filter::Set,
+                f,
+                std::declval
+                <
+                    jive::MakeOptional<FilteredType<T, Filter>>
+                >())
+        } -> std::same_as<jive::MakeOptional<T>>;
+    };
 
 template<typename T, typename Filter>
-inline constexpr bool SetterIsStatic = SetterIsStatic_<T, Filter>::value;
+concept MemberSetterRequiresType =
+    requires(Filter f, FilteredType<T, Filter> filtered)
+    {
+        requires !MemberSetterTakesOptional<T, Filter>;
+        requires std::is_member_function_pointer_v<decltype(&Filter::Set)>;
 
 
-template<typename T, typename Filter, typename = void>
-struct SetterIsMember_: std::false_type {};
-
-template<typename T>
-struct SetterIsMember_<T, NoFilter, void>: std::false_type {};
-
-template<typename T, typename Filter>
-struct SetterIsMember_
-<
-    T,
-    Filter,
-    std::enable_if_t
-    <
-        std::is_invocable_r_v
-        <
-            jive::RemoveOptional<T>,
-            decltype(&Filter::Set),
-            Filter,
-            jive::RemoveOptional<FilteredType<T, Filter>>
-        >
-    >
-> : std::true_type {};
+        { std::invoke(&Filter::Set, f, filtered) } -> std::same_as<T>;
+    };
 
 template<typename T, typename Filter>
-inline constexpr bool SetterIsMember = SetterIsMember_<T, Filter>::value;
+concept StaticSetterTakesOptional =
+    requires(jive::MakeOptional<FilteredType<T, Filter>> filtered)
+    {
+        { Filter::Set(filtered) } -> std::same_as<jive::MakeOptional<T>>;
+    };
+
+template<typename T, typename Filter>
+concept StaticSetterRequiresType =
+    requires(FilteredType<T, Filter> filtered)
+    {
+        requires !StaticSetterTakesOptional<T, Filter>;
+
+        { Filter::Set(filtered) } -> std::same_as<T>;
+    };
+
+template<typename T, typename Filter>
+concept SetterIsMember =
+    MemberSetterRequiresType<T, Filter> || MemberSetterTakesOptional<T, Filter>;
+
+
+template<typename T, typename Filter>
+concept SetterIsStatic =
+    StaticSetterRequiresType<T, Filter> || StaticSetterTakesOptional<T, Filter>;
 
 
 /**
  ** Filter::Get can be a static method or a member method.
  **/
-template<typename T, typename Filter, typename = void>
-struct GetterIsValid_ : std::false_type {};
-
-template<typename T>
-struct GetterIsValid_<T, NoFilter, void> : std::false_type {};
-
 template<typename T, typename Filter>
-struct GetterIsValid_
-<
-    T,
-    Filter,
-    std::enable_if_t
-    <
-        (GetterIsStatic<T, Filter> || GetterIsMember<T, Filter>)
-        && !std::is_same_v<FilteredType<T, Filter>, void>
-    >
-> : std::true_type {};
-
-template<typename T, typename Filter>
-inline constexpr bool GetterIsValid = GetterIsValid_<T, Filter>::value;
+concept GetterIsValid =
+    (GetterIsMember<T, Filter> || GetterIsStatic<T, Filter>)
+    && !std::same_as<FilteredType<T, Filter>, void>;
 
 
 /**
  ** Filter::Set can be a static method or a member method.
  **/
-template<typename T, typename Filter, typename = void>
-struct SetterIsValid_ : std::false_type {};
+template<typename T, typename Filter>
+concept SetterIsValid =
+    (SetterIsMember<T, Filter> || SetterIsStatic<T, Filter>);
 
-template<typename T>
-struct SetterIsValid_<T, NoFilter, void> : std::false_type {};
+
+
+template<typename Filter>
+concept FilterIsNone = std::derived_from<Filter, NoFilter>;
+
 
 template<typename T, typename Filter>
-struct SetterIsValid_
-<
-    T,
-    Filter,
-    std::enable_if_t
-    <
-        SetterIsStatic<T, Filter> || SetterIsMember<T, Filter>
-    >
-> : std::true_type {};
-
-template<typename T, typename Filter>
-inline constexpr bool SetterIsValid = SetterIsValid_<T, Filter>::value;
+concept FilterIsMember = GetterIsMember<T, Filter> || SetterIsMember<T, Filter>;
 
 
 /**
  ** FilterIsStatic evaluates to true when both Get and Set methods are static.
  **/
-template
-<
-    typename T,
-    typename Filter,
-    typename Access,
-    typename = void
->
-struct FilterIsStatic_ : std::false_type {};
-
-/** For read-only interfaces, only the getter is checked. **/
 template<typename T, typename Filter>
-struct FilterIsStatic_
-<
-    T,
-    Filter,
-    GetTag,
-    std::enable_if_t
-    <
-        GetterIsStatic<T, Filter>
-    >
-> : std::true_type {};
+concept FilterIsStatic = !FilterIsNone<Filter> && !FilterIsMember<T, Filter>;
+
 
 template<typename T, typename Filter>
-struct FilterIsStatic_
-<
-    T,
-    Filter,
-    SetTag,
-    std::enable_if_t
-    <
-        SetterIsStatic<T, Filter>
-    >
-> : std::true_type {};
-
-/** Check both the getter and setter for settable interfaces. **/
-template<typename T, typename Filter>
-struct FilterIsStatic_
-<
-    T,
-    Filter,
-    GetAndSetTag,
-    std::enable_if_t
-    <
-        GetterIsStatic<T, Filter>
-        && SetterIsStatic<T, Filter>
-    >
-> : std::true_type {};
-
-template<typename T, typename Filter, typename Access>
-inline constexpr bool FilterIsStatic =
-    FilterIsStatic_<T, Filter, Access>::value;
-
-
-/**
- ** Checks whether Set or Get are member functions.
- **
- ** This is used to check whether a pointer to the Filter structure will be
- ** required.
- **/
-template<typename T, typename Filter, typename = void>
-struct FilterIsMember_: std::false_type {};
-
-template<typename T, typename Filter>
-struct FilterIsMember_
-<
-    T,
-    Filter,
-    std::enable_if_t
-    <
-        GetterIsMember<T, Filter> || SetterIsMember<T, Filter>
-    >
-> : std::true_type {};
-
-template<typename T, typename Filter>
-inline constexpr bool FilterIsMember = FilterIsMember_<T, Filter>::value;
-
-
-template<typename Filter>
-struct FilterIsNone_: std::false_type {};
-
-template<>
-struct FilterIsNone_<NoFilter>: std::true_type {};
-
-template<typename Filter>
-inline constexpr bool FilterIsNone = FilterIsNone_<Filter>::value;
-
-
-template
-<
-    typename T,
-    typename Filter,
-    typename Access,
-    typename = void
->
-struct FilterIsNoneOrStatic_ : std::false_type {};
-
-/** Filter can be void **/
-template<typename T, typename Access>
-struct FilterIsNoneOrStatic_<T, NoFilter, Access, void> : std::true_type {};
-
-template<typename T, typename Filter, typename Access>
-struct FilterIsNoneOrStatic_
-<
-    T,
-    Filter,
-    Access,
-    std::enable_if_t<FilterIsStatic<T, Filter, Access>>
-> : std::true_type {};
-
-template<typename T, typename Filter, typename Access>
-inline constexpr bool FilterIsNoneOrStatic =
-    FilterIsNoneOrStatic_<T, Filter, Access>::value;
-
+concept FilterIsNoneOrStatic =
+    FilterIsNone<Filter> || FilterIsStatic<T, Filter>;
 
 
 /** Filter Validation
@@ -417,29 +320,278 @@ template
 <
     typename T,
     typename Filter,
-    typename Access,
-    typename = void
+    typename Access
 >
-struct FilterIsNoneOrValid_ : std::false_type {};
+concept FilterIsNoneOrValid =
+    FilterIsValid<T, Filter, Access> || FilterIsNone<Filter>;
 
-/** Filter can be void **/
-template<typename T, typename Access>
-struct FilterIsNoneOrValid_<T, NoFilter, Access, void> : std::true_type {};
+
+template<typename T, typename Filter, typename Derived, typename = void>
+struct PlainGetFilter
+{
+    using Type = FilteredType<T, Filter>;
+    using GetType = jive::RemoveOptional<Type>;
+    using SetType = jive::RemoveOptional<T>;
+
+    static GetType Get(pex::Argument<SetType> value)
+    {
+        auto result = Filter::Get(value);
+
+        if constexpr (jive::IsOptional<Type>)
+        {
+            assert(result);
+
+            return *result;
+        }
+        else
+        {
+            return result;
+        }
+    }
+};
+
+
+template<typename T, typename Filter, typename Derived>
+struct PlainGetFilter
+<
+    T,
+    Filter,
+    Derived,
+    std::enable_if_t<FilterIsMember<T, Filter>>
+>
+{
+    using Type = FilteredType<T, Filter>;
+    using GetType = jive::RemoveOptional<Type>;
+    using SetType = jive::RemoveOptional<T>;
+
+    GetType Get(pex::Argument<SetType> value) const
+    {
+        auto result = static_cast<const Derived *>(this)->filter_.Get(value);
+
+        if constexpr (jive::IsOptional<Type>)
+        {
+            assert(result);
+
+            return *result;
+        }
+        else
+        {
+            return result;
+        }
+    }
+};
+
+
+template<typename T, typename Filter, typename Derived, typename = void>
+struct PlainSetFilter
+{
+    using Type = FilteredType<T, Filter>;
+    using GetType = jive::RemoveOptional<Type>;
+    using SetType = jive::RemoveOptional<T>;
+
+    static SetType Set(pex::Argument<GetType> value)
+    {
+        auto result = Filter::Set(value);
+
+        if constexpr (jive::IsOptional<Type>)
+        {
+            assert(result);
+
+            return *result;
+        }
+        else
+        {
+            return result;
+        }
+    }
+};
+
+
+template<typename T, typename Filter, typename Derived>
+struct PlainSetFilter
+<
+    T,
+    Filter,
+    Derived,
+    std::enable_if_t<FilterIsMember<T, Filter>>
+>
+{
+    using Type = FilteredType<T, Filter>;
+    using GetType = jive::RemoveOptional<Type>;
+    using SetType = jive::RemoveOptional<T>;
+
+    SetType Set(pex::Argument<GetType> value) const
+    {
+        auto result = static_cast<const Derived *>(this)->filter_.Set(value);
+
+        if constexpr (jive::IsOptional<Type>)
+        {
+            assert(result);
+
+            return *result;
+        }
+        else
+        {
+            return result;
+        }
+    }
+};
+
+
+template<typename T, typename Filter, typename Access, typename = void>
+struct PlainFilter: public NoFilter
+{
+
+};
+
 
 template<typename T, typename Filter, typename Access>
-struct FilterIsNoneOrValid_
+struct PlainFilter
 <
     T,
     Filter,
     Access,
-    std::enable_if_t<FilterIsValid<T, Filter, Access>>
-> : std::true_type {};
+    std::enable_if_t
+    <
+        std::same_as<Access, GetTag>
+        && !std::same_as<Filter, NoFilter>
+    >
+>
+    : public PlainGetFilter
+    <
+        T,
+        Filter,
+        PlainFilter<T, Filter, Access>
+    >
+{
+    PlainFilter()
+        :
+        filter_{}
+    {
+
+    }
+
+    PlainFilter(const Filter &filter)
+        :
+        filter_(filter)
+    {
+
+    }
+
+private:
+    Filter filter_;
+
+    friend struct PlainGetFilter
+    <
+        T,
+        Filter,
+        PlainFilter<T, Filter, Access>
+    >;
+};
+
 
 template<typename T, typename Filter, typename Access>
-inline constexpr bool FilterIsNoneOrValid =
-    FilterIsNoneOrValid_<T, Filter, Access>::value;
+struct PlainFilter
+<
+    T,
+    Filter,
+    Access,
+    std::enable_if_t
+    <
+        std::same_as<Access, SetTag>
+        && !std::same_as<Filter, NoFilter>
+    >
+>
+    : public PlainSetFilter
+    <
+        T,
+        Filter,
+        PlainFilter<T, Filter, Access>
+    >
+{
+    PlainFilter()
+        :
+        filter_{}
+    {
+
+    }
+
+    PlainFilter(const Filter &filter)
+        :
+        filter_(filter)
+    {
+
+    }
+
+private:
+    Filter filter_;
+
+    friend struct PlainSetFilter
+    <
+        T,
+        Filter,
+        PlainFilter<T, Filter, Access>
+    >;
+};
+
+
+template<typename T, typename Filter, typename Access>
+struct PlainFilter
+<
+    T,
+    Filter,
+    Access,
+    std::enable_if_t
+    <
+        std::same_as<Access, GetAndSetTag>
+        && !std::same_as<Filter, NoFilter>
+    >
+>
+    :
+    public PlainGetFilter
+    <
+        T,
+        Filter,
+        PlainFilter<T, Filter, Access>
+    >,
+    public PlainSetFilter
+    <
+        T,
+        Filter,
+        PlainFilter<T, Filter, Access>
+    >
+{
+public:
+    PlainFilter()
+        :
+        filter_{}
+    {
+
+    }
+
+    PlainFilter(const Filter &filter)
+        :
+        filter_(filter)
+    {
+
+    }
+
+private:
+    Filter filter_;
+
+    friend struct PlainGetFilter
+    <
+        T,
+        Filter,
+        PlainFilter<T, Filter, Access>
+    >;
+
+    template<typename, typename, typename>
+    friend struct PlainSetFilter;
+};
 
 
 } // namespace detail
+
 
 } // namespace pex

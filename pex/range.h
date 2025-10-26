@@ -25,6 +25,7 @@
 #include "pex/traits.h"
 #include <pex/terminus.h>
 #include <pex/default_value_node.h>
+#include <pex/detail/filters.h>
 
 
 #ifdef USE_OBSERVER_NAME
@@ -89,9 +90,10 @@ namespace model
 template<typename T>
 struct RangeFilter
 {
-    using Type = jive::RemoveOptional<T>;
+    using PlainType = jive::RemoveOptional<T>;
+    using Type = T;
 
-    RangeFilter(Type minimum, Type maximum)
+    RangeFilter(PlainType minimum, PlainType maximum)
         :
         minimum_(minimum),
         maximum_(maximum)
@@ -122,24 +124,40 @@ struct RangeFilter
 
     Type Set(Type value) const
     {
-        return std::max(
-            this->minimum_,
-            std::min(value, this->maximum_));
+        if constexpr (jive::IsOptional<Type>)
+        {
+            if (!value)
+            {
+                // There is nothing to filter.
+
+                return value;
+            }
+
+            return std::max(
+                this->minimum_,
+                std::min(*value, this->maximum_));
+        }
+        else
+        {
+            return std::max(
+                this->minimum_,
+                std::min(value, this->maximum_));
+        }
     }
 
-    Type GetMinimum() const
+    PlainType GetMinimum() const
     {
         return this->minimum_;
     }
 
-    Type GetMaximum() const
+    PlainType GetMaximum() const
     {
         return this->maximum_;
     }
 
 private:
-    Type minimum_;
-    Type maximum_;
+    PlainType minimum_;
+    PlainType maximum_;
 };
 
 
@@ -798,7 +816,7 @@ public:
     static constexpr bool isRangeControl = true;
 
     static constexpr bool isPexCopyable =
-        pex::detail::FilterIsNoneOrStatic<Unfiltered, Filter, Access>;
+        pex::detail::FilterIsNoneOrStatic<Unfiltered, Filter>;
 
     using ValueNode = typename Upstream::ValueNode;
 
@@ -818,7 +836,7 @@ public:
         pex::control::FilteredValue
         <
             typename Upstream::Limit,
-            Filter,
+            detail::PlainFilter<Unfiltered, Filter, pex::GetTag>,
             pex::GetTag
         >;
 

@@ -692,7 +692,6 @@ struct List
             this->RestoreBaseEndpoints_(index);
         }
 
-        // TODO: Make this protected?
         void ResizeWithoutNotify(size_t newSize)
         {
             if (newSize == this->items_.size())

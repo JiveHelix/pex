@@ -9,6 +9,7 @@
 #include "pex/interface.h"
 #include "pex/model_wrapper.h"
 #include "pex/control_wrapper.h"
+#include <pex/optional_select.h>
 
 
 namespace pex
@@ -60,6 +61,28 @@ struct SelectTypes
 
     using Mux = ::pex::control::SelectMux<Model>;
     using Follow = ::pex::control::SelectFollow<Mux>;
+};
+
+
+template<typename OptionalSelectMaker>
+struct OptionalSelectTypes
+{
+    using OptionalSelectType = typename OptionalSelectMaker::Type;
+    using Type = typename OptionalSelectType::Type;
+
+    using Model =
+        pex::model::OptionalSelect
+        <
+            Type,
+            OptionalSelectType,
+            typename OptionalSelectMaker::Access
+        >;
+
+    template<typename Upstream>
+    using Control = ::pex::control::OptionalSelect<Upstream>;
+
+    using Mux = ::pex::control::OptionalSelectMux<Model>;
+    using Follow = ::pex::control::OptionalSelectFollow<Mux>;
 };
 
 
@@ -119,6 +142,12 @@ template<typename T>
 struct ModelSelector_<T, std::enable_if_t<IsMakeSelect<T>>>
 {
     using Type = typename SelectTypes<T>::Model;
+};
+
+template<typename T>
+struct ModelSelector_<T, std::enable_if_t<IsMakeOptionalSelect<T>>>
+{
+    using Type = typename OptionalSelectTypes<T>::Model;
 };
 
 template<typename T>
@@ -216,6 +245,13 @@ template<typename T>
 struct ControlSelector_<T, std::enable_if_t<IsMakeSelect<T>>>
 {
     using Type = typename SelectTypes<T>
+        ::template Control<typename ModelSelector_<T>::Type>;
+};
+
+template<typename T>
+struct ControlSelector_<T, std::enable_if_t<IsMakeOptionalSelect<T>>>
+{
+    using Type = typename OptionalSelectTypes<T>
         ::template Control<typename ModelSelector_<T>::Type>;
 };
 
@@ -324,6 +360,12 @@ struct MuxSelector_<T, std::enable_if_t<IsMakeSelect<T>>>
 };
 
 template<typename T>
+struct MuxSelector_<T, std::enable_if_t<IsMakeOptionalSelect<T>>>
+{
+    using Type = typename OptionalSelectTypes<T>::Mux;
+};
+
+template<typename T>
 struct MuxSelector_<T, std::enable_if_t<IsDefineNodes<T>>>
 {
     using Type = typename T::Mux;
@@ -415,6 +457,12 @@ template<typename T>
 struct FollowSelector_<T, std::enable_if_t<IsMakeSelect<T>>>
 {
     using Type = typename SelectTypes<T>::Follow;
+};
+
+template<typename T>
+struct FollowSelector_<T, std::enable_if_t<IsMakeOptionalSelect<T>>>
+{
+    using Type = typename OptionalSelectTypes<T>::Follow;
 };
 
 template<typename T>

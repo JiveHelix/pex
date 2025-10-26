@@ -1,12 +1,12 @@
 /**
   * @file transaction.h
-  * 
+  *
   * @brief A class that allows modifying a model value with out publishing, and
   * reverting to the original value on destruction if Commit is not called.
   *
   * Allows your controller to delay the notification of any values until all
   * have been set.
-  * 
+  *
   * @author Jive Helix (jivehelix@gmail.com)
   * @date 17 Aug 2020
   * @copyright Jive Helix
@@ -16,6 +16,7 @@
 #pragma once
 
 
+#include "pex/detail/filters.h"
 #include "pex/detail/require_has_value.h"
 
 
@@ -61,7 +62,7 @@ public:
     Type & operator * ()
     {
         static_assert(
-            std::is_same_v<NoFilter, typename Model::Filter>,
+            detail::FilterIsNone<typename Model::Filter>,
             "Direct access to underlying value is incompatible with filters.");
 
         REQUIRE_HAS_VALUE(this->model_);

@@ -148,7 +148,7 @@ private:
         if constexpr (IsModel<U>)
         {
             static_assert(
-                std::is_same_v<NoFilter, typename U::Filter>,
+                detail::FilterIsNone<typename U::Filter>,
                 "Direct access to underlying value is incompatible with "
                 "filters.");
 
@@ -161,7 +161,7 @@ private:
         else if constexpr (IsControl<U>)
         {
             static_assert(
-                std::is_same_v<NoFilter, typename U::Filter>,
+                detail::FilterIsNone<typename U::Filter>,
                 "Direct access to underlying value is incompatible with "
                 "filters.");
 
@@ -170,7 +170,7 @@ private:
         else
         {
             static_assert(
-                std::is_same_v<NoFilter, typename U::Filter>,
+                detail::FilterIsNone<typename U::Filter>,
                 "Direct access to underlying value is incompatible with "
                 "filters.");
 
@@ -1251,7 +1251,7 @@ class ConstReference
         "Access to the value by reference is only possible for model values.");
 
     static_assert(
-        std::is_same_v<NoFilter, typename Model::Filter>,
+        detail::FilterIsNone<typename Model::Filter>,
         "Direct access to underlying value is incompatible with filters.");
 
 public:

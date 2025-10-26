@@ -82,6 +82,39 @@ using PoseModel = typename PoseGroup::Model;
 using PoseControl = typename PoseGroup::Control<PoseModel>;
 
 
+static_assert(
+    !pex::detail::FilterIsMember
+    <
+        double,
+        pex::detail::PlainFilter
+        <
+            double,
+            pex::NoFilter,
+            pex::GetTag
+        >
+    >);
+
+#if 0
+FilterIsNoneOrFree
+<
+    pex::control::Value_
+    <
+        pex::model::Value_
+        <
+            double,
+            NoFilter
+        >,
+        pex::detail::PlainFilter
+        <
+            double,
+            pex::NoFilter,
+            pex::GetTag
+        >,
+        pex::GetTag
+    >
+>
+#endif
+
 class PoseObserver
 {
 public:

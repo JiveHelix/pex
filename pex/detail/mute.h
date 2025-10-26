@@ -83,14 +83,6 @@ public:
     MuteOwner & operator=(const MuteOwner &) = delete;
     MuteOwner & operator=(MuteOwner &&) = delete;
 
-#if 0
-    template<typename MuteNode>
-    MuteNode GetMuteNode()
-    {
-        return MuteNode(this->mute_);
-    }
-#endif
-
     MuteModel & GetMuteNode()
     {
         return this->mute_;

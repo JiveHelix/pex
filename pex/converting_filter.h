@@ -34,19 +34,49 @@ void RequireConvertible(Source value)
 template<typename SetType_, typename GetType_>
 struct ConvertingFilter
 {
-    using GetType = jive::RemoveOptional<GetType_>;
-    using SetType = jive::RemoveOptional<SetType_>;
+    using GetType = GetType_;
+    using SetType = SetType_;
 
     static GetType Get(Argument<SetType> value)
     {
-        CHECK_RANGE(GetType, value);
-        return static_cast<GetType>(value);
+        if constexpr (jive::IsOptional<SetType>)
+        {
+            if (!value)
+            {
+                return std::nullopt;
+            }
+
+            CHECK_RANGE(jive::RemoveOptional<GetType>, *value);
+
+            return static_cast<GetType>(*value);
+        }
+        else
+        {
+            CHECK_RANGE(GetType, value);
+
+            return static_cast<GetType>(value);
+        }
     }
 
     static SetType Set(Argument<GetType> value)
     {
-        CHECK_RANGE(SetType, value);
-        return static_cast<SetType>(value);
+        if constexpr (jive::IsOptional<GetType>)
+        {
+            if (!value)
+            {
+                return std::nullopt;
+            }
+
+            CHECK_RANGE(jive::RemoveOptional<SetType>, *value);
+
+            return static_cast<SetType>(*value);
+        }
+        else
+        {
+            CHECK_RANGE(SetType, value);
+
+            return static_cast<SetType>(value);
+        }
     }
 };
 
@@ -131,8 +161,12 @@ using ConvertingValue = Value_<
 template<typename T>
 struct LinearFilter
 {
-    using Type = jive::RemoveOptional<T>;
-    static_assert(std::is_floating_point_v<Type>);
+    using PlainType = jive::RemoveOptional<T>;
+    using Type = T;
+    using PlainFilter = LinearFilter<PlainType>;
+
+    static_assert(std::is_floating_point_v<PlainType>);
+    using IntType = jive::MatchOptional<T, int>;
 
     LinearFilter()
         :
@@ -141,7 +175,7 @@ struct LinearFilter
 
     }
 
-    LinearFilter(T slope)
+    LinearFilter(PlainType slope)
         :
         slope_(slope)
     {
@@ -151,60 +185,127 @@ struct LinearFilter
         }
     }
 
-    int Get(Type value) const
+    IntType Get(Type value) const
     {
-        Type result = value * this->slope_;
-
-        if constexpr (std::is_floating_point_v<Type>)
+        if constexpr (jive::IsOptional<Type>)
         {
-            result = round(result);
+            if (!value)
+            {
+                return value;
+            }
+
+            PlainType result = (*value) * this->slope_;
+
+            if constexpr (std::is_floating_point_v<PlainType>)
+            {
+                result = round(result);
+            }
+
+            return static_cast<int>(result);
         }
+        else
+        {
+            PlainType result = value * this->slope_;
 
-        return static_cast<int>(result);
+            if constexpr (std::is_floating_point_v<PlainType>)
+            {
+                result = round(result);
+            }
+
+            return static_cast<int>(result);
+        }
     }
 
-    Type Set(int value) const
+    Type Set(IntType value) const
     {
-        return static_cast<Type>(value) / this->slope_;
+        if constexpr (jive::IsOptional<Type>)
+        {
+            if (!value)
+            {
+                return value;
+            }
+
+            return static_cast<PlainType>(*value) / this->slope_;
+        }
+        else
+        {
+            return static_cast<PlainType>(value) / this->slope_;
+        }
     }
 
-    void SetSlope(Type slope)
+    void SetSlope(PlainType slope)
     {
         this->slope_ = slope;
     }
 
-    Type GetSlope() const
+    PlainType GetSlope() const
     {
         return this->slope_;
     }
 
 private:
-    Type slope_;
+    PlainType slope_;
 };
 
 
 template<typename T, ssize_t slope>
 struct StaticLinearFilter
 {
-    using Type = jive::RemoveOptional<T>;
-    static_assert(std::is_floating_point_v<Type>);
+    using Type = T;
+    using PlainType = jive::RemoveOptional<T>;
+    using IntType = jive::MatchOptional<T, int>;
+
+    static_assert(std::is_floating_point_v<PlainType>);
     static_assert(slope != 0, "Cannot divide by zero");
 
-    static int Get(Type value)
+    static IntType Get(Type value)
     {
-        Type result = value * static_cast<Type>(slope);
-
-        if constexpr (std::is_floating_point_v<Type>)
+        if constexpr (jive::IsOptional<Type>)
         {
-            result = round(result);
-        }
+            if (!value)
+            {
+                return value;
+            }
 
-        return static_cast<int>(result);
+            PlainType result = (*value) * static_cast<PlainType>(slope);
+
+            if constexpr (std::is_floating_point_v<PlainType>)
+            {
+                result = round(result);
+            }
+
+            return static_cast<int>(result);
+        }
+        else
+        {
+            PlainType result = value * static_cast<PlainType>(slope);
+
+            if constexpr (std::is_floating_point_v<PlainType>)
+            {
+                result = round(result);
+            }
+
+            return static_cast<int>(result);
+        }
     }
 
-    static Type Set(int value)
+    static Type Set(IntType value)
     {
-        return static_cast<Type>(value) / static_cast<Type>(slope);
+        if constexpr (jive::IsOptional<Type>)
+        {
+            if (!value)
+            {
+                return value;
+            }
+
+            return static_cast<PlainType>(value)
+                / static_cast<PlainType>(slope);
+        }
+        else
+        {
+            return static_cast<PlainType>(value)
+                / static_cast<PlainType>(slope);
+        }
     }
 };
 

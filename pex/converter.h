@@ -222,6 +222,15 @@ struct StringToValue<T, base, std::enable_if_t<jive::IsBitset<T>::value>>
 };
 
 
+template<typename T, typename Converter>
+concept ToStringTakesOptional =
+    requires
+    {
+        { Converter::ToString(std::declval<jive::MakeOptional<T>>()) }
+            -> std::convertible_to<std::string>;
+    };
+
+
 template<typename T, typename Traits = DefaultConverterTraits>
 struct Converter
 {

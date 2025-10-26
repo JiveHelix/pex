@@ -6,6 +6,7 @@
 #include <pex/range.h>
 #include <pex/list.h>
 #include <pex/select.h>
+#include <pex/optional_select.h>
 
 
 namespace pex
@@ -26,6 +27,7 @@ struct PromoteControl
 {
     static_assert(!IsListNode<Pex>);
     static_assert(!IsSelectNode<Pex>);
+    static_assert(!IsOptionalSelectNode<Pex>);
     static_assert(!IsGroupNode<Pex>);
     static_assert(!IsRangeNode<Pex>);
 
@@ -295,6 +297,59 @@ struct PromoteControl<P, std::enable_if_t<IsSelectFollow<P>>>
 
     static constexpr auto selectorName = "FollowSelector";
 };
+
+
+template<typename P>
+struct PromoteControl<P, std::enable_if_t<IsOptionalSelectModel<P>>>
+{
+    using Type = control::OptionalSelect<P>;
+    using Upstream = P;
+
+    template<typename U>
+    using Selector = ControlSelector<U>;
+
+    static constexpr auto selectorName = "ControlSelector";
+};
+
+
+template<typename P>
+struct PromoteControl<P, std::enable_if_t<IsOptionalSelectControl<P>>>
+{
+    using Type = P;
+    using Upstream = typename P::Upstream;
+
+    template<typename U>
+    using Selector = ControlSelector<U>;
+
+    static constexpr auto selectorName = "ControlSelector";
+};
+
+
+template<typename P>
+struct PromoteControl<P, std::enable_if_t<IsOptionalSelectMux<P>>>
+{
+    using Type = control::OptionalSelectFollow<P>;
+    using Upstream = P;
+
+    template<typename U>
+    using Selector = FollowSelector<U>;
+
+    static constexpr auto selectorName = "FollowSelector";
+};
+
+
+template<typename P>
+struct PromoteControl<P, std::enable_if_t<IsOptionalSelectFollow<P>>>
+{
+    using Type = P;
+    using Upstream = typename P::Upstream;
+
+    template<typename U>
+    using Selector = FollowSelector<U>;
+
+    static constexpr auto selectorName = "FollowSelector";
+};
+
 
 
 } // end namespace pex

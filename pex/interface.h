@@ -99,22 +99,30 @@ template<typename T>
 inline constexpr bool HasGetChoices = HasGetChoices_<T>::value;
 
 
-template<typename T, typename = void>
+template<typename T, bool allowEmpty, typename = void>
 struct SelectType
 {
     using Type = T;
 
     static std::vector<Type> GetChoices()
     {
-        return {Type{}};
+        if constexpr (allowEmpty)
+        {
+            return {};
+        }
+        else
+        {
+            return {Type{}};
+        }
     }
 };
 
 
-template<typename T>
+template<typename T, bool allowEmpty>
 struct SelectType
 <
     T,
+    allowEmpty,
     std::enable_if_t<HasGetChoices<T>>
 >
 {
@@ -130,11 +138,23 @@ struct SelectType
 template
 <
     typename T,
-    typename Access_ = pex::GetAndSetTag
+    typename Access_ = GetAndSetTag
 >
 struct MakeSelect
 {
-    using Type = SelectType<std::decay_t<T>>;
+    using Type = SelectType<std::decay_t<T>, false>;
+    using Access = Access_;
+};
+
+
+template
+<
+    typename T,
+    typename Access_ = GetAndSetTag
+>
+struct MakeOptionalSelect
+{
+    using Type = SelectType<std::decay_t<T>, true>;
     using Access = Access_;
 };
 
@@ -189,6 +209,10 @@ inline constexpr bool IsMakeRange = detail::IsMakeRange_<T...>::value;
 
 template<typename ...T>
 inline constexpr bool IsMakeSelect = detail::IsMakeSelect_<T...>::value;
+
+template<typename ...T>
+inline constexpr bool IsMakeOptionalSelect =
+    detail::IsMakeOptionalSelect_<T...>::value;
 
 template<typename ...T>
 inline constexpr bool IsMakePoly = detail::IsMakePoly_<T...>::value;

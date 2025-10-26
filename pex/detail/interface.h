@@ -89,6 +89,11 @@ template<typename ...T> struct IsMakeSelect_: std::false_type {};
 template<typename ...T>
 struct IsMakeSelect_<MakeSelect<T...>>: std::true_type {};
 
+template<typename ...T> struct IsMakeOptionalSelect_: std::false_type {};
+
+template<typename ...T>
+struct IsMakeOptionalSelect_<MakeOptionalSelect<T...>>: std::true_type {};
+
 template<typename ...T> struct IsMakePoly_: std::false_type {};
 
 template<typename Supers>

@@ -52,6 +52,12 @@ struct DegreesFilter
     }
 };
 
+static_assert(!pex::detail::MemberGetterRequiresType<double, DegreesFilter>);
+static_assert(pex::detail::StaticGetterRequiresType<double, DegreesFilter>);
+
+static_assert(!pex::detail::MemberSetterRequiresType<double, DegreesFilter>);
+static_assert(pex::detail::StaticSetterRequiresType<double, DegreesFilter>);
+
 
 using Angle_radians = pex::model::FilteredValue<double, ModelFilter>;
 

@@ -75,6 +75,20 @@ struct Identity_
 };
 
 
+template<typename T>
+struct Identity_
+<
+    T,
+    std::enable_if_t
+    <
+        IsMakeOptionalSelect<T>
+    >
+>
+{
+    using Type = std::optional<typename T::Type::Type>;
+};
+
+
 } // end namespace detail
 
 

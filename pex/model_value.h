@@ -65,11 +65,13 @@ namespace model
 template<typename T, typename Filter_, typename Access_ = GetAndSetTag>
 class Value_
     :
-    //Callback values will be the type returned by the Filter, or T if
+    // Callback values will be the type returned by the Filter, or T if
     // the filter is void.
     public detail::NotifyMany<ValueConnection<void, T, Filter_>, Access_>
 {
     static_assert(!std::is_void_v<T>);
+
+    // Why are we using SetTag here?
     static_assert(detail::FilterIsNoneOrValid<T, Filter_, SetTag>);
 
 public:
@@ -193,7 +195,7 @@ public:
 protected:
     void SetWithoutNotify_(Argument<Type> value)
     {
-        if constexpr (std::is_same_v<NoFilter, Filter>)
+        if constexpr (detail::FilterIsNone<Filter>)
         {
             this->value_ = value;
         }
@@ -205,14 +207,24 @@ protected:
 
     Type FilterOnSet_(Argument<Type> value) const
     {
-        if constexpr (std::is_same_v<NoFilter, Filter>)
+        if constexpr (detail::FilterIsNone<Filter>)
         {
             return value;
         }
         else if constexpr (detail::SetterIsMember<Type, Filter>)
         {
-            if constexpr (jive::IsOptional<Type>)
+            if constexpr (detail::MemberSetterTakesOptional<Type, Filter>)
             {
+                // Pass the value through directly.
+                // Optional or not, the Filter knows how to handle it.
+
+                return this->filter_.Set(value);
+            }
+            else if constexpr (jive::IsOptional<Type>)
+            {
+                // The value type is std::optional, but the filter expects
+                // a normal value.
+
                 if (!value)
                 {
                     return {};
@@ -228,9 +240,18 @@ protected:
         else
         {
             // The filter is not a member function.
-
-            if constexpr (jive::IsOptional<Type>)
+            if constexpr (detail::StaticSetterTakesOptional<Type, Filter>)
             {
+                // Pass the value through directly.
+                // Optional or not, the Filter knows how to handle it.
+
+                return Filter::Set(value);
+            }
+            else if constexpr (jive::IsOptional<Type>)
+            {
+                // The value type is std::optional, but the filter expects
+                // a normal value.
+
                 if (!value)
                 {
                     return {};
@@ -247,14 +268,23 @@ protected:
 
     Type FilterOnGet_(Argument<Type> value) const
     {
-        if constexpr (std::is_same_v<NoFilter, Filter>)
+        if constexpr (detail::FilterIsNone<Filter>)
         {
             return value;
         }
         else if constexpr (detail::GetterIsMember<Type, Filter>)
         {
-            if constexpr (jive::IsOptional<Type>)
+            if constexpr (detail::MemberGetterTakesOptional<Type, Filter>)
             {
+                // Pass the value through directly.
+                // Optional or not, the Filter knows how to handle it.
+                return this->filter_.Get(value);
+            }
+            else if constexpr (jive::IsOptional<Type>)
+            {
+                // The value type is std::optional, but the filter expects
+                // a normal value.
+
                 if (!value)
                 {
                     return {};
@@ -270,9 +300,17 @@ protected:
         else
         {
             // The filter is not a member function.
-
-            if constexpr (jive::IsOptional<Type>)
+            if constexpr (detail::StaticGetterTakesOptional<Type, Filter>)
             {
+                // Pass the value through directly.
+                // Optional or not, the Filter knows how to handle it.
+                return Filter::Get(value);
+            }
+            else if constexpr (jive::IsOptional<Type>)
+            {
+                // The value type is std::optional, but the filter expects
+                // a normal value.
+
                 if (!value)
                 {
                     return {};
@@ -559,7 +597,7 @@ public:
 protected:
     void SetWithoutNotify_(Argument<Type> value)
     {
-        if constexpr (std::is_same_v<NoFilter, Filter_>)
+        if constexpr (detail::FilterIsNone<Filter>)
         {
             std::lock_guard lock(this->mutex_);
             this->value_ = value;
