@@ -282,7 +282,7 @@ protected:
 
 protected:
 #ifndef NDEBUG
-    jive::CountFlag<size_t> isNotifying_;
+    mutable jive::CountFlag<size_t> isNotifying_;
 #endif
     std::vector<ConnectionType> connections_;
 };
@@ -293,11 +293,11 @@ template<typename ConnectionType, typename Access, typename = std::void_t<>>
 class NotifyMany: public NotifyMany_<ConnectionType, Access>
 {
 protected:
-    void Notify_()
+    void Notify_() const
     {
         REPORT_NOTIFYING
 
-        for (auto &connection: this->connections_)
+        for (const auto &connection: this->connections_)
         {
             connection();
         }
@@ -329,11 +329,11 @@ public:
     using Type = typename ConnectionType::Type;
 
 protected:
-    void Notify_(Argument<typename ConnectionType::Type> value)
+    void Notify_(Argument<typename ConnectionType::Type> value) const
     {
         REPORT_NOTIFYING
 
-        for (auto &connection: this->connections_)
+        for (const auto &connection: this->connections_)
         {
             connection(value);
         }

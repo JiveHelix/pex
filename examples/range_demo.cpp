@@ -118,7 +118,7 @@ FilterIsNoneOrFree
 class PoseObserver
 {
 public:
-    PoseObserver(PoseControl control)
+    PoseObserver(const PoseControl &control)
         :
         endpoint_(PEX_THIS("PoseObserver"), control, &PoseObserver::OnPose)
     {

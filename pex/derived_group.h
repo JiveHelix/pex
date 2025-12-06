@@ -28,9 +28,9 @@ struct DerivedGroup
     using ValueBase = typename Supers::ValueBase;
     using ValueWrapper = ValueWrapperTemplate<ValueBase>;
 
-    using ControlBase = MakeControlSuper<Supers>;
+    using ControlBase = MakeSuperControl<Supers>;
 
-    using SuperModel = MakeModelSuper<Supers>;
+    using SuperModel = MakeSuperModel<Supers>;
     using ModelWrapper = ::pex::poly::ModelWrapperTemplate<Supers>;
 
     using DerivedValue = DerivedValueTemplate<Templates>;
@@ -80,7 +80,7 @@ struct DerivedGroup
                 return ::pex::poly::GetTypeName<Templates>();
             }
 
-            std::unique_ptr<MakeControlSuper<Supers>> CreateControl() override;
+            std::unique_ptr<MakeSuperControl<Supers>> CreateControl() override;
 
             void SetValueWithoutNotify(const ValueWrapper &value) override
             {
@@ -128,6 +128,7 @@ struct DerivedGroup
                 baseNotifier_()
             {
                 PEX_CONCISE_LOG(this);
+
                 PEX_NAME(
                     fmt::format(
                         "DerivedGroup<Fields, {}>::Control<{}>",
@@ -150,7 +151,7 @@ struct DerivedGroup
             template<typename BaseSignal>
             Control(const ControlWrapper<BaseSignal> &control);
 
-            Control(const Control &other)
+            explicit Control(const Control &other)
                 :
                 GroupBase(other),
                 aggregate_(),
@@ -186,6 +187,34 @@ struct DerivedGroup
                 }
 
                 return *this;
+            }
+
+            void StandardEmplace_(const Control &other)
+            {
+                this->GroupBase::StandardEmplace_(other);
+                this->baseNotifier_ = other.baseNotifier_;
+
+                if (this->baseNotifier_.HasConnections())
+                {
+                    this->aggregate_.AssignUpstream(*this);
+                    this->aggregate_.Connect(this, &Control::OnAggregate_);
+                }
+            }
+
+            void StandardEmplace_(Upstream &upstream)
+            {
+                if (this->baseNotifier_.HasConnections())
+                {
+                    this->aggregate_.Disconnect(this);
+                }
+
+                this->GroupBase::StandardEmplace_(upstream);
+
+                if (this->baseNotifier_.HasConnections())
+                {
+                    this->aggregate_.AssignUpstream(*this);
+                    this->aggregate_.Connect(this, &Control::OnAggregate_);
+                }
             }
 
             ValueWrapper GetValue() const override
@@ -230,7 +259,7 @@ struct DerivedGroup
                 }
             }
 
-            std::unique_ptr<MakeControlSuper<Supers>> Copy() const override;
+            std::unique_ptr<MakeSuperControl<Supers>> Copy() const override;
 
             void SetValueWithoutNotify(const ValueWrapper &value) override
             {
@@ -278,6 +307,9 @@ struct DerivedGroup
     };
 
 private:
+    // The private group creates
+    // GroupTemplates_::Model<pex::Group::Model_>
+    // and GroupTemplates_::Control<pex::Group::Control_>
     using Group_ =
         ::pex::Group<Fields, Templates::template Template, GroupTemplates_>;
 

@@ -2,7 +2,6 @@
 
 #include <cmath>
 #include <jive/overflow.h>
-#include <jive/platform.h>
 #include <jive/optional.h>
 #include "pex/control_value.h"
 
@@ -46,9 +45,11 @@ struct ConvertingFilter
                 return std::nullopt;
             }
 
-            CHECK_RANGE(jive::RemoveOptional<GetType>, *value);
+            using PlainGetType = jive::RemoveOptional<GetType>;
 
-            return static_cast<GetType>(*value);
+            CHECK_RANGE(PlainGetType, *value);
+
+            return static_cast<PlainGetType>(*value);
         }
         else
         {
@@ -67,9 +68,10 @@ struct ConvertingFilter
                 return std::nullopt;
             }
 
-            CHECK_RANGE(jive::RemoveOptional<SetType>, *value);
+            using PlainSetType = jive::RemoveOptional<SetType>;
+            CHECK_RANGE(PlainSetType, *value);
 
-            return static_cast<SetType>(*value);
+            return static_cast<PlainSetType>(*value);
         }
         else
         {
@@ -191,7 +193,7 @@ struct LinearFilter
         {
             if (!value)
             {
-                return value;
+                return std::nullopt;
             }
 
             PlainType result = (*value) * this->slope_;
@@ -222,7 +224,7 @@ struct LinearFilter
         {
             if (!value)
             {
-                return value;
+                return std::nullopt;
             }
 
             return static_cast<PlainType>(*value) / this->slope_;
@@ -248,7 +250,7 @@ private:
 };
 
 
-template<typename T, ssize_t slope>
+template<typename T, int slope>
 struct StaticLinearFilter
 {
     using Type = T;
@@ -264,7 +266,7 @@ struct StaticLinearFilter
         {
             if (!value)
             {
-                return value;
+                return std::nullopt;
             }
 
             PlainType result = (*value) * static_cast<PlainType>(slope);
@@ -295,7 +297,7 @@ struct StaticLinearFilter
         {
             if (!value)
             {
-                return value;
+                return std::nullopt;
             }
 
             return static_cast<PlainType>(value)

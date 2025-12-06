@@ -45,7 +45,7 @@ public:
     using MemberAddedEndpoint =
         pex::Endpoint<TestObserver, typename ListControl::MemberAdded>;
 
-    TestObserver(TestControl testControl)
+    TestObserver(const TestControl &testControl)
         :
         listControl(testControl.values),
 

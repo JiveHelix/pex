@@ -9,6 +9,7 @@
 #include "pex/select_terminus.h"
 #include "pex/list.h"
 #include "pex/detail/list_connect.h"
+#include <pex/promote_control.h>
 
 
 namespace pex
@@ -126,7 +127,7 @@ public:
         PEX_MEMBER(connector);
     }
 
-    Endpoint_(Observer *observer, Control upstream)
+    Endpoint_(Observer *observer, const Control &upstream)
         :
         observer_(observer),
         connector(upstream)
@@ -135,7 +136,7 @@ public:
         PEX_MEMBER(connector);
     }
 
-    Endpoint_(Observer *observer, Control upstream, Callable callable)
+    Endpoint_(Observer *observer, const Control &upstream, Callable callable)
         :
         observer_(observer),
         connector(observer, upstream, callable)
@@ -182,6 +183,14 @@ public:
         return *this;
     }
 
+    Endpoint_ & AssignControl(Observer *observer, const Control &upstream)
+    {
+        this->observer_ = observer;
+        this->connector.Emplace(upstream);
+
+        return *this;
+    }
+
     Endpoint_(Endpoint_ &&other)
         :
         observer_(other.observer_),
@@ -205,7 +214,7 @@ public:
         return *this;
     }
 
-    void ConnectUpstream(Control upstream, Callable callable)
+    void ConnectUpstream(const Control &upstream, Callable callable)
     {
         this->connector.Emplace(this->observer_, upstream, callable);
     }
@@ -310,7 +319,7 @@ void AssignEndpoints(
     EndpointMember &endpoint,
     MemberControl &control)
 {
-    endpoint = EndpointMember(observer, control);
+    endpoint.AssignControl(observer, control);
 }
 
 
@@ -511,7 +520,7 @@ public:
         PEX_MEMBER(endpoint);
     }
 
-    BoundEndpoint(Observer *observer, Control upstream)
+    BoundEndpoint(Observer *observer, const Control &upstream)
         :
         endpoint(PEX_THIS("BoundEndpoint"), upstream),
         observer_(observer),
@@ -530,7 +539,7 @@ public:
     template<typename ...T>
     BoundEndpoint(
         Observer *observer,
-        Control upstream,
+        const Control &upstream,
         MemberFunction memberFunction,
         T &&...args)
         :
@@ -665,7 +674,7 @@ public:
     // Uses helper type ...T to allow forwarding the bound arguments.
     template<typename ...T>
     void ConnectUpstream(
-        Control control,
+        const Control &control,
         MemberFunction memberFunction,
         T &&...args)
     {

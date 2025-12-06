@@ -177,6 +177,73 @@ public:
         }
     }
 
+    void Emplace(PexArgument<Upstream> pex)
+    {
+        // Only the upstream has been replaced.
+        // Maintain existing callbacks.
+        this->upstreamConnection_.reset();
+        this->upstream_.Emplace(pex);
+
+        if (this->HasConnections())
+        {
+            // We have a connection waiting for notifications.
+            // Reconnect to the upstream.
+            this->upstreamConnection_.emplace(
+                this->upstream_,
+                this,
+                &Value_::OnUpstreamChanged_);
+        }
+    }
+
+    void Emplace(void *observer, const Value_ &other, Callable callable)
+    {
+        this->Emplace(other);
+        this->Connect(observer, callable);
+    }
+
+    void Emplace(const Value_ &other)
+    {
+        static_assert(IsCopyable<Value_>, "This value is not copyable.");
+
+        // Sanity check
+        static_assert(
+            !detail::FilterIsMember<UpstreamType, Filter>,
+            "IsCopyable implies that Filter uses static functions.");
+
+        this->Base::operator=(other);
+
+        this->upstreamConnection_.reset();
+
+        this->upstream_ = other.upstream_;
+
+        if constexpr (upstreamIsCopyable)
+        {
+            this->upstream_.ClearConnections();
+        }
+
+        if constexpr (HasAccess<GetTag, Access>)
+        {
+            if (this->HasConnections())
+            {
+                PEX_LOG("Connect ", this);
+
+                this->upstreamConnection_.emplace(
+                    this->upstream_,
+                    this,
+                    &Value_::OnUpstreamChanged_);
+            }
+        }
+    }
+
+    void Emplace(void *observer, PexArgument<Upstream> pex, Callable callable)
+    {
+        // A new callable has been given.
+        // Clear previous connections.
+        this->ClearConnections();
+        this->upstream_.Emplace(pex);
+        this->Connect(observer, callable);
+    }
+
     Value_(void *observer, PexArgument<Upstream> pex, Callable callable)
         :
         Base(),
@@ -631,7 +698,10 @@ public:
         return this->Get();
     }
 
-    void Set(Argument<Type> value)
+    // Set is const here because it is logically const;
+    // it only modifies the underlying model node.
+    // The internal state (wiring) of the control is unmodified.
+    void Set(Argument<Type> value) const
     {
         static_assert(
             HasAccess<SetTag, Access>,
@@ -639,11 +709,12 @@ public:
 
         if constexpr (detail::FilterIsNone<Filter>)
         {
-            this->upstream_.Set(value);
+            const_cast<UpstreamHolder &>(this->upstream_).Set(value);
         }
         else
         {
-            this->upstream_.Set(this->FilterOnSet_(value));
+            const_cast<UpstreamHolder &>(this->upstream_)
+                .Set(this->FilterOnSet_(value));
         }
     }
 
@@ -664,13 +735,18 @@ public:
         this->upstreamConnection_.reset();
     }
 
-    void Notify()
+    void Notify() const
     {
-        this->upstream_.Notify();
+        const_cast<UpstreamHolder &>(this->upstream_).Notify();
     }
 
 protected:
-    void SetWithoutNotify_(Argument<Type> value)
+    void ChangeUpstream_(PexArgument<Upstream> upstream)
+    {
+        this->Emplace(upstream);
+    }
+
+    void SetWithoutNotify_(Argument<Type> value) const
     {
         static_assert(
             HasAccess<SetTag, Access>,
@@ -678,11 +754,13 @@ protected:
 
         if constexpr (detail::FilterIsNone<Filter>)
         {
-            this->upstream_.SetWithoutNotify_(value);
+            const_cast<UpstreamHolder &>(this->upstream_)
+                .SetWithoutNotify_(value);
         }
         else
         {
-            this->upstream_.SetWithoutNotify_(this->FilterOnSet_(value));
+            const_cast<UpstreamHolder &>(this->upstream_)
+                .SetWithoutNotify_(this->FilterOnSet_(value));
         }
     }
 
@@ -696,7 +774,15 @@ protected:
         {
             REQUIRE_HAS_VALUE(this->filter_);
 
-            if constexpr (jive::IsOptional<Type>)
+            if constexpr (
+                detail::MemberSetterTakesOptional<UpstreamType, Filter>)
+            {
+                // Pass the value through directly.
+                // Optional or not, the Filter knows how to handle it.
+
+                return this->filter_->Set(value);
+            }
+            else if constexpr (jive::IsOptional<Type>)
             {
                 if (!value)
                 {
@@ -713,7 +799,15 @@ protected:
         else
         {
             // The filter is not a member function.
-            if constexpr (jive::IsOptional<Type>)
+            if constexpr (
+                detail::StaticSetterTakesOptional<UpstreamType, Filter>)
+            {
+                // Pass the value through directly.
+                // Optional or not, the Filter knows how to handle it.
+
+                return Filter::Set(value);
+            }
+            else if constexpr (jive::IsOptional<Type>)
             {
                 if (!value)
                 {
@@ -739,7 +833,12 @@ protected:
         {
             REQUIRE_HAS_VALUE(this->filter_);
 
-            if constexpr (jive::IsOptional<Type>)
+            if constexpr (
+                detail::MemberGetterTakesOptional<UpstreamType, Filter>)
+            {
+                return this->filter_->Get(value);
+            }
+            else if constexpr (jive::IsOptional<Type>)
             {
                 if (!value)
                 {
@@ -756,8 +855,12 @@ protected:
         else
         {
             // The filter is not a member function.
-
-            if constexpr (jive::IsOptional<Type>)
+            if constexpr (
+                detail::StaticGetterTakesOptional<UpstreamType, Filter>)
+            {
+                return Filter::Get(value);
+            }
+            else if constexpr (jive::IsOptional<Type>)
             {
                 if (!value)
                 {
@@ -791,21 +894,6 @@ protected:
         }
     }
 
-    void ChangeUpstream_(PexArgument<Upstream> upstream)
-    {
-        this->upstreamConnection_.reset();
-
-        this->upstream_ = upstream;
-
-        if (this->HasConnections())
-        {
-            this->upstreamConnection_.emplace(
-                this->upstream_,
-                this,
-                &Value_::OnUpstreamChanged_);
-        }
-    }
-
 public:
     const Model & GetModel_() const
     {
@@ -825,6 +913,7 @@ public:
     static constexpr bool isValueContainer = true;
 
     using Base = Value_<Upstream_>;
+    using UpstreamHolder = typename Base::UpstreamHolder;
     using Upstream = typename Base::Upstream;
 
     using Base::Base;
@@ -853,7 +942,7 @@ public:
     friend class ::pex::Terminus;
 
     /** Set the value and notify interfaces **/
-    void Set(size_t index, Argument<ValueType> value)
+    void Set(size_t index, Argument<ValueType> value) const
         requires (HasAccess<SetTag, Access>)
     {
         this->SetWithoutNotify_(index, value);
@@ -890,9 +979,10 @@ public:
 protected:
     using Base::SetWithoutNotify_;
 
-    void SetWithoutNotify_(size_t index, Argument<Type> value)
+    void SetWithoutNotify_(size_t index, Argument<Type> value) const
     {
-        this->upstream_.SetWithoutNotify_(index, value);
+        const_cast<UpstreamHolder &>(this->upstream_)
+            .SetWithoutNotify_(index, value);
     }
 };
 
@@ -904,6 +994,7 @@ public:
     static constexpr bool isKeyValueContainer = true;
 
     using Base = Value_<T, NoFilter>;
+    using UpstreamHolder = typename Base::UpstreamHolder;
 
     using Base::Base;
     using Base::Set;
@@ -930,7 +1021,7 @@ public:
     friend class Publisher;
 
     /** Set the value and notify interfaces **/
-    void Set(const KeyType &key, Argument<MappedType> value)
+    void Set(const KeyType &key, Argument<MappedType> value) const
         requires (HasAccess<SetTag, Access>)
     {
         this->SetWithoutNotify_(key, value);
@@ -965,9 +1056,9 @@ public:
 protected:
     using Base::SetWithoutNotify_;
 
-    void SetWithoutNotify_(const KeyType &key, Argument<MappedType> value)
+    void SetWithoutNotify_(const KeyType &key, Argument<MappedType> value) const
     {
-        this->upstream_[key] = value;
+        const_cast<UpstreamHolder &>(this->upstream_)[key] = value;
     }
 };
 
@@ -1068,12 +1159,12 @@ public:
         :
         Base{}
     {
-        this->ChangeUpstream_(upstream);
+        this->Emplace(upstream);
     }
 
     void ChangeUpstream(PexArgument<Upstream> upstream)
     {
-        this->ChangeUpstream_(upstream);
+        this->Emplace(upstream);
     }
 };
 
@@ -1094,7 +1185,7 @@ public:
 
     void ChangeUpstream(PexArgument<Upstream> upstream)
     {
-        this->ChangeUpstream_(upstream);
+        this->Emplace(upstream);
     }
 };
 
@@ -1115,7 +1206,7 @@ public:
 
     void ChangeUpstream(PexArgument<Upstream> upstream)
     {
-        this->ChangeUpstream_(upstream);
+        this->Emplace(upstream);
     }
 };
 

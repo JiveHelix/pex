@@ -146,6 +146,21 @@ public:
         PEX_MEMBER(muteNode_);
     }
 
+    void Emplace(Upstream &upstream)
+    {
+        this->muteNode_.Emplace(upstream);
+    }
+
+    void Emplace(const Mute &other)
+    {
+        this->muteNode_.Emplace(other.muteNode_);
+    }
+
+    void Emplace(const MuteNode &muteNode)
+    {
+        this->muteNode_.Emplace(muteNode);
+    }
+
     ~Mute()
     {
         PEX_CLEAR_NAME(this);
@@ -231,7 +246,17 @@ public:
 
     void ChangeUpstream(MuteModel &upstream)
     {
-        this->muteNode_.ChangeUpstream(upstream);
+        this->muteNode_.Emplace(upstream);
+    }
+
+    void Emplace(MuteModel &upstream)
+    {
+        this->muteNode_.Emplace(upstream);
+    }
+
+    void Emplace(const MuteMux &other)
+    {
+        this->muteNode_.Emplace(other.muteNode_);
     }
 
     MuteFollowType CloneMuteNode()

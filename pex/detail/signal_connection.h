@@ -32,7 +32,7 @@ public:
     using Base = Connection<Observer, SignalFunctionStyle<Observer>>;
     using Base::Base;
 
-    void operator()()
+    void operator()() const
     {
         if constexpr(Base::IsMemberFunction)
         {

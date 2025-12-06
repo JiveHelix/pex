@@ -133,7 +133,7 @@ public:
 
     using ListType = typename ListControl::Type;
 
-    TestListObserver(ListControl listControl)
+    TestListObserver(const ListControl &listControl)
         :
         endpoint_(
             PEX_THIS("TestListObserver"),

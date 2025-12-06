@@ -31,7 +31,7 @@ public:
     using Type = ValueWrapper;
     using Plain = Type;
 
-    using SuperControl = MakeControlSuper<Supers>;
+    using SuperControl = MakeSuperControl<Supers>;
 
     using Callable = typename SuperControl::Callable;
     using Upstream = Upstream_;
@@ -317,6 +317,89 @@ public:
         PEX_CLEAR_NAME(&baseCreatedTerminus_);
         PEX_CLEAR_NAME(&baseWillDeleteTerminus_);
 
+    }
+
+    void Emplace(Upstream &upstream)
+    {
+        if (this->base_)
+        {
+            ::pex::model::Signal temporaryBaseWillDelete;
+            this->baseWillDelete.Emplace(temporaryBaseWillDelete);
+            temporaryBaseWillDelete.Trigger();
+        }
+
+        this->upstream_ = upstream;
+
+        auto modelBase = this->upstream_->GetVirtual();
+
+        if (modelBase)
+        {
+            this->base_ = modelBase->CreateControl();
+            ::pex::model::Signal temporaryBaseCreated;
+            this->baseCreated.Emplace(temporaryBaseCreated);
+            temporaryBaseCreated.Trigger();
+        }
+
+        this->baseCreated.Emplace(upstream.baseCreated);
+        this->baseWillDelete.Emplace(upstream.baseWillDelete);
+
+        this->baseCreatedTerminus_.Emplace(
+            this,
+            upstream.internalBaseCreated_,
+            &ControlWrapperTemplate::OnBaseCreated_);
+
+        this->baseWillDeleteTerminus_.Emplace(
+            this,
+            upstream.internalBaseWillDelete_,
+            &ControlWrapperTemplate::OnBaseWillDelete_);
+    }
+
+    void Emplace(void *observer, Upstream &upstream, Callable callable)
+    {
+        this->Emplace(upstream);
+        assert(this->base_);
+        this->base_->Connect(observer, callable);
+    }
+
+    void Emplace(const ControlWrapperTemplate &other)
+    {
+        PEX_CONCISE_LOG(
+            " operator= copy ",
+            LookupPexName(this),
+            " from ",
+            LookupPexName(&other));
+
+        this->upstream_ = other.upstream_;
+
+        if (other.base_)
+        {
+            this->base_ = other.base_->Copy();
+        }
+        else
+        {
+            this->base_.reset();
+        }
+
+        this->baseWillDelete = other.baseWillDelete;
+        this->baseCreated = other.baseCreated;
+
+        this->baseWillDeleteTerminus_.RequireAssign(
+            this,
+            other.baseWillDeleteTerminus_);
+
+        this->baseCreatedTerminus_.RequireAssign(
+            this,
+            other.baseCreatedTerminus_);
+    }
+
+    void Emplace(
+        void *observer,
+        const ControlWrapperTemplate &other,
+        Callable callable)
+    {
+        this->Emplace(other);
+        assert(this->base_);
+        this->base_->Connect(observer, callable);
     }
 
     ValueWrapper Get() const

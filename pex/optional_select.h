@@ -515,6 +515,29 @@ public:
         }
     }
 
+    void Emplace(Upstream &upstream)
+    {
+        if constexpr (IsOptionalSelectModel<Upstream>)
+        {
+            this->choices = Choices(upstream.choices_);
+            this->selection = Selection(upstream.selection_);
+            this->value = Value(upstream.value_);
+        }
+        else
+        {
+            this->choices = Choices(upstream.choices);
+            this->selection = Selection(upstream.selection);
+            this->value = Value(upstream.value);
+        }
+    }
+
+    void Emplace(const OptionalSelect &other)
+    {
+        this->choices.Emplace(other.choices);
+        this->selection.Emplace(other.selection);
+        this->value.Emplace(other.value);
+    }
+
     std::optional<Type> Get() const
     {
         return this->value.Get();
@@ -530,6 +553,26 @@ public:
         return this->value.HasModel()
             && this->selection.HasModel()
             && this->value.HasModel();
+    }
+
+    void Emplace(
+        void *observer,
+        Upstream &upstream,
+        typename Value::Callable callable)
+    {
+        this->Emplace(upstream);
+        this->value.ClearConnections();
+        this->value.Connect(observer, callable);
+    }
+
+    void Emplace(
+        void *observer,
+        const OptionalSelect &other,
+        typename Value::Callable callable)
+    {
+        this->Emplace(other);
+        this->value.ClearConnections();
+        this->value.Connect(observer, callable);
     }
 
     void Connect(void *observer, typename Value::Callable callable)

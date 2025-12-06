@@ -209,7 +209,7 @@ public:
     using RadiusEndpoint =
         pex::Endpoint<EndpointObserver, decltype(Control::radius)>;
 
-    EndpointObserver(Control control)
+    EndpointObserver(const Control &control)
         :
         center(),
         radius(),

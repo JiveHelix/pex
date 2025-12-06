@@ -99,7 +99,7 @@ struct TestObserver: Separator
     double observedRate;
     SomeEndpointGroup<TestObserver> endpoints_;
 
-    TestObserver(SomeControl control)
+    TestObserver(const SomeControl &control)
         :
         observedRate{control.rate.Get()},
         endpoints_{PEX_THIS("TestObserver"), control}

@@ -1,6 +1,7 @@
 #pragma once
 
 
+#include <cstddef>
 #include <fields/fields.h>
 #include "pex/group.h"
 #include "pex/reference.h"
@@ -567,46 +568,54 @@ struct OrderedListCustom
             this->moveDownEndpoints_.erase(index);
         }
 
-        void ClearInvalidatedConnections_(size_t firstToClear)
+        void ClearInvalidatedConnections_([[maybe_unused]] size_t firstToClear)
         {
-            if constexpr (!hasOrder)
+            if constexpr (hasOrder)
             {
-                return;
-            }
-
-            auto keys =
-                GetInvalidatedKeys(
-                    firstToClear,
-                    this->moveToBottomEndpoints_);
+                auto keys =
+                    GetInvalidatedKeys(
+                        firstToClear,
+                        this->moveToBottomEndpoints_);
 #ifndef NDEBUG
-            auto checkMoveToTop =
-                GetInvalidatedKeys(firstToClear, this->moveToTopEndpoints_);
+                auto checkMoveToTop =
+                    GetInvalidatedKeys(
+                        firstToClear,
+                        this->moveToTopEndpoints_);
 
-            auto checkMoveUp =
-                GetInvalidatedKeys(firstToClear, this->moveUpEndpoints_);
+                auto checkMoveUp =
+                    GetInvalidatedKeys(
+                        firstToClear,
+                        this->moveUpEndpoints_);
 
-            auto checkMoveDown =
-                GetInvalidatedKeys(firstToClear, this->moveDownEndpoints_);
+                auto checkMoveDown =
+                    GetInvalidatedKeys(
+                        firstToClear,
+                        this->moveDownEndpoints_);
 
-            assert(checkMoveToTop.size() == keys.size());
-            assert(checkMoveUp.size() == keys.size());
-            assert(checkMoveDown.size() == keys.size());
+                assert(checkMoveToTop.size() == keys.size());
+                assert(checkMoveUp.size() == keys.size());
+                assert(checkMoveDown.size() == keys.size());
 
-            std::sort(std::begin(keys), std::end(keys));
-            std::sort(std::begin(checkMoveToTop), std::end(checkMoveToTop));
-            std::sort(std::begin(checkMoveUp), std::end(checkMoveUp));
-            std::sort(std::begin(checkMoveDown), std::end(checkMoveDown));
+                std::sort(std::begin(keys), std::end(keys));
 
-            for (size_t i = 0; i < keys.size(); ++i)
-            {
-                assert(keys[i] == checkMoveToTop[i]);
-                assert(keys[i] == checkMoveUp[i]);
-                assert(keys[i] == checkMoveDown[i]);
-            }
+                std::sort(
+                    std::begin(checkMoveToTop),
+                    std::end(checkMoveToTop));
+
+                std::sort(std::begin(checkMoveUp), std::end(checkMoveUp));
+                std::sort(std::begin(checkMoveDown), std::end(checkMoveDown));
+
+                for (size_t i = 0; i < keys.size(); ++i)
+                {
+                    assert(keys[i] == checkMoveToTop[i]);
+                    assert(keys[i] == checkMoveUp[i]);
+                    assert(keys[i] == checkMoveDown[i]);
+                }
 #endif
-            for (auto &key: keys)
-            {
-                this->ClearConnectionsAt_(key);
+                for (auto &key: keys)
+                {
+                    this->ClearConnectionsAt_(key);
+                }
             }
         }
 
@@ -624,23 +633,21 @@ struct OrderedListCustom
             }
         }
 
-        void RestoreConnections_(size_t firstToRestore)
+        void RestoreConnections_([[maybe_unused]] size_t firstToRestore)
         {
-            if constexpr (!hasOrder)
+            if constexpr (hasOrder)
             {
-                return;
-            }
+                assert(this->count.Get() == this->list.size());
 
-            assert(this->count.Get() == this->list.size());
+                size_t listCount = this->list.count.Get();
 
-            size_t listCount = this->list.count.Get();
-
-            for (
-                size_t storageIndex = firstToRestore;
-                storageIndex < listCount;
-                ++storageIndex)
-            {
-                this->RestoreConnection_(storageIndex);
+                for (
+                    size_t storageIndex = firstToRestore;
+                    storageIndex < listCount;
+                    ++storageIndex)
+                {
+                    this->RestoreConnection_(storageIndex);
+                }
             }
         }
 
@@ -688,7 +695,7 @@ struct OrderedListCustom
                 });
 
             previous.insert(
-                previous.begin() + static_cast<ssize_t>(added),
+                previous.begin() + static_cast<std::ptrdiff_t>(added),
                 added);
 
             detail::AccessReference(this->indices).SetWithoutNotify(previous);
@@ -704,13 +711,15 @@ struct OrderedListCustom
             {
                 return;
             }
-
-            if (!removedIndex)
+            else
             {
-                return;
-            }
+                if (!removedIndex)
+                {
+                    return;
+                }
 
-            this->ClearConnectionsAt_(*removedIndex);
+                this->ClearConnectionsAt_(*removedIndex);
+            }
         }
 
         void OnListMemberReplaced_(const std::optional<size_t> &index)
@@ -719,17 +728,19 @@ struct OrderedListCustom
             {
                 return;
             }
-
-            if (!index)
+            else
             {
-                return;
+                if (!index)
+                {
+                    return;
+                }
+
+                auto order = GetOrderControl<ListMaker>(this->list, *index);
+
+                assert(order);
+
+                this->MakeOrderConnections_(*order, *index);
             }
-
-            auto order = GetOrderControl<ListMaker>(this->list, *index);
-
-            assert(order);
-
-            this->MakeOrderConnections_(*order, *index);
         }
 
         void OnListMemberWillRemove_(const std::optional<size_t> &removedIndex)
@@ -738,13 +749,15 @@ struct OrderedListCustom
             {
                 return;
             }
-
-            if (!removedIndex)
+            else
             {
-                return;
-            }
+                if (!removedIndex)
+                {
+                    return;
+                }
 
-            this->ClearInvalidatedConnections_(*removedIndex);
+                this->ClearInvalidatedConnections_(*removedIndex);
+            }
         }
 
         void OnListMemberRemoved_(const std::optional<size_t> &removedIndex)
@@ -814,36 +827,36 @@ struct OrderedListCustom
             const Indices &indices,
             size_t initialIndex)
             :
-            list_(list),
-            indices_(indices),
+            list_(&list),
+            indices_(&indices),
             index_(initialIndex)
         {
             assert(
-                this->list_.size() == this->indices_.size());
+                this->list_->size() == this->indices_->size());
         }
 
         ListItem & operator*()
         {
-            return this->list_.at(
-                size_t(this->indices_.at(this->index_)));
+            return this->list_->at(
+                size_t(this->indices_->at(this->index_)));
         }
 
         ListItem * operator->()
         {
-            return &this->list_.at(
-                size_t(this->indices_.at(this->index_)));
+            return &this->list_->at(
+                size_t(this->indices_->at(this->index_)));
         }
 
         const ListItem & operator*() const
         {
-            return this->list_.at(
-                size_t(this->indices_.at(this->index_)));
+            return this->list_->at(
+                size_t(this->indices_->at(this->index_)));
         }
 
         const ListItem * operator->() const
         {
-            return &this->list_.at(
-                size_t(this->indices_.at(this->index_)));
+            return &this->list_->at(
+                size_t(this->indices_->at(this->index_)));
         }
 
         // Prefix Increment
@@ -891,8 +904,8 @@ struct OrderedListCustom
         }
 
     private:
-        List &list_;
-        const Indices &indices_;
+        List *list_;
+        const Indices *indices_;
         size_t index_;
     };
 
@@ -908,36 +921,36 @@ struct OrderedListCustom
             const Indices &indices,
             size_t initialIndex)
             :
-            list_(list),
-            indices_(indices),
+            list_(&list),
+            indices_(&indices),
             index_(initialIndex),
-            count_(indices_.size())
+            count_(indices_->size())
         {
-            assert(this->list_.size() == this->indices_.size());
+            assert(this->list_->size() == this->indices_->size());
         }
 
         ListItem & operator*()
         {
-            return this->list_.at(
-                size_t(this->indices_.at(this->count_ - this->index_ - 1)));
+            return this->list_->at(
+                size_t(this->indices_->at(this->count_ - this->index_ - 1)));
         }
 
         ListItem * operator->()
         {
-            return &this->list_.at(
-                size_t(this->indices_.at(this->count_ - this->index_ - 1)));
+            return &this->list_->at(
+                size_t(this->indices_->at(this->count_ - this->index_ - 1)));
         }
 
         const ListItem & operator*() const
         {
-            return this->list_.at(
-                size_t(this->indices_.at(this->count_ - this->index_ - 1)));
+            return this->list_->at(
+                size_t(this->indices_->at(this->count_ - this->index_ - 1)));
         }
 
         const ListItem * operator->() const
         {
-            return &this->list_.at(
-                size_t(this->indices_.at(this->count_ - this->index_ - 1)));
+            return &this->list_->at(
+                size_t(this->indices_->at(this->count_ - this->index_ - 1)));
         }
 
         // Prefix Increment
@@ -985,8 +998,8 @@ struct OrderedListCustom
         }
 
     private:
-        List &list_;
-        const Indices &indices_;
+        List *list_;
+        const Indices *indices_;
         size_t index_;
         size_t count_;
     };
@@ -1217,24 +1230,25 @@ struct OrderedListCustom
 
         void ChangeUpstream(typename Base::Upstream &upstream)
         {
-            this->Base::ChangeUpstream(upstream),
+            this->Emplace(upstream);
+        }
 
-            this->selected.ChangeUpstream(upstream.list.selected);
-            this->count.ChangeUpstream(upstream.list.count);
-            this->memberAdded.ChangeUpstream(upstream.list.memberAdded);
+        void Emplace(typename Base::Upstream &upstream)
+        {
+            this->StandardEmplace_(upstream);
+        }
 
-            this->memberWillRemove.ChangeUpstream(
-                upstream.list.memberWillRemove);
-
-            this->memberRemoved.ChangeUpstream(upstream.list.memberRemoved);
-
-            this->memberWillReplace.ChangeUpstream(
-                upstream.list.memberWillReplace);
-
-            this->memberReplaced.ChangeUpstream(
-                upstream.list.memberReplaced);
-
-            this->upstream_ = &upstream;
+        void Emplace(const Mux &other)
+        {
+            this->StandardEmplace_(other);
+            this->upstream_ = other.upstream_;
+            this->selected.Emplace(other.selected);
+            this->count.Emplace(other.count);
+            this->memberAdded.Emplace(other.memberAdded);
+            this->memberWillRemove.Emplace(other.memberWillRemove);
+            this->memberRemoved.Emplace(other.memberRemoved);
+            this->memberWillReplace.Emplace(other.memberWillReplace);
+            this->memberReplaced.Emplace(other.memberReplaced);
         }
 
         size_t GetStorageIndex(size_t orderedIndex) const
@@ -1407,26 +1421,80 @@ struct OrderedListCustom
             return *this;
         }
 
-        void ChangeUpstream(typename Base::Upstream &upstream)
+        bool HasModel() const
         {
-            this->Base::ChangeUpstream(upstream),
+            if (!this->upstream_)
+            {
+                return false;
+            }
 
-            this->selected.ChangeUpstream(upstream.list.selected);
-            this->count.ChangeUpstream(upstream.list.count);
-            this->memberAdded.ChangeUpstream(upstream.list.memberAdded);
+            if (!this->list.HasModel())
+            {
+                return false;
+            }
 
-            this->memberWillRemove.ChangeUpstream(
-                upstream.list.memberWillRemove);
+            if (!this->selected.HasModel())
+            {
+                return false;
+            }
 
-            this->memberRemoved.ChangeUpstream(upstream.list.memberRemoved);
+            if (!this->count.HasModel())
+            {
+                return false;
+            }
 
-            this->memberWillReplace.ChangeUpstream(
-                upstream.list.memberWillReplace);
+            if (!this->memberAdded.HasModel())
+            {
+                return false;
+            }
 
-            this->memberReplaced.ChangeUpstream(
-                upstream.upstream.list.memberReplaced);
+            if (!this->memberWillRemove.HasModel())
+            {
+                return false;
+            }
 
+            if (!this->memberRemoved.HasModel())
+            {
+                return false;
+            }
+
+            if (!this->memberWillReplace.HasModel())
+            {
+                return false;
+            }
+
+            if (!this->memberReplaced.HasModel())
+            {
+                return false;
+            }
+
+            return true;
+        }
+
+        void Emplace(typename Base::Upstream &upstream)
+        {
+            this->StandardEmplace_(upstream),
+            this->selected.Emplace(upstream.list.selected);
+            this->count.Emplace(upstream.list.count);
+            this->memberAdded.Emplace(upstream.list.memberAdded);
+            this->memberWillRemove.Emplace(upstream.list.memberWillRemove);
+            this->memberRemoved.Emplace(upstream.list.memberRemoved);
+            this->memberWillReplace.Emplace(upstream.list.memberWillReplace);
+            this->memberReplaced.Emplace(upstream.list.memberReplaced);
             this->upstream_ = &upstream;
+        }
+
+        void Emplace(const Control &other)
+        {
+            this->StandardEmplace_(other);
+            this->upstream_ = other.upstream_;
+            this->selected.Emplace(other.selected);
+            this->count.Emplace(other.count);
+            this->memberAdded.Emplace(other.memberAdded);
+            this->memberWillRemove.Emplace(other.memberWillRemove);
+            this->memberRemoved.Emplace(other.memberRemoved);
+            this->memberWillReplace.Emplace(other.memberWillReplace);
+            this->memberReplaced.Emplace(other.memberReplaced);
         }
 
         size_t GetStorageIndex(size_t orderedIndex) const

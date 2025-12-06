@@ -224,6 +224,11 @@ public:
         deferGroup.Set(plain);
     }
 
+    void Set(const Plain &plain) const
+    {
+        const_cast<GroupAccessors *>(this)->Set(plain);
+    }
+
     // Initialize values without sending notifications.
     void SetInitial(const Plain &plain)
     {
@@ -277,6 +282,11 @@ protected:
             setWithoutNotify,
             Fields<Derived>::fields,
             Fields<Plain>::fields);
+    }
+
+    void SetWithoutNotify_(const Plain &plain) const
+    {
+        const_cast<GroupAccessors *>(this)->SetWithoutNotify_(plain);
     }
 };
 

@@ -13,6 +13,8 @@
 #include "pex/detail/has_model.h"
 #include "pex/detail/choose_not_void.h"
 #include "pex/detail/traits.h"
+#include "pex/type_tester.h"
+
 
 
 /**
@@ -117,11 +119,67 @@ template<typename Custom, typename T>
 using CustomizeModel = typename CustomizeModel_<Custom, T>::Type;
 
 
+template<typename Target, typename Source>
+void DoAssignEmplace(Target &target, Source && source) noexcept
+{
+    target.Emplace(std::forward<Source>(source));
+}
+
+template
+<
+    template<typename> typename Fields,
+    typename Target,
+    typename Source
+>
+void AssignEmplace(Target &&target, Source &&source)
+{
+    auto initializer = [&target, &source](
+        const auto &targetField,
+        const auto &sourceField) -> void
+    {
+        DoAssignEmplace(
+            target.*(targetField.member),
+            source.*(sourceField.member));
+    };
+
+    jive::ZipApply(
+        initializer,
+        Fields<std::remove_cvref_t<Target>>::fields,
+        Fields<std::remove_cvref_t<Source>>::fields);
+}
+
+
+template<typename Base>
+struct StandardEmplace: public Base
+{
+    using Base::Base;
+    using Upstream = typename Base::Upstream;
+
+    void Emplace(Upstream &upstream)
+    {
+        this->StandardEmplace_(upstream);
+    }
+
+    void Emplace(const Base &other)
+    {
+        this->StandardEmplace_(other);
+    }
+};
+
+
 template<typename Custom, typename T, typename = void>
 struct CustomizeControl_
 {
-    using Type = T;
+    using Type = StandardEmplace<T>;
 };
+
+
+template<typename Custom, typename T>
+concept HasValidControlTemplate =
+    HasControlTemplate<Custom, T>
+    && HasEmplaceUpstream<typename Custom::template Control<T>>
+    && HasEmplaceCopy<typename Custom::template Control<T>>;
+
 
 template<typename Custom, typename T>
 struct CustomizeControl_
@@ -131,6 +189,15 @@ struct CustomizeControl_
     std::enable_if_t<HasControlTemplate<Custom, T>>
 >
 {
+#if 0
+    // This was meant to help track down compile errors.
+    // Without Emplace implemented in custom controls, compilation will fail.
+    static_assert(
+        HasValidControlTemplate<Custom, T>,
+        "Expected customized Control template to override "
+        "Emplace(Upstream &) and Emplace(const Control &)");
+#endif
+
     using Type = typename Custom::template Control<T>;
 };
 
@@ -141,7 +208,7 @@ using CustomizeControl = typename CustomizeControl_<Custom, T>::Type;
 template<typename Custom, typename T, typename = void>
 struct CustomizeMux_
 {
-    using Type = T;
+    using Type = StandardEmplace<T>;
 };
 
 template<typename Custom, typename T>
@@ -162,7 +229,7 @@ using CustomizeMux = typename CustomizeMux_<Custom, T>::Type;
 template<typename Custom, typename T, typename = void>
 struct CustomizeFollow_
 {
-    using Type = T;
+    using Type = StandardEmplace<T>;
 };
 
 template<typename Custom, typename T>
@@ -354,8 +421,6 @@ struct Group
             Derived
         >;
 
-    // struct Control_;
-
     struct Model_:
         public detail::MuteOwner,
         public detail::MuteControl,
@@ -366,7 +431,6 @@ struct Group
         using GroupType = Group;
         static constexpr bool isGroupModel = true;
 
-        // using ControlType = typename detail::CustomizeControl<Custom, Control_>;
         using Plain = typename Group::Plain;
         using Type = Plain;
         using Defer = DeferGroup<ModelSelector, Model_>;
@@ -494,7 +558,7 @@ struct Group
             ControlMembers{},
             AccessorsBase{}
         {
-            fields::AssignConvert<Fields>(*this, upstream);
+            AssignEmplace<Fields>(*this, upstream);
 
             PEX_NAME(fmt::format("{} Control", jive::GetTypeName<Plain>()));
             PEX_NAMES(this);
@@ -512,6 +576,25 @@ struct Group
             PEX_NAMES(this);
         }
 
+    private:
+        void Emplace(Upstream &upstream) = delete;
+
+        void Emplace(const Control_ &other) = delete;
+
+    protected:
+        void StandardEmplace_(Upstream &upstream)
+        {
+            this->detail::MuteControl::Emplace(upstream.GetMuteNode());
+            AssignEmplace<Fields>(*this, upstream);
+        }
+
+        void StandardEmplace_(const Control_ &other)
+        {
+            this->detail::MuteControl::Emplace(other);
+            AssignEmplace<Fields>(*this, other);
+        }
+
+    public:
         Control_ & operator=(const Control_ &other)
         {
             this->detail::MuteControl::operator=(other);
@@ -551,7 +634,6 @@ struct Group
             return pex::detail::HasModel<Fields>(*this);
         }
     };
-
 
     template<typename Upstream>
     using Control =
@@ -611,7 +693,7 @@ struct Group
             MuxMembers{},
             AccessorsBase{}
         {
-            PEX_NAME(fmt::format("{} Control", jive::GetTypeName<Plain>()));
+            PEX_NAME(fmt::format("{} Mux", jive::GetTypeName<Plain>()));
             PEX_NAMES(this);
         }
 
@@ -621,7 +703,7 @@ struct Group
             MuxMembers{},
             AccessorsBase{}
         {
-            PEX_NAME(fmt::format("{} Control", jive::GetTypeName<Plain>()));
+            PEX_NAME(fmt::format("{} Mux", jive::GetTypeName<Plain>()));
             PEX_NAMES(this);
 
             this->ChangeUpstream(model);
@@ -641,10 +723,30 @@ struct Group
 
         Mux_ & operator=(Mux_ &&other) = delete;
 
-        detail::MuteFollow GetMuteNode()
+    private:
+        void Emplace(Upstream &) = delete;
+        void Emplace(const Mux_ &) = delete;
+
+    protected:
+        void StandardEmplace_(Upstream &upstream)
+        {
+            this->detail::MuteMux::Emplace(upstream.GetMuteNode());
+            AssignEmplace<Fields>(*this, upstream);
+        }
+
+        void StandardEmplace_(const Mux_ &other)
+        {
+            this->detail::MuteMux::Emplace(other);
+            AssignEmplace<Fields>(*this, other);
+        }
+
+    public:
+#if 0
+        detail::MuteFollow GetMuteNode() const
         {
             return this->CloneMuteNode();
         }
+#endif
 
         bool HasModel() const
         {
@@ -736,7 +838,7 @@ struct Group
             FollowMembers{},
             AccessorsBase{}
         {
-            fields::AssignConvert<Fields>(*this, upstream);
+            AssignEmplace<Fields>(*this, upstream);
 
             PEX_NAME(fmt::format("{} Follow", jive::GetTypeName<Plain>()));
             PEX_NAMES(this);
@@ -788,6 +890,24 @@ struct Group
             return *this;
         }
 
+    private:
+        void Emplace(Upstream &upstream) = delete;
+        void Emplace(const Follow_ &other) = delete;
+
+    protected:
+        void StandardEmplace_(Upstream &upstream)
+        {
+            this->detail::MuteFollow::Emplace(upstream.GetMuteNode());
+            AssignEmplace<Fields>(*this, upstream);
+        }
+
+        void StandardEmplace_(const Follow_ &other)
+        {
+            this->detail::MuteFollow::Emplace(other);
+            AssignEmplace<Fields>(*this, other);
+        }
+
+    public:
         bool HasModel() const
         {
             return pex::detail::HasModel<Fields>(*this);

@@ -56,10 +56,10 @@ struct AircraftSupers
 };
 
 
-using ModelSuper = pex::poly::MakeModelSuper<AircraftSupers>;
+using SuperModel = pex::poly::MakeSuperModel<AircraftSupers>;
 
 static_assert(
-    std::is_base_of_v<pex::poly::detail::DefaultModelBase, ModelSuper>);
+    std::is_base_of_v<pex::poly::detail::DefaultModelBase, SuperModel>);
 
 using ValueWrapper =
     pex::poly::ValueWrapperTemplate<typename AircraftSupers::ValueBase>;
@@ -107,6 +107,11 @@ struct CommonTemplates
         ValueControl & GetMaximumAltitude() override
         {
             return this->maximumAltitude;
+        }
+
+        void Emplace(const Control &other)
+        {
+            this->StandardEmplace_(other);
         }
     };
 };
@@ -558,7 +563,7 @@ public:
 
     using AircraftList = typename AircraftListControl::Type;
 
-    AircraftObserver(AircraftListControl aircraftListControl)
+    AircraftObserver(const AircraftListControl &aircraftListControl)
         :
         endpoint_(
             PEX_THIS("AircraftObserver"),
@@ -630,7 +635,7 @@ public:
     using AircraftConnector = decltype(Aggregate::aircraft);
     static_assert(pex::IsListConnect<AircraftConnector>);
 
-    AirportObserver(AirportControl airportControl)
+    AirportObserver(const AirportControl &airportControl)
         :
         endpoint_(
             PEX_THIS("AirportObserver"),
@@ -733,8 +738,8 @@ TEST_CASE("Poly list of groups implements virtual bases.", "[List]")
             std::remove_cvref_t<decltype(control.aircraft[2])>
         >);
 
-    using ShouldBeControlSuper =
-        pex::poly::ControlSuper
+    using ShouldBeSuperControl =
+        pex::poly::SuperControlStencil
         <
             typename AircraftSupers::ValueBase,
             pex::poly::detail::MakeControlUserBase<AircraftSupers>
@@ -743,8 +748,8 @@ TEST_CASE("Poly list of groups implements virtual bases.", "[List]")
     static_assert(
         std::is_same_v
         <
-            pex::poly::MakeControlSuper<AircraftSupers>,
-            ShouldBeControlSuper
+            pex::poly::MakeSuperControl<AircraftSupers>,
+            ShouldBeSuperControl
         >);
 
 
@@ -769,24 +774,24 @@ TEST_CASE("Poly list of groups implements virtual bases.", "[List]")
         std::is_same_v
         <
             typename SelectedControl::SuperControl,
-            ShouldBeControlSuper
+            ShouldBeSuperControl
         >);
 
-    using AircraftListItemControlSuper =
+    using AircraftListItemSuperControl =
         typename AircraftListControl::ListItem::SuperControl;
 
     static_assert(
         std::is_same_v
         <
-            ShouldBeControlSuper,
-            AircraftListItemControlSuper
+            ShouldBeSuperControl,
+            AircraftListItemSuperControl
         >);
 
     static_assert(
         std::is_base_of_v
         <
             typename AircraftSupers::ControlUserBase,
-            AircraftListItemControlSuper
+            AircraftListItemSuperControl
         >);
 
     static_assert(

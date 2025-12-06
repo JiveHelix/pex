@@ -4,6 +4,7 @@
 #include <fields/describe.h>
 #include "pex/promote_control.h"
 #include "pex/detail/aggregate.h"
+#include "pex/type_tester.h"
 
 
 namespace pex

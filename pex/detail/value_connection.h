@@ -33,7 +33,7 @@ public:
     using Base = Connection<Observer, ValueFunctionStyle<Observer, T>>;
     using Base::Base;
 
-    void operator()(Argument<T> value)
+    void operator()(Argument<T> value) const
     {
         if constexpr (Base::IsMemberFunction)
         {

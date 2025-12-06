@@ -18,7 +18,7 @@ struct ExpandFilter
      * @param control A pex::control::Value for the aggregate type.
      * @param member The pointer to member of the aggregate type.
      */
-    ExpandFilter(Control control, Member Type::*member)
+    ExpandFilter(const Control &control, Member Type::*member)
         :
         control_{control},
         member_{member}
@@ -108,7 +108,7 @@ struct Expand
     struct Control:
         public Template<Expander<AggregateControl>::template Type>
     {
-        Control(AggregateControl aggregateControl)
+        Control(const AggregateControl &aggregateControl)
         {
             pex::InitializeExpanded<Fields>(*this, aggregateControl);
         }

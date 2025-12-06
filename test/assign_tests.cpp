@@ -19,7 +19,7 @@ public:
 
     static constexpr auto observerName = "assign_tests::Observer";
 
-    Observer(Control control)
+    Observer(const Control &control)
         :
         terminus_(control)
     {

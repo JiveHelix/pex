@@ -51,7 +51,7 @@ public:
     using Callable =
         typename detail::SignalConnection<void>::Callable;
 
-    void Trigger()
+    void Trigger() const
     {
         this->Notify_();
     }
@@ -155,10 +155,51 @@ public:
         this->Connect(observer, callable);
     }
 
+    void Emplace(Upstream &upstream)
+    {
+        this->upstreamConnection_.reset();
+        this->upstream_ = &upstream;
+
+        if (this->HasConnection())
+        {
+            this->upstreamConnection_.emplace(
+                this->upstream_,
+                this,
+                &Signal::OnModelSignaled_);
+        }
+    }
+
+    void Emplace(const Signal &other)
+    {
+        this->Base::operator=(other);
+        this->upstreamConnection_.reset();
+        this->upstream_ = other.upstream_;
+
+        if (this->HasConnection())
+        {
+            this->upstreamConnection_.emplace(
+                this->upstream_,
+                this,
+                &Signal::OnModelSignaled_);
+        }
+    }
+
+    void Emplace(void *observer, Upstream &upstream, Callable callable)
+    {
+        this->Emplace(upstream);
+        this->Connect(observer, callable);
+    }
+
+    void Emplace(void *observer, const Signal &other, Callable callable)
+    {
+        this->Emplace(other);
+        this->Connect(observer, callable);
+    }
+
     /** Signals the upstream node, which echoes the signal back to all of the
      ** interfaces, including this one.
      **/
-    void Trigger()
+    void Trigger() const
     {
         REQUIRE_HAS_VALUE(this->upstream_);
         this->upstream_->Trigger();

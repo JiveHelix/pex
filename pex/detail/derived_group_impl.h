@@ -15,7 +15,7 @@ template
     ::pex::HasMinimalSupers Templates
 >
 template<typename GroupBase>
-std::unique_ptr<MakeControlSuper<typename Templates::Supers>>
+std::unique_ptr<MakeSuperControl<typename Templates::Supers>>
 DerivedGroup<Fields, Templates>::GroupTemplates_
     ::Model<GroupBase>::CreateControl()
 {
@@ -73,7 +73,7 @@ template
     ::pex::HasMinimalSupers Templates
 >
 template<typename GroupBase>
-std::unique_ptr<MakeControlSuper<typename Templates::Supers>>
+std::unique_ptr<MakeSuperControl<typename Templates::Supers>>
 DerivedGroup<Fields, Templates>::GroupTemplates_
     ::TEMPLATE Control<GroupBase>::Copy() const
 {
@@ -114,7 +114,7 @@ template
 template<typename GroupBase>
 DerivedGroup<Fields, Templates>::GroupTemplates_
     ::TEMPLATE Control<GroupBase>::Control(
-        ::pex::poly::MakeModelSuper<typename Templates::Supers> &model)
+        ::pex::poly::MakeSuperModel<typename Templates::Supers> &model)
     :
     GroupBase(RequireDerived<Upstream>(model)),
     aggregate_(),

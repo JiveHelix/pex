@@ -427,7 +427,7 @@ public:
 
     using RocketList = typename RocketListControl::Type;
 
-    RocketListObserver(RocketListControl rocketListControl)
+    RocketListObserver(const RocketListControl &rocketListControl)
         :
         endpoint_(
             PEX_THIS("RocketListObserver"),
@@ -495,6 +495,8 @@ TEMPLATE_TEST_CASE(
     Model model;
     model.name.Set("I am Drax");
     Control control(model);
+    REQUIRE(control.HasModel());
+    REQUIRE(control.rockets.HasModel());
     RocketListObserver<TestType> observer(control.rockets);
 
     auto values = GENERATE(
@@ -585,7 +587,7 @@ public:
     using GamoraEndpoint = pex::Endpoint<GamoraObserver, GamoraControl>;
     using Gamora = typename GamoraControl::Type;
 
-    GamoraObserver(GamoraControl gamoraControl)
+    GamoraObserver(const GamoraControl &gamoraControl)
         :
         endpoint_(
             PEX_THIS("GamoraObserver"),
@@ -756,7 +758,7 @@ public:
     using RocketsConnect =
         pex::detail::ListConnect<RocketSignalObserver, RocketListControl>;
 
-    RocketSignalObserver(RocketsControl rocketsControl)
+    RocketSignalObserver(const RocketsControl &rocketsControl)
         :
         endpoint_(
             PEX_THIS("RocketSignalObserver"),
@@ -882,7 +884,7 @@ public:
     using RocketsEndpoint =
         pex::Endpoint<RocketObserver, RocketControl>;
 
-    RocketObserver(RocketControl rocketControl)
+    RocketObserver(const RocketControl &rocketControl)
         :
         endpoint_(
             PEX_THIS("RocketObserver"),

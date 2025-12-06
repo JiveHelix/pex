@@ -340,7 +340,7 @@ public:
 
 private:
     template<typename Member, typename Upstream>
-    void AssignUpstream_(Member &member, Upstream upstream)
+    void AssignUpstream_(Member &member, Upstream &upstream)
     {
         if constexpr (IsAggregate<Member>)
         {

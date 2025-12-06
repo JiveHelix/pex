@@ -145,7 +145,8 @@ public:
     }
 
     /** Set the value and notify interfaces **/
-    void Set(Argument<Type> value) requires (HasAccess<SetTag, Access>)
+    void Set(Argument<Type> value)
+        requires (HasAccess<SetTag, Access>)
     {
         this->SetWithoutNotify_(value);
         this->Notify();
@@ -187,7 +188,7 @@ public:
     // hold a reference to a model value.
     bool HasModel() const { return true; }
 
-    void Notify()
+    void Notify() const
     {
         this->Notify_(this->value_);
     }
@@ -672,13 +673,18 @@ public:
         return *this;
     }
 
+    void Emplace(Model &model)
+    {
+        this->model_ = &model;
+    }
+
     Type Get() const
     {
         REQUIRE_HAS_VALUE(this->model_);
         return this->model_->Get();
     }
 
-    void Set(Argument<Type> value)
+    void Set(Argument<Type> value) const
     {
         static_assert(HasAccess<SetTag, typename Model::Access>);
 
@@ -728,7 +734,7 @@ public:
         return (this->model_ != nullptr);
     }
 
-    void Notify()
+    void Notify() const
     {
         this->model_->Notify();
     }
@@ -906,7 +912,6 @@ protected:
     {
         this->model_->SetWithoutNotify_(key, value);
     }
-
 };
 
 

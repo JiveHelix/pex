@@ -53,6 +53,13 @@ public:
 
     }
 
+    void Emplace(const UpstreamControl &pex)
+    {
+        this->choices.Emplace(pex.choices);
+        this->selection.Emplace(pex.selection);
+        this->value.Emplace(pex.value);
+    }
+
     SelectTerminus(
         Observer *observer,
         const UpstreamControl &pex,

@@ -4,6 +4,7 @@
 #include "pex/selectors.h"
 #include "pex/promote_control.h"
 #include "pex/detail/forward.h"
+#include "pex/type_tester.h"
 
 
 #ifdef ENABLE_PEX_NAMES
@@ -772,15 +773,16 @@ private:
 
     void RestoreConnection_(size_t index)
     {
-        this->connectables_.at(index) =
-            Connectable(
-                this,
-                this->listControl_.at(index),
-                std::bind(
-                    ListConnect::OnItemChanged_,
-                    index,
-                    std::placeholders::_1,
-                    std::placeholders::_2));
+        auto& slot = this->connectables_.at(index);
+
+        slot.Emplace(
+            this,
+            this->listControl_.at(index),
+            std::bind(
+                ListConnect::OnItemChanged_,
+                index,
+                std::placeholders::_1,
+                std::placeholders::_2));
     }
 
     void RestoreConnectionAtEnd_(size_t index)

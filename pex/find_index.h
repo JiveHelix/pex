@@ -13,9 +13,9 @@
 
 #pragma once
 
+#include <cstddef>
 #include <iterator>
 #include <type_traits>
-#include <jive/platform.h>
 
 template<typename T>
 struct IteratorCategory
@@ -43,7 +43,7 @@ struct HasRandomAccessIterator
 
 
 template<typename Value, typename Container>
-ssize_t FindIndex(const Value &value, const Container &container)
+std::ptrdiff_t FindIndex(const Value &value, const Container &container)
 {
     static_assert(
         HasRandomAccessIterator<Container>::value,

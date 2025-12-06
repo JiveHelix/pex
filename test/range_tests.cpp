@@ -125,7 +125,7 @@ struct Observer: Separator
 {
     static constexpr auto observerName = "range_tests::Observer";
 
-    Observer(Control control)
+    Observer(const Control &control)
         :
         terminus_(
             PEX_THIS("range_tests::Observer"),

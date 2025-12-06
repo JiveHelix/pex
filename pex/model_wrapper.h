@@ -16,10 +16,10 @@ namespace poly
 
 
 template<HasValueBase Supers>
-struct MakeControlSuper_
+struct MakeSuperControl_
 {
     using Type =
-        ControlSuper
+        SuperControlStencil
         <
             typename Supers::ValueBase,
             detail::MakeControlUserBase<Supers>
@@ -27,24 +27,24 @@ struct MakeControlSuper_
 };
 
 template<HasValueBase Supers>
-using MakeControlSuper = typename MakeControlSuper_<Supers>::Type;
+using MakeSuperControl = typename MakeSuperControl_<Supers>::Type;
 
 
 template <HasValueBase Supers>
-struct MakeModelSuper_
+struct MakeSuperModel_
 {
     using Type =
-        ModelSuper
+        SuperModelStencil
         <
             typename Supers::ValueBase,
             detail::MakeModelUserBase<Supers>,
-            MakeControlSuper<Supers>
+            MakeSuperControl<Supers>
         >;
 };
 
 
 template <HasValueBase Supers>
-using MakeModelSuper = typename MakeModelSuper_<Supers>::Type;
+using MakeSuperModel = typename MakeSuperModel_<Supers>::Type;
 
 
 template<typename Upstream, HasValueBase, typename BaseSignal>
@@ -65,7 +65,7 @@ public:
     using ValueWrapper = ::pex::poly::ValueWrapperTemplate<ValueBase>;
     using Type = ValueWrapper;
     using ModelBase = typename ValueWrapper::ModelBase;
-    using SuperModel = MakeModelSuper<Supers>;
+    using SuperModel = MakeSuperModel<Supers>;
 
     static constexpr bool isModelWrapper = true;
     static_assert(std::is_base_of_v<ModelBase, SuperModel>);

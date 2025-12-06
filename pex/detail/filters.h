@@ -98,12 +98,12 @@ struct FilteredType_
     std::enable_if_t<MemberGetterTakesOptional<T, Filter>>>
 {
     using Type =
-            std::invoke_result_t
-            <
-                decltype(&Filter::Get),
-                Filter,
-                T
-            >;
+        std::invoke_result_t
+        <
+            decltype(&Filter::Get),
+            Filter,
+            T
+        >;
 };
 
 
@@ -586,7 +586,7 @@ private:
         PlainFilter<T, Filter, Access>
     >;
 
-    template<typename, typename, typename>
+    template<typename, typename, typename, typename>
     friend struct PlainSetFilter;
 };
 

@@ -120,6 +120,11 @@ public:
         this->pex_->Set(value);
     }
 
+    void Set(Argument<Type> value) const
+    {
+        return const_cast<Reference *>(this)->Set(value);
+    }
+
     void Clear()
     {
         this->pex_ = nullptr;
@@ -136,9 +141,19 @@ protected:
         this->pex_->SetWithoutNotify_(value);
     }
 
+    void SetWithoutNotify_(Argument<Type> value) const
+    {
+        const_cast<Reference *>(this)->SetWithoutNotify_(value);
+    }
+
     void SetWithoutFilter_(Argument<Type> value)
     {
         this->pex_->SetWithoutFilter_(value);
+    }
+
+    void SetWithoutFilter_(Argument<Type> value) const
+    {
+        const_cast<Reference *>(this)->SetWithoutFilter_(value);
     }
 
 private:
@@ -202,6 +217,12 @@ public:
         this->pex_->Set(index, value);
     }
 
+    void Set(size_t index, Argument<ValueType> value) const
+        requires (HasAccess<SetTag, Access>)
+    {
+        const_cast<ValueContainerReference *>(this)->Set(index, value);
+    }
+
     Type Get(size_t index) const
     {
         return this->pex_->Get(index);
@@ -236,6 +257,12 @@ protected:
     {
         this->pex_->SetWithoutNotify_(index, value);
     }
+
+    void SetWithoutNotify_(size_t index, Argument<ValueType> value) const
+    {
+        const_cast<ValueContainerReference *>(this)
+            ->SetWithoutNotify_(index, value);
+    }
 };
 
 
@@ -257,7 +284,13 @@ public:
     void Set(const KeyType &key, Argument<MappedType> value)
         requires (HasAccess<SetTag, Access>)
     {
-        this->Set(key, value);
+        this->pex_->Set(key, value);
+    }
+
+    void Set(const KeyType &key, Argument<MappedType> value) const
+        requires (HasAccess<SetTag, Access>)
+    {
+        const_cast<KeyValueContainerReference *>(this)->Set(key, value);
     }
 
     Type Get(const KeyType &key) const
@@ -288,7 +321,7 @@ public:
 protected:
     using Base::SetWithoutNotify_;
 
-    void SetWithoutNotify_(const KeyType &key, Argument<MappedType> value)
+    void SetWithoutNotify_(const KeyType &key, Argument<MappedType> value) const
     {
         this->pex_->SetWithoutNotify_(key, value);
     }
@@ -314,14 +347,29 @@ public:
         this->Notify();
     }
 
+    void Set(Argument<Type> value) const
+    {
+        const_cast<AccessReference *>(this)->Set(value);
+    }
+
     void SetWithoutNotify(Argument<Type> value)
     {
         this->SetWithoutNotify_(value);
     }
 
+    void SetWithoutNotify(Argument<Type> value) const
+    {
+        const_cast<AccessReference *>(this)->SetWithoutNotify(value);
+    }
+
     void SetWithoutFilter(Argument<Type> value)
     {
         this->SetWithoutFilter_(value);
+    }
+
+    void SetWithoutFilter(Argument<Type> value) const
+    {
+        const_cast<AccessReference *>(this)->SetWithoutFilter(value);
     }
 };
 
@@ -405,7 +453,7 @@ public:
         return *this;
     }
 
-    void Set(Argument<Type> value)
+    void Set(Argument<Type> value) const
     {
         this->isChanged_ = true;
         this->SetWithoutNotify_(value);
@@ -436,7 +484,7 @@ public:
     }
 
 private:
-    bool isChanged_;
+    mutable bool isChanged_;
 };
 
 
@@ -496,11 +544,22 @@ public:
         this->SetWithoutNotify_(value);
     }
 
+    void Set(Argument<Type> value) const
+    {
+        const_cast<DeferValueContainer *>(this)->Set(value);
+    }
+
     void Set(size_t index, Argument<ValueType> value)
         requires (HasAccess<SetTag, Access>)
     {
         this->isChanged_ = true;
         this->pex_->SetWithoutNotify_(index, value);
+    }
+
+    void Set(size_t index, Argument<ValueType> value) const
+        requires (HasAccess<SetTag, Access>)
+    {
+        const_cast<DeferValueContainer *>(this)->Set(index, value);
     }
 
     DeferValueContainer & operator=(Argument<Type> value)
@@ -587,11 +646,22 @@ public:
         this->SetWithoutNotify_(value);
     }
 
+    void Set(Argument<Type> value) const
+    {
+        const_cast<DeferKeyValueContainer *>(this)->Set(value);
+    }
+
     void Set(const KeyType &key, Argument<MappedType> value)
         requires (HasAccess<SetTag, Access>)
     {
         this->isChanged_ = true;
         this->pex_->SetWithoutNotify_(key, value);
+    }
+
+    void Set(const KeyType &key, Argument<MappedType> value) const
+        requires (HasAccess<SetTag, Access>)
+    {
+        const_cast<DeferKeyValueContainer *>(this)->Set(key, value);
     }
 
     DeferKeyValueContainer & operator=(Argument<Type> value)
@@ -794,15 +864,15 @@ inline constexpr bool CanBeSet = CanBeSet_<Target>::value;
 
 template<typename Target, typename Source>
 std::enable_if_t<CanBeSet<Target>>
-SetByAccess(Target &target, const Source &source)
+SetByAccess(const Target &target, const Source &source)
 {
-    target.Set(source);
+    const_cast<Target &>(target).Set(source);
 }
 
 
 template<typename Target, typename Source>
 std::enable_if_t<!CanBeSet<Target>>
-SetByAccess(Target &, const Source &)
+SetByAccess(const Target &, const Source &)
 {
     // Do not set members that are read-only.
 }
@@ -967,6 +1037,12 @@ public:
             assign,
             Fields<This>::fields,
             Fields<Plain>::fields);
+    }
+
+    template<typename Plain>
+    void Set(const Plain &plain) const
+    {
+        const_cast<DeferGroup *>(this)->Set(plain);
     }
 
     void Clear()
@@ -1138,6 +1214,12 @@ public:
         {
             this->items_[i].Set(plain[i]);
         }
+    }
+
+    template<typename Plain>
+    void Set(const Plain &plain) const
+    {
+        const_cast<DeferList *>(this)->Set(plain);
     }
 
     void ClearItems()

@@ -16,18 +16,18 @@ namespace poly
 
 
 /**
- ** ControlSuper declares virtual methods that allow its derived classes to be
+ ** SuperControlStencil declares virtual methods that allow its derived classes to be
  ** in a pex::List. (These are mostly used internally by pex.)
  ** A user can add their own virtual interface with ControlUserBase.
  **/
 template<typename ValueBase_, typename ControlUserBase>
-class ControlSuper: public ControlUserBase
+class SuperControlStencil: public ControlUserBase
 {
 public:
     using ValueBase = ValueBase_;
     using ValueWrapper = ::pex::poly::ValueWrapperTemplate<ValueBase>;
 
-    virtual ~ControlSuper() {}
+    virtual ~SuperControlStencil() {}
     virtual ValueWrapper GetValue() const = 0;
     virtual void SetValue(const ValueWrapper &) = 0;
     virtual std::string_view GetTypeName() const = 0;
@@ -39,24 +39,24 @@ public:
     virtual void SetValueWithoutNotify(const ValueWrapper &) = 0;
     virtual void DoValueNotify() = 0;
 
-    virtual std::unique_ptr<ControlSuper> Copy() const = 0;
+    virtual std::unique_ptr<SuperControlStencil> Copy() const = 0;
 };
 
 
 /**
- ** ModelSuper declares virtual methods that allow its derived classes to be
- ** in a pex::List. (These are mostly used internally by pex.)
- ** A user can add their own virtual interface with ModelUserBase.
+ ** SuperModelStencil declares virtual methods that allow its derived classes
+ ** to be in a pex::List. (These are mostly used internally by pex.) A user can
+ ** add their own virtual interface with ModelUserBase.
  **/
 template<typename ValueBase_, typename ModelUserBase, typename ControlBase>
-class ModelSuper: public ModelUserBase
+class SuperModelStencil: public ModelUserBase
 {
 public:
     using ValueBase = ValueBase_;
     using ValueWrapper = ::pex::poly::ValueWrapperTemplate<ValueBase>;
     using ControlPtr = std::unique_ptr<ControlBase>;
 
-    virtual ~ModelSuper() {}
+    virtual ~SuperModelStencil() {}
     virtual ValueWrapper GetValue() const = 0;
     virtual void SetValue(const ValueWrapper &) = 0;
     virtual std::string_view GetTypeName() const = 0;

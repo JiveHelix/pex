@@ -451,6 +451,49 @@ public:
         }
     }
 
+    void Emplace(Upstream &upstream)
+    {
+        if constexpr (IsSelectModel<Upstream>)
+        {
+            this->choices.Emplace(upstream.choices_);
+            this->selection.Emplace(upstream.selection_);
+            this->value.Emplace(upstream.value_);
+        }
+        else
+        {
+            this->choices.Emplace(upstream.choices);
+            this->selection.Emplace(upstream.selection);
+            this->value.Emplace(upstream.value);
+        }
+    }
+
+    void Emplace(const Select &other)
+    {
+        this->choices.Emplace(other.choices);
+        this->selection.Emplace(other.selection);
+        this->value.Emplace(other.value);
+    }
+
+    void Emplace(
+        void *observer,
+        Upstream &upstream,
+        typename Value::Callable callable)
+    {
+        this->Emplace(upstream);
+        this->value.ClearConnections();
+        this->value.Connect(observer, callable);
+    }
+
+    void Emplace(
+        void *observer,
+        const Select &other,
+        typename Value::Callable callable)
+    {
+        this->Emplace(other);
+        this->value.ClearConnections();
+        this->value.Connect(observer, callable);
+    }
+
     Type Get() const
     {
         return this->value.Get();
@@ -551,6 +594,18 @@ public:
         this->choices.ChangeUpstream(upstream.choices_);
         this->selection.ChangeUpstream(upstream.selection_);
         this->value.ChangeUpstream(upstream.value_);
+    }
+
+    void Emplace(Upstream &upstream)
+    {
+        this->ChangeUpstream(upstream);
+    }
+
+    void Emplace(const SelectMux &other)
+    {
+        this->choices.Emplace(other.choices);
+        this->selection.Emplace(other.selection);
+        this->value.Emplace(other.value);
     }
 
     Type Get() const

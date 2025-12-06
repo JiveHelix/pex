@@ -27,7 +27,7 @@ public:
 
     FlagFilter() = default;
 
-    FlagFilter(Control control, size_t index)
+    FlagFilter(const Control &control, size_t index)
         :
         control_(control),
         index_(index)
@@ -69,7 +69,7 @@ public:
 
     using Flag = pex::control::Value_<FilteredFlag>;
 
-    BitsetFlagsControl(BitsetControl<bitCount> bitset)
+    BitsetFlagsControl(const BitsetControl<bitCount> &bitset)
         :
         flags{}
     {

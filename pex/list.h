@@ -1365,6 +1365,66 @@ struct List
             return *this;
         }
 
+        void Emplace(const Control_ &other)
+        {
+            this->Base::Emplace(other);
+            this->count.Emplace(other.count);
+            this->selected.Emplace(other.selected);
+            this->memberAdded.Emplace(other.memberAdded);
+            this->memberWillRemove.Emplace(other.memberWillRemove);
+            this->memberRemoved.Emplace(other.memberRemoved);
+            this->memberWillReplace.Emplace(other.memberWillReplace);
+            this->memberReplaced.Emplace(other.memberReplaced);
+            this->isNotifying.Emplace(other.isNotifying);
+            this->upstream_ = other.upstream_;
+
+            if (other.HasModel())
+            {
+                assert(other.memberWillRemoveTerminus_.HasModel());
+                assert(other.memberWillRemoveTerminus_.HasConnection());
+                assert(other.memberAddedTerminus_.HasModel());
+                assert(other.memberAddedTerminus_.HasConnection());
+                assert(other.memberWillReplaceTerminus_.HasModel());
+                assert(other.memberWillReplaceTerminus_.HasConnection());
+                assert(other.memberReplacedTerminus_.HasModel());
+                assert(other.memberReplacedTerminus_.HasConnection());
+            }
+
+            this->memberWillRemoveTerminus_.RequireAssign(
+                this,
+                other.memberWillRemoveTerminus_);
+
+            this->memberAddedTerminus_.RequireAssign(
+                this,
+                other.memberAddedTerminus_);
+
+            this->memberWillReplaceTerminus_.RequireAssign(
+                this,
+                other.memberWillReplaceTerminus_);
+
+            this->memberReplacedTerminus_.RequireAssign(
+                this,
+                other.memberReplacedTerminus_);
+
+            if (this->HasModel())
+            {
+                assert(this->memberWillRemoveTerminus_.HasModel());
+                assert(this->memberWillRemoveTerminus_.HasConnection());
+                assert(this->memberAddedTerminus_.HasModel());
+                assert(this->memberAddedTerminus_.HasConnection());
+                assert(this->memberWillReplaceTerminus_.HasModel());
+                assert(this->memberWillReplaceTerminus_.HasConnection());
+                assert(this->memberReplacedTerminus_.HasModel());
+                assert(this->memberReplacedTerminus_.HasConnection());
+            }
+
+            CLEAR_ITEMREF_NAMES(this->items_);
+
+            this->items_ = other.items_;
+
+            REGISTER_ITEMREF_NAMES(this, this->items_);
+        }
+
         void EraseSelected()
         {
             assert(this->upstream_);
@@ -1801,6 +1861,22 @@ struct List
             {
                 this->items_.emplace_back(
                     std::make_unique<ListItem>((*this->upstream_)[index]));
+            }
+        }
+
+        void Emplace(Upstream &upstream)
+        {
+            this->ChangeUpstream(upstream);
+        }
+
+        void Emplace(const Mux &other)
+        {
+            // TODO:
+            // This is effectively a copy.
+            // We have disallowed copy/move for this class.
+            if (other.upstream_)
+            {
+                this->ChangeUpstream(*other.upstream_);
             }
         }
 

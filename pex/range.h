@@ -16,7 +16,6 @@
 #include <stdexcept>
 #include <limits>
 #include <jive/type_traits.h>
-#include <jive/platform.h>
 #include <jive/optional.h>
 #include "pex/value.h"
 #include "pex/detail/filters.h"
@@ -878,6 +877,22 @@ public:
         this->SetFilter(filter);
     }
 
+    void Emplace(Upstream &upstream)
+    {
+        this->value.Emplace(upstream.value);
+        this->minimum.Emplace(upstream.minimum);
+        this->maximum.Emplace(upstream.maximum);
+        this->reset.Emplace(upstream.reset);
+    }
+
+    void Emplace(const Range &other)
+    {
+        this->value.Emplace(other.value);
+        this->minimum.Emplace(other.minimum);
+        this->maximum.Emplace(other.maximum);
+        this->reset.Emplace(other.reset);
+    }
+
     void SetFilter(const Filter &filter)
     {
         this->value.SetFilter(filter);
@@ -1036,7 +1051,7 @@ public:
             && this->maximum.HasModel();
     }
 
-    Bounds<LimitType> GetBounds()
+    Bounds<LimitType> GetBounds() const
     {
         return {
             this->minimum.Get(),
@@ -1145,6 +1160,22 @@ public:
         return *this;
     }
 
+    void Emplace(Upstream &upstream)
+    {
+        this->value.Emplace(upstream.value);
+        this->minimum.Emplace(upstream.minimum);
+        this->maximum.Emplace(upstream.maximum);
+        this->reset.Emplace(upstream.reset);
+    }
+
+    void Emplace(const RangeMux &other)
+    {
+        this->value.Emplace(other.value);
+        this->minimum.Emplace(other.minimum);
+        this->maximum.Emplace(other.maximum);
+        this->reset.Emplace(other.reset);
+    }
+
     explicit operator Type () const
     {
         return this->value.Get();
@@ -1251,8 +1282,6 @@ public:
 };
 
 
-
-
 // Converts values directly between model type and control type.
 template
 <
@@ -1303,7 +1332,7 @@ using LinearRange = Range
 template
 <
     typename Upstream,
-    ssize_t slope,
+    int slope,
     typename Access = pex::GetAndSetTag
 >
 using StaticLinearRange = Range

@@ -106,7 +106,7 @@ using AggregateControl = typename AggregateGroup::Control<AggregateModel>;
 class WeaponsObserver
 {
 public:
-    WeaponsObserver(WeaponsControl control)
+    WeaponsObserver(const WeaponsControl &control)
         :
         endpoint_(
             PEX_THIS("WeaponsObserver"),

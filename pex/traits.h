@@ -194,7 +194,7 @@ struct UpstreamHolder_
 
 
 template<typename T>
-using UpstreamHolderT = typename UpstreamHolder_<T>::Type;
+using UpstreamHolderT = typename UpstreamHolder_<std::remove_cvref_t<T>>::Type;
 
 /** UpstreamHolderT **/
 
@@ -207,18 +207,20 @@ using UpstreamHolderT = typename UpstreamHolder_<T>::Type;
 template<typename T, typename = void>
 struct PexArgument_
 {
-    using Type = T;
+    using Type = const T &;
 };
 
 template<typename T>
 struct PexArgument_<T, std::enable_if_t<!IsCopyable<T>>>
 {
+    // Because T is not copyable, we need a non-const reference to keep around,
+    // usually in pex::Direct.
     using Type = T &;
 };
 
 
 template<typename T>
-using PexArgument = typename PexArgument_<T>::Type;
+using PexArgument = typename PexArgument_<std::remove_cvref_t<T>>::Type;
 
 /** PexArgument **/
 
@@ -487,6 +489,21 @@ concept HasSetInitial = requires(T t)
 {
     { t.SetInitial(std::declval<typename T::Type>()) } -> IsVoid;
 };
+
+
+template<typename T>
+concept HasEmplaceUpstream =
+    requires(typename T::Upstream, T t)
+    {
+        { t.Emplace(std::declval<typename T::Upstream &>()) };
+    };
+
+template<typename T>
+concept HasEmplaceCopy =
+    requires(T t)
+    {
+        { t.Emplace(std::declval<const T &>()) };
+    };
 
 
 } // end namespace pex

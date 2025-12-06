@@ -261,7 +261,7 @@ template<typename ConnectionType, typename Access, typename = std::void_t<>>
 class NotifyOne : public NotifyOne_<ConnectionType, Access>
 {
 protected:
-    void Notify_()
+    void Notify_() const
     {
         if (this->connection_)
         {
@@ -286,7 +286,7 @@ public:
     using Type = typename ConnectionType::Type;
 
 protected:
-    void Notify_(Argument<typename ConnectionType::Type> value)
+    void Notify_(Argument<typename ConnectionType::Type> value) const
     {
         if (this->connection_)
         {
