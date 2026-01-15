@@ -746,12 +746,8 @@ protected:
         this->Emplace(upstream);
     }
 
-    void SetWithoutNotify_(Argument<Type> value) const
+    void SetWithoutNotifyOverride_(Argument<Type> value) const
     {
-        static_assert(
-            HasAccess<SetTag, Access>,
-            "Cannot Set a read-only value.");
-
         if constexpr (detail::FilterIsNone<Filter>)
         {
             const_cast<UpstreamHolder &>(this->upstream_)
@@ -762,6 +758,21 @@ protected:
             const_cast<UpstreamHolder &>(this->upstream_)
                 .SetWithoutNotify_(this->FilterOnSet_(value));
         }
+    }
+
+    void SetOverride_(Argument<Type> value) const
+    {
+        this->SetWithoutNotifyOverride_(value);
+        this->Notify();
+    }
+
+    void SetWithoutNotify_(Argument<Type> value) const
+    {
+        static_assert(
+            HasAccess<SetTag, Access>,
+            "Cannot Set a read-only value.");
+
+        this->SetWithoutNotifyOverride_(value);
     }
 
     UpstreamType FilterOnSet_(Argument<Type> value) const

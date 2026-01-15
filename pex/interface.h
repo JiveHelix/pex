@@ -62,6 +62,7 @@ template
     typename T,
     typename Minimum_ = void,
     typename Maximum_ = void,
+    typename Access_ = GetAndSetTag,
     template<typename, typename, typename>
     typename ValueNode_ = DefaultValueNode
 >
@@ -70,6 +71,7 @@ struct MakeRange
     using Type = T;
     using Minimum = Minimum_;
     using Maximum = Maximum_;
+    using Access = Access_;
 
     template<typename U, typename V, typename W>
     using ValueNode = ValueNode_<U, V, W>;

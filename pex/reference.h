@@ -130,30 +130,25 @@ public:
         this->pex_ = nullptr;
     }
 
-    void Notify()
+    void Notify() const
     {
         this->pex_->Notify();
     }
 
 protected:
-    void SetWithoutNotify_(Argument<Type> value)
+    void SetWithoutNotify_(Argument<Type> value) const
     {
         this->pex_->SetWithoutNotify_(value);
     }
 
-    void SetWithoutNotify_(Argument<Type> value) const
-    {
-        const_cast<Reference *>(this)->SetWithoutNotify_(value);
-    }
-
-    void SetWithoutFilter_(Argument<Type> value)
+    void SetWithoutFilter_(Argument<Type> value) const
     {
         this->pex_->SetWithoutFilter_(value);
     }
 
-    void SetWithoutFilter_(Argument<Type> value) const
+    void SetOverride_(Argument<Type> value) const
     {
-        const_cast<Reference *>(this)->SetWithoutFilter_(value);
+        this->pex_->SetOverride_(value);
     }
 
 private:
@@ -341,35 +336,25 @@ public:
 
     using Base::Base;
 
-    void Set(Argument<Type> value)
+    void Set(Argument<Type> value) const
     {
         this->SetWithoutNotify_(value);
         this->Notify();
     }
 
-    void Set(Argument<Type> value) const
-    {
-        const_cast<AccessReference *>(this)->Set(value);
-    }
-
-    void SetWithoutNotify(Argument<Type> value)
+    void SetWithoutNotify(Argument<Type> value) const
     {
         this->SetWithoutNotify_(value);
     }
 
-    void SetWithoutNotify(Argument<Type> value) const
-    {
-        const_cast<AccessReference *>(this)->SetWithoutNotify(value);
-    }
-
-    void SetWithoutFilter(Argument<Type> value)
+    void SetWithoutFilter(Argument<Type> value) const
     {
         this->SetWithoutFilter_(value);
     }
 
-    void SetWithoutFilter(Argument<Type> value) const
+    void SetOverride(Argument<Type> value) const
     {
-        const_cast<AccessReference *>(this)->SetWithoutFilter(value);
+        this->SetOverride_(value);
     }
 };
 

@@ -34,11 +34,14 @@ struct RangeTypes
             RangeMaker::template ValueNode
         >;
 
+    using ControlAccess = typename RangeMaker::Access;
+
     template<typename Upstream>
-    using Control = ::pex::control::Range<Upstream>;
+    using Control =
+        ::pex::control::Range<Upstream, NoFilter, ControlAccess>;
 
     using Mux = ::pex::control::RangeMux<Model>;
-    using Follow = ::pex::control::RangeFollow<Mux>;
+    using Follow = ::pex::control::RangeFollow<Mux, NoFilter, ControlAccess>;
 };
 
 

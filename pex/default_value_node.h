@@ -2,6 +2,7 @@
 
 #include <pex/model_value.h>
 #include <pex/control_value.h>
+#include <pex/access_tag.h>
 
 
 namespace pex

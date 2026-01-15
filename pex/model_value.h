@@ -529,8 +529,8 @@ template<typename T, typename Filter>
 using FilteredValue = Value_<T, Filter>;
 
 
-template<typename T, typename Filter_>
-class LockedValue: public Value_<T, Filter_>
+template<typename T, typename Filter_, typename Access_>
+class LockedValue: public Value_<T, Filter_, Access_>
 {
 public:
     template<typename>
@@ -545,7 +545,7 @@ public:
     template<typename>
     friend class Direct;
 
-    using Base = Value_<T, Filter_>;
+    using Base = Value_<T, Filter_, Access_>;
     using Base::Base;
 
     using Type = typename Base::Type;

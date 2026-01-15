@@ -43,4 +43,32 @@ template<typename Access, typename T>
 inline constexpr bool HasAccess = HasAccess_<Access, T>::value;
 
 
+template<typename Requested, typename Limit, typename Enable = void>
+struct LimitAccess_
+{
+    using Type = Limit;
+
+    static_assert(
+        std::same_as<Requested, GetAndSetTag>,
+        "Cannot change Set access to Get and vice versa");
+};
+
+
+template<typename Requested, typename Limit>
+struct LimitAccess_
+<
+    Requested,
+    Limit,
+    std::enable_if_t<HasAccess<Limit, Requested>>
+>
+{
+    // The requested access is at or below the limit.
+    using Type = Requested;
+};
+
+
+template<typename Requested, typename Limit>
+using LimitAccess = typename LimitAccess_<Requested, Limit>::Type;
+
+
 } // namespace pex

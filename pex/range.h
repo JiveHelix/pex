@@ -12,7 +12,6 @@
 
 #pragma once
 
-#include <iostream>
 #include <stdexcept>
 #include <limits>
 #include <jive/type_traits.h>
@@ -371,6 +370,7 @@ public:
         // Use a pex::Defer to delay notifying of the bounds change until
         // the value has been (maybe) adjusted.
         auto changeMinimum = ::pex::Defer<Limit>(this->minimum);
+
         changeMinimum.Set(minimum_);
 
         this->value.SetFilter(RangeFilter<Type>(
