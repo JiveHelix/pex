@@ -1987,7 +1987,8 @@ struct List
 
                 for (size_t i = 0; i < removeCount; ++i)
                 {
-                    size_t index = i + replaceCount;
+                    // Remove members from the end first
+                    size_t index = itemCount - 1 - i;
                     temporaryMemberWillRemove.Set(index);
                     temporaryInternalMemberWillRemove.Set(index);
 

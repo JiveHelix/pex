@@ -1236,6 +1236,14 @@ struct OrderedListCustom
         void Emplace(typename Base::Upstream &upstream)
         {
             this->StandardEmplace_(upstream);
+            this->selected.Emplace(upstream.list.selected);
+            this->count.Emplace(upstream.list.count);
+            this->memberAdded.Emplace(upstream.list.memberAdded);
+            this->memberWillRemove.Emplace(upstream.list.memberWillRemove);
+            this->memberRemoved.Emplace(upstream.list.memberRemoved);
+            this->memberWillReplace.Emplace(upstream.list.memberWillReplace);
+            this->memberReplaced.Emplace(upstream.list.memberReplaced);
+            this->upstream_ = &upstream;
         }
 
         void Emplace(const Mux &other)

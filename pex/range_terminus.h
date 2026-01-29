@@ -76,11 +76,11 @@ public:
 
     }
 
-    void SwapUpstream(typename PromoteControl<Upstream_>::Upstream &upstream)
+    void ChangeUpstream(typename PromoteControl<Upstream_>::Upstream &upstream)
     {
-        this->value.SwapUpstream(upstream.value_);
-        this->minimum.SwapUpstream(upstream.minimum_);
-        this->maximum.SwapUpstream(upstream.maximum_);
+        this->value.ChangeUpstream(upstream.value_);
+        this->minimum.ChangeUpstream(upstream.minimum_);
+        this->maximum.ChangeUpstream(upstream.maximum_);
     }
 
     RangeTerminus(const RangeTerminus &other) = delete;
