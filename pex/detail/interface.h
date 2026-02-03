@@ -76,9 +76,10 @@ template
     typename T,
     typename U,
     typename V,
-    template<typename, typename, typename> typename W
+    typename W,
+    template<typename, typename, typename> typename X
 >
-struct IsMakeRange_<MakeRange<T, U, V, W>>: std::true_type {};
+struct IsMakeRange_<MakeRange<T, U, V, W, X>>: std::true_type {};
 
 template<typename ...T>
 struct IsMakeRange_<MakeRange<T...>>: std::true_type {};
