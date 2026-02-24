@@ -781,7 +781,8 @@ private:
     const Model & GetModel_() const
     {
         assert(this->HasModel());
-        return this->upstreamControl_.GetModel_();
+
+        return static_cast<Derived *>(this)->upstreamControl_.GetModel_();
     }
 };
 
