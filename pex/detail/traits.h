@@ -12,161 +12,51 @@ namespace detail
 struct TraitsTest {};
 
 
-template<typename T, typename = void>
-struct HasDerived_: std::false_type {};
+template<typename T>
+concept HasDerived = requires { typename T::template Derived<TraitsTest>; };
+
 
 template<typename T>
-struct HasDerived_
-<
-    T,
-    std::void_t<typename T::template Derived<TraitsTest>>
->
-: std::true_type {};
+concept HasDerivedValue = requires
+{
+    typename T::template DerivedValue<TraitsTest>;
+};
+
+
+template<typename T, typename Base>
+concept HasModelTemplate = requires { typename T::template Model<Base>; };
+
 
 template<typename T>
-inline constexpr bool HasDerived = HasDerived_<T>::value;
+concept DeclaresModel = requires { typename T::Model; };
 
 
-template<typename T, typename = void>
-struct HasDerivedValue_: std::false_type {};
+template<typename T, typename Base>
+concept HasControlTemplate = requires { typename T::template Control<Base>; };
+
+
+template<typename T, typename Base>
+concept HasMuxTemplate = requires { typename T::template Mux<Base>; };
+
+
+template<typename T, typename Base>
+concept HasFollowTemplate = requires { typename T::template Follow<Base>; };
+
 
 template<typename T>
-struct HasDerivedValue_
-<
-    T,
-    std::void_t<typename T::template DerivedValue<TraitsTest>>
->
-: std::true_type {};
+concept HasModelUserBase = requires { typename T::ModelUserBase; };
+
 
 template<typename T>
-inline constexpr bool HasDerivedValue = HasDerivedValue_<T>::value;
+concept HasControlUserBase = requires { typename T::ControlUserBase; };
 
-
-template<typename T, typename Base, typename = void>
-struct HasModelTemplate_: std::false_type {};
 
 template<typename T, typename Base>
-struct HasModelTemplate_
-<
-    T,
-    Base,
-    std::void_t<typename T::template Model<Base>>
->
-: std::true_type {};
+concept HasPlainTemplate = requires { typename T::template Plain<Base>; };
 
-template<typename T, typename Base>
-inline constexpr bool HasModelTemplate = HasModelTemplate_<T, Base>::value;
-
-
-template<typename T, typename Base, typename = void>
-struct HasControlTemplate_: std::false_type {};
-
-template<typename T, typename Base>
-struct HasControlTemplate_
-<
-    T,
-    Base,
-    std::void_t<typename T::template Control<Base>>
->
-: std::true_type {};
-
-template<typename T, typename Base>
-inline constexpr bool HasControlTemplate = HasControlTemplate_<T, Base>::value;
-
-
-template<typename T, typename Base, typename = void>
-struct HasMuxTemplate_: std::false_type {};
-
-template<typename T, typename Base>
-struct HasMuxTemplate_
-<
-    T,
-    Base,
-    std::void_t<typename T::template Mux<Base>>
->
-: std::true_type {};
-
-template<typename T, typename Base>
-inline constexpr bool HasMuxTemplate = HasMuxTemplate_<T, Base>::value;
-
-
-template<typename T, typename Base, typename = void>
-struct HasFollowTemplate_: std::false_type {};
-
-template<typename T, typename Base>
-struct HasFollowTemplate_
-<
-    T,
-    Base,
-    std::void_t<typename T::template Follow<Base>>
->
-: std::true_type {};
-
-template<typename T, typename Base>
-inline constexpr bool HasFollowTemplate = HasFollowTemplate_<T, Base>::value;
-
-
-template<typename T, typename = void>
-struct HasModelUserBase_: std::false_type {};
 
 template<typename T>
-struct HasModelUserBase_
-<
-    T,
-    std::void_t<typename T::ModelUserBase>
->
-: std::true_type {};
-
-template<typename T>
-inline constexpr bool HasModelUserBase =
-    HasModelUserBase_<T>::value;
-
-
-template<typename T, typename = void>
-struct HasControlUserBase_: std::false_type {};
-
-template<typename T>
-struct HasControlUserBase_
-<
-    T,
-    std::void_t<typename T::ControlUserBase>
->
-: std::true_type {};
-
-template<typename T>
-inline constexpr bool HasControlUserBase =
-    HasControlUserBase_<T>::value;
-
-
-template<typename T, typename Base, typename = void>
-struct HasPlainTemplate_: std::false_type {};
-
-template<typename T, typename Base>
-struct HasPlainTemplate_
-<
-    T,
-    Base,
-    std::void_t<typename T::template Plain<Base>>
->
-: std::true_type {};
-
-template<typename T, typename Base>
-inline constexpr bool HasPlainTemplate = HasPlainTemplate_<T, Base>::value;
-
-
-template<typename T, typename = void>
-struct HasPlain_: std::false_type {};
-
-template<typename T>
-struct HasPlain_
-<
-    T,
-    std::void_t<typename T::Plain>
->
-: std::true_type {};
-
-template<typename T>
-inline constexpr bool HasPlain = HasPlain_<T>::value;
+concept HasPlain = requires { typename T::Plain; };
 
 
 } // end namespace detail
