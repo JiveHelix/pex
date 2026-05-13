@@ -17,6 +17,19 @@
 #include "pex/traits.h"
 
 
+#if defined(__GNUG__) && !defined(__clang__)
+    #define PEX_SUPPRESS_GCC_MAYBE_UNINITIALIZED_BEGIN() \
+        _Pragma("GCC diagnostic push")                   \
+        _Pragma("GCC diagnostic ignored \"-Wmaybe-uninitialized\"")
+
+    #define PEX_SUPPRESS_GCC_MAYBE_UNINITIALIZED_END() \
+        _Pragma("GCC diagnostic pop")
+#else
+    #define PEX_SUPPRESS_GCC_MAYBE_UNINITIALIZED_BEGIN()
+    #define PEX_SUPPRESS_GCC_MAYBE_UNINITIALIZED_END()
+#endif
+
+
 namespace pex
 {
 
@@ -127,8 +140,15 @@ public:
             this->upstream_.ConnectOnce(observer, callable);
         }
 
+        UpstreamConnection(const UpstreamConnection &) = delete;
+        UpstreamConnection & operator=(const UpstreamConnection &) = delete;
+        UpstreamConnection(UpstreamConnection &&) = delete;
+        UpstreamConnection & operator=(UpstreamConnection &&) = delete;
+
         ~UpstreamConnection()
         {
+            PEX_SUPPRESS_GCC_MAYBE_UNINITIALIZED_BEGIN()
+
             PEX_LOG(
                 "control::Value_ Disconnect: ",
                 LookupPexName(this->observer_),
@@ -136,6 +156,8 @@ public:
                 LookupPexName(&this->upstream_));
 
             this->upstream_.Disconnect(this->observer_);
+
+            PEX_SUPPRESS_GCC_MAYBE_UNINITIALIZED_END()
         }
     };
 
