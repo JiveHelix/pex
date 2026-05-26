@@ -780,7 +780,7 @@ protected:
 private:
     const Model & GetModel_() const
     {
-        assert(this->HasModel());
+        assert(static_cast<Derived *>(this)->HasModel());
 
         return static_cast<Derived *>(this)->upstreamControl_.GetModel_();
     }
