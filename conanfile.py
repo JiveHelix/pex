@@ -5,7 +5,7 @@ class PexConan(ConanFile):
     name = "pex"
     version = "1.2.0"
 
-    python_requires = "boiler/0.1"
+    python_requires = "boiler/0.2"
     python_requires_extend = "boiler.LibraryConanFile"
 
     license = "MIT"
