@@ -736,7 +736,7 @@ struct DeferSelector
     struct DeferHelper_
     <
         T,
-        std::enable_if_t<IsGroup<T>>
+        std::enable_if_t<IsGroup<T> || IsDerivedGroup<T>>
     >
     {
         // This member expands to a group.

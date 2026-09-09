@@ -50,8 +50,8 @@ struct DerivedGroup
         {
         public:
             using ModelWrapper = DerivedGroup::ModelWrapper;
-
             using GroupBase::GroupBase;
+            using typename GroupBase::Defer;
 
             Model()
                 :
@@ -102,6 +102,7 @@ struct DerivedGroup
         {
         public:
             using Upstream = typename GroupBase::Upstream;
+            using typename GroupBase::Defer;
 
             template<typename BaseSignal>
             using ControlWrapper =
