@@ -22,7 +22,6 @@ bool HasModel(const T &group)
         if (result)
         {
             result = (group.*(field.member)).HasModel();
-            assert(result);
         }
     };
 
