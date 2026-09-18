@@ -101,7 +101,7 @@ template<typename T>
 struct ModelSelector_
 <
     T,
-    std::enable_if_t<jive::IsValueContainer<T>::value>
+    std::enable_if_t<jive::IsValueContainer<T>>
 >
 {
     using Type = model::ValueContainer<T>;
@@ -111,7 +111,7 @@ template<typename T>
 struct ModelSelector_
 <
     T,
-    std::enable_if_t<jive::IsKeyValueContainer<T>::value>
+    std::enable_if_t<jive::IsKeyValueContainer<T>>
 >
 {
     using Type = model::KeyValueContainer<T>;
@@ -204,7 +204,7 @@ template<typename T>
 struct ControlSelector_
 <
     T,
-    std::enable_if_t<jive::IsValueContainer<T>::value>
+    std::enable_if_t<jive::IsValueContainer<T>>
 >
 {
     using Type = control::ValueContainer<typename ModelSelector_<T>::Type>;
@@ -214,7 +214,7 @@ template<typename T>
 struct ControlSelector_
 <
     T,
-    std::enable_if_t<jive::IsKeyValueContainer<T>::value>
+    std::enable_if_t<jive::IsKeyValueContainer<T>>
 >
 {
     using Type = control::KeyValueContainer<typename ModelSelector_<T>::Type>;
@@ -316,7 +316,7 @@ template<typename T>
 struct MuxSelector_
 <
     T,
-    std::enable_if_t<jive::IsValueContainer<T>::value>
+    std::enable_if_t<jive::IsValueContainer<T>>
 >
 {
     using Type = control::ValueContainerMux<typename ModelSelector_<T>::Type>;
@@ -326,7 +326,7 @@ template<typename T>
 struct MuxSelector_
 <
     T,
-    std::enable_if_t<jive::IsKeyValueContainer<T>::value>
+    std::enable_if_t<jive::IsKeyValueContainer<T>>
 >
 {
     using Type = control::KeyValueContainerMux
@@ -417,7 +417,7 @@ template<typename T>
 struct FollowSelector_
 <
     T,
-    std::enable_if_t<jive::IsValueContainer<T>::value>
+    std::enable_if_t<jive::IsValueContainer<T>>
 >
 {
     using Type = control::ValueContainer<typename MuxSelector_<T>::Type>;
@@ -427,7 +427,7 @@ template<typename T>
 struct FollowSelector_
 <
     T,
-    std::enable_if_t<jive::IsKeyValueContainer<T>::value>
+    std::enable_if_t<jive::IsKeyValueContainer<T>>
 >
 {
     using Type = control::KeyValueContainer<typename MuxSelector_<T>::Type>;

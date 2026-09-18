@@ -123,7 +123,7 @@ struct ValueToString
 <
     T,
     Traits,
-    std::enable_if_t<jive::IsBitset<T>::value>
+    std::enable_if_t<jive::IsBitset<T>>
 >
 {
     template<typename U>
@@ -212,7 +212,7 @@ struct StringToValue<T, base, std::enable_if_t<std::is_floating_point_v<T>>>
 
 
 template<typename T, int base>
-struct StringToValue<T, base, std::enable_if_t<jive::IsBitset<T>::value>>
+struct StringToValue<T, base, std::enable_if_t<jive::IsBitset<T>>>
 {
     static T Call(const std::string &asString)
     {
