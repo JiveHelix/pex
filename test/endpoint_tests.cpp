@@ -29,7 +29,7 @@ struct TestTemplate
 };
 
 
-using TestGroup = pex::Group<TestFields, TestTemplate>;
+using TestGroup = pex::Group<TestTemplate>;
 using TestModel = typename TestGroup::Model;
 using TestControl = typename TestGroup::template Control<TestModel>;
 

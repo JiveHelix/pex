@@ -200,7 +200,7 @@ struct GroupTypes
     };
 };
 
-using GrootGroup = pex::Group<GrootFields, GrootTemplate, GroupTypes>;
+using GrootGroup = pex::Group<GrootTemplate, GroupTypes>;
 using Groot = typename GrootGroup::Plain;
 
 DECLARE_EQUALITY_OPERATORS(Groot)
@@ -261,7 +261,7 @@ struct RocketTemplate
 };
 
 
-using RocketGroup = pex::Group<RocketFields, RocketTemplate>;
+using RocketGroup = pex::Group<RocketTemplate>;
 using Rocket = typename RocketGroup::Plain;
 using RocketModel = typename RocketGroup::Model;
 using RocketControl = typename RocketGroup::template Control<RocketModel>;
@@ -317,8 +317,7 @@ struct DraxTemplate
 };
 
 template<typename Tag>
-using DraxGroup =
-    pex::Group<DraxFields, DraxTemplate<Tag>::template Template>;
+using DraxGroup = pex::Group<DraxTemplate<Tag>::template Template>;
 
 
 template<typename Tag>
@@ -568,8 +567,7 @@ struct GamoraTemplate
 
 
 template<typename Tag>
-using GamoraGroup =
-    pex::Group<GamoraFields, GamoraTemplate<Tag>::template Template>;
+using GamoraGroup = pex::Group<GamoraTemplate<Tag>::template Template>;
 
 template<typename Tag>
 using Gamora = typename GamoraGroup<Tag>::Plain;
@@ -880,7 +878,7 @@ struct StarLordTemplate
 };
 
 
-using StarLordGroup = pex::Group<StarLordFields, StarLordTemplate>;
+using StarLordGroup = pex::Group<StarLordTemplate>;
 using StarLord = typename StarLordGroup::Plain;
 
 DECLARE_EQUALITY_OPERATORS(StarLord)

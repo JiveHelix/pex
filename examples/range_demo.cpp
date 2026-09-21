@@ -52,8 +52,8 @@ struct RotationTemplate
 };
 
 
-using PositionGroup = pex::Group<PositionFields, PositionTemplate>;
-using RotationGroup = pex::Group<RotationFields, RotationTemplate>;
+using PositionGroup = pex::Group<PositionTemplate>;
+using RotationGroup = pex::Group<RotationTemplate>;
 
 
 template<typename T>
@@ -76,7 +76,7 @@ struct PoseTemplate
 };
 
 
-using PoseGroup = pex::Group<PoseFields, PoseTemplate>;
+using PoseGroup = pex::Group<PoseTemplate>;
 using Pose = typename PoseGroup::Plain;
 using PoseModel = typename PoseGroup::Model;
 using PoseControl = typename PoseGroup::Control<PoseModel>;

@@ -89,7 +89,7 @@ struct PointGroupTemplates_
 static_assert(pex::IsMakeSelect<pex::MakeSelect<std::string>>);
 
 
-using PointGroup = pex::Group<PointFields, PointTemplate, PointGroupTemplates_>;
+using PointGroup = pex::Group<PointTemplate, PointGroupTemplates_>;
 using PointModel = typename PointGroup::Model;
 using PointControl = typename PointGroup::template Control<PointModel>;
 using PointMux = typename PointGroup::Mux;
@@ -123,7 +123,7 @@ struct CircleTemplate
 };
 
 
-using CircleGroup = pex::Group<CircleFields, CircleTemplate>;
+using CircleGroup = pex::Group<CircleTemplate>;
 
 using Point = typename PointGroup::Plain;
 using Circle = typename CircleGroup::Plain;
@@ -222,7 +222,7 @@ struct FooTemplate
 };
 
 
-using FooGroup = pex::Group<FooFields, FooTemplate>;
+using FooGroup = pex::Group<FooTemplate>;
 using FooModel = typename FooGroup::Model;
 using FooControl = typename FooGroup::DefaultControl;
 using FooMux = typename FooGroup::Mux;

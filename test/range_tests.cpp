@@ -292,7 +292,7 @@ struct ColorTemplate
 };
 
 
-using ColorGroup = pex::Group<ColorFields, ColorTemplate>;
+using ColorGroup = pex::Group<ColorTemplate>;
 using ColorModel = typename ColorGroup::Model;
 
 
@@ -344,7 +344,7 @@ struct PixelCustom
 };
 
 
-using PixelGroup = pex::Group<PixelFields, PixelTemplate, PixelCustom>;
+using PixelGroup = pex::Group<PixelTemplate, PixelCustom>;
 using PixelModel = typename PixelGroup::Model;
 
 

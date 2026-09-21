@@ -27,7 +27,7 @@ struct WeaponsTemplate
 };
 
 
-using WeaponsGroup = pex::Group<WeaponsFields, WeaponsTemplate>;
+using WeaponsGroup = pex::Group<WeaponsTemplate>;
 using WeaponsPlain = typename WeaponsGroup::Plain;
 using WeaponsModel = typename WeaponsGroup::Model;
 
@@ -58,7 +58,7 @@ struct GpsTemplate
 };
 
 
-using GpsGroup = pex::Group<GpsFields, GpsTemplate>;
+using GpsGroup = pex::Group<GpsTemplate>;
 using GpsPlain = typename GpsGroup::Plain;
 using GpsModel = typename GpsGroup::Model;
 
@@ -98,7 +98,7 @@ struct AggregateTemplate
 };
 
 
-using AggregateGroup = pex::Group<AggregateFields, AggregateTemplate>;
+using AggregateGroup = pex::Group<AggregateTemplate>;
 using AggregateModel = typename AggregateGroup::Model;
 using AggregateControl = typename AggregateGroup::Control<AggregateModel>;
 

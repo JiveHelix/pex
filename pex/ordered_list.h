@@ -54,7 +54,7 @@ public:
 };
 
 
-using OrderGroup = Group<OrderFields, OrderTemplate>;
+using OrderGroup = Group<OrderTemplate>;
 using OrderModel = typename OrderGroup::Model;
 using OrderControl = typename OrderGroup::DefaultControl;
 using Order = typename OrderGroup::Plain;
@@ -1671,7 +1671,6 @@ template<typename ListMaker>
 using OrderedListGroup =
     Group
     <
-        OrderedListFields,
         OrderedListTemplate<ListMaker>::template Template,
         OrderedListCustom<ListMaker>
     >;

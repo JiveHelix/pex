@@ -183,7 +183,7 @@ struct LinkedRanges
         };
     };
 
-    using Group = pex::Group<Fields, Template, Custom>;
+    using Group = pex::Group<Template, Custom>;
     using Settings = typename Group::Plain;
 
     template<typename Upstream>

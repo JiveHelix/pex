@@ -131,7 +131,6 @@ template<typename ChoiceMaker>
 using ChoiceMuxerGroup =
     pex::Group
     <
-        ChoiceMuxerFields,
         ChoiceMuxerTemplate<ChoiceMaker>::template Template,
         ChoiceMuxerCustom<ChoiceMaker>
     >;

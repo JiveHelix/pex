@@ -6,8 +6,6 @@
 #include <pex/interface.h>
 
 
-
-
 TEST_CASE("Select::Get returns value, not index", "[select]")
 {
     using Select = pex::ModelSelector<pex::MakeSelect<double>>;
@@ -55,7 +53,7 @@ struct SomeTemplate
     static constexpr auto fieldsTypeName = "Some";
 };
 
-using SomeGroup = pex::Group<SomeFields, SomeTemplate>;
+using SomeGroup = pex::Group<SomeTemplate>;
 using SomeModel = typename SomeGroup::Model;
 using SomeControl = typename SomeGroup::template Control<SomeModel>;
 using SomePlain = typename SomeGroup::Plain;
@@ -171,7 +169,7 @@ struct AnotherTemplate
     static constexpr auto fieldsTypeName = "Another";
 };
 
-using AnotherGroup = pex::Group<AnotherFields, AnotherTemplate>;
+using AnotherGroup = pex::Group<AnotherTemplate>;
 using AnotherModel = typename AnotherGroup::Model;
 using AnotherControl = typename AnotherGroup::template Control<AnotherModel>;
 using AnotherPlain = typename AnotherGroup::Plain;

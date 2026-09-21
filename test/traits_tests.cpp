@@ -62,7 +62,7 @@ struct TesterSettings:
 };
 
 
-using TesterGroup = pex::Group<TesterFields, TesterTemplate, pex::PlainT<TesterSettings>>;
+using TesterGroup = pex::Group<TesterTemplate, pex::PlainT<TesterSettings>>;
 
 
 } // end namespace traits_tests

@@ -9,6 +9,7 @@ add_catch2_test(
         endpoint_tests.cpp
         filter_tests.cpp
         group_tests.cpp
+        group_reflection_tests.cpp
         list_tests.cpp
         ordered_list_tests.cpp
         poly_list_tests.cpp

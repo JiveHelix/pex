@@ -8,7 +8,7 @@
 
 // Place types used by this translation unit in a namespace to avoid conflicts
 // with other translation units that are part of the catch2 unit tests.
-namespace groups
+namespace reflection
 {
 
 
@@ -126,23 +126,27 @@ DECLARE_EQUALITY_OPERATORS(Point)
 DECLARE_EQUALITY_OPERATORS(Circle)
 
 
-} // end namespace groups
+} // end namespace reflection
 
 
-TEST_CASE("Customized model is used", "[groups]")
+TEST_CASE("(Reflect) Customized model is used", "[reflection]")
 {
-    using Model = typename groups::CircleGroup::Model;
+    using Model = typename reflection::CircleGroup::Model;
     using DeducedPoint = decltype(Model::center);
 
-    STATIC_REQUIRE(std::is_same_v<DeducedPoint, groups::PointModel>);
+    STATIC_REQUIRE(std::is_same_v<DeducedPoint, reflection::PointModel>);
 }
+
+
+namespace reflection
+{
 
 
 template<typename Plain, typename ThisIsAControl>
 class Observer
 {
 public:
-    static constexpr auto observerName = "groups::Observer";
+    static constexpr auto observerName = "reflection::Observer";
 
     Observer(const ThisIsAControl &control)
         :
@@ -164,12 +168,17 @@ public:
 };
 
 
-TEST_CASE("Terminus aggregate observer receives message.", "[groups]")
-{
-    using Model = typename groups::CircleGroup::Model;
-    using Control = typename groups::CircleGroup::template Control<Model>;
+} // end namespace reflection
 
-    using TestObserver = Observer<groups::Circle, Control>;
+
+TEST_CASE(
+    "(Reflect) Terminus aggregate observer receives message.",
+    "[reflection]")
+{
+    using Model = typename reflection::CircleGroup::Model;
+    using Control = typename reflection::CircleGroup::template Control<Model>;
+
+    using TestObserver = reflection::Observer<reflection::Circle, Control>;
 
     Model model{};
 
@@ -182,15 +191,18 @@ TEST_CASE("Terminus aggregate observer receives message.", "[groups]")
 }
 
 
-TEST_CASE("Terminus aggregate member observer receives message.", "[groups]")
+TEST_CASE(
+    "(Reflect) Terminus aggregate member observer receives message.",
+    "[reflection]")
 {
-    using Model = typename groups::CircleGroup::Model;
+    using Model = typename reflection::CircleGroup::Model;
 
-    using TestObserver = Observer<groups::Point, groups::PointControl>;
+    using TestObserver =
+        reflection::Observer<reflection::Point, reflection::PointControl>;
 
     Model model{};
 
-    TestObserver observer(groups::PointControl(model.center));
+    TestObserver observer(reflection::PointControl(model.center));
 
     model.center.x.Set(10.0);
     model.center.y.Set(42.0);
@@ -199,11 +211,15 @@ TEST_CASE("Terminus aggregate member observer receives message.", "[groups]")
 }
 
 
+namespace reflection
+{
+
+
 class EndpointObserver: Separator
 {
 public:
-    using Model = typename groups::CircleGroup::Model;
-    using Control = typename groups::CircleGroup::template Control<Model>;
+    using Model = typename reflection::CircleGroup::Model;
+    using Control = typename reflection::CircleGroup::template Control<Model>;
     using Endpoints = pex::EndpointGroup<EndpointObserver, Control>;
 
     using RadiusEndpoint =
@@ -228,7 +244,7 @@ public:
         PEX_CLEAR_NAME(&this->center);
     }
 
-    void OnCenter_(const groups::Point &center_)
+    void OnCenter_(const reflection::Point &center_)
     {
         this->center = center_;
     }
@@ -238,7 +254,7 @@ public:
         this->radius = radius_;
     }
 
-    groups::Point center;
+    reflection::Point center;
     double radius;
 
 private:
@@ -250,8 +266,8 @@ private:
 class RadiusObserver
 {
 public:
-    using Model = typename groups::CircleGroup::Model;
-    using Control = typename groups::CircleGroup::template Control<Model>;
+    using Model = typename reflection::CircleGroup::Model;
+    using Control = typename reflection::CircleGroup::template Control<Model>;
 
     using RadiusEndpoint =
         pex::Endpoint<RadiusObserver, decltype(Control::radius)>;
@@ -298,15 +314,20 @@ public:
 };
 
 
-TEST_CASE("EndpointGroup receives message.", "[groups]")
+} // end namespace reflection
+
+
+TEST_CASE(
+    "(Reflect) EndpointGroup receives message.",
+    "[reflection]")
 {
-    using Model = typename groups::CircleGroup::Model;
-    using Control = typename groups::CircleGroup::template Control<Model>;
+    using Model = typename reflection::CircleGroup::Model;
+    using Control = typename reflection::CircleGroup::template Control<Model>;
 
     Model model{};
     Control control(model);
 
-    EndpointObserver endpointObserver{control};
+    reflection::EndpointObserver endpointObserver{control};
 
     auto plain = model.Get();
     plain.center.x = 10.0;
@@ -323,15 +344,17 @@ TEST_CASE("EndpointGroup receives message.", "[groups]")
 }
 
 
-TEST_CASE("Default constructed single Endpoint receives message.", "[groups]")
+TEST_CASE(
+    "(Reflect) Default constructed single Endpoint receives message.",
+    "[reflection]")
 {
-    using Model = typename groups::CircleGroup::Model;
-    using Control = typename groups::CircleGroup::template Control<Model>;
+    using Model = typename reflection::CircleGroup::Model;
+    using Control = typename reflection::CircleGroup::template Control<Model>;
 
     Model model{};
     Control control(model);
 
-    RadiusObserver radiusObserver{};
+    reflection::RadiusObserver radiusObserver{};
     radiusObserver.SetControl(control); // Control(model));
     control.radius.Set(3.1415926);
 
@@ -339,46 +362,46 @@ TEST_CASE("Default constructed single Endpoint receives message.", "[groups]")
 }
 
 
-TEST_CASE("Single Endpoint receives message.", "[groups]")
+TEST_CASE("(Reflect) Single Endpoint receives message.", "[reflection]")
 {
-    using Model = typename groups::CircleGroup::Model;
-    using Control = typename groups::CircleGroup::template Control<Model>;
+    using Model = typename reflection::CircleGroup::Model;
+    using Control = typename reflection::CircleGroup::template Control<Model>;
 
     Model model{};
     Control control(model);
 
-    RadiusObserver radiusObserver{control};
+    reflection::RadiusObserver radiusObserver{control};
     control.radius.Set(3.1415926);
 
     REQUIRE(radiusObserver.radius == Approx(3.1415926));
 }
 
 TEST_CASE(
-    "Single Endpoint constructed from model receives message.",
-    "[groups]")
+    "(Reflect) Single Endpoint constructed from model receives message.",
+    "[reflection]")
 {
-    using Model = typename groups::CircleGroup::Model;
-    using Control = typename groups::CircleGroup::template Control<Model>;
+    using Model = typename reflection::CircleGroup::Model;
+    using Control = typename reflection::CircleGroup::template Control<Model>;
 
     Model model{};
     Control control(model);
 
-    RadiusObserver radiusObserver{model};
+    reflection::RadiusObserver radiusObserver{model};
     control.radius.Set(3.1415926);
 
     REQUIRE(radiusObserver.radius == Approx(3.1415926));
 }
 
 
-TEST_CASE("Default constructed Endpoint is set.", "[groups]")
+TEST_CASE("(Reflect) Default constructed Endpoint is set.", "[reflection]")
 {
-    using Model = typename groups::CircleGroup::Model;
-    using Control = typename groups::CircleGroup::template Control<Model>;
+    using Model = typename reflection::CircleGroup::Model;
+    using Control = typename reflection::CircleGroup::template Control<Model>;
 
     Model model{};
     Control control(model);
 
-    RadiusObserver radiusObserver{};
+    reflection::RadiusObserver radiusObserver{};
     radiusObserver.SetControl(control);
     control.radius.Set(3.1415926);
 
@@ -387,15 +410,15 @@ TEST_CASE("Default constructed Endpoint is set.", "[groups]")
 }
 
 
-TEST_CASE("Endpoint is set.", "[groups]")
+TEST_CASE("(Reflect) Endpoint is set.", "[reflection]")
 {
-    using Model = typename groups::CircleGroup::Model;
-    using Control = typename groups::CircleGroup::template Control<Model>;
+    using Model = typename reflection::CircleGroup::Model;
+    using Control = typename reflection::CircleGroup::template Control<Model>;
 
     Model model{};
     Control control(model);
 
-    RadiusObserver radiusObserver{model};
+    reflection::RadiusObserver radiusObserver{model};
     control.radius.Set(3.1415926);
 
     REQUIRE(radiusObserver.endpoint.Get() == Approx(3.1415926));
@@ -403,14 +426,16 @@ TEST_CASE("Endpoint is set.", "[groups]")
 }
 
 
-TEST_CASE("Setting a group value propagates to model and observer.", "[groups]")
+TEST_CASE(
+    "(Reflect) Setting a group value propagates to model and observer.",
+    "[reflection]")
 {
-    using Model = typename groups::CircleGroup::Model;
-    using Control = typename groups::CircleGroup::template Control<Model>;
+    using Model = typename reflection::CircleGroup::Model;
+    using Control = typename reflection::CircleGroup::template Control<Model>;
 
     Model model{};
 
-    EndpointObserver endpointObserver{Control(model)};
+    reflection::EndpointObserver endpointObserver{Control(model)};
 
     model.center.x.Set(10.0);
     model.center.y.Set(42.0);
@@ -419,6 +444,10 @@ TEST_CASE("Setting a group value propagates to model and observer.", "[groups]")
     REQUIRE(model.center.Get() == endpointObserver.center);
     REQUIRE(model.radius.Get() == endpointObserver.radius);
 }
+
+
+namespace reflection
+{
 
 
 template<typename Object>
@@ -473,16 +502,20 @@ public:
 };
 
 
+} // end namespace reflection
+
+
 TEST_CASE(
-    "Deferring a group only notifies members that were changed.", "[groups]")
+    "(Reflect) Deferring a group only notifies members that were changed.",
+    "[reflection]")
 {
-    using Model = typename groups::CircleGroup::Model;
-    using Control = typename groups::CircleGroup::template Control<Model>;
+    using Model = typename reflection::CircleGroup::Model;
+    using Control = typename reflection::CircleGroup::template Control<Model>;
 
     Model model{};
     Control control(model);
 
-    CenterObserver centerObserver(control.center);
+    reflection::CenterObserver centerObserver(control.center);
     TestObserver circleObserver(control);
 
     {
@@ -501,6 +534,10 @@ TEST_CASE(
 }
 
 
+namespace reflection
+{
+
+
 template<typename T>
 struct CircleWithSignalFields
 {
@@ -513,7 +550,7 @@ struct CircleWithSignalFields
 template<template<typename> typename T>
 struct CircleWithSignalTemplate
 {
-    T<groups::CircleGroup> circle;
+    T<reflection::CircleGroup> circle;
     T<pex::MakeSignal> redraw;
 
     static constexpr auto fields =
@@ -523,20 +560,23 @@ struct CircleWithSignalTemplate
 };
 
 
-using CircleWithSignalGroup =
-    pex::Group<CircleWithSignalTemplate>;
+using CircleWithSignalGroup = pex::Group<CircleWithSignalTemplate>;
 
 using CircleWithSignal = typename CircleWithSignalGroup::Plain;
 
 DECLARE_EQUALITY_OPERATORS(CircleWithSignal)
 
 
-TEST_CASE("Presence of signal allows observation.", "[groups]")
-{
-    using Model = typename CircleWithSignalGroup::Model;
-    using Control = typename CircleWithSignalGroup::template Control<Model>;
+} // end namespace reflection
 
-    using TestObserver = Observer<CircleWithSignal, Control>;
+
+TEST_CASE("(Reflect) Presence of signal allows observation.", "[reflection]")
+{
+    using Model = typename reflection::CircleWithSignalGroup::Model;
+    using Control = typename reflection::CircleWithSignalGroup::template Control<Model>;
+
+    using TestObserver =
+        reflection::Observer<reflection::CircleWithSignal, Control>;
 
     Model model{};
 
@@ -549,10 +589,12 @@ TEST_CASE("Presence of signal allows observation.", "[groups]")
 }
 
 
-TEST_CASE("Presence of signal allows unstructure/structure.", "[groups]")
+TEST_CASE(
+    "(Reflect) Presence of signal allows unstructure/structure.",
+    "[reflection]")
 {
-    using Model = typename CircleWithSignalGroup::Model;
-    using Plain = typename CircleWithSignalGroup::Plain;
+    using Model = typename reflection::CircleWithSignalGroup::Model;
+    using Plain = typename reflection::CircleWithSignalGroup::Plain;
 
     Model model{};
 
@@ -566,7 +608,7 @@ TEST_CASE("Presence of signal allows unstructure/structure.", "[groups]")
 }
 
 
-namespace subgroup
+namespace subgroup_reflection
 {
 
 
@@ -688,12 +730,14 @@ using FooGroup = pex::Group<FooTemplate, FooCustom>;
 using FooModel = typename FooGroup::Model;
 
 
-} // end namespace subgroup
+} // end namespace subgroup_reflection
 
 
-TEST_CASE("Subgroup is initialized using default constructor.", "[groups]")
+TEST_CASE(
+    "(Reflect) Subgroup is initialized using default constructor.",
+    "[reflection]")
 {
-    using Model = subgroup::ColorModel;
+    using Model = subgroup_reflection::ColorModel;
 
     Model model{};
 
@@ -703,9 +747,11 @@ TEST_CASE("Subgroup is initialized using default constructor.", "[groups]")
 }
 
 
-TEST_CASE("Subgroup is initialized by intermediate group.", "[groups]")
+TEST_CASE(
+    "(Reflect) Subgroup is initialized by intermediate group.",
+    "[reflection]")
 {
-    using Model = subgroup::FooModel;
+    using Model = subgroup_reflection::FooModel;
 
     Model model{};
 

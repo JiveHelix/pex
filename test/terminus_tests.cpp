@@ -101,7 +101,7 @@ struct TestTemplate
     static constexpr auto fieldsTypeName = "Test";
 };
 
-using TerminusTestGroup = pex::Group<TestFields, TestTemplate>;
+using TerminusTestGroup = pex::Group<TestTemplate>;
 
 using TerminusTestPlain = TerminusTestGroup::Plain;
 

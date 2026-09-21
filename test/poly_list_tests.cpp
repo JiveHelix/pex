@@ -233,12 +233,11 @@ static_assert(
 
 
 using RotorWingDerivedGroup =
-    pex::poly::DerivedGroup<RotorWingFields, RotorWingTemplates>;
+    pex::poly::DerivedGroup<RotorWingTemplates>;
 
 using RotorWing = typename RotorWingDerivedGroup::DerivedValue;
 
-using FixedWingDerivedGroup =
-    pex::poly::DerivedGroup<FixedWingFields, FixedWingTemplates>;
+using FixedWingDerivedGroup = pex::poly::DerivedGroup<FixedWingTemplates>;
 
 using FixedWing = typename FixedWingDerivedGroup::DerivedValue;
 using FixedWingModel = typename FixedWingDerivedGroup::Model;
@@ -270,7 +269,7 @@ public:
 };
 
 
-using AirportGroup = pex::Group<AirportFields, AirportTemplate>;
+using AirportGroup = pex::Group<AirportTemplate>;
 using Airport = typename AirportGroup::Plain;
 using AirportModel = typename AirportGroup::Model;
 using AirportControl = typename AirportGroup::template Control<AirportModel>;
@@ -441,7 +440,7 @@ public:
 };
 
 
-using OrderedAirportGroup = pex::Group<AirportFields, OrderedAirportTemplate>;
+using OrderedAirportGroup = pex::Group<OrderedAirportTemplate>;
 using OrderedAirport = typename OrderedAirportGroup::Plain;
 
 
@@ -984,7 +983,7 @@ struct SinglePolyTemplate
 };
 
 
-using SinglePoly = pex::Group<SinglePolyFields, SinglePolyTemplate>;
+using SinglePoly = pex::Group<SinglePolyTemplate>;
 using SinglePolyModel = typename SinglePoly::Model;
 
 using SinglePolyControl =

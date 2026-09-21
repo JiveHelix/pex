@@ -19,7 +19,6 @@ namespace poly
 
 template
 <
-    template<typename> typename Fields,
     ::pex::HasMinimalSupers Templates
 >
 struct DerivedGroup
@@ -132,7 +131,7 @@ struct DerivedGroup
 
                 PEX_NAME(
                     fmt::format(
-                        "DerivedGroup<Fields, {}>::Control<{}>",
+                        "DerivedGroup<{}>::Control<{}>",
                         jive::GetTypeName<Templates>(),
                         jive::GetTypeName<GroupBase>()));
 
@@ -162,7 +161,7 @@ struct DerivedGroup
 
                 PEX_NAME(
                     fmt::format(
-                        "DerivedGroup<Fields, {}>::Control<{}>",
+                        "DerivedGroup<{}>::Control<{}>",
                         jive::GetTypeName<Templates>(),
                         jive::GetTypeName<GroupBase>()));
 
@@ -312,7 +311,7 @@ private:
     // GroupTemplates_::Model<pex::Group::Model_>
     // and GroupTemplates_::Control<pex::Group::Control_>
     using Group_ =
-        ::pex::Group<Fields, Templates::template Template, GroupTemplates_>;
+        ::pex::Group<Templates::template Template, GroupTemplates_>;
 
 public:
     // Allow the Customized types to inherit from Group::Model and Control.

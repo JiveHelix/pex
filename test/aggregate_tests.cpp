@@ -31,7 +31,7 @@ struct PointTemplate
 };
 
 
-using PointGroup = pex::Group<PointFields, PointTemplate>;
+using PointGroup = pex::Group<PointTemplate>;
 
 
 template<typename T>
@@ -54,7 +54,7 @@ struct CircleTemplate
 };
 
 
-using CircleGroup = pex::Group<CircleFields, CircleTemplate>;
+using CircleGroup = pex::Group<CircleTemplate>;
 
 
 template<typename T>
@@ -81,7 +81,7 @@ struct StuffTemplate
 };
 
 
-using StuffGroup = pex::Group<StuffFields, StuffTemplate>;
+using StuffGroup = pex::Group<StuffTemplate>;
 
 
 using Point = typename PointGroup::Plain;

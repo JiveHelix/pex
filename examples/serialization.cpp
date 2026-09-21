@@ -30,7 +30,7 @@ struct FooTemplate
 };
 
 
-using FooGroup = pex::Group<FooFields, FooTemplate>;
+using FooGroup = pex::Group<FooTemplate>;
 using Foo = typename FooGroup::Plain;
 using Model = typename FooGroup::Model;
 

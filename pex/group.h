@@ -16,7 +16,6 @@
 #include "pex/type_tester.h"
 
 
-
 /**
 
 // The Group struct uses a Fields type and a Template type to create a POD
@@ -516,16 +515,12 @@ using GroupModel = typename GroupModel_<Template, Custom>::Model;
 
 template
 <
-    template<typename> typename Fields_,
     template<template<typename> typename> typename Template_,
     typename Custom = void
 >
 struct Group
 {
     static constexpr bool isGroup = true;
-
-    template<typename T>
-    using Fields = Fields_<T>;
 
     template<template<typename> typename T>
     using Template = Template_<T>;

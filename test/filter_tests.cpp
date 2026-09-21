@@ -234,7 +234,7 @@ struct CoffeeTemplate
 
 TEST_CASE("Use ReadOnly interface to create read-only control", "[filters]")
 {
-    using Group = pex::Group<CoffeeFields, CoffeeTemplate>;
+    using Group = pex::Group<CoffeeTemplate>;
     using Model = typename Group::Model;
     using Control = typename Group::template Control<Model>;
 
@@ -250,7 +250,7 @@ TEST_CASE(
     "Assign all aggregate members except any read-only members.",
     "[filters]")
 {
-    using Group = pex::Group<CoffeeFields, CoffeeTemplate>;
+    using Group = pex::Group<CoffeeTemplate>;
     using Model = typename Group::Model;
     using Control = typename Group::template Control<Model>;
     using Coffee = typename Group::Plain;

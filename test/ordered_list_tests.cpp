@@ -292,7 +292,7 @@ struct AnimalTemplate
     static constexpr auto fieldsTypeName = "Animal";
 };
 
-using AnimalGroup = pex::Group<AnimalFields, AnimalTemplate>;
+using AnimalGroup = pex::Group<AnimalTemplate>;
 using Animal = typename AnimalGroup::Plain;
 
 

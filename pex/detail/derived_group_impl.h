@@ -11,22 +11,20 @@ namespace poly
 
 template
 <
-    template<typename> typename Fields,
     ::pex::HasMinimalSupers Templates
 >
 template<typename GroupBase>
 std::unique_ptr<MakeSuperControl<typename Templates::Supers>>
-DerivedGroup<Fields, Templates>::GroupTemplates_
+DerivedGroup<Templates>::GroupTemplates_
     ::Model<GroupBase>::CreateControl()
 {
     using DerivedModel =
-        typename DerivedGroup<Fields, Templates>::Model;
+        typename DerivedGroup<Templates>::Model;
 
     static_assert(
         std::derived_from<DerivedModel, std::remove_cvref_t<decltype(*this)>>);
 
-    using DerivedControl =
-        typename DerivedGroup<Fields, Templates>::Control;
+    using DerivedControl = typename DerivedGroup<Templates>::Control;
 
     auto derivedModel = dynamic_cast<DerivedModel *>(this);
 
@@ -69,16 +67,15 @@ GNU_NO_PEDANTIC_PUSH
 
 template
 <
-    template<typename> typename Fields,
     ::pex::HasMinimalSupers Templates
 >
 template<typename GroupBase>
 std::unique_ptr<MakeSuperControl<typename Templates::Supers>>
-DerivedGroup<Fields, Templates>::GroupTemplates_
+DerivedGroup<Templates>::GroupTemplates_
     ::TEMPLATE Control<GroupBase>::Copy() const
 {
     using DerivedControl =
-        typename DerivedGroup<Fields, Templates>::Control;
+        typename DerivedGroup<Templates>::Control;
 
     auto derivedControl = dynamic_cast<const DerivedControl *>(this);
 
@@ -108,11 +105,10 @@ Derived & RequireDerived(Base &base)
 
 template
 <
-    template<typename> typename Fields,
     ::pex::HasMinimalSupers Templates
 >
 template<typename GroupBase>
-DerivedGroup<Fields, Templates>::GroupTemplates_
+DerivedGroup<Templates>::GroupTemplates_
     ::TEMPLATE Control<GroupBase>::Control(
         ::pex::poly::MakeSuperModel<typename Templates::Supers> &model)
     :
@@ -131,7 +127,7 @@ DerivedGroup<Fields, Templates>::GroupTemplates_
 
     PEX_NAME(
         fmt::format(
-            "DerivedGroup<Fields, {}>::Control<{}>",
+            "DerivedGroup<{}>::Control<{}>",
             jive::GetTypeName<Templates>(),
             jive::GetTypeName<GroupBase>()));
 
@@ -142,12 +138,11 @@ DerivedGroup<Fields, Templates>::GroupTemplates_
 
 template
 <
-    template<typename> typename Fields,
     ::pex::HasMinimalSupers Templates
 >
 template<typename GroupBase>
 template<typename BaseSignal>
-DerivedGroup<Fields, Templates>::GroupTemplates_
+DerivedGroup<Templates>::GroupTemplates_
     ::TEMPLATE Control<GroupBase>::Control(
         const ControlWrapper<BaseSignal> &control)
         // const ::pex::poly::ControlWrapperTemplate
@@ -165,7 +160,7 @@ DerivedGroup<Fields, Templates>::GroupTemplates_
 
     PEX_NAME(
         fmt::format(
-            "DerivedGroup<Fields, {}>::Control<{}>",
+            "DerivedGroup<{}>::Control<{}>",
             jive::GetTypeName<Templates>(),
             jive::GetTypeName<GroupBase>()));
 
@@ -173,7 +168,7 @@ DerivedGroup<Fields, Templates>::GroupTemplates_
     PEX_MEMBER(baseNotifier_);
 
     using DerivedControl =
-        typename DerivedGroup<Fields, Templates>::Control;
+        typename DerivedGroup<Templates>::Control;
 
     auto base = control.GetVirtual();
     auto upcast = dynamic_cast<const DerivedControl *>(base);
