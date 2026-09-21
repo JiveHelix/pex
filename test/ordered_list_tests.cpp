@@ -44,6 +44,8 @@ class ReorderObserver
 public:
     using Signal = pex::control::Signal<pex::model::Signal>;
 
+    static constexpr auto observerName = "ReorderObserver";
+
     ReorderObserver(Signal reorder)
         :
         endpoint_(

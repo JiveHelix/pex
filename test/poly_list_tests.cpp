@@ -335,6 +335,8 @@ TEST_CASE("List of polymorphic values", "[poly]")
 class CountObserver
 {
 public:
+    static constexpr auto observerName = "CountObserver";
+
     CountObserver(pex::control::ListCount count)
         :
         countEndpoint_(

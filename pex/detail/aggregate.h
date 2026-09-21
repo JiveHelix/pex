@@ -37,32 +37,38 @@ AssignSourceToTarget(Target &, const Source &)
 
 template
 <
-    template<typename> typename Fields,
     typename Plain,
     typename Source
 >
 void PlainConvert(Plain &target, Source &source)
 {
-    auto initializer = [&target, &source](
-        const auto &plainField,
-        const auto &sourceField) -> void
+    if constexpr (fields::HasFields<Plain>)
     {
-        AssignSourceToTarget(
-            target.*(plainField.member),
-            source.*(sourceField.member));
-    };
+        static_assert(
+            fields::HasFields<Source>,
+            "Source must also have fields");
 
-    jive::ZipApply(
-        initializer,
-        Fields<Plain>::fields,
-        Fields<Source>::fields);
+        auto initializer = [&target, &source](
+            const auto &plainField,
+            const auto &sourceField) -> void
+        {
+            AssignSourceToTarget(
+                target.*(plainField.member),
+                source.*(sourceField.member));
+        };
+
+        jive::ZipApply(initializer, Plain::fields, Source::fields);
+    }
+    else
+    {
+        fields::ForEachZip(target, source, AssignSourceToTarget);
+    }
 }
 
 
 template
 <
     typename Plain,
-    template<typename> typename Fields,
     typename Derived
 >
 struct Getter
@@ -72,10 +78,7 @@ struct Getter
     Plain Get() const
     {
         Plain result;
-
-        PlainConvert<Fields>(
-            result,
-            static_cast<const Derived &>(*this));
+        PlainConvert(result, static_cast<const Derived &>(*this));
 
         return result;
     }
@@ -164,7 +167,6 @@ using CallbackType = typename CallbackType_<T>::Type;
 template
 <
     typename Plain,
-    template<typename> typename Fields,
     template<template<typename> typename> typename Template,
     template<typename> typename Selector
 >
@@ -181,8 +183,7 @@ struct Aggregate
         Getter
         <
             Plain,
-            Fields,
-            Aggregate<Plain, Fields, Template, Selector>
+            Aggregate<Plain, Template, Selector>
         >
 {
     using SignalConnection_ = SignalConnection<void>;
@@ -204,30 +205,59 @@ public:
     void RegisterPexNames()
     {
         // Iterate over members, and register names and addresses.
-        auto doRegisterName = [this] (auto thisField)
-        {
-            PexName(
-                &(this->*(thisField.member)),
-                this,
-                fmt::format("Aggregate::{}", thisField.name));
-        };
 
-        jive::ForEach(
-            Fields<Aggregate>::fields,
-            doRegisterName);
+        if constexpr (fields::HasFields<Aggregate>)
+        {
+            auto doRegisterName = [this] (auto thisField)
+            {
+                PexName(
+                    &(this->*(thisField.member)),
+                    this,
+                    fmt::format("Aggregate::{}", thisField.name));
+            };
+
+            jive::ForEach(Aggregate::fields, doRegisterName);
+        }
+        else
+        {
+            auto doRegisterName = [this] (const auto &name, const auto &member)
+            {
+                PexName(
+                    &member,
+                    this,
+                    fmt::format("Aggregate::{}", name));
+            };
+
+            fields::ForEach(
+                *this,
+                doRegisterName);
+        }
     }
 
     void ClearPexNames()
     {
         // Iterate over members, and register names and addresses.
-        auto doClearName = [this] (auto thisField)
-        {
-            ClearPexName(&(this->*(thisField.member)));
-        };
 
-        jive::ForEach(
-            Fields<Aggregate>::fields,
-            doClearName);
+        if constexpr (fields::HasFields<Aggregate>)
+        {
+            auto doClearName = [this] (auto thisField)
+            {
+                ClearPexName(&(this->*(thisField.member)));
+            };
+
+            jive::ForEach(
+                Aggregate::fields,
+                doClearName);
+        }
+        else
+        {
+            auto doClearName = [this] (const auto &member)
+            {
+                ClearPexName(&member);
+            };
+
+            fields::ForEach(*this, doClearName);
+        }
     }
 #endif
 
@@ -272,19 +302,33 @@ public:
 
         this->muteTerminus_.Emplace(upstream.CloneMuteNode());
 
-        auto doAssign = [this, &upstream](
-            const auto &aggregateField,
-            const auto &upstreamField) -> void
+        if constexpr (fields::HasFields<Aggregate>)
         {
-            this->AssignUpstream_(
-                this->*(aggregateField.member),
-                upstream.*(upstreamField.member));
-        };
+            auto doAssign = [this, &upstream](
+                const auto &aggregateField,
+                const auto &upstreamField) -> void
+            {
+                this->AssignUpstream_(
+                    this->*(aggregateField.member),
+                    upstream.*(upstreamField.member));
+            };
 
-        jive::ZipApply(
-            doAssign,
-            Fields<Aggregate>::fields,
-            Fields<Upstream>::fields);
+            jive::ZipApply(
+                doAssign,
+                Aggregate::fields,
+                Upstream::fields);
+        }
+        else
+        {
+            auto doAssign = [this](
+                const auto &aggregateMember,
+                const auto &upstreamMember) -> void
+            {
+                this->AssignUpstream_(aggregateMember, upstreamMember);
+            };
+
+            fields::ForEachZip(*this, upstream, doAssign);
+        }
     }
 
     Aggregate(const Aggregate &) = delete;
@@ -381,15 +425,30 @@ private:
     {
         this->muteTerminus_.Connect(this, &Aggregate::OnMute_);
 
-        auto connector = [this](const auto &field) -> void
+        if constexpr (fields::HasFields<Aggregate>)
         {
+            auto connector = [this](const auto &field) -> void
+            {
 #ifdef ENABLE_PEX_NAMES
-            assert(pex::HasPexName(&(this->*(field.member))));
+                assert(pex::HasPexName(&(this->*(field.member))));
 #endif
-            this->Connector_(this->*(field.member));
-        };
+                this->Connector_(this->*(field.member));
+            };
 
-        jive::ForEach(Fields<Aggregate>::fields, connector);
+            jive::ForEach(Aggregate::fields, connector);
+        }
+        else
+        {
+            auto connector = [this](auto &member) -> void
+            {
+#ifdef ENABLE_PEX_NAMES
+                assert(pex::HasPexName(&(member)));
+#endif
+                this->Connector_(member);
+            };
+
+            fields::ForEach(*this, connector);
+        }
 
         this->madeConnections_ = true;
     }
@@ -412,12 +471,24 @@ private:
 
         this->muteTerminus_.Disconnect();
 
-        auto disconnector = [this](const auto &field) -> void
+        if constexpr (fields::HasFields<Aggregate>)
         {
-            this->Disconnector_(this->*(field.member));
-        };
+            auto disconnector = [this](const auto &field) -> void
+            {
+                this->Disconnector_(this->*(field.member));
+            };
 
-        jive::ForEach(Fields<Aggregate>::fields, disconnector);
+            jive::ForEach(Aggregate::fields, disconnector);
+        }
+        else
+        {
+            auto disconnector = [this](auto &member) -> void
+            {
+                this->Disconnector_(member);
+            };
+
+            fields::ForEach(*this, disconnector);
+        }
 
         this->madeConnections_ = false;
     }

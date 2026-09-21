@@ -2,6 +2,8 @@
 
 
 #include <jive/for_each.h>
+#include <fields/reflect.h>
+#include <fields/has_fields.h>
 
 
 namespace pex
@@ -12,20 +14,35 @@ namespace detail
 {
 
 
-template<template<typename> typename Fields, typename T>
+template<typename T>
 bool HasModel(const T &group)
 {
     bool result = true;
 
-    auto modelChecker = [&group, &result](auto field)
+    if constexpr (fields::HasFields<T>)
     {
-        if (result)
+        auto modelChecker = [&group, &result](auto field)
         {
-            result = (group.*(field.member)).HasModel();
-        }
-    };
+            if (result)
+            {
+                result = (group.*(field.member)).HasModel();
+            }
+        };
 
-    jive::ForEach(Fields<T>::fields, modelChecker);
+        jive::ForEach(T::fields, modelChecker);
+    }
+    else
+    {
+        auto modelChecker = [&result](const auto &member)
+        {
+            if (result)
+            {
+                result = member.HasModel();
+            }
+        };
+
+        fields::ForEachZip(group, modelChecker);
+    }
 
     return result;
 }

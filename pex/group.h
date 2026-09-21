@@ -143,25 +143,49 @@ void DoAssignEmplace(Target &target, Source && source) noexcept
 
 template
 <
-    template<typename> typename Fields,
     typename Target,
     typename Source
 >
 void AssignEmplace(Target &&target, Source &&source)
 {
-    auto initializer = [&target, &source](
-        const auto &targetField,
-        const auto &sourceField) -> void
-    {
-        DoAssignEmplace(
-            target.*(targetField.member),
-            source.*(sourceField.member));
-    };
+    using TargetType = std::remove_cvref_t<Target>;
+    using SourceType  = std::remove_cvref_t<Source>;
 
-    jive::ZipApply(
-        initializer,
-        Fields<std::remove_cvref_t<Target>>::fields,
-        Fields<std::remove_cvref_t<Source>>::fields);
+    if constexpr (fields::HasFields<TargetType>
+            && fields::HasFields<SourceType>)
+    {
+        auto initializer = [&target, &source](
+            const auto &targetField,
+            const auto &sourceField) -> void
+        {
+            DoAssignEmplace(
+                target.*(targetField.member),
+                source.*(sourceField.member));
+        };
+
+        jive::ZipApply(
+            initializer,
+            target.fields,
+            source.fields);
+    }
+    else
+    {
+        static_assert(
+            fields::CanReflect<TargetType>,
+            "Without fields, type must support reflection.");
+
+        static_assert(
+            fields::CanReflect<SourceType>,
+            "Without fields, type must support reflection.");
+
+        auto initializer = [&target, &source](
+            [[maybe_unused]] const std::string_view &name,
+            auto &targetMember,
+            const auto &sourceMember) -> void
+        {
+            DoAssignEmplace(targetMember, sourceMember);
+        };
+    }
 }
 
 
@@ -392,28 +416,23 @@ protected:
 
 template
 <
-    template<typename> typename Fields_,
     template<template<typename> typename> typename Template_,
     typename Custom = void
 >
 struct GroupModel_
 {
-    template<typename T>
-    using Fields = Fields_<T>;
-
     template<template<typename> typename T>
     using Template = Template_<T>;
 
     using Plain = detail::CustomizePlain<Custom, Template<pex::Identity>>;
 
     template<template<typename> typename Selector, typename Upstream>
-    using DeferGroup = DeferGroup<Fields, Template, Selector, Upstream>;
+    using DeferGroup = DeferGroup<Template, Selector, Upstream>;
 
     template<typename Derived>
     using ModelAccessors = GroupAccessors
         <
             Plain,
-            Fields,
             Template,
             ModelSelector,
             Derived
@@ -489,11 +508,10 @@ struct GroupModel_
 
 template
 <
-    template<typename> typename Fields,
     template<template<typename> typename> typename Template,
     typename Custom = void
 >
-using GroupModel = typename GroupModel_<Fields, Template, Custom>::Model;
+using GroupModel = typename GroupModel_<Template, Custom>::Model;
 
 
 template
@@ -529,14 +547,14 @@ struct Group
     using Type = Plain;
 
     template<template<typename> typename Selector, typename Upstream>
-    using DeferGroup = DeferGroup<Fields, Template, Selector, Upstream>;
+    using DeferGroup = DeferGroup<Template, Selector, Upstream>;
 
 private:
     using CustomizedModel_ =
         typename detail::CustomizeModel
         <
             Custom,
-            GroupModel<Fields, Template, Custom>
+            GroupModel<Template, Custom>
         >;
 
 public:
@@ -555,13 +573,12 @@ public:
 
 
     template<template<typename> typename Selector>
-    using Aggregate = detail::Aggregate<Plain, Fields, Template_, Selector>;
+    using Aggregate = detail::Aggregate<Plain, Template_, Selector>;
 
     template<typename Derived>
     using ControlAccessors = GroupAccessors
         <
             Plain,
-            Fields,
             Template,
             ControlSelector,
             Derived
@@ -620,7 +637,7 @@ public:
             ControlMembers{},
             AccessorsBase{}
         {
-            AssignEmplace<Fields>(*this, upstream);
+            AssignEmplace(*this, upstream);
 
             PEX_NAME(fmt::format("{} Control", jive::GetTypeName<Plain>()));
             PEX_NAMES(this);
@@ -632,7 +649,7 @@ public:
             ControlMembers{},
             AccessorsBase{}
         {
-            fields::Assign<Fields>(*this, other);
+            fields::Assign(*this, other);
 
             PEX_NAME(fmt::format("{} Control", jive::GetTypeName<Plain>()));
             PEX_NAMES(this);
@@ -647,20 +664,20 @@ public:
         void StandardEmplace_(Upstream &upstream)
         {
             this->detail::MuteControl::Emplace(upstream.GetMuteNode());
-            AssignEmplace<Fields>(*this, upstream);
+            AssignEmplace(*this, upstream);
         }
 
         void StandardEmplace_(const Control_ &other)
         {
             this->detail::MuteControl::Emplace(other);
-            AssignEmplace<Fields>(*this, other);
+            AssignEmplace(*this, other);
         }
 
     public:
         Control_ & operator=(const Control_ &other)
         {
             this->detail::MuteControl::operator=(other);
-            fields::Assign<Fields>(*this, other);
+            fields::Assign(*this, other);
 
             return *this;
         }
@@ -671,7 +688,7 @@ public:
             ControlMembers{},
             AccessorsBase{}
         {
-            fields::MoveAssign<Fields>(*this, std::move(other));
+            fields::MoveAssign(*this, std::move(other));
 
             PEX_NAME(fmt::format("{} Control", jive::GetTypeName<Plain>()));
             PEX_NAMES(this);
@@ -686,14 +703,14 @@ public:
         Control_ & operator=(Control_ &&other)
         {
             this->detail::MuteControl::operator=(other);
-            fields::MoveAssign<Fields>(*this, std::move(other));
+            fields::MoveAssign(*this, std::move(other));
 
             return *this;
         }
 
         bool HasModel() const
         {
-            return pex::detail::HasModel<Fields>(*this);
+            return pex::detail::HasModel(*this);
         }
     };
 
@@ -707,7 +724,6 @@ public:
     using MuxAccessors = GroupAccessors
         <
             Plain,
-            Fields,
             Template,
             MuxSelector,
             Derived
@@ -793,13 +809,13 @@ public:
         void StandardEmplace_(Upstream &upstream)
         {
             this->detail::MuteMux::Emplace(upstream.GetMuteNode());
-            AssignEmplace<Fields>(*this, upstream);
+            AssignEmplace(*this, upstream);
         }
 
         void StandardEmplace_(const Mux_ &other)
         {
             this->detail::MuteMux::Emplace(other);
-            AssignEmplace<Fields>(*this, other);
+            AssignEmplace(*this, other);
         }
 
     public:
@@ -812,25 +828,40 @@ public:
 
         bool HasModel() const
         {
-            return pex::detail::HasModel<Fields>(*this);
+            return pex::detail::HasModel(*this);
         }
 
         void ChangeUpstream(Upstream &upstream)
         {
             this->detail::MuteMux::ChangeUpstream(upstream.GetMuteNode());
 
-            auto swapper = [this, &upstream](
-                const auto &thisField,
-                const auto &upstreamField) -> void
+            if constexpr (fields::HasFields<Upstream>)
             {
-                (this->*(thisField.member)).ChangeUpstream(
-                    upstream.*(upstreamField.member));
-            };
+                static_assert(
+                    fields::HasFields<Mux_>,
+                    "Mux_ must have fields when Upstream has fields");
 
-            jive::ZipApply(
-                swapper,
-                Fields<Mux_>::fields,
-                Fields<Upstream>::fields);
+                auto swapper = [this, &upstream](
+                    const auto &thisField,
+                    const auto &upstreamField) -> void
+                {
+                    (this->*(thisField.member)).ChangeUpstream(
+                        upstream.*(upstreamField.member));
+                };
+
+                jive::ZipApply(swapper, Mux_::fields, Upstream::fields);
+            }
+            else
+            {
+                auto swapper = [](
+                    auto &muxMember,
+                    const auto &upstreamMember) -> void
+                {
+                    muxMember.ChangeUpstream(upstreamMember);
+                };
+
+                jive::ZipApply(*this, upstream, swapper);
+            }
         }
     };
 
@@ -840,7 +871,6 @@ public:
     using FollowAccessors = GroupAccessors
         <
             Plain,
-            Fields,
             Template,
             FollowSelector,
             Derived
@@ -900,7 +930,7 @@ public:
             FollowMembers{},
             AccessorsBase{}
         {
-            AssignEmplace<Fields>(*this, upstream);
+            AssignEmplace(*this, upstream);
 
             PEX_NAME(fmt::format("{} Follow", jive::GetTypeName<Plain>()));
             PEX_NAMES(this);
@@ -912,7 +942,7 @@ public:
             FollowMembers{},
             AccessorsBase{}
         {
-            fields::Assign<Fields>(*this, other);
+            fields::Assign(*this, other);
 
             PEX_NAME(fmt::format("{} Follow", jive::GetTypeName<Plain>()));
             PEX_NAMES(this);
@@ -921,7 +951,7 @@ public:
         Follow_ & operator=(const Follow_ &other)
         {
             this->detail::MuteFollow::operator=(other);
-            fields::Assign<Fields>(*this, other);
+            fields::Assign(*this, other);
 
             return *this;
         }
@@ -932,7 +962,7 @@ public:
             FollowMembers{},
             AccessorsBase{}
         {
-            fields::MoveAssign<Fields>(*this, std::move(other));
+            fields::MoveAssign(*this, std::move(other));
 
             PEX_NAME(fmt::format("{} Follow", jive::GetTypeName<Plain>()));
             PEX_NAMES(this);
@@ -947,7 +977,7 @@ public:
         Follow_ & operator=(Follow_ &&other)
         {
             this->detail::MuteFollow::operator=(other);
-            fields::MoveAssign<Fields>(*this, std::move(other));
+            fields::MoveAssign(*this, std::move(other));
 
             return *this;
         }
@@ -960,19 +990,19 @@ public:
         void StandardEmplace_(Upstream &upstream)
         {
             this->detail::MuteFollow::Emplace(upstream.GetMuteNode());
-            AssignEmplace<Fields>(*this, upstream);
+            AssignEmplace(*this, upstream);
         }
 
         void StandardEmplace_(const Follow_ &other)
         {
             this->detail::MuteFollow::Emplace(other);
-            AssignEmplace<Fields>(*this, other);
+            AssignEmplace(*this, other);
         }
 
     public:
         bool HasModel() const
         {
-            return pex::detail::HasModel<Fields>(*this);
+            return pex::detail::HasModel(*this);
         }
     };
 

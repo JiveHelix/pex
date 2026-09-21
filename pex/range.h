@@ -197,6 +197,7 @@ class Range: Separator
 {
 public:
     static constexpr bool isRangeModel = true;
+    static constexpr auto observerName = "pex::model::Range";
 
     using Type = T;
 

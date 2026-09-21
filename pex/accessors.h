@@ -13,30 +13,6 @@
 namespace pex
 {
 
-#if 0
-template
-<
-    template<typename> typename Fields,
-    typename Target,
-    typename Source
->
-void Assign(Target &target, Source &source)
-{
-    auto initializer = [&target, &source](
-        const auto &targetField,
-        const auto &sourceField) -> void
-    {
-        // Target member must have a Set function.
-        (target.*(targetField.member)).Set(source.*(sourceField.member));
-    };
-
-    jive::ZipApply(
-        initializer,
-        Fields<Target>::fields,
-        Fields<Source>::fields);
-}
-#endif
-
 
 template<typename Target, typename Source>
 std::enable_if_t<detail::CanBeSet<Target>>
@@ -100,22 +76,18 @@ struct HasMute
 template
 <
     typename Plain_,
-    template<typename> typename Fields_,
     template<template<typename> typename> typename Template_,
     template<typename> typename Selector,
     typename Derived
 >
 class GroupAccessors
     :
-    public detail::Getter<Plain_, Fields_, Derived>
+    public detail::Getter<Plain_, Derived>
 {
 public:
     static constexpr bool isGroupAccessor = true;
 
     using Plain = Plain_;
-
-    template<typename T>
-    using Fields = Fields_<T>;
 
     template<template<typename> typename T>
     using GroupTemplate = Template_<T>;
@@ -127,17 +99,32 @@ public:
         auto derived = static_cast<Derived *>(this);
 
         // Iterate over members, and register names and addresses.
-        auto doRegisterNames = [derived, groupAddress] (auto thisField)
-        {
-            PexName(
-                &(derived->*(thisField.member)),
-                groupAddress,
-                thisField.name);
-        };
 
-        jive::ForEach(
-            Fields<Derived>::fields,
-            doRegisterNames);
+        if constexpr (fields::HasFields<Derived>)
+        {
+            auto doRegisterNames = [derived, groupAddress] (auto thisField)
+            {
+                PexName(
+                    &(derived->*(thisField.member)),
+                    groupAddress,
+                    thisField.name);
+            };
+
+            jive::ForEach(Derived::fields, doRegisterNames);
+        }
+        else
+        {
+            auto doRegisterNames = [groupAddress] (
+                const auto &name,
+                const auto &member)
+            {
+                PexName(&member, groupAddress, name);
+            };
+
+            fields::ForEach(
+                *derived,
+                doRegisterNames);
+        }
     }
 
     void UnregisterPexNames()
@@ -145,14 +132,25 @@ public:
         auto derived = static_cast<Derived *>(this);
 
         // Iterate over members, and register names and addresses.
-        auto doUnregisterNames = [derived] (auto thisField)
-        {
-            ClearPexName(&(derived->*(thisField.member)));
-        };
 
-        jive::ForEach(
-            Fields<Derived>::fields,
-            doUnregisterNames);
+        if constexpr (fields::HasFields<Derived>)
+        {
+            auto doUnregisterNames = [derived] (auto thisField)
+            {
+                ClearPexName(&(derived->*(thisField.member)));
+            };
+
+            jive::ForEach(Derived::fields, doUnregisterNames);
+        }
+        else
+        {
+            auto doUnregisterNames = [] (const auto &member)
+            {
+                ClearPexName(&member);
+            };
+
+            fields::ForEach(*derived, doUnregisterNames);
+        }
     }
 
 #endif // ENABLE_PEX_NAMES
@@ -169,20 +167,38 @@ public:
         derived->DoMute();
 
         // Iterate over members, muting those that support it.
-        auto doMute = [derived] (auto thisField)
+
+        if constexpr (fields::HasFields<Derived>)
         {
-            using Member = typename std::remove_reference_t<
-                decltype(derived->*(thisField.member))>;
-
-            if constexpr (HasMute<Member>::value)
+            auto doMute = [derived] (auto thisField)
             {
-                (derived->*(thisField.member)).Mute();
-            }
-        };
+                using Member = typename std::remove_reference_t<
+                    decltype(derived->*(thisField.member))>;
 
-        jive::ForEach(
-            Fields<Derived>::fields,
-            doMute);
+                if constexpr (HasMute<Member>::value)
+                {
+                    (derived->*(thisField.member)).Mute();
+                }
+            };
+
+            jive::ForEach(
+                Derived::fields,
+                doMute);
+        }
+        else
+        {
+            auto doMute = [] (auto &member)
+            {
+                using Member = std::remove_reference_t<decltype(member)>;
+
+                if constexpr (HasMute<Member>::value)
+                {
+                    member.Mute();
+                }
+            };
+
+            fields::ForEach(*derived, doMute);
+        }
     }
 
     void Unmute()
@@ -195,20 +211,35 @@ public:
         }
 
         // Iterate over members, unmuting those that support it.
-        auto doUnmute = [derived] (auto thisField)
+        if constexpr (fields::HasFields<Derived>)
         {
-            using Member = typename std::remove_reference_t<
-                decltype(derived->*(thisField.member))>;
-
-            if constexpr (HasMute<Member>::value)
+            auto doUnmute = [derived] (auto thisField)
             {
-                (derived->*(thisField.member)).Unmute();
-            }
-        };
+                using Member = typename std::remove_reference_t<
+                    decltype(derived->*(thisField.member))>;
 
-        jive::ForEach(
-            Fields<Derived>::fields,
-            doUnmute);
+                if constexpr (HasMute<Member>::value)
+                {
+                    (derived->*(thisField.member)).Unmute();
+                }
+            };
+
+            jive::ForEach(Derived::fields, doUnmute);
+        }
+        else
+        {
+            auto doUnmute = [] (auto &member)
+            {
+                using Member = std::remove_reference_t<decltype(member)>;
+
+                if constexpr (HasMute<Member>::value)
+                {
+                    member.Unmute();
+                }
+            };
+
+            fields::ForEach(*derived, doUnmute);
+        }
 
         derived->DoUnmute();
     }
@@ -218,7 +249,7 @@ public:
         // DeferGroup will notify members of changes after all values have been
         // set.
         // The aggregate notification will follow.
-        DeferGroup<Fields, Template_, Selector, Derived> deferGroup(
+        DeferGroup<Template_, Selector, Derived> deferGroup(
             static_cast<Derived &>(*this));
 
         deferGroup.Set(plain);
@@ -234,32 +265,46 @@ public:
     {
         auto derived = static_cast<Derived *>(this);
 
-        auto setInitial = [derived, &plain]
-            (auto thisField, auto plainField)
+        if constexpr (fields::HasFields<Derived>)
         {
-            DoSetInitial(
-                derived->*(thisField.member),
-                plain.*(plainField.member));
-        };
+            auto setInitial = [derived, &plain]
+                (auto thisField, auto plainField)
+            {
+                DoSetInitial(
+                    derived->*(thisField.member),
+                    plain.*(plainField.member));
+            };
 
-        jive::ZipApply(
-            setInitial,
-            Fields<Derived>::fields,
-            Fields<Plain>::fields);
+            jive::ZipApply(setInitial, Derived::fields, Plain::fields);
+        }
+        else
+        {
+            auto setInitial = [] (auto &targetMember, const auto &plainMember)
+            {
+                DoSetInitial(targetMember, plainMember);
+            };
+
+            fields::ForEachZip(*derived, plain, setInitial);
+        }
     }
 
     void Notify()
     {
         auto derived = static_cast<Derived *>(this);
 
-        auto doNotify = [derived] (auto thisField)
+        if constexpr (fields::HasFields<Derived>)
         {
-            DoNotify(derived->*(thisField.member));
-        };
+            auto doNotify = [derived] (auto thisField)
+            {
+                DoNotify(derived->*(thisField.member));
+            };
 
-        jive::ForEach(
-            Fields<Derived>::fields,
-            doNotify);
+            jive::ForEach(Derived::fields, doNotify);
+        }
+        else
+        {
+            fields::ForEach(*derived, DoNotify);
+        }
     }
 
     template<typename>
@@ -270,18 +315,22 @@ protected:
     {
         auto derived = static_cast<Derived *>(this);
 
-        auto setWithoutNotify = [derived, &plain]
-            (auto thisField, auto plainField)
+        if constexpr (fields::HasFields<Derived>)
         {
-            SetWithoutNotify(
-                derived->*(thisField.member),
-                plain.*(plainField.member));
-        };
+            auto setWithoutNotify = [derived, &plain]
+                (auto thisField, auto plainField)
+            {
+                SetWithoutNotify(
+                    derived->*(thisField.member),
+                    plain.*(plainField.member));
+            };
 
-        jive::ZipApply(
-            setWithoutNotify,
-            Fields<Derived>::fields,
-            Fields<Plain>::fields);
+            jive::ZipApply(setWithoutNotify, Derived::fields, Plain::fields);
+        }
+        else
+        {
+            fields::ForEachZip(*derived, plain, SetWithoutNotify);
+        }
     }
 
     void SetWithoutNotify_(const Plain &plain) const

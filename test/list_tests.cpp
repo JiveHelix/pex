@@ -16,6 +16,8 @@ template<typename List>
 class ListChangedObserver
 {
 public:
+    static constexpr auto observerName = "ListChangedObserver";
+
     ListChangedObserver(List &list)
         :
         list_(list),
@@ -427,6 +429,8 @@ public:
 
     using RocketList = typename RocketListControl::Type;
 
+    static constexpr auto observerName = "RocketListObserver";
+
     RocketListObserver(const RocketListControl &rocketListControl)
         :
         endpoint_(
@@ -586,6 +590,8 @@ public:
 
     using GamoraEndpoint = pex::Endpoint<GamoraObserver, GamoraControl>;
     using Gamora = typename GamoraControl::Type;
+
+    static constexpr auto observerName = "GamorObserver";
 
     GamoraObserver(const GamoraControl &gamoraControl)
         :
@@ -758,6 +764,8 @@ public:
     using RocketsConnect =
         pex::detail::ListConnect<RocketSignalObserver, RocketListControl>;
 
+    static constexpr auto observerName = "RocketSignalObserver";
+
     RocketSignalObserver(const RocketsControl &rocketsControl)
         :
         endpoint_(
@@ -883,6 +891,8 @@ class RocketObserver
 public:
     using RocketsEndpoint =
         pex::Endpoint<RocketObserver, RocketControl>;
+
+    static constexpr auto observerName = "RocketObserver";
 
     RocketObserver(const RocketControl &rocketControl)
         :

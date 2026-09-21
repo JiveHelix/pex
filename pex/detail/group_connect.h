@@ -36,13 +36,10 @@ public:
     using Plain = typename UpstreamControl::Plain;
     using Type = Plain;
 
-    template< typename T>
-    using Fields = typename UpstreamControl::template Fields<T>;
-
     template<template<typename> typename T>
     using Template = typename UpstreamControl::template GroupTemplate<T>;
 
-    using Aggregate = detail::Aggregate<Plain, Fields, Template, Selector>;
+    using Aggregate = detail::Aggregate<Plain, Template, Selector>;
 
     using ValueConnection = detail::ValueConnection<Observer, Plain>;
     using Callable = typename ValueConnection::Callable;

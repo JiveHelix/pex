@@ -14,6 +14,7 @@
 
 
 #include <jive/zip_apply.h>
+#include <fields/reflect.h>
 #include "pex/model_value.h"
 #include "pex/traits.h"
 #include "pex/control_value.h"
@@ -868,7 +869,6 @@ SetByAccess(const Target &, const Source &)
 
 template
 <
-    template<typename> typename Fields,
     template<template<typename> typename> typename Template,
     template<typename> typename Selector,
     typename Upstream
@@ -878,7 +878,7 @@ class DeferGroup
     public Template<DeferSelector<Selector>::template Type>
 {
 public:
-    using This = DeferGroup<Fields, Template, Selector, Upstream>;
+    using This = DeferGroup<Template, Selector, Upstream>;
 
     DeferGroup()
         :
@@ -895,23 +895,45 @@ public:
     {
         // Every member of this group will also be Defer/DeferGroup/DeferList
         // depending on each type.
-        auto initialize = [this, &upstream]
-            (auto deferField, [[maybe_unused]] auto upstreamField)
+        auto initialize = []
+            (auto &member, [[maybe_unused]] auto &upstreamMember)
         {
-            using MemberType = typename std::remove_reference_t<
-                decltype(this->*(deferField.member))>;
+            using MemberType = std::remove_cvref_t<decltype(member)>;
 
             if constexpr (!std::is_same_v<DescribeSignal, MemberType>)
             {
-                this->*(deferField.member) = MemberType(
-                    (upstream.*(upstreamField.member)));
+                member = MemberType(upstreamMember);
             }
         };
 
-        jive::ZipApply(
-            initialize,
-            Fields<This>::fields,
-            Fields<Upstream>::fields);
+        if constexpr (fields::HasFields<This>)
+        {
+            // Fields have been explicitly specified.
+            auto initializeWithFields = [&initialize, this, &upstream]
+                (auto deferField, [[maybe_unused]] auto upstreamField)
+            {
+                initialize(
+                    this->*(deferField.member),
+                    upstream.*(upstreamField.member));
+            };
+
+            static_assert(
+                fields::HasFields<Upstream>,
+                "If This has fields, Upstream is also expected to have fields");
+
+            jive::ZipApply(
+                initializeWithFields,
+                This::fields,
+                Upstream::fields);
+        }
+        else
+        {
+            // Use reflection.
+            fields::ForEachZip(
+                *this,
+                upstream,
+                initialize);
+        }
     }
 
     DeferGroup(const DeferGroup &) = delete;
@@ -922,19 +944,32 @@ public:
         upstream_(other.upstream_),
         scopeMute_(std::move(other.scopeMute_))
     {
-        auto doMove = [this, &other] (auto deferField)
+        auto doMove = [](auto &member, auto &&otherMember)
         {
-            using MemberType = typename std::remove_reference_t<
-                decltype(this->*(deferField.member))>;
+            using MemberType = std::remove_reference_t<decltype(member)>;
 
             if constexpr (!std::is_same_v<DescribeSignal, MemberType>)
             {
-                this->*(deferField.member) =
-                    std::move(other.*(deferField.member));
+                member = std::move(otherMember);
             }
         };
 
-        jive::ForEach(Fields<This>::fields, doMove);
+        if constexpr (fields::HasFields<This>)
+        {
+            auto doMoveFields = [&doMove, this, &other] (auto deferField)
+            {
+                doMove(
+                    this->*(deferField.member),
+                    std::move(other.*(deferField.member)));
+            };
+
+            jive::ForEach(This::fields, doMoveFields);
+        }
+        else
+        {
+            fields::ForEachZip(*this, std::forward<DeferGroup>(other), doMove);
+        }
+
         other.upstream_ = nullptr;
     }
 
@@ -943,19 +978,32 @@ public:
         this->upstream_ = other.upstream_;
         this->scopeMute_ = std::move(other.scopeMute_);
 
-        auto doMove = [this, &other] (auto deferField)
+        auto doMove = [](auto &member, auto &&otherMember)
         {
-            using MemberType = typename std::remove_reference_t<
-                decltype(this->*(deferField.member))>;
+            using MemberType = std::remove_reference_t<decltype(member)>;
 
             if constexpr (!std::is_same_v<DescribeSignal, MemberType>)
             {
-                this->*(deferField.member) =
-                    std::move(other.*(deferField.member));
+                member = std::move(otherMember);
             }
         };
 
-        jive::ForEach(Fields<This>::fields, doMove);
+        if constexpr (fields::HasFields<This>)
+        {
+            auto doMoveFields = [&doMove, this, &other] (auto deferField)
+            {
+                doMove(
+                    this->*(deferField.member),
+                    std::move(other.*(deferField.member)));
+            };
+
+            jive::ForEach(This::fields, doMoveFields);
+        }
+        else
+        {
+            fields::ForEachZip(*this, std::forward<DeferGroup>(other), doMove);
+        }
+
         other.upstream_ = nullptr;
 
         return *this;
@@ -983,18 +1031,29 @@ public:
         }
 
         // Notify all members before unmuting the aggregate observer.
-        auto doNotify = [this](auto deferField)
+        auto doNotify = [](auto &member)
         {
-            using MemberType = typename std::remove_reference_t<
-                decltype(this->*(deferField.member))>;
+            using MemberType = std::remove_reference_t<decltype(member)>;
 
             if constexpr (!std::is_same_v<DescribeSignal, MemberType>)
             {
-                (this->*(deferField.member)).Notify();
+                member.Notify();
             }
         };
 
-        jive::ForEach(Fields<This>::fields, doNotify);
+        if constexpr (fields::HasFields<This>)
+        {
+            auto doNotifyFields = [&doNotify, this](auto deferField)
+            {
+                doNotify(this->*deferField.member);
+            };
+
+            jive::ForEach(This::fields, doNotifyFields);
+        }
+        else
+        {
+            fields::ForEach(*this, doNotify);
+        }
 
         this->scopeMute_.Unmute();
     }
@@ -1002,26 +1061,37 @@ public:
     template<typename Plain>
     void Set(const Plain &plain)
     {
-        auto assign = [this, &plain](
-            auto deferField,
-            [[maybe_unused]] auto plainField)
+        auto assign = [](
+            auto &member,
+            [[maybe_unused]] const auto &plainMember)
         {
-            using MemberType = typename std::remove_reference_t<
-                decltype(this->*(deferField.member))>;
+            using MemberType = std::remove_reference_t<decltype(member)>;
 
             if constexpr (!std::is_same_v<DescribeSignal, MemberType>)
             {
-                // Does not set fields are read-only.
-                detail::SetByAccess(
-                    this->*(deferField.member),
-                    plain.*(plainField.member));
+                // Note: Does not set fields that are read-only.
+                detail::SetByAccess(member, plainMember);
             }
         };
 
-        jive::ZipApply(
-            assign,
-            Fields<This>::fields,
-            Fields<Plain>::fields);
+        if constexpr (fields::HasFields<This>)
+        {
+            auto assignFields = [&assign, this, &plain](
+                auto deferField,
+                [[maybe_unused]] auto plainField)
+            {
+                assign(this->*(deferField.member), plain.*(plainField.member));
+            };
+
+            jive::ZipApply(
+                assignFields,
+                This::fields,
+                Plain::fields);
+        }
+        else
+        {
+            fields::ForEachZip(*this, plain, assign);
+        }
     }
 
     template<typename Plain>
@@ -1033,18 +1103,29 @@ public:
     void Clear()
     {
         // Recursively call Clear() on all members that implement it.
-        auto clear = [this](auto deferField)
+        auto clear = [](auto &member)
         {
-            using MemberType = typename std::remove_reference_t<
-                decltype(this->*(deferField.member))>;
+            using MemberType = std::remove_reference_t<decltype(member)>;
 
             if constexpr (!std::is_same_v<DescribeSignal, MemberType>)
             {
-                (this->*(deferField.member)).Clear();
+                member.Clear();
             }
         };
 
-        jive::ForEach(Fields<This>::fields, clear);
+        if constexpr (fields::HasFields<This>)
+        {
+            auto clearFields = [&clear, this](auto deferField)
+            {
+                clear(this->*deferField.member);
+            };
+
+            jive::ForEach(This::fields, clearFields);
+        }
+        else
+        {
+            fields::ForEach(*this, clear);
+        }
 
         this->scopeMute_.Clear();
     }

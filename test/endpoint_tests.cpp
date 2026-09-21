@@ -39,6 +39,8 @@ using ListControl = decltype(TestControl::values);
 class TestObserver: Separator
 {
 public:
+    static constexpr auto observerName = "TestObserver";
+
     using MemberWillRemoveEndpoint =
         pex::Endpoint<TestObserver, typename ListControl::MemberWillRemove>;
 

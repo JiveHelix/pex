@@ -85,13 +85,13 @@ struct AssignTestModel: public AssignTestTemplate<pex::ModelSelector>
     AssignPlain GetTest()
     {
         AssignPlain result{};
-        fields::AssignConvert<AssignTestFields>(result, *this);
+        fields::AssignConvert(result, *this);
         return result;
     }
 
     void SetTest(const AssignPlain &test)
     {
-        fields::Assign<AssignTestFields>(*this, test);
+        fields::Assign(*this, test);
     }
 };
 
@@ -102,7 +102,7 @@ struct AssignTestControl:
 public:
     AssignTestControl(AssignTestModel &model)
     {
-        fields::AssignConvert<AssignTestFields>(*this, model);
+        fields::AssignConvert(*this, model);
     }
 
 };
@@ -151,7 +151,7 @@ TEST_CASE("Assign to control reaches model.", "[pex]")
 
     AssignTestControl control(model);
 
-    fields::Assign<AssignTestFields>(control, test);
+    fields::Assign(control, test);
 
     AssignPlain check = model.GetTest();
     REQUIRE(test == check);

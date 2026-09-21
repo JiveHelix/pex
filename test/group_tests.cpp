@@ -209,6 +209,8 @@ public:
     using RadiusEndpoint =
         pex::Endpoint<EndpointObserver, decltype(Control::radius)>;
 
+    static constexpr auto observerName = "EndpointObserver";
+
     EndpointObserver(const Control &control)
         :
         center(),
@@ -253,6 +255,8 @@ public:
 
     using RadiusEndpoint =
         pex::Endpoint<RadiusObserver, decltype(Control::radius)>;
+
+    static constexpr auto observerName = "RadiusObserver";
 
     RadiusObserver()
         :
