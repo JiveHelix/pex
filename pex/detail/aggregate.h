@@ -48,7 +48,7 @@ void PlainConvert(Plain &target, Source &source)
             fields::HasFields<Source>,
             "Source must also have fields");
 
-        auto initializer = [&target, &source](
+        auto doAssign = [&target, &source](
             const auto &plainField,
             const auto &sourceField) -> void
         {
@@ -57,11 +57,18 @@ void PlainConvert(Plain &target, Source &source)
                 source.*(sourceField.member));
         };
 
-        jive::ZipApply(initializer, Plain::fields, Source::fields);
+        jive::ZipApply(doAssign, Plain::fields, Source::fields);
     }
     else
     {
-        fields::ForEachZip(target, source, AssignSourceToTarget);
+        auto doAssign = [](
+            auto &targetMember,
+            const auto &sourceMember) -> void
+        {
+            AssignSourceToTarget(targetMember, sourceMember);
+        };
+
+        fields::ForEachZip(target, source, doAssign);
     }
 }
 
@@ -321,7 +328,7 @@ public:
         else
         {
             auto doAssign = [this](
-                const auto &aggregateMember,
+                auto &aggregateMember,
                 const auto &upstreamMember) -> void
             {
                 this->AssignUpstream_(aggregateMember, upstreamMember);

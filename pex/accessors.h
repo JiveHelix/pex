@@ -263,6 +263,8 @@ public:
     // Initialize values without sending notifications.
     void SetInitial(const Plain &plain)
     {
+        static_assert(detail::HasSchemaBase<Derived>);
+
         auto derived = static_cast<Derived *>(this);
 
         if constexpr (fields::HasFields<Derived>)

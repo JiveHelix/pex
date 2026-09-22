@@ -12,16 +12,6 @@ namespace reflection
 {
 
 
-template<typename T>
-struct PointFields
-{
-    static constexpr auto fields = std::make_tuple(
-        fields::Field(&T::x, "x"),
-        fields::Field(&T::y, "y"),
-        fields::Field(&T::units, "units"));
-};
-
-
 struct Units
 {
     using Type = std::string;
@@ -40,7 +30,6 @@ struct PointTemplate
     T<double> y;
     T<pex::MakeSelect<Units>> units;
 
-    static constexpr auto fields = PointFields<PointTemplate<T>>::fields;
     static constexpr auto fieldsTypeName = "Point";
 };
 
@@ -63,6 +52,8 @@ struct PointGroupTemplates_
                 decltype(Model::units),
                 ModelSelectString
             >);
+
+        static_assert(pex::detail::HasSchemaBase<GroupBase>);
 
         Model()
             :
@@ -97,22 +88,12 @@ static_assert(
     >);
 
 
-template<typename T>
-struct CircleFields
-{
-    static constexpr auto fields = std::make_tuple(
-        fields::Field(&T::center, "center"),
-        fields::Field(&T::radius, "radius"));
-};
-
-
 template<template<typename> typename T>
 struct CircleTemplate
 {
     T<PointGroup> center;
     T<double> radius;
 
-    static constexpr auto fields = CircleFields<CircleTemplate<T>>::fields;
     static constexpr auto fieldsTypeName = "Circle";
 };
 
@@ -538,23 +519,11 @@ namespace reflection
 {
 
 
-template<typename T>
-struct CircleWithSignalFields
-{
-    static constexpr auto fields = std::make_tuple(
-        fields::Field(&T::circle, "circle"),
-        fields::Field(&T::redraw, "redraw"));
-};
-
-
 template<template<typename> typename T>
 struct CircleWithSignalTemplate
 {
     T<reflection::CircleGroup> circle;
     T<pex::MakeSignal> redraw;
-
-    static constexpr auto fields =
-        CircleWithSignalFields<CircleWithSignalTemplate<T>>::fields;
 
     static constexpr auto fieldsTypeName = "CircleWithSignal";
 };
@@ -612,16 +581,6 @@ namespace subgroup_reflection
 {
 
 
-template<typename T>
-struct ColorFields
-{
-    static constexpr auto fields = std::make_tuple(
-        fields::Field(&T::red, "red"),
-        fields::Field(&T::green, "green"),
-        fields::Field(&T::blue, "blue"));
-};
-
-
 template<template<typename> typename T>
 struct ColorTemplate
 {
@@ -629,7 +588,6 @@ struct ColorTemplate
     T<int> green;
     T<int> blue;
 
-    static constexpr auto fields = ColorFields<ColorTemplate>::fields;
     static constexpr auto fieldsTypeName = "Color";
 };
 
@@ -660,16 +618,6 @@ using ColorGroup = pex::Group<ColorTemplate, ColorCustom>;
 using ColorModel = typename ColorGroup::Model;
 
 
-template<typename T>
-struct PixelFields
-{
-    static constexpr auto fields = std::make_tuple(
-        fields::Field(&T::color, "color"),
-        fields::Field(&T::x, "x"),
-        fields::Field(&T::y, "y"));
-};
-
-
 template<template<typename> typename T>
 struct PixelTemplate
 {
@@ -677,24 +625,12 @@ struct PixelTemplate
     T<int> x;
     T<int> y;
 
-    static constexpr auto fields = PixelFields<PixelTemplate>::fields;
     static constexpr auto fieldsTypeName = "Pixel";
 };
 
 
 using PixelGroup = pex::Group<PixelTemplate>;
 using PixelModel = typename PixelGroup::Model;
-
-
-
-template<typename T>
-struct FooFields
-{
-    static constexpr auto fields = std::make_tuple(
-        fields::Field(&T::leftPixel, "leftPixel"),
-        fields::Field(&T::rightPixel, "rightPixel"),
-        fields::Field(&T::bar, "bar"));
-};
 
 
 template<template<typename> typename T>
@@ -704,7 +640,6 @@ struct FooTemplate
     T<PixelGroup> rightPixel;
     T<int> bar;
 
-    static constexpr auto fields = FooFields<FooTemplate>::fields;
     static constexpr auto fieldsTypeName = "Foo";
 };
 

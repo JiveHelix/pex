@@ -4,16 +4,17 @@
 #include <fields/fields.h>
 #include <jive/describe_type.h>
 
-#include "pex/identity.h"
-#include "pex/selectors.h"
-#include "pex/accessors.h"
-#include "pex/traits.h"
-#include "pex/detail/mute.h"
-#include "pex/detail/aggregate.h"
-#include "pex/detail/has_model.h"
-#include "pex/detail/choose_not_void.h"
-#include "pex/detail/traits.h"
-#include "pex/type_tester.h"
+#include <pex/identity.h>
+#include <pex/selectors.h>
+#include <pex/accessors.h>
+#include <pex/traits.h>
+#include <pex/detail/mute.h>
+#include <pex/detail/aggregate.h>
+#include <pex/detail/has_model.h>
+#include <pex/detail/choose_not_void.h>
+#include <pex/detail/traits.h>
+#include <pex/type_tester.h>
+#include <pex/for_each.h>
 
 
 /**
@@ -169,21 +170,15 @@ void AssignEmplace(Target &&target, Source &&source)
     }
     else
     {
-        static_assert(
-            fields::CanReflect<TargetType>,
-            "Without fields, type must support reflection.");
-
-        static_assert(
-            fields::CanReflect<SourceType>,
-            "Without fields, type must support reflection.");
-
-        auto initializer = [&target, &source](
-            [[maybe_unused]] const std::string_view &name,
+        auto initializer = [](
             auto &targetMember,
-            const auto &sourceMember) -> void
+            auto &&sourceMember) -> void
         {
-            DoAssignEmplace(targetMember, sourceMember);
+            targetMember.Emplace(
+                std::forward<decltype(sourceMember)>(sourceMember));
         };
+
+        fields::ForEachZip(target, source, initializer);
     }
 }
 
@@ -579,7 +574,7 @@ public:
             Derived
         >;
 
-    using ControlMembers = MakeControlMembers<Template_>;
+    using ControlMembers = Template_<ControlSelector>;
 
     template<typename Upstream_>
     struct Control_:

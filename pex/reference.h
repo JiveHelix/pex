@@ -15,12 +15,13 @@
 
 #include <jive/zip_apply.h>
 #include <fields/reflect.h>
-#include "pex/model_value.h"
-#include "pex/traits.h"
-#include "pex/control_value.h"
-#include "pex/signal.h"
-#include "pex/interface.h"
-#include "pex/detail/mute.h"
+#include <pex/model_value.h>
+#include <pex/traits.h>
+#include <pex/control_value.h>
+#include <pex/signal.h>
+#include <pex/interface.h>
+#include <pex/detail/mute.h>
+#include <pex/for_each.h>
 
 
 namespace pex
@@ -878,6 +879,9 @@ class DeferGroup
     public Template<DeferSelector<Selector>::template Type>
 {
 public:
+    using SchemaBase =
+        Template<DeferSelector<Selector>::template Type>;
+
     using This = DeferGroup<Template, Selector, Upstream>;
 
     DeferGroup()

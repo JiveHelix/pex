@@ -334,28 +334,35 @@ void InitializeEndpoints(
     EndpointGroup &endpointGroup,
     const Control &control)
 {
-    static_assert(
-        fields::HasFields<EndpointGroup>,
-        "EndpointGroup is expected to have member 'fields'");
-
-    static_assert(
-        fields::HasFields<Control>,
-        "Control is expected to have member 'fields'");
-
-    auto initializer = [observer, &endpointGroup, &control](
-        auto endpointField,
-        auto controlField)
+    if constexpr (
+        fields::HasFields<EndpointGroup> && fields::HasFields<Control>)
     {
-        AssignEndpoints(
-            observer,
-            endpointGroup.*(endpointField.member),
-            control.*(controlField.member));
-    };
+        auto initializer = [observer, &endpointGroup, &control](
+            auto endpointField,
+            auto controlField)
+        {
+            AssignEndpoints(
+                observer,
+                endpointGroup.*(endpointField.member),
+                control.*(controlField.member));
+        };
 
-    jive::ZipApply(
-        initializer,
-        EndpointGroup::fields,
-        Control::fields);
+        jive::ZipApply(
+            initializer,
+            EndpointGroup::fields,
+            Control::fields);
+    }
+    else
+    {
+        auto initializer = [observer](
+            auto &endpointMember,
+            const auto &controlMember)
+        {
+            AssignEndpoints(observer, endpointMember, controlMember);
+        };
+
+        fields::ForEachZip(endpointGroup, control, initializer);
+    }
 }
 
 
@@ -375,6 +382,7 @@ class EndpointGroup
 {
 public:
     using Callable = typename Endpoint<Observer, Control>::Callable;
+
 
     EndpointGroup() = delete;
 
