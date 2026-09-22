@@ -41,7 +41,7 @@ bool HasModel(const T &group)
             }
         };
 
-        fields::ForEachZip(group, modelChecker);
+        fields::ForEach(group, modelChecker);
     }
 
     return result;

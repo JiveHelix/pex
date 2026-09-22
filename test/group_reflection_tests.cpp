@@ -53,8 +53,6 @@ struct PointGroupTemplates_
                 ModelSelectString
             >);
 
-        static_assert(pex::detail::HasSchemaBase<GroupBase>);
-
         Model()
             :
             GroupBase()

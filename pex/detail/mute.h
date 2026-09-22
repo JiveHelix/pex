@@ -21,15 +21,6 @@ namespace detail
 // observers.
 
 
-template<typename T>
-struct MuteFields
-{
-    static constexpr auto fields = std::make_tuple(
-        fields::Field(&T::isMuted, "isMuted"),
-        fields::Field(&T::isSilenced, "isSilenced"));
-};
-
-
 struct Mute_
 {
     bool isMuted;

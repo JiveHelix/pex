@@ -19,22 +19,8 @@
 
 /**
 
-// The Group struct uses a Fields type and a Template type to create a POD
+// The Group struct uses a Template type to create a POD
 // struct and corresponding Model and Control.
-
-// Fields must accept a single template parameter for any type that defines the
-// member fields, like this:
-
-template<typename T>
-struct GpsFields
-{
-    static constexpr auto fields = std::make_tuple(
-        fields::Field(&T::time, "time"),
-        fields::Field(&T::latitude, "latitude"),
-        fields::Field(&T::longitude, "longitude"),
-        fields::Field(&T::elevation, "elevation"));
-};
-
 
 // The Template type defines the members with template parameter types. This
 // allows the definition of the POD struct with pex::Identity, and the Model
@@ -47,12 +33,10 @@ struct GpsTemplate
     T<double> latitude;
     T<double> longitude;
     T<double> elevation;
-
-    static constexpr auto fields = GpsFields<MovieTemplate>::fields;
 };
 
 // Create the Plain-old-data structure, Model, and Control types
-using GpsGroup = Group<GpsFields, GpsTemplate>
+using GpsGroup = Group<GpsTemplate>
 
 using Gps = typename GpsGroup::Plain;
 using GpsModel = typename GpsGroup::Model;
@@ -361,50 +345,6 @@ template<typename T>
 struct PlainT
 {
     using Plain = T;
-};
-
-
-template
-<
-    template<template<typename> typename> typename Template
->
-class MakeControlMembers
-    :
-    public Template<ControlSelector>
-{
-protected:
-    MakeControlMembers() = default;
-};
-
-
-template
-<
-    template<template<typename> typename> typename Template
->
-class MakeMuxMembers
-    :
-    public Template<MuxSelector>
-{
-protected:
-    MakeMuxMembers()
-        :
-        Template<MuxSelector>{}
-    {
-
-    }
-};
-
-
-template
-<
-    template<template<typename> typename> typename Template
->
-class MakeFollowMembers
-    :
-    public Template<FollowSelector>
-{
-protected:
-    MakeFollowMembers() = default;
 };
 
 
@@ -719,7 +659,7 @@ public:
             Derived
         >;
 
-    using MuxMembers = MakeMuxMembers<Template_>;
+    using MuxMembers = Template_<MuxSelector>;
 
     struct Mux_:
         public detail::MuteMux,
@@ -845,12 +785,12 @@ public:
             {
                 auto swapper = [](
                     auto &muxMember,
-                    const auto &upstreamMember) -> void
+                    auto &upstreamMember) -> void
                 {
                     muxMember.ChangeUpstream(upstreamMember);
                 };
 
-                jive::ZipApply(*this, upstream, swapper);
+                fields::ForEachZip(*this, upstream, swapper);
             }
         }
     };
@@ -866,7 +806,7 @@ public:
             Derived
         >;
 
-    using FollowMembers = MakeFollowMembers<Template_>;
+    using FollowMembers = Template_<FollowSelector>;
 
     struct Follow_:
         public detail::MuteFollow,

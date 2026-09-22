@@ -263,8 +263,6 @@ public:
     // Initialize values without sending notifications.
     void SetInitial(const Plain &plain)
     {
-        static_assert(detail::HasSchemaBase<Derived>);
-
         auto derived = static_cast<Derived *>(this);
 
         if constexpr (fields::HasFields<Derived>)
@@ -281,6 +279,10 @@ public:
         }
         else
         {
+            static_assert(
+                fields::CanReflect<Derived>,
+                "Without fields, Derived must support reflection");
+
             auto setInitial = [] (auto &targetMember, const auto &plainMember)
             {
                 DoSetInitial(targetMember, plainMember);
@@ -305,7 +307,12 @@ public:
         }
         else
         {
-            fields::ForEach(*derived, DoNotify);
+            auto doNotify = [] (auto &member)
+            {
+                DoNotify(member);
+            };
+
+            fields::ForEach(*derived, doNotify);
         }
     }
 
@@ -331,7 +338,13 @@ protected:
         }
         else
         {
-            fields::ForEachZip(*derived, plain, SetWithoutNotify);
+            auto setWithoutNotify = []
+                (auto &thisMember, const auto &plainMember)
+            {
+                SetWithoutNotify(thisMember, plainMember);
+            };
+
+            fields::ForEachZip(*derived, plain, setWithoutNotify);
         }
     }
 

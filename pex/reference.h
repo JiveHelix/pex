@@ -879,7 +879,7 @@ class DeferGroup
     public Template<DeferSelector<Selector>::template Type>
 {
 public:
-    using SchemaBase =
+    using Reflector =
         Template<DeferSelector<Selector>::template Type>;
 
     using This = DeferGroup<Template, Selector, Upstream>;

@@ -27,17 +27,6 @@ namespace pex
 {
 
 
-template<typename T>
-struct OrderFields
-{
-    static constexpr auto fields = std::make_tuple(
-        fields::Field(&T::moveToTop, "moveToTop"),
-        fields::Field(&T::moveUp, "moveUp"),
-        fields::Field(&T::moveDown, "moveDown"),
-        fields::Field(&T::moveToBottom, "moveToBottom"));
-};
-
-
 template<template<typename> typename T>
 class OrderTemplate
 {
@@ -47,9 +36,6 @@ public:
     T<MakeSignal> moveDown;
     T<MakeSignal> moveToBottom;
 
-    static constexpr auto fields =
-        OrderFields<OrderTemplate>::fields;
-
     static constexpr auto fieldsTypeName = "Order";
 };
 
@@ -58,16 +44,6 @@ using OrderGroup = Group<OrderTemplate>;
 using OrderModel = typename OrderGroup::Model;
 using OrderControl = typename OrderGroup::DefaultControl;
 using Order = typename OrderGroup::Plain;
-
-
-template<typename T>
-struct OrderedListFields
-{
-    static constexpr auto fields = std::make_tuple(
-        fields::Field(&T::indices, "indices"),
-        fields::Field(&T::reorder, "reorder"),
-        fields::Field(&T::list, "list"));
-};
 
 
 using IndicesList = std::vector<size_t>;
@@ -83,7 +59,6 @@ struct OrderedListTemplate
         T<pex::MakeSignal> reorder;
         T<ListMaker> list;
 
-        static constexpr auto fields = OrderedListFields<Template>::fields;
         static constexpr auto fieldsTypeName = "OrderedList";
     };
 };

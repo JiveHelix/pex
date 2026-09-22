@@ -11,15 +11,6 @@ namespace pex
 {
 
 
-template<typename T>
-struct ChoiceMuxerFields
-{
-    static constexpr auto fields = std::make_tuple(
-        fields::Field(&T::key, "key"),
-        fields::Field(&T::select, "select"));
-};
-
-
 static_assert(IsMakeOptionalSelect<MakeOptionalSelect<int, GetAndSetTag>>);
 
 
@@ -35,7 +26,6 @@ struct ChoiceMuxerTemplate
         T<Key> key;
         T<MakeOptionalSelect<Type, GetAndSetTag>> select;
 
-        static constexpr auto fields = ChoiceMuxerFields<Template>::fields;
         static constexpr auto fieldsTypeName = "ChoiceMuxer";
     };
 };

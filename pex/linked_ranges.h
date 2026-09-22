@@ -12,23 +12,12 @@ namespace pex
 
 // TODO: Rename LinkedRange to Range
 
-template<typename T>
-struct LinkedRangesFields
-{
-    static constexpr auto fields = std::make_tuple(
-        fields::Field(&T::low, "low"),
-        fields::Field(&T::high, "high"));
-};
-
 
 template<typename T>
 struct LinkedRangesSettings
 {
     T low;
     T high;
-
-    static constexpr auto fields =
-        LinkedRangesFields<LinkedRangesSettings>::fields;
 
     static constexpr auto fieldsTypeName = "LinkedRanges";
 };
@@ -47,9 +36,6 @@ template
 >
 struct LinkedRanges
 {
-    template<typename T>
-    using Fields = LinkedRangesFields<T>;
-
     using RangeMaker = MakeRange<Type, LowLimit, HighLimit>;
 
     template<template<typename> typename T>
@@ -58,7 +44,6 @@ struct LinkedRanges
         T<RangeMaker> low;
         T<RangeMaker> high;
 
-        static constexpr auto fields = LinkedRangesFields<Template>::fields;
         static constexpr auto fieldsTypeName = "LinkedRanges";
     };
 
@@ -66,6 +51,8 @@ struct LinkedRanges
     {
         struct Plain: public LinkedRangesSettings<Type>
         {
+            using Reflector = LinkedRangesSettings<Type>;
+
             Plain(Type low_, Type high_)
                 :
                 LinkedRangesSettings<Type>{low_, high_}
