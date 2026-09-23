@@ -6,7 +6,7 @@
 
 #include <fields/assign.h>
 #include <fields/describe.h>
-#include "pex/selectors.h"
+#include "pex/tailors.h"
 #include "pex/traits.h"
 #include "pex/detail/mute.h"
 #include "pex/detail/forward.h"
@@ -97,46 +97,46 @@ struct Getter
 };
 
 
-template<template<typename> typename Selector>
-struct AggregateSelector_
+template<template<typename> typename Tailor>
+struct EnsembleTailor_
 {
     template<typename T, typename Enable = void>
-    struct Template
+    struct TailorType
     {
-        using Type = Selector<T>;
+        using Type = Tailor<T>;
     };
 };
 
-template<template<typename> typename Selector>
+template<template<typename> typename Tailor>
 template<typename T>
-struct AggregateSelector_<Selector>::Template
+struct EnsembleTailor_<Tailor>::TailorType
 <
     T,
     std::enable_if_t<IsGroup<T>>
 >
 {
-    using Type = typename T::template Aggregate<Selector>;
+    using Type = typename T::template Ensemble<Tailor>;
 };
 
 
-template<template<typename> typename Selector>
+template<template<typename> typename Tailor>
 template<typename T>
-struct AggregateSelector_<Selector>::Template
+struct EnsembleTailor_<Tailor>::TailorType
 <
     T,
     std::enable_if_t<IsList<T>>
 >
 {
-    using Type = ListConnect<void, Selector<T>>;
+    using Type = ListConnect<void, Tailor<T>>;
 };
 
 
-template<template<typename> typename Selector>
-struct AggregateSelector
+template<template<typename> typename Tailor>
+struct EnsembleTailor
 {
     template<typename T>
-    using Template =
-        typename AggregateSelector_<Selector>::template Template<T>::Type;
+    using TailorType =
+        typename EnsembleTailor_<Tailor>::template TailorType<T>::Type;
 };
 
 
@@ -170,14 +170,14 @@ template<typename T>
 using CallbackType = typename CallbackType_<T>::Type;
 
 
-// Internal helper to allow observation of aggregate types.
+// Internal helper to allow observation of group types.
 template
 <
     typename Plain,
-    template<template<typename> typename> typename Template,
-    template<typename> typename Selector
+    template<template<typename> typename> typename Schema,
+    template<typename> typename Tailor
 >
-struct Aggregate
+struct Ensemble
     :
     public detail::NotifyOne
     <
@@ -185,20 +185,20 @@ struct Aggregate
         GetAndSetTag
     >,
     Separator,
-    public Template<AggregateSelector<Selector>::template Template>,
+    public Schema<EnsembleTailor<Tailor>::template TailorType>,
     public
         Getter
         <
             Plain,
-            Aggregate<Plain, Template, Selector>
+            Ensemble<Plain, Schema, Tailor>
         >
 {
     using SignalConnection_ = SignalConnection<void>;
     using SignalCallable = typename SignalConnection_::Callable;
 
 public:
-    static constexpr auto observerName = "Aggregate";
-    static constexpr bool isAggregate = true;
+    static constexpr auto observerName = "Ensemble";
+    static constexpr bool isEnsemble = true;
 
     using Base = detail::NotifyOne
         <
@@ -213,17 +213,17 @@ public:
     {
         // Iterate over members, and register names and addresses.
 
-        if constexpr (fields::HasFields<Aggregate>)
+        if constexpr (fields::HasFields<Ensemble>)
         {
             auto doRegisterName = [this] (auto thisField)
             {
                 PexName(
                     &(this->*(thisField.member)),
                     this,
-                    fmt::format("Aggregate::{}", thisField.name));
+                    fmt::format("Ensemble::{}", thisField.name));
             };
 
-            jive::ForEach(Aggregate::fields, doRegisterName);
+            jive::ForEach(Ensemble::fields, doRegisterName);
         }
         else
         {
@@ -232,7 +232,7 @@ public:
                 PexName(
                     &member,
                     this,
-                    fmt::format("Aggregate::{}", name));
+                    fmt::format("Ensemble::{}", name));
             };
 
             fields::ForEach(
@@ -245,7 +245,7 @@ public:
     {
         // Iterate over members, and register names and addresses.
 
-        if constexpr (fields::HasFields<Aggregate>)
+        if constexpr (fields::HasFields<Ensemble>)
         {
             auto doClearName = [this] (auto thisField)
             {
@@ -253,7 +253,7 @@ public:
             };
 
             jive::ForEach(
-                Aggregate::fields,
+                Ensemble::fields,
                 doClearName);
         }
         else
@@ -268,7 +268,7 @@ public:
     }
 #endif
 
-    Aggregate()
+    Ensemble()
         :
         isMuted_(),
         muteTerminus_(),
@@ -277,7 +277,7 @@ public:
         madeConnections_(false)
     {
 #ifdef ENABLE_PEX_NAMES
-        PEX_NAME(fmt::format("Aggregate {}", jive::GetTypeName<Plain>()));
+        PEX_NAME(fmt::format("Ensemble {}", jive::GetTypeName<Plain>()));
         this->RegisterPexNames();
 
         PEX_MEMBER(muteTerminus_);
@@ -285,7 +285,7 @@ public:
     }
 
     template<typename Upstream>
-    Aggregate(Upstream &upstream)
+    Ensemble(Upstream &upstream)
         :
         isMuted_(),
         muteTerminus_(),
@@ -294,7 +294,7 @@ public:
         madeConnections_(false)
     {
 #ifdef ENABLE_PEX_NAMES
-        PEX_NAME(fmt::format("Aggregate {}", jive::GetTypeName<Plain>()));
+        PEX_NAME(fmt::format("Ensemble {}", jive::GetTypeName<Plain>()));
         this->RegisterPexNames();
 
         PEX_MEMBER(muteTerminus_);
@@ -309,41 +309,41 @@ public:
 
         this->muteTerminus_.Emplace(upstream.CloneMuteNode());
 
-        if constexpr (fields::HasFields<Aggregate>)
+        if constexpr (fields::HasFields<Ensemble>)
         {
             auto doAssign = [this, &upstream](
-                const auto &aggregateField,
+                const auto &EnsembleField,
                 const auto &upstreamField) -> void
             {
                 this->AssignUpstream_(
-                    this->*(aggregateField.member),
+                    this->*(EnsembleField.member),
                     upstream.*(upstreamField.member));
             };
 
             jive::ZipApply(
                 doAssign,
-                Aggregate::fields,
+                Ensemble::fields,
                 Upstream::fields);
         }
         else
         {
             auto doAssign = [this](
-                auto &aggregateMember,
+                auto &EnsembleMember,
                 const auto &upstreamMember) -> void
             {
-                this->AssignUpstream_(aggregateMember, upstreamMember);
+                this->AssignUpstream_(EnsembleMember, upstreamMember);
             };
 
             fields::ForEachZip(*this, upstream, doAssign);
         }
     }
 
-    Aggregate(const Aggregate &) = delete;
-    Aggregate(Aggregate &&) = delete;
-    Aggregate & operator=(const Aggregate &) = delete;
-    Aggregate & operator=(Aggregate &&) = delete;
+    Ensemble(const Ensemble &) = delete;
+    Ensemble(Ensemble &&) = delete;
+    Ensemble & operator=(const Ensemble &) = delete;
+    Ensemble & operator=(Ensemble &&) = delete;
 
-    ~Aggregate()
+    ~Ensemble()
     {
         this->UnmakeConnections_();
         this->ClearConnections();
@@ -393,7 +393,7 @@ private:
     template<typename Member, typename Upstream>
     void AssignUpstream_(Member &member, Upstream &upstream)
     {
-        if constexpr (IsAggregate<Member>)
+        if constexpr (IsEnsemble<Member>)
         {
             member.AssignUpstream(upstream);
         }
@@ -412,27 +412,27 @@ private:
 
             member.Connect(
                 this,
-                &Aggregate::template OnMemberChanged_<MemberType>);
+                &Ensemble::template OnMemberChanged_<MemberType>);
 
-            if constexpr (IsAggregate<MemberType>)
+            if constexpr (IsEnsemble<MemberType>)
             {
-                member.ConnectAggregate_(
+                member.ConnectEnsemble_(
                     this,
-                    &Aggregate::OnAggregateMemberChanged_);
+                    &Ensemble::OnEnsembleMemberChanged_);
             }
         }
     }
 
-    void ConnectAggregate_(void *observer, SignalCallable callable)
+    void ConnectEnsemble_(void *observer, SignalCallable callable)
     {
         this->memberChanged_.emplace(observer, callable);
     }
 
     void MakeConnections_()
     {
-        this->muteTerminus_.Connect(this, &Aggregate::OnMute_);
+        this->muteTerminus_.Connect(this, &Ensemble::OnMute_);
 
-        if constexpr (fields::HasFields<Aggregate>)
+        if constexpr (fields::HasFields<Ensemble>)
         {
             auto connector = [this](const auto &field) -> void
             {
@@ -442,7 +442,7 @@ private:
                 this->Connector_(this->*(field.member));
             };
 
-            jive::ForEach(Aggregate::fields, connector);
+            jive::ForEach(Ensemble::fields, connector);
         }
         else
         {
@@ -478,14 +478,14 @@ private:
 
         this->muteTerminus_.Disconnect();
 
-        if constexpr (fields::HasFields<Aggregate>)
+        if constexpr (fields::HasFields<Ensemble>)
         {
             auto disconnector = [this](const auto &field) -> void
             {
                 this->Disconnector_(this->*(field.member));
             };
 
-            jive::ForEach(Aggregate::fields, disconnector);
+            jive::ForEach(Ensemble::fields, disconnector);
         }
         else
         {
@@ -503,7 +503,7 @@ private:
     template<typename T>
     static void OnMemberChanged_(void *observer, Argument<T>)
     {
-        auto self = static_cast<Aggregate *>(observer);
+        auto self = static_cast<Ensemble *>(observer);
         self->isModified_ = true;
 
         PEX_LOG(
@@ -528,13 +528,13 @@ private:
     }
 
     template<typename T>
-    static void OnAggregateMemberChanged_(void *observer)
+    static void OnEnsembleMemberChanged_(void *observer)
     {
-        auto self = static_cast<Aggregate *>(observer);
+        auto self = static_cast<Ensemble *>(observer);
 
         PEX_LOG(
             LookupPexName(self),
-            " received aggregate member changed notice.");
+            " received Ensemble member changed notice.");
 
         self->isModified_ = true;
 
@@ -585,8 +585,8 @@ private:
 private:
     Mute_ isMuted_;
 
-    using MuteNode = Selector<MakeMute>;
-    using MuteTerminus = pex::Terminus<Aggregate, MuteNode>;
+    using MuteNode = Tailor<MakeMute>;
+    using MuteTerminus = pex::Terminus<Ensemble, MuteNode>;
     MuteTerminus muteTerminus_;
 
     bool isModified_;

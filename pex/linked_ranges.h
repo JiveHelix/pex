@@ -4,7 +4,7 @@
 #include <pex/interface.h>
 #include <pex/group.h>
 #include <pex/range_terminus.h>
-#include <pex/selectors.h>
+#include <pex/tailors.h>
 
 
 namespace pex
@@ -39,7 +39,7 @@ struct LinkedRanges
     using RangeMaker = MakeRange<Type, LowLimit, HighLimit>;
 
     template<template<typename> typename T>
-    struct Template
+    struct Schema
     {
         T<RangeMaker> low;
         T<RangeMaker> high;
@@ -47,7 +47,7 @@ struct LinkedRanges
         static constexpr auto fieldsTypeName = "LinkedRanges";
     };
 
-    struct Custom
+    struct Finisher
     {
         struct Plain: public LinkedRangesSettings<Type>
         {
@@ -79,11 +79,11 @@ struct LinkedRanges
         struct Model: public Base
         {
         private:
-            using Low = ControlSelector<RangeMaker>;
+            using Low = ControlTailor<RangeMaker>;
 
             using LowTerminus = pex::RangeTerminus<Model, Low>;
 
-            using High = ControlSelector<RangeMaker>;
+            using High = ControlTailor<RangeMaker>;
 
             using HighTerminus = pex::RangeTerminus<Model, High>;
 
@@ -170,7 +170,7 @@ struct LinkedRanges
         };
     };
 
-    using Group = pex::Group<Template, Custom>;
+    using Group = pex::Group<Schema, Finisher>;
     using Settings = typename Group::Plain;
 
     template<typename Upstream>

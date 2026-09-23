@@ -175,12 +175,12 @@ struct GrootFields
 };
 
 template<template<typename> typename T>
-struct GrootTemplate
+struct GrootSchema
 {
     T<std::string> name;
     T<pex::List<double, 4>> values;
 
-    static constexpr auto fields = GrootFields<GrootTemplate>::fields;
+    static constexpr auto fields = GrootFields<GrootSchema>::fields;
     static constexpr auto fieldsTypeName = "Groot";
 };
 
@@ -200,11 +200,11 @@ struct GroupTypes
     };
 };
 
-using GrootGroup = pex::Group<GrootTemplate, GroupTypes>;
+using GrootGroup = pex::Group<GrootSchema, GroupTypes>;
 using Groot = typename GrootGroup::Plain;
 
 DECLARE_EQUALITY_OPERATORS(Groot)
-DECLARE_EQUALITY_OPERATORS(GrootTemplate<pex::Identity>)
+DECLARE_EQUALITY_OPERATORS(GrootSchema<pex::Identity>)
 
 
 TEST_CASE("List as group member", "[List]")
@@ -250,18 +250,18 @@ struct RocketFields
 };
 
 template<template<typename> typename T>
-struct RocketTemplate
+struct RocketSchema
 {
     T<double> x;
     T<double> y;
     T<double> z;
 
-    static constexpr auto fields = RocketFields<RocketTemplate>::fields;
+    static constexpr auto fields = RocketFields<RocketSchema>::fields;
     static constexpr auto fieldsTypeName = "Rocket";
 };
 
 
-using RocketGroup = pex::Group<RocketTemplate>;
+using RocketGroup = pex::Group<RocketSchema>;
 using Rocket = typename RocketGroup::Plain;
 using RocketModel = typename RocketGroup::Model;
 using RocketControl = typename RocketGroup::template Control<RocketModel>;
@@ -303,21 +303,21 @@ using ChooseRocketList = typename ChooseRocketList_<T>::type;
 
 
 template<typename Tag>
-struct DraxTemplate
+struct DraxSchema
 {
     template<template<typename> typename T>
-    struct Template
+    struct Schema
     {
         T<std::string> name;
         T<ChooseRocketList<Tag>> rockets;
 
-        static constexpr auto fields = DraxFields<Template>::fields;
+        static constexpr auto fields = DraxFields<Schema>::fields;
         static constexpr auto fieldsTypeName = "Drax";
     };
 };
 
 template<typename Tag>
-using DraxGroup = pex::Group<DraxTemplate<Tag>::template Template>;
+using DraxGroup = pex::Group<DraxSchema<Tag>::template Schema>;
 
 
 template<typename Tag>
@@ -551,23 +551,23 @@ struct GamoraFields
 
 
 template<typename Tag>
-struct GamoraTemplate
+struct GamoraSchema
 {
     template<template<typename> typename T>
-    struct Template
+    struct Schema
     {
         T<std::string> name;
         T<pex::List<DraxGroup<Tag>, 1>> draxes;
         T<pex::List<GrootGroup, 1>> groots;
 
-        static constexpr auto fields = GamoraFields<Template>::fields;
+        static constexpr auto fields = GamoraFields<Schema>::fields;
         static constexpr auto fieldsTypeName = "Gamora";
     };
 };
 
 
 template<typename Tag>
-using GamoraGroup = pex::Group<GamoraTemplate<Tag>::template Template>;
+using GamoraGroup = pex::Group<GamoraSchema<Tag>::template Schema>;
 
 template<typename Tag>
 using Gamora = typename GamoraGroup<Tag>::Plain;
@@ -868,17 +868,17 @@ struct StarLordFields
 };
 
 template<template<typename> typename T>
-struct StarLordTemplate
+struct StarLordSchema
 {
     T<std::string> name;
     T<RocketGroup> rocket;
 
-    static constexpr auto fields = StarLordFields<StarLordTemplate>::fields;
+    static constexpr auto fields = StarLordFields<StarLordSchema>::fields;
     static constexpr auto fieldsTypeName = "StarLord";
 };
 
 
-using StarLordGroup = pex::Group<StarLordTemplate>;
+using StarLordGroup = pex::Group<StarLordSchema>;
 using StarLord = typename StarLordGroup::Plain;
 
 DECLARE_EQUALITY_OPERATORS(StarLord)
@@ -1006,7 +1006,7 @@ TEST_CASE("Delete selected.", "[List]")
 
 TEST_CASE("ValueContainer allows operator[] access", "[List]")
 {
-    using Model = pex::ModelSelector<std::vector<int>>;
+    using Model = pex::ModelTailor<std::vector<int>>;
 
     Model model;
     std::vector<int> values(10);
@@ -1020,7 +1020,7 @@ TEST_CASE("ValueContainer allows operator[] access", "[List]")
 
 TEST_CASE("KeyValueContainer allows key access", "[List]")
 {
-    using Model = pex::ModelSelector<std::map<std::string, int>>;
+    using Model = pex::ModelTailor<std::map<std::string, int>>;
 
     Model model;
     model.Set("foo", 42);

@@ -46,7 +46,7 @@ requires ::pex::HasMinimalSupers<Templates>
 class DerivedValueTemplate_
     :
     public Templates::Supers::ValueBase,
-    public Templates::template Template<pex::Identity>
+    public Templates::template Schema<pex::Identity>
 {
 public:
     using ValueBase = typename Templates::Supers::ValueBase;
@@ -57,20 +57,20 @@ public:
 
     using VirtualBase = typename detail::VirtualBase_<ValueBase>::Type;
     using Json = typename ValueBase::Json;
-    using TemplateBase = typename Templates::template Template<pex::Identity>;
+    using SchemaBase = typename Templates::template Schema<pex::Identity>;
 
     DerivedValueTemplate_()
         :
         ValueBase(),
-        TemplateBase()
+        SchemaBase()
     {
 
     }
 
-    DerivedValueTemplate_(const TemplateBase &other)
+    DerivedValueTemplate_(const SchemaBase &other)
         :
         ValueBase(),
-        TemplateBase(other)
+        SchemaBase(other)
     {
 
     }

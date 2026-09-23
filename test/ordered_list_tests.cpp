@@ -283,16 +283,16 @@ struct AnimalFields
 
 
 template<template<typename> typename T>
-struct AnimalTemplate
+struct AnimalSchema
 {
     T<std::string> name;
     T<pex::OrderGroup> order;
 
-    static constexpr auto fields = AnimalFields<AnimalTemplate>::fields;
+    static constexpr auto fields = AnimalFields<AnimalSchema>::fields;
     static constexpr auto fieldsTypeName = "Animal";
 };
 
-using AnimalGroup = pex::Group<AnimalTemplate>;
+using AnimalGroup = pex::Group<AnimalSchema>;
 using Animal = typename AnimalGroup::Plain;
 
 

@@ -40,21 +40,21 @@ struct TesterFields
 
 
 template<template<typename> typename T>
-struct TesterTemplate
+struct TesterSchema
 {
     T<typename TesterRanges<double>::Group> range;
 
-    static constexpr auto fields = TesterFields<TesterTemplate>::fields;
+    static constexpr auto fields = TesterFields<TesterSchema>::fields;
     static constexpr auto fieldsTypeName = "Tester";
 };
 
 
 struct TesterSettings:
-    public TesterTemplate<pex::Identity>
+    public TesterSchema<pex::Identity>
 {
     TesterSettings()
         :
-        TesterTemplate<pex::Identity>{
+        TesterSchema<pex::Identity>{
             TesterRanges<double>::Settings{}}
     {
 
@@ -62,7 +62,7 @@ struct TesterSettings:
 };
 
 
-using TesterGroup = pex::Group<TesterTemplate, pex::PlainT<TesterSettings>>;
+using TesterGroup = pex::Group<TesterSchema, pex::PlainT<TesterSettings>>;
 
 
 } // end namespace traits_tests
@@ -73,14 +73,14 @@ TEST_CASE("Test HasPlain, HasModel, HasControl", "[traits]")
     STATIC_REQUIRE(
         pex::detail::HasModelTemplate
         <
-            typename traits_tests::TesterRanges<double>::Custom,
-            traits_tests::TesterTemplate<pex::Identity>
+            typename traits_tests::TesterRanges<double>::Finisher,
+            traits_tests::TesterSchema<pex::Identity>
         >);
 
     STATIC_REQUIRE(
         pex::detail::HasPlain
         <
-            typename traits_tests::TesterRanges<double>::Custom
+            typename traits_tests::TesterRanges<double>::Finisher
         >);
 
     using Model = traits_tests::TesterGroup::Model;

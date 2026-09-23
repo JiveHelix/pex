@@ -39,13 +39,13 @@ struct Units
 
 
 template<template<typename> typename T>
-struct PointTemplate
+struct PointSchema
 {
     T<double> x;
     T<double> y;
     T<pex::MakeSelect<Units>> units;
 
-    static constexpr auto fields = PointFields<PointTemplate<T>>::fields;
+    static constexpr auto fields = PointFields<PointSchema<T>>::fields;
     static constexpr auto fieldsTypeName = "Point";
 };
 
@@ -56,7 +56,7 @@ using ModelSelectString =
 using ControlSelectString = pex::control::Select<ModelSelectString>;
 
 
-struct PointGroupTemplates_
+struct PointGroupFinisher_
 {
     // Define a customized model
     template<typename GroupBase>
@@ -89,7 +89,7 @@ struct PointGroupTemplates_
 static_assert(pex::IsMakeSelect<pex::MakeSelect<std::string>>);
 
 
-using PointGroup = pex::Group<PointTemplate, PointGroupTemplates_>;
+using PointGroup = pex::Group<PointSchema, PointGroupFinisher_>;
 using PointModel = typename PointGroup::Model;
 using PointControl = typename PointGroup::template Control<PointModel>;
 using PointMux = typename PointGroup::Mux;
@@ -113,17 +113,17 @@ struct CircleFields
 
 
 template<template<typename> typename T>
-struct CircleTemplate
+struct CircleSchema
 {
     T<PointGroup> center;
     T<double> radius;
 
-    static constexpr auto fields = CircleFields<CircleTemplate<T>>::fields;
+    static constexpr auto fields = CircleFields<CircleSchema<T>>::fields;
     static constexpr auto fieldsTypeName = "Circle";
 };
 
 
-using CircleGroup = pex::Group<CircleTemplate>;
+using CircleGroup = pex::Group<CircleSchema>;
 
 using Point = typename PointGroup::Plain;
 using Circle = typename CircleGroup::Plain;
@@ -138,7 +138,7 @@ DECLARE_EQUALITY_OPERATORS(Circle)
 TEST_CASE("Can swap control to a different model", "[swap_tests]")
 {
     using Model = typename swap::CircleGroup::Model;
-    using Follow = pex::FollowSelector<swap::CircleGroup>;
+    using Follow = pex::FollowTailor<swap::CircleGroup>;
     using Mux = typename swap::CircleGroup::Mux;
 
 
@@ -212,17 +212,17 @@ struct FooFields
 
 
 template<template<typename> typename T>
-struct FooTemplate
+struct FooSchema
 {
     T<std::string> name;
     T<pex::List<CircleGroup>> circles;
 
-    static constexpr auto fields = FooFields<FooTemplate<T>>::fields;
+    static constexpr auto fields = FooFields<FooSchema<T>>::fields;
     static constexpr auto fieldsTypeName = "Foo";
 };
 
 
-using FooGroup = pex::Group<FooTemplate>;
+using FooGroup = pex::Group<FooSchema>;
 using FooModel = typename FooGroup::Model;
 using FooControl = typename FooGroup::DefaultControl;
 using FooMux = typename FooGroup::Mux;

@@ -15,7 +15,7 @@ template
 >
 template<typename GroupBase>
 std::unique_ptr<MakeSuperControl<typename Templates::Supers>>
-DerivedGroup<Templates>::GroupTemplates_
+DerivedGroup<Templates>::GroupFinisher_
     ::Model<GroupBase>::CreateControl()
 {
     using DerivedModel =
@@ -71,7 +71,7 @@ template
 >
 template<typename GroupBase>
 std::unique_ptr<MakeSuperControl<typename Templates::Supers>>
-DerivedGroup<Templates>::GroupTemplates_
+DerivedGroup<Templates>::GroupFinisher_
     ::TEMPLATE Control<GroupBase>::Copy() const
 {
     using DerivedControl =
@@ -108,12 +108,12 @@ template
     ::pex::HasMinimalSupers Templates
 >
 template<typename GroupBase>
-DerivedGroup<Templates>::GroupTemplates_
+DerivedGroup<Templates>::GroupFinisher_
     ::TEMPLATE Control<GroupBase>::Control(
         ::pex::poly::MakeSuperModel<typename Templates::Supers> &model)
     :
     GroupBase(RequireDerived<Upstream>(model)),
-    aggregate_(),
+    ensemble_(),
     baseNotifier_()
 {
     PEX_CONCISE_LOG(this, " from ", LookupPexName(&model));
@@ -131,7 +131,7 @@ DerivedGroup<Templates>::GroupTemplates_
             jive::GetTypeName<Templates>(),
             jive::GetTypeName<GroupBase>()));
 
-    PEX_MEMBER(aggregate_);
+    PEX_MEMBER(ensemble_);
     PEX_MEMBER(baseNotifier_);
 }
 
@@ -142,18 +142,12 @@ template
 >
 template<typename GroupBase>
 template<typename BaseSignal>
-DerivedGroup<Templates>::GroupTemplates_
+DerivedGroup<Templates>::GroupFinisher_
     ::TEMPLATE Control<GroupBase>::Control(
         const ControlWrapper<BaseSignal> &control)
-        // const ::pex::poly::ControlWrapperTemplate
-        //     <
-        //         typename GroupBase::Upstream,
-        //         typename Templates::Supers,
-        //         BaseSignal
-        //     > &control)
     :
     GroupBase(),
-    aggregate_(),
+    ensemble_(),
     baseNotifier_()
 {
     PEX_CONCISE_LOG(this);
@@ -164,7 +158,7 @@ DerivedGroup<Templates>::GroupTemplates_
             jive::GetTypeName<Templates>(),
             jive::GetTypeName<GroupBase>()));
 
-    PEX_MEMBER(aggregate_);
+    PEX_MEMBER(ensemble_);
     PEX_MEMBER(baseNotifier_);
 
     using DerivedControl =

@@ -2,7 +2,7 @@
 
 #include <jive/zip_apply.h>
 #include <fields/core.h>
-#include "pex/selectors.h"
+#include "pex/tailors.h"
 
 
 namespace pex
@@ -15,8 +15,8 @@ struct ExpandFilter
     using Type = typename Control::Type;
 
     /*
-     * @param control A pex::control::Value for the aggregate type.
-     * @param member The pointer to member of the aggregate type.
+     * @param control A pex::control::Value for the ensemble type.
+     * @param member The pointer to member of the ensemble type.
      */
     ExpandFilter(const Control &control, Member Type::*member)
         :
@@ -33,7 +33,7 @@ struct ExpandFilter
 
     Type Set(Member value) const
     {
-        // Get the aggregate instance.
+        // Get the ensemble instance.
         Type result = this->control_.Get();
 
         // Set the member controlled by this filter.
@@ -97,20 +97,20 @@ void InitializeExpanded(Expanded &expanded, Source source)
 
 template
 <
-    typename Aggregate,
+    typename Ensemble,
     template<typename> typename Fields,
-    template<template<typename> typename> typename Template
+    template<template<typename> typename> typename Schema
 >
 struct Expand
 {
-    using AggregateControl = Template<typename ControlSelector::Type>;
+    using EnsembleControl = Schema<typename ControlTailor::Type>;
 
     struct Control:
-        public Template<Expander<AggregateControl>::template Type>
+        public Schema<Expander<EnsembleControl>::template Type>
     {
-        Control(const AggregateControl &aggregateControl)
+        Control(const EnsembleControl &EnsembleControl)
         {
-            pex::InitializeExpanded<Fields>(*this, aggregateControl);
+            pex::InitializeExpanded<Fields>(*this, EnsembleControl);
         }
     };
 };

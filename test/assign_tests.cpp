@@ -6,7 +6,7 @@
 #include <optional>
 
 #include <pex/identity.h>
-#include <pex/selectors.h>
+#include <pex/tailors.h>
 #include <pex/detail/log.h>
 #include <pex/terminus.h>
 
@@ -64,23 +64,23 @@ struct AssignTestFields
 
 
 template<template<typename> typename T>
-struct AssignTestTemplate
+struct AssignTestSchema
 {
     T<uint16_t> foo;
     T<double> wibble;
     T<std::string> wobble;
 
-    static constexpr auto fields = AssignTestFields<AssignTestTemplate>::fields;
+    static constexpr auto fields = AssignTestFields<AssignTestSchema>::fields;
 };
 
 
-struct AssignPlain: public AssignTestTemplate<pex::Identity>
+struct AssignPlain: public AssignTestSchema<pex::Identity>
 {
 
 };
 
 
-struct AssignTestModel: public AssignTestTemplate<pex::ModelSelector>
+struct AssignTestModel: public AssignTestSchema<pex::ModelTailor>
 {
     AssignPlain GetTest()
     {
@@ -97,7 +97,7 @@ struct AssignTestModel: public AssignTestTemplate<pex::ModelSelector>
 
 
 struct AssignTestControl:
-    public AssignTestTemplate<pex::ControlSelector>
+    public AssignTestSchema<pex::ControlTailor>
 {
 public:
     AssignTestControl(AssignTestModel &model)

@@ -33,11 +33,11 @@ struct DerivedGroup
     using ModelWrapper = ::pex::poly::ModelWrapperTemplate<Supers>;
 
     using DerivedValue = DerivedValueTemplate<Templates>;
-    using TemplateBase = typename DerivedValue::TemplateBase;
+    using SchemaBase = typename DerivedValue::SchemaBase;
 
     static constexpr bool isDerivedGroup = true;
 
-    struct GroupTemplates_
+    struct GroupFinisher_
     {
         using Plain = DerivedValue;
 
@@ -112,19 +112,19 @@ struct DerivedGroup
                     BaseSignal
                 >;
 
-            using Aggregate = typename GroupBase::Aggregate;
+            using Ensemble = typename GroupBase::Ensemble;
 
             virtual ~Control()
             {
                 PEX_CLEAR_NAME(this);
-                PEX_CLEAR_NAME(&this->aggregate_);
+                PEX_CLEAR_NAME(&this->ensemble_);
                 PEX_CLEAR_NAME(&this->baseNotifier_);
             }
 
             Control()
                 :
                 GroupBase(),
-                aggregate_(),
+                ensemble_(),
                 baseNotifier_()
             {
                 PEX_CONCISE_LOG(this);
@@ -135,7 +135,7 @@ struct DerivedGroup
                         jive::GetTypeName<Templates>(),
                         jive::GetTypeName<GroupBase>()));
 
-                PEX_MEMBER(aggregate_);
+                PEX_MEMBER(ensemble_);
                 PEX_MEMBER(baseNotifier_);
             }
 
@@ -154,7 +154,7 @@ struct DerivedGroup
             explicit Control(const Control &other)
                 :
                 GroupBase(other),
-                aggregate_(),
+                ensemble_(),
                 baseNotifier_(other.baseNotifier_)
             {
                 PEX_CONCISE_LOG(this);
@@ -165,13 +165,13 @@ struct DerivedGroup
                         jive::GetTypeName<Templates>(),
                         jive::GetTypeName<GroupBase>()));
 
-                PEX_MEMBER(aggregate_);
+                PEX_MEMBER(ensemble_);
                 PEX_MEMBER(baseNotifier_);
 
                 if (this->baseNotifier_.HasConnections())
                 {
-                    this->aggregate_.AssignUpstream(*this);
-                    this->aggregate_.Connect(this, &Control::OnAggregate_);
+                    this->ensemble_.AssignUpstream(*this);
+                    this->ensemble_.Connect(this, &Control::OnEnsemble_);
                 }
             }
 
@@ -182,8 +182,8 @@ struct DerivedGroup
 
                 if (this->baseNotifier_.HasConnections())
                 {
-                    this->aggregate_.AssignUpstream(*this);
-                    this->aggregate_.Connect(this, &Control::OnAggregate_);
+                    this->ensemble_.AssignUpstream(*this);
+                    this->ensemble_.Connect(this, &Control::OnEnsemble_);
                 }
 
                 return *this;
@@ -196,8 +196,8 @@ struct DerivedGroup
 
                 if (this->baseNotifier_.HasConnections())
                 {
-                    this->aggregate_.AssignUpstream(*this);
-                    this->aggregate_.Connect(this, &Control::OnAggregate_);
+                    this->ensemble_.AssignUpstream(*this);
+                    this->ensemble_.Connect(this, &Control::OnEnsemble_);
                 }
             }
 
@@ -205,15 +205,15 @@ struct DerivedGroup
             {
                 if (this->baseNotifier_.HasConnections())
                 {
-                    this->aggregate_.Disconnect(this);
+                    this->ensemble_.Disconnect(this);
                 }
 
                 this->GroupBase::StandardEmplace_(upstream);
 
                 if (this->baseNotifier_.HasConnections())
                 {
-                    this->aggregate_.AssignUpstream(*this);
-                    this->aggregate_.Connect(this, &Control::OnAggregate_);
+                    this->ensemble_.AssignUpstream(*this);
+                    this->ensemble_.Connect(this, &Control::OnEnsemble_);
                 }
             }
 
@@ -239,13 +239,13 @@ struct DerivedGroup
             {
                 if (!this->baseNotifier_.HasConnections())
                 {
-                    this->aggregate_.AssignUpstream(*this);
-                    this->aggregate_.Connect(this, &Control::OnAggregate_);
+                    this->ensemble_.AssignUpstream(*this);
+                    this->ensemble_.Connect(this, &Control::OnEnsemble_);
                 }
 
                 this->baseNotifier_.ConnectOnce(observer, callable);
 
-                PEX_LINK_OBSERVER(&this->aggregate_, observer);
+                PEX_LINK_OBSERVER(&this->ensemble_, observer);
             }
 
             void Disconnect(void *observer) override
@@ -254,8 +254,8 @@ struct DerivedGroup
 
                 if (!this->baseNotifier_.HasConnections())
                 {
-                    this->aggregate_.Disconnect(this);
-                    assert(!this->aggregate_.HasConnection());
+                    this->ensemble_.Disconnect(this);
+                    assert(!this->ensemble_.HasConnection());
                 }
             }
 
@@ -273,7 +273,7 @@ struct DerivedGroup
             }
 
         private:
-            static void OnAggregate_(
+            static void OnEnsemble_(
                 void * context,
                 const DerivedValue &derived)
             {
@@ -301,29 +301,29 @@ struct DerivedGroup
                 }
             };
 
-            Aggregate aggregate_;
+            Ensemble ensemble_;
             BaseNotifier baseNotifier_;
         };
     };
 
 private:
     // The private group creates
-    // GroupTemplates_::Model<pex::Group::Model_>
-    // and GroupTemplates_::Control<pex::Group::Control_>
+    // GroupFinisher_::Model<pex::Group::Model_>
+    // and GroupFinisher_::Control<pex::Group::Control_>
     using Group_ =
-        ::pex::Group<Templates::template Template, GroupTemplates_>;
+        ::pex::Group<Templates::template Schema, GroupFinisher_>;
 
 public:
     // Allow the Customized types to inherit from Group::Model and Control.
     using Model =
-        typename ::pex::detail::CustomizeModel
+        typename ::pex::detail::FinishModel
         <
             Templates,
             typename Group_::Model
         >;
 
     using Control =
-        typename ::pex::detail::CustomizeControl
+        typename ::pex::detail::FinishControl
         <
             Templates,
             typename Group_::template Control<typename Group_::Model>

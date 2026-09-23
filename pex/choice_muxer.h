@@ -15,13 +15,13 @@ static_assert(IsMakeOptionalSelect<MakeOptionalSelect<int, GetAndSetTag>>);
 
 
 template<typename ChoiceMaker>
-struct ChoiceMuxerTemplate
+struct ChoiceMuxerSchema
 {
     using Key = typename ChoiceMaker::Key;
     using Type = typename ChoiceMaker::Type;
 
     template<template<typename> typename T>
-    struct Template
+    struct Schema
     {
         T<Key> key;
         T<MakeOptionalSelect<Type, GetAndSetTag>> select;
@@ -32,7 +32,7 @@ struct ChoiceMuxerTemplate
 
 
 template<typename ChoiceMaker>
-struct ChoiceMuxerCustom
+struct ChoiceMuxerFinisher
 {
     template<typename Base>
     struct Model: public Base
@@ -121,8 +121,8 @@ template<typename ChoiceMaker>
 using ChoiceMuxerGroup =
     pex::Group
     <
-        ChoiceMuxerTemplate<ChoiceMaker>::template Template,
-        ChoiceMuxerCustom<ChoiceMaker>
+        ChoiceMuxerSchema<ChoiceMaker>::template Schema,
+        ChoiceMuxerFinisher<ChoiceMaker>
     >;
 
 template<typename ChoiceMaker>

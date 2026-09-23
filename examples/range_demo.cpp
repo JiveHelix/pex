@@ -16,13 +16,13 @@ struct PositionFields
 
 
 template<template<typename> typename T>
-struct PositionTemplate
+struct PositionSchema
 {
     T<double> x;
     T<double> y;
     T<double> z;
 
-    static constexpr auto fields = PositionFields<PositionTemplate>::fields;
+    static constexpr auto fields = PositionFields<PositionSchema>::fields;
     static constexpr auto fieldsTypeName = "Position";
 };
 
@@ -41,19 +41,19 @@ using pex::Limit;
 
 
 template<template<typename> typename T>
-struct RotationTemplate
+struct RotationSchema
 {
     T<pex::MakeRange<double, Limit<-90>, Limit<90>>> alpha;
     T<pex::MakeRange<double, Limit<-180>, Limit<180>>> beta;
     T<pex::MakeRange<double, Limit<-180>, Limit<180>>> gamma;
 
-    static constexpr auto fields = RotationFields<RotationTemplate>::fields;
+    static constexpr auto fields = RotationFields<RotationSchema>::fields;
     static constexpr auto fieldsTypeName = "Rotation";
 };
 
 
-using PositionGroup = pex::Group<PositionTemplate>;
-using RotationGroup = pex::Group<RotationTemplate>;
+using PositionGroup = pex::Group<PositionSchema>;
+using RotationGroup = pex::Group<RotationSchema>;
 
 
 template<typename T>
@@ -66,17 +66,17 @@ struct PoseFields
 
 
 template<template<typename> typename T>
-struct PoseTemplate
+struct PoseSchema
 {
     T<PositionGroup> position;
     T<RotationGroup> rotation;
 
-    static constexpr auto fields = PoseFields<PoseTemplate>::fields;
+    static constexpr auto fields = PoseFields<PoseSchema>::fields;
     static constexpr auto fieldsTypeName = "Pose";
 };
 
 
-using PoseGroup = pex::Group<PoseTemplate>;
+using PoseGroup = pex::Group<PoseSchema>;
 using Pose = typename PoseGroup::Plain;
 using PoseModel = typename PoseGroup::Model;
 using PoseControl = typename PoseGroup::Control<PoseModel>;

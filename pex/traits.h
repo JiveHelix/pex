@@ -420,7 +420,7 @@ concept IsOptionalSelectNode =
 
 
 template<typename T>
-concept IsAggregate = T::isAggregate;
+concept IsEnsemble = T::isEnsemble;
 
 template<typename T>
 concept HasValueBase = requires { typename T::ValueBase; };

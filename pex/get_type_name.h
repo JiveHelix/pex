@@ -22,12 +22,12 @@ std::string_view GetTypeName()
     }
     else
     {
-        using TemplateBase =
-            typename Templates::template Template<fields::Identity>;
+        using SchemaBase =
+            typename Templates::template Schema<fields::Identity>;
 
-        if constexpr (fields::HasFieldsTypeName<TemplateBase>)
+        if constexpr (fields::HasFieldsTypeName<SchemaBase>)
         {
-            return TemplateBase::fieldsTypeName;
+            return SchemaBase::fieldsTypeName;
         }
         else
         {

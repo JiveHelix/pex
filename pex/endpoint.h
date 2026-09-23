@@ -292,24 +292,24 @@ template<typename Observer, typename Upstream>
 using Endpoint = typename ChooseEndpoint_<Observer, Upstream>::Type;
 
 
-/***** EndpointSelector *****/
+/***** EndpointTailor *****/
 template<typename T>
-struct EndpointSelector_
+struct EndpointTailor_
 {
     template<typename Observer>
     using Type = Endpoint
     <
         Observer,
-        typename pex::detail::ControlSelector_<T>::Type
+        typename pex::detail::ControlTailor_<T>::Type
     >;
 };
 
 
 template<typename Observer>
-struct EndpointSelector
+struct EndpointTailor
 {
     template<typename T>
-    using Type = typename EndpointSelector_<T>::template Type<Observer>;
+    using Type = typename EndpointTailor_<T>::template Type<Observer>;
 };
 
 
@@ -378,7 +378,7 @@ template
 class EndpointGroup
     :
     public Control::
-        template GroupTemplate<EndpointSelector<Observer>::template Type>
+        template GroupSchema<EndpointTailor<Observer>::template Type>
 {
 public:
     using Callable = typename Endpoint<Observer, Control>::Callable;

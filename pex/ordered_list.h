@@ -28,7 +28,7 @@ namespace pex
 
 
 template<template<typename> typename T>
-class OrderTemplate
+class OrderSchema
 {
 public:
     T<MakeSignal> moveToTop;
@@ -40,7 +40,7 @@ public:
 };
 
 
-using OrderGroup = Group<OrderTemplate>;
+using OrderGroup = Group<OrderSchema>;
 using OrderModel = typename OrderGroup::Model;
 using OrderControl = typename OrderGroup::DefaultControl;
 using Order = typename OrderGroup::Plain;
@@ -50,10 +50,10 @@ using IndicesList = std::vector<size_t>;
 
 
 template<typename ListMaker>
-struct OrderedListTemplate
+struct OrderedListSchema
 {
     template<template<typename> typename T>
-    struct Template
+    struct Schema
     {
         T<IndicesList> indices;
         T<pex::MakeSignal> reorder;
@@ -127,7 +127,7 @@ concept ListHasOrder =
 
 template<typename ListMaker>
 std::optional<OrderControl> GetOrderControl(
-    ModelSelector<ListMaker> &list,
+    ModelTailor<ListMaker> &list,
     size_t storageIndex)
 {
     if constexpr (ListHasOrderMember<ListMaker>)
@@ -153,7 +153,7 @@ std::optional<OrderControl> GetOrderControl(
 
 
 template<typename ListMaker>
-struct OrderedListCustom
+struct OrderedListFinisher
 {
     template<typename Base>
     class Model
@@ -194,7 +194,7 @@ struct OrderedListCustom
         MemberWillReplace memberWillReplace;
         MemberReplaced memberReplaced;
 
-        using Indices = ModelSelector<IndicesList>;
+        using Indices = ModelTailor<IndicesList>;
 
         using List = decltype(Base::list);
         using ListItem = typename List::ListItem;
@@ -1646,8 +1646,8 @@ template<typename ListMaker>
 using OrderedListGroup =
     Group
     <
-        OrderedListTemplate<ListMaker>::template Template,
-        OrderedListCustom<ListMaker>
+        OrderedListSchema<ListMaker>::template Schema,
+        OrderedListFinisher<ListMaker>
     >;
 
 template<typename ListMaker>

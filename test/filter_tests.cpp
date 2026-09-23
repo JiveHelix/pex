@@ -222,19 +222,19 @@ struct CoffeeFields
 };
 
 template<template<typename> typename T>
-struct CoffeeTemplate
+struct CoffeeSchema
 {
     T<pex::ReadOnly<size_t>> id;
     T<double> price;
 
-    static constexpr auto fields = CoffeeFields<CoffeeTemplate>::fields;
+    static constexpr auto fields = CoffeeFields<CoffeeSchema>::fields;
     static constexpr auto fieldsTypeName = "Coffee";
 };
 
 
 TEST_CASE("Use ReadOnly interface to create read-only control", "[filters]")
 {
-    using Group = pex::Group<CoffeeTemplate>;
+    using Group = pex::Group<CoffeeSchema>;
     using Model = typename Group::Model;
     using Control = typename Group::template Control<Model>;
 
@@ -247,10 +247,10 @@ TEST_CASE("Use ReadOnly interface to create read-only control", "[filters]")
 
 
 TEST_CASE(
-    "Assign all aggregate members except any read-only members.",
+    "Assign all ensemble members except any read-only members.",
     "[filters]")
 {
-    using Group = pex::Group<CoffeeTemplate>;
+    using Group = pex::Group<CoffeeSchema>;
     using Model = typename Group::Model;
     using Control = typename Group::template Control<Model>;
     using Coffee = typename Group::Plain;
@@ -261,7 +261,7 @@ TEST_CASE(
 
     model.Set(coffee);
 
-    // Aggregate set should have skipped setting the id.
+    // Ensemble set should have skipped setting the id.
     REQUIRE(model.id.Get() == 0);
 
     // Set the id.

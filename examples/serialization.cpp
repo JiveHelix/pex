@@ -18,19 +18,19 @@ struct FooFields
 
 
 template<template<typename> typename T>
-struct FooTemplate
+struct FooSchema
 {
     T<double> x;
     T<double> y;
     T<double> z;
     T<pex::MakeSignal> sayHello;
 
-    static constexpr auto fields = FooFields<FooTemplate>::fields;
+    static constexpr auto fields = FooFields<FooSchema>::fields;
     static constexpr auto fieldsTypeName = "Foo";
 };
 
 
-using FooGroup = pex::Group<FooTemplate>;
+using FooGroup = pex::Group<FooSchema>;
 using Foo = typename FooGroup::Plain;
 using Model = typename FooGroup::Model;
 

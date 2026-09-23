@@ -34,13 +34,13 @@ struct Units
 
 
 template<template<typename> typename T>
-struct PointTemplate
+struct PointSchema
 {
     T<double> x;
     T<double> y;
     T<pex::MakeSelect<Units>> units;
 
-    static constexpr auto fields = PointFields<PointTemplate<T>>::fields;
+    static constexpr auto fields = PointFields<PointSchema<T>>::fields;
     static constexpr auto fieldsTypeName = "Point";
 };
 
@@ -51,7 +51,7 @@ using ModelSelectString =
 using ControlSelectString = pex::control::Select<ModelSelectString>;
 
 
-struct PointGroupTemplates_
+struct PointGroupFinisher_
 {
     // Define a customized model
     template<typename GroupBase>
@@ -84,7 +84,7 @@ struct PointGroupTemplates_
 static_assert(pex::IsMakeSelect<pex::MakeSelect<std::string>>);
 
 
-using PointGroup = pex::Group<PointTemplate, PointGroupTemplates_>;
+using PointGroup = pex::Group<PointSchema, PointGroupFinisher_>;
 using PointModel = typename PointGroup::Model;
 using PointControl = typename PointGroup::template Control<PointModel>;
 
@@ -107,17 +107,17 @@ struct CircleFields
 
 
 template<template<typename> typename T>
-struct CircleTemplate
+struct CircleSchema
 {
     T<PointGroup> center;
     T<double> radius;
 
-    static constexpr auto fields = CircleFields<CircleTemplate<T>>::fields;
+    static constexpr auto fields = CircleFields<CircleSchema<T>>::fields;
     static constexpr auto fieldsTypeName = "Circle";
 };
 
 
-using CircleGroup = pex::Group<CircleTemplate>;
+using CircleGroup = pex::Group<CircleSchema>;
 
 using Point = typename PointGroup::Plain;
 using Circle = typename CircleGroup::Plain;
@@ -164,7 +164,7 @@ public:
 };
 
 
-TEST_CASE("Terminus aggregate observer receives message.", "[groups]")
+TEST_CASE("Terminus ensemble observer receives message.", "[groups]")
 {
     using Model = typename groups::CircleGroup::Model;
     using Control = typename groups::CircleGroup::template Control<Model>;
@@ -182,7 +182,7 @@ TEST_CASE("Terminus aggregate observer receives message.", "[groups]")
 }
 
 
-TEST_CASE("Terminus aggregate member observer receives message.", "[groups]")
+TEST_CASE("Terminus ensemble member observer receives message.", "[groups]")
 {
     using Model = typename groups::CircleGroup::Model;
 
@@ -511,20 +511,20 @@ struct CircleWithSignalFields
 
 
 template<template<typename> typename T>
-struct CircleWithSignalTemplate
+struct CircleWithSignalSchema
 {
     T<groups::CircleGroup> circle;
     T<pex::MakeSignal> redraw;
 
     static constexpr auto fields =
-        CircleWithSignalFields<CircleWithSignalTemplate<T>>::fields;
+        CircleWithSignalFields<CircleWithSignalSchema<T>>::fields;
 
     static constexpr auto fieldsTypeName = "CircleWithSignal";
 };
 
 
 using CircleWithSignalGroup =
-    pex::Group<CircleWithSignalTemplate>;
+    pex::Group<CircleWithSignalSchema>;
 
 using CircleWithSignal = typename CircleWithSignalGroup::Plain;
 
@@ -581,22 +581,22 @@ struct ColorFields
 
 
 template<template<typename> typename T>
-struct ColorTemplate
+struct ColorSchema
 {
     T<int> red;
     T<int> green;
     T<int> blue;
 
-    static constexpr auto fields = ColorFields<ColorTemplate>::fields;
+    static constexpr auto fields = ColorFields<ColorSchema>::fields;
     static constexpr auto fieldsTypeName = "Color";
 };
 
 
-struct Color: public ColorTemplate<pex::Identity>
+struct Color: public ColorSchema<pex::Identity>
 {
     Color()
         :
-        ColorTemplate<pex::Identity>
+        ColorSchema<pex::Identity>
         {
             1,
             2,
@@ -608,13 +608,13 @@ struct Color: public ColorTemplate<pex::Identity>
 };
 
 
-struct ColorCustom
+struct ColorFinisher
 {
     using Plain = Color;
 };
 
 
-using ColorGroup = pex::Group<ColorTemplate, ColorCustom>;
+using ColorGroup = pex::Group<ColorSchema, ColorFinisher>;
 using ColorModel = typename ColorGroup::Model;
 
 
@@ -629,18 +629,18 @@ struct PixelFields
 
 
 template<template<typename> typename T>
-struct PixelTemplate
+struct PixelSchema
 {
     T<ColorGroup> color;
     T<int> x;
     T<int> y;
 
-    static constexpr auto fields = PixelFields<PixelTemplate>::fields;
+    static constexpr auto fields = PixelFields<PixelSchema>::fields;
     static constexpr auto fieldsTypeName = "Pixel";
 };
 
 
-using PixelGroup = pex::Group<PixelTemplate>;
+using PixelGroup = pex::Group<PixelSchema>;
 using PixelModel = typename PixelGroup::Model;
 
 
@@ -656,18 +656,18 @@ struct FooFields
 
 
 template<template<typename> typename T>
-struct FooTemplate
+struct FooSchema
 {
     T<PixelGroup> leftPixel;
     T<PixelGroup> rightPixel;
     T<int> bar;
 
-    static constexpr auto fields = FooFields<FooTemplate>::fields;
+    static constexpr auto fields = FooFields<FooSchema>::fields;
     static constexpr auto fieldsTypeName = "Foo";
 };
 
 
-struct FooCustom
+struct FooFinisher
 {
     template<typename Base>
     struct Plain: public Base
@@ -684,7 +684,7 @@ struct FooCustom
 };
 
 
-using FooGroup = pex::Group<FooTemplate, FooCustom>;
+using FooGroup = pex::Group<FooSchema, FooFinisher>;
 using FooModel = typename FooGroup::Model;
 
 

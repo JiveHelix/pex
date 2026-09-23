@@ -225,7 +225,7 @@ TEST_CASE("Range limits are never optional.", "[range]")
     using MakeRange =
         pex::MakeRange<std::optional<double>, pex::Limit<-45>, pex::Limit<45>>;
 
-    using RangeControl = pex::ControlSelector<MakeRange>;
+    using RangeControl = pex::ControlTailor<MakeRange>;
 
     STATIC_REQUIRE(
         !jive::IsOptional
@@ -281,18 +281,18 @@ struct ColorFields
 
 
 template<template<typename> typename T>
-struct ColorTemplate
+struct ColorSchema
 {
     T<typename ColorRanges::Group> red;
     T<typename ColorRanges::Group> green;
     T<typename ColorRanges::Group> blue;
 
-    static constexpr auto fields = ColorFields<ColorTemplate>::fields;
+    static constexpr auto fields = ColorFields<ColorSchema>::fields;
     static constexpr auto fieldsTypeName = "Color";
 };
 
 
-using ColorGroup = pex::Group<ColorTemplate>;
+using ColorGroup = pex::Group<ColorSchema>;
 using ColorModel = typename ColorGroup::Model;
 
 
@@ -307,18 +307,18 @@ struct PixelFields
 
 
 template<template<typename> typename T>
-struct PixelTemplate
+struct PixelSchema
 {
     T<ColorGroup> color;
     T<int> x;
     T<int> y;
 
-    static constexpr auto fields = PixelFields<PixelTemplate>::fields;
+    static constexpr auto fields = PixelFields<PixelSchema>::fields;
     static constexpr auto fieldsTypeName = "Pixel";
 };
 
 
-struct PixelCustom
+struct PixelFinisher
 {
     template<typename Base>
     struct Plain: public Base
@@ -344,7 +344,7 @@ struct PixelCustom
 };
 
 
-using PixelGroup = pex::Group<PixelTemplate, PixelCustom>;
+using PixelGroup = pex::Group<PixelSchema, PixelFinisher>;
 using PixelModel = typename PixelGroup::Model;
 
 

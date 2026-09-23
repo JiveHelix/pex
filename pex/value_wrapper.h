@@ -80,11 +80,11 @@ public:
     template<typename Derived, typename ...Args>
     static ValueWrapperTemplate Create(Args && ...args)
     {
-        using TemplateBase = typename Derived::TemplateBase;
+        using SchemaBase = typename Derived::SchemaBase;
 
         return ValueWrapperTemplate(
             std::make_shared<Derived>(
-                TemplateBase{std::forward<Args>(args)...}));
+                SchemaBase{std::forward<Args>(args)...}));
     }
 
     template<typename Derived>

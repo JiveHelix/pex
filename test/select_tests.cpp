@@ -8,7 +8,7 @@
 
 TEST_CASE("Select::Get returns value, not index", "[select]")
 {
-    using Select = pex::ModelSelector<pex::MakeSelect<double>>;
+    using Select = pex::ModelTailor<pex::MakeSelect<double>>;
 
     Select select({1.0, 2.78, 3.14, 42.0});
     REQUIRE(select.Get() == Approx(1.0));
@@ -43,17 +43,17 @@ struct RateChoices
 
 
 template<template<typename> typename T>
-struct SomeTemplate
+struct SomeSchema
 {
     T<double> x;
     T<double> y;
     T<pex::MakeSelect<RateChoices>> rate;
 
-    static constexpr auto fields = SomeFields<SomeTemplate>::fields;
+    static constexpr auto fields = SomeFields<SomeSchema>::fields;
     static constexpr auto fieldsTypeName = "Some";
 };
 
-using SomeGroup = pex::Group<SomeTemplate>;
+using SomeGroup = pex::Group<SomeSchema>;
 using SomeModel = typename SomeGroup::Model;
 using SomeControl = typename SomeGroup::template Control<SomeModel>;
 using SomePlain = typename SomeGroup::Plain;
@@ -159,17 +159,17 @@ struct RateSelect
 
 
 template<template<typename> typename T>
-struct AnotherTemplate
+struct AnotherSchema
 {
     T<double> x;
     T<double> y;
     T<pex::MakeSelect<RateSelect>> rate;
 
-    static constexpr auto fields = AnotherFields<AnotherTemplate>::fields;
+    static constexpr auto fields = AnotherFields<AnotherSchema>::fields;
     static constexpr auto fieldsTypeName = "Another";
 };
 
-using AnotherGroup = pex::Group<AnotherTemplate>;
+using AnotherGroup = pex::Group<AnotherSchema>;
 using AnotherModel = typename AnotherGroup::Model;
 using AnotherControl = typename AnotherGroup::template Control<AnotherModel>;
 using AnotherPlain = typename AnotherGroup::Plain;

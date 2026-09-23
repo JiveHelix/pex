@@ -6,7 +6,7 @@
 
 
 template<template<typename> typename T>
-struct WeaponsTemplate
+struct WeaponsSchema
 {
     T<std::string> firstFruit;
     T<std::string> secondFruit;
@@ -16,7 +16,7 @@ struct WeaponsTemplate
 };
 
 
-using WeaponsGroup = pex::Group<WeaponsTemplate>;
+using WeaponsGroup = pex::Group<WeaponsSchema>;
 using WeaponsPlain = typename WeaponsGroup::Plain;
 using WeaponsModel = typename WeaponsGroup::Model;
 
@@ -24,7 +24,7 @@ using WeaponsControl = typename WeaponsGroup::Control<WeaponsModel>;
 
 
 template<template<typename> typename T>
-struct GpsTemplate
+struct GpsSchema
 {
     T<int64_t> time;
     T<double> latitude;
@@ -35,7 +35,7 @@ struct GpsTemplate
 };
 
 
-using GpsGroup = pex::Group<GpsTemplate>;
+using GpsGroup = pex::Group<GpsSchema>;
 using GpsPlain = typename GpsGroup::Plain;
 using GpsModel = typename GpsGroup::Model;
 
@@ -53,7 +53,7 @@ inline GpsPlain DefaultGps()
 
 
 template<template<typename> typename T>
-struct CombinedTemplate
+struct CombinedSchema
 {
     T<double> airspeedVelocity;
     T<WeaponsGroup> weapons;
@@ -63,7 +63,7 @@ struct CombinedTemplate
 };
 
 
-using CombinedGroup = pex::Group<CombinedTemplate>;
+using CombinedGroup = pex::Group<CombinedSchema>;
 using CombinedModel = typename CombinedGroup::Model;
 using CombinedControl = typename CombinedGroup::Control<CombinedModel>;
 

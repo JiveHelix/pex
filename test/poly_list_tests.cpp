@@ -75,7 +75,7 @@ struct CommonTemplates
     public:
         using Base::Base;
 
-        static constexpr bool isAircraftCustom = true;
+        static constexpr bool isAircraftFinal = true;
 
         Model()
             :
@@ -131,14 +131,14 @@ public:
 struct FixedWingTemplates: public CommonTemplates
 {
     template<template<typename> typename T>
-    class Template
+    class Schema
     {
     public:
         T<double> maximumAltitude;
         T<double> range;
         T<double> wingspan;
 
-        static constexpr auto fields = FixedWingFields<Template>::fields;
+        static constexpr auto fields = FixedWingFields<Schema>::fields;
         static constexpr auto fieldsTypeName = "FixedWing";
     };
 
@@ -171,14 +171,14 @@ public:
 struct RotorWingTemplates: public CommonTemplates
 {
     template<template<typename> typename T>
-    class Template
+    class Schema
     {
     public:
         T<double> maximumAltitude;
         T<double> range;
         T<double> rotorRadius;
 
-        static constexpr auto fields = RotorWingFields<Template>::fields;
+        static constexpr auto fields = RotorWingFields<Schema>::fields;
 
         static constexpr auto fieldsTypeName = "RotorWing";
     };
@@ -207,28 +207,28 @@ static_assert(
     pex::detail::HasControlTemplate
     <
         FixedWingTemplates,
-        FixedWingTemplates::template Template<pex::Identity>
+        FixedWingTemplates::template Schema<pex::Identity>
     >);
 
 static_assert(
     pex::detail::HasControlTemplate
     <
         RotorWingTemplates,
-        RotorWingTemplates::template Template<pex::Identity>
+        RotorWingTemplates::template Schema<pex::Identity>
     >);
 
 static_assert(
     pex::detail::HasModelTemplate
     <
         FixedWingTemplates,
-        FixedWingTemplates::template Template<pex::Identity>
+        FixedWingTemplates::template Schema<pex::Identity>
     >);
 
 static_assert(
     pex::detail::HasModelTemplate
     <
         RotorWingTemplates,
-        RotorWingTemplates::template Template<pex::Identity>
+        RotorWingTemplates::template Schema<pex::Identity>
     >);
 
 
@@ -257,35 +257,35 @@ struct AirportFields
 
 
 template<template<typename> typename T>
-class AirportTemplate
+class AirportSchema
 {
 public:
     T<size_t> runwayCount;
     T<size_t> dailyPassengerCount;
     T<pex::List<pex::MakePoly<AircraftSupers>>> aircraft;
 
-    static constexpr auto fields = AirportFields<AirportTemplate>::fields;
+    static constexpr auto fields = AirportFields<AirportSchema>::fields;
     static constexpr auto fieldsTypeName = "Airport";
 };
 
 
-using AirportGroup = pex::Group<AirportTemplate>;
+using AirportGroup = pex::Group<AirportSchema>;
 using Airport = typename AirportGroup::Plain;
 using AirportModel = typename AirportGroup::Model;
 using AirportControl = typename AirportGroup::template Control<AirportModel>;
 
 template<typename T, typename = void>
-struct IsAircraftCustom_: std::false_type {};
+struct IsAircraftFinal_: std::false_type {};
 
 template<typename T>
-struct IsAircraftCustom_<T, std::enable_if_t<T::isAircraftCustom>>
+struct IsAircraftFinal_<T, std::enable_if_t<T::isAircraftFinal>>
     : std::true_type {};
 
 template<typename T>
-inline constexpr bool IsAircraftCustom = IsAircraftCustom_<T>::value;
+inline constexpr bool IsAircraftFinal = IsAircraftFinal_<T>::value;
 
-static_assert(IsAircraftCustom<typename RotorWingDerivedGroup::Model>);
-static_assert(IsAircraftCustom<typename FixedWingDerivedGroup::Model>);
+static_assert(IsAircraftFinal<typename RotorWingDerivedGroup::Model>);
+static_assert(IsAircraftFinal<typename FixedWingDerivedGroup::Model>);
 
 
 DECLARE_EQUALITY_OPERATORS(Airport)
@@ -426,7 +426,7 @@ TEST_CASE("List of polymorphic values can be unstructured", "[poly]")
 
 
 template<template<typename> typename T>
-class OrderedAirportTemplate
+class OrderedAirportSchema
 {
 public:
     T<size_t> runwayCount;
@@ -434,13 +434,13 @@ public:
     T<pex::OrderedListGroup<pex::List<pex::MakePoly<AircraftSupers>>>> aircraft;
 
     static constexpr auto fields =
-        AirportFields<OrderedAirportTemplate>::fields;
+        AirportFields<OrderedAirportSchema>::fields;
 
     static constexpr auto fieldsTypeName = "OrderedAirport";
 };
 
 
-using OrderedAirportGroup = pex::Group<OrderedAirportTemplate>;
+using OrderedAirportGroup = pex::Group<OrderedAirportSchema>;
 using OrderedAirport = typename OrderedAirportGroup::Plain;
 
 
@@ -548,7 +548,7 @@ using TestControl =
 
 static_assert(pex::IsControl<TestControl>);
 
-using SelectedTestControl = pex::detail::ConnectableSelector<TestControl>;
+using SelectedTestControl = pex::detail::ConnectableTailor<TestControl>;
 
 static_assert(std::is_same_v<TestControl, SelectedTestControl>);
 
@@ -632,8 +632,8 @@ public:
     using EndpointConnector = typename AirportEndpoint::Connector;
 
     static_assert(pex::IsGroupConnect<EndpointConnector>);
-    using Aggregate = typename EndpointConnector::Aggregate;
-    using AircraftConnector = decltype(Aggregate::aircraft);
+    using Ensemble = typename EndpointConnector::Ensemble;
+    using AircraftConnector = decltype(Ensemble::aircraft);
     static_assert(pex::IsListConnect<AircraftConnector>);
 
     AirportObserver(const AirportControl &airportControl)
@@ -723,7 +723,7 @@ TEST_CASE("Poly list of groups implements virtual bases.", "[List]")
     REQUIRE(airportObserver.GetNotificationCount() == 1);
 
     using AircraftListControl =
-        pex::ControlSelector<pex::List<pex::MakePoly<AircraftSupers>>>;
+        pex::ControlTailor<pex::List<pex::MakePoly<AircraftSupers>>>;
 
     static_assert(
         std::is_same_v
@@ -762,7 +762,7 @@ TEST_CASE("Poly list of groups implements virtual bases.", "[List]")
         >);
 
 
-    using SelectedControl = pex::ControlSelector<pex::MakePoly<AircraftSupers>>;
+    using SelectedControl = pex::ControlTailor<pex::MakePoly<AircraftSupers>>;
 
     static_assert(
         std::is_same_v
@@ -971,19 +971,19 @@ struct SinglePolyFields
 
 
 template<template<typename> typename T>
-struct SinglePolyTemplate
+struct SinglePolySchema
 {
     T<FixedWingDerivedGroup> fixedWing;
     T<RotorWingDerivedGroup> rotorWing;
 
     static constexpr auto fields =
-        SinglePolyFields<SinglePolyTemplate>::fields;
+        SinglePolyFields<SinglePolySchema>::fields;
 
     static constexpr auto fieldsTypeName = "Single";
 };
 
 
-using SinglePoly = pex::Group<SinglePolyTemplate>;
+using SinglePoly = pex::Group<SinglePolySchema>;
 using SinglePolyModel = typename SinglePoly::Model;
 
 using SinglePolyControl =

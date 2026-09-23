@@ -35,9 +35,9 @@ struct PromoteControl
     using Upstream = Pex;
 
     template<typename U>
-    using Selector = ControlSelector<U>;
+    using Tailor = ControlTailor<U>;
 
-    static constexpr auto selectorName = "ControlSelector";
+    static constexpr auto selectorName = "ControlTailor";
 };
 
 
@@ -52,9 +52,9 @@ struct PromoteControl
     using Upstream = typename Pex::Upstream;
 
     template<typename U>
-    using Selector = ControlSelector<U>;
+    using Tailor = ControlTailor<U>;
 
-    static constexpr auto selectorName = "ControlSelector";
+    static constexpr auto selectorName = "ControlTailor";
 };
 
 
@@ -65,9 +65,9 @@ struct PromoteControl<Pex, std::enable_if_t<IsSignalControl<Pex>>>
     using Upstream = typename Pex::Upstream;
 
     template<typename U>
-    using Selector = ControlSelector<U>;
+    using Tailor = ControlTailor<U>;
 
-    static constexpr auto selectorName = "ControlSelector";
+    static constexpr auto selectorName = "ControlTailor";
 };
 
 
@@ -78,9 +78,9 @@ struct PromoteControl<Pex, std::enable_if_t<IsSignalModel<Pex>>>
     using Upstream = Pex;
 
     template<typename U>
-    using Selector = ControlSelector<U>;
+    using Tailor = ControlTailor<U>;
 
-    static constexpr auto selectorName = "ControlSelector";
+    static constexpr auto selectorName = "ControlTailor";
 };
 
 
@@ -91,9 +91,9 @@ struct PromoteControl<P, std::enable_if_t<IsRangeModel<P>>>
     using Upstream = P;
 
     template<typename U>
-    using Selector = ControlSelector<U>;
+    using Tailor = ControlTailor<U>;
 
-    static constexpr auto selectorName = "ControlSelector";
+    static constexpr auto selectorName = "ControlTailor";
 };
 
 
@@ -104,9 +104,9 @@ struct PromoteControl<P, std::enable_if_t<IsRangeControl<P>>>
     using Upstream = typename P::Upstream;
 
     template<typename U>
-    using Selector = ControlSelector<U>;
+    using Tailor = ControlTailor<U>;
 
-    static constexpr auto selectorName = "ControlSelector";
+    static constexpr auto selectorName = "ControlTailor";
 };
 
 
@@ -117,9 +117,9 @@ struct PromoteControl<P, std::enable_if_t<IsRangeMux<P>>>
     using Upstream = P;
 
     template<typename U>
-    using Selector = FollowSelector<U>;
+    using Tailor = FollowTailor<U>;
 
-    static constexpr auto selectorName = "FollowSelector";
+    static constexpr auto selectorName = "FollowTailor";
 };
 
 
@@ -130,9 +130,9 @@ struct PromoteControl<P, std::enable_if_t<IsRangeFollow<P>>>
     using Upstream = typename P::Upstream;
 
     template<typename U>
-    using Selector = FollowSelector<U>;
+    using Tailor = FollowTailor<U>;
 
-    static constexpr auto selectorName = "FollowSelector";
+    static constexpr auto selectorName = "FollowTailor";
 };
 
 
@@ -143,9 +143,9 @@ struct PromoteControl<P, std::enable_if_t<IsGroupModel<P>>>
     using Upstream = P;
 
     template<typename U>
-    using Selector = ControlSelector<U>;
+    using Tailor = ControlTailor<U>;
 
-    static constexpr auto selectorName = "ControlSelector";
+    static constexpr auto selectorName = "ControlTailor";
 };
 
 
@@ -156,9 +156,9 @@ struct PromoteControl<P, std::enable_if_t<IsGroupControl<P>>>
     using Upstream = typename P::Upstream;
 
     template<typename U>
-    using Selector = ControlSelector<U>;
+    using Tailor = ControlTailor<U>;
 
-    static constexpr auto selectorName = "ControlSelector";
+    static constexpr auto selectorName = "ControlTailor";
 };
 
 template<typename P>
@@ -168,9 +168,9 @@ struct PromoteControl<P, std::enable_if_t<IsGroupMux<P>>>
     using Upstream = P;
 
     template<typename U>
-    using Selector = FollowSelector<U>;
+    using Tailor = FollowTailor<U>;
 
-    static constexpr auto selectorName = "FollowSelector";
+    static constexpr auto selectorName = "FollowTailor";
 };
 
 
@@ -181,9 +181,9 @@ struct PromoteControl<P, std::enable_if_t<IsGroupFollow<P>>>
     using Upstream = typename P::Upstream;
 
     template<typename U>
-    using Selector = FollowSelector<U>;
+    using Tailor = FollowTailor<U>;
 
-    static constexpr auto selectorName = "FollowSelector";
+    static constexpr auto selectorName = "FollowTailor";
 };
 
 
@@ -204,9 +204,9 @@ struct PromoteControl<P, std::enable_if_t<IsListModel<P>>>
     using Upstream = P;
 
     template<typename U>
-    using Selector = ControlSelector<U>;
+    using Tailor = ControlTailor<U>;
 
-    static constexpr auto selectorName = "ControlSelector";
+    static constexpr auto selectorName = "ControlTailor";
 };
 
 
@@ -217,9 +217,9 @@ struct PromoteControl<P, std::enable_if_t<IsListControl<P>>>
     using Upstream = typename P::Upstream;
 
     template<typename U>
-    using Selector = ControlSelector<U>;
+    using Tailor = ControlTailor<U>;
 
-    static constexpr auto selectorName = "ControlSelector";
+    static constexpr auto selectorName = "ControlTailor";
 };
 
 template<typename P>
@@ -229,9 +229,9 @@ struct PromoteControl<P, std::enable_if_t<IsListMux<P>>>
     using Upstream = P;
 
     template<typename U>
-    using Selector = FollowSelector<U>;
+    using Tailor = FollowTailor<U>;
 
-    static constexpr auto selectorName = "FollowSelector";
+    static constexpr auto selectorName = "FollowTailor";
 };
 
 template<typename P>
@@ -241,9 +241,9 @@ struct PromoteControl<P, std::enable_if_t<IsListFollow<P>>>
     using Upstream = typename P::Upstream;
 
     template<typename U>
-    using Selector = FollowSelector<U>;
+    using Tailor = FollowTailor<U>;
 
-    static constexpr auto selectorName = "FollowSelector";
+    static constexpr auto selectorName = "FollowTailor";
 };
 
 
@@ -254,9 +254,9 @@ struct PromoteControl<P, std::enable_if_t<IsSelectModel<P>>>
     using Upstream = P;
 
     template<typename U>
-    using Selector = ControlSelector<U>;
+    using Tailor = ControlTailor<U>;
 
-    static constexpr auto selectorName = "ControlSelector";
+    static constexpr auto selectorName = "ControlTailor";
 };
 
 
@@ -267,9 +267,9 @@ struct PromoteControl<P, std::enable_if_t<IsSelectControl<P>>>
     using Upstream = typename P::Upstream;
 
     template<typename U>
-    using Selector = ControlSelector<U>;
+    using Tailor = ControlTailor<U>;
 
-    static constexpr auto selectorName = "ControlSelector";
+    static constexpr auto selectorName = "ControlTailor";
 };
 
 
@@ -280,9 +280,9 @@ struct PromoteControl<P, std::enable_if_t<IsSelectMux<P>>>
     using Upstream = P;
 
     template<typename U>
-    using Selector = FollowSelector<U>;
+    using Tailor = FollowTailor<U>;
 
-    static constexpr auto selectorName = "FollowSelector";
+    static constexpr auto selectorName = "FollowTailor";
 };
 
 
@@ -293,9 +293,9 @@ struct PromoteControl<P, std::enable_if_t<IsSelectFollow<P>>>
     using Upstream = typename P::Upstream;
 
     template<typename U>
-    using Selector = FollowSelector<U>;
+    using Tailor = FollowTailor<U>;
 
-    static constexpr auto selectorName = "FollowSelector";
+    static constexpr auto selectorName = "FollowTailor";
 };
 
 
@@ -306,9 +306,9 @@ struct PromoteControl<P, std::enable_if_t<IsOptionalSelectModel<P>>>
     using Upstream = P;
 
     template<typename U>
-    using Selector = ControlSelector<U>;
+    using Tailor = ControlTailor<U>;
 
-    static constexpr auto selectorName = "ControlSelector";
+    static constexpr auto selectorName = "ControlTailor";
 };
 
 
@@ -319,9 +319,9 @@ struct PromoteControl<P, std::enable_if_t<IsOptionalSelectControl<P>>>
     using Upstream = typename P::Upstream;
 
     template<typename U>
-    using Selector = ControlSelector<U>;
+    using Tailor = ControlTailor<U>;
 
-    static constexpr auto selectorName = "ControlSelector";
+    static constexpr auto selectorName = "ControlTailor";
 };
 
 
@@ -332,9 +332,9 @@ struct PromoteControl<P, std::enable_if_t<IsOptionalSelectMux<P>>>
     using Upstream = P;
 
     template<typename U>
-    using Selector = FollowSelector<U>;
+    using Tailor = FollowTailor<U>;
 
-    static constexpr auto selectorName = "FollowSelector";
+    static constexpr auto selectorName = "FollowTailor";
 };
 
 
@@ -345,9 +345,9 @@ struct PromoteControl<P, std::enable_if_t<IsOptionalSelectFollow<P>>>
     using Upstream = typename P::Upstream;
 
     template<typename U>
-    using Selector = FollowSelector<U>;
+    using Tailor = FollowTailor<U>;
 
-    static constexpr auto selectorName = "FollowSelector";
+    static constexpr auto selectorName = "FollowTailor";
 };
 
 

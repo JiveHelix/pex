@@ -3,7 +3,7 @@
 
 #include <fields/describe.h>
 #include "pex/promote_control.h"
-#include "pex/detail/aggregate.h"
+#include "pex/detail/ensemble.h"
 #include "pex/type_tester.h"
 
 
@@ -28,7 +28,7 @@ public:
     static_assert(IsGroupNode<Upstream_>);
 
     template<typename U>
-    using Selector = typename PromoteControl<Upstream_>::template Selector<U>;
+    using Tailor = typename PromoteControl<Upstream_>::template Tailor<U>;
 
     using UpstreamControl = typename PromoteControl<Upstream_>::Type;
     using Upstream = typename PromoteControl<Upstream_>::Upstream;
@@ -37,9 +37,9 @@ public:
     using Type = Plain;
 
     template<template<typename> typename T>
-    using Template = typename UpstreamControl::template GroupTemplate<T>;
+    using Schema = typename UpstreamControl::template GroupSchema<T>;
 
-    using Aggregate = detail::Aggregate<Plain, Template, Selector>;
+    using Ensemble = detail::Ensemble<Plain, Schema, Tailor>;
 
     using ValueConnection = detail::ValueConnection<Observer, Plain>;
     using Callable = typename ValueConnection::Callable;
@@ -47,23 +47,23 @@ public:
     GroupConnect()
         :
         upstreamControl_(),
-        aggregate_(),
+        ensemble_(),
         observer_(nullptr),
         valueConnection_()
     {
         PEX_NAME("GroupConnect for NULL");
-        PEX_MEMBER(aggregate_);
+        PEX_MEMBER(ensemble_);
     }
 
     explicit GroupConnect(const UpstreamControl &upstreamControl)
         :
         upstreamControl_(upstreamControl),
-        aggregate_(this->upstreamControl_),
+        ensemble_(this->upstreamControl_),
         observer_(nullptr),
         valueConnection_()
     {
         PEX_NAME("GroupConnect for NULL");
-        PEX_MEMBER(aggregate_);
+        PEX_MEMBER(ensemble_);
     }
 
     GroupConnect(
@@ -72,7 +72,7 @@ public:
         Callable callable)
         :
         upstreamControl_(upstreamControl),
-        aggregate_(this->upstreamControl_),
+        ensemble_(this->upstreamControl_),
         observer_(observer),
         valueConnection_(std::in_place_t{}, observer, callable)
     {
@@ -82,9 +82,9 @@ public:
                 PromoteControl<Upstream_>::selectorName,
                 pex::LookupPexName(observer)));
 
-        PEX_MEMBER(aggregate_);
+        PEX_MEMBER(ensemble_);
 
-        this->aggregate_.Connect(this, &GroupConnect::OnAggregate_);
+        this->ensemble_.Connect(this, &GroupConnect::OnEnsemble_);
 
         PEX_LINK_OBSERVER(this, observer);
     }
@@ -109,14 +109,14 @@ public:
     GroupConnect(Observer *observer, const GroupConnect &other)
         :
         upstreamControl_(other.upstreamControl_),
-        aggregate_(this->upstreamControl_),
+        ensemble_(this->upstreamControl_),
         observer_(nullptr),
         valueConnection_()
     {
         PEX_NAME(
             fmt::format("GroupConnect for {}", pex::LookupPexName(observer)));
 
-        PEX_MEMBER(aggregate_);
+        PEX_MEMBER(ensemble_);
 
         if (other.valueConnection_)
         {
@@ -126,7 +126,7 @@ public:
                 observer,
                 other.valueConnection_->GetCallable());
 
-            this->aggregate_.Connect(this, &GroupConnect::OnAggregate_);
+            this->ensemble_.Connect(this, &GroupConnect::OnEnsemble_);
 
             PEX_LINK_OBSERVER(this, observer);
         }
@@ -140,7 +140,7 @@ public:
     GroupConnect(const GroupConnect &other)
         :
         upstreamControl_(other.upstreamControl_),
-        aggregate_(this->upstreamControl_),
+        ensemble_(this->upstreamControl_),
         observer_(nullptr),
         valueConnection_()
     {
@@ -153,7 +153,7 @@ public:
                 this->observer_,
                 other.valueConnection_->GetCallable());
 
-            this->aggregate_.Connect(this, &GroupConnect::OnAggregate_);
+            this->ensemble_.Connect(this, &GroupConnect::OnEnsemble_);
 
             PEX_NAME(
                 fmt::format(
@@ -167,13 +167,13 @@ public:
             PEX_NAME("GroupConnect for nullptr");
         }
 
-        PEX_MEMBER(aggregate_);
+        PEX_MEMBER(ensemble_);
     }
 
     GroupConnect(GroupConnect &&other) noexcept
         :
         upstreamControl_(std::move(other.upstreamControl_)),
-        aggregate_(this->upstreamControl_),
+        ensemble_(this->upstreamControl_),
         observer_(nullptr),
         valueConnection_()
     {
@@ -187,19 +187,19 @@ public:
                     "GroupConnect for {}",
                     pex::LookupPexName(this->observer_)));
 
-            PEX_MEMBER(aggregate_);
+            PEX_MEMBER(ensemble_);
             PEX_LINK_OBSERVER(this, this->observer_);
 
             this->valueConnection_.emplace(
                 this->observer_,
                 other.valueConnection_->GetCallable());
 
-            this->aggregate_.Connect(this, &GroupConnect::OnAggregate_);
+            this->ensemble_.Connect(this, &GroupConnect::OnEnsemble_);
         }
         else
         {
             PEX_NAME("GroupConnect for nullptr");
-            PEX_MEMBER(aggregate_);
+            PEX_MEMBER(ensemble_);
         }
 
         other.Disconnect();
@@ -210,7 +210,7 @@ public:
         this->Disconnect();
 
         this->upstreamControl_ = upstreamControl;
-        this->aggregate_.AssignUpstream(this->upstreamControl_);
+        this->ensemble_.AssignUpstream(this->upstreamControl_);
     }
 
     void Emplace(
@@ -226,8 +226,8 @@ public:
             fmt::format("GroupConnect for {}", pex::LookupPexName(observer)));
 
         this->upstreamControl_ = upstreamControl;
-        this->aggregate_.AssignUpstream(this->upstreamControl_);
-        this->aggregate_.Connect(this, &GroupConnect::OnAggregate_);
+        this->ensemble_.AssignUpstream(this->upstreamControl_);
+        this->ensemble_.Connect(this, &GroupConnect::OnEnsemble_);
         this->valueConnection_.emplace(observer, callable);
         this->observer_ = observer;
 
@@ -239,7 +239,7 @@ public:
         this->Disconnect();
 
         this->upstreamControl_ = other.upstreamControl_;
-        this->aggregate_.AssignUpstream(this->upstreamControl_);
+        this->ensemble_.AssignUpstream(this->upstreamControl_);
 
         PEX_NAME(
             fmt::format(
@@ -252,7 +252,7 @@ public:
                 observer,
                 other.valueConnection_->GetCallable());
 
-            this->aggregate_.Connect(this, &GroupConnect::OnAggregate_);
+            this->ensemble_.Connect(this, &GroupConnect::OnEnsemble_);
 
             this->observer_ = observer;
 
@@ -268,13 +268,13 @@ public:
         {
             // Already connected.
             assert(this->valueConnection_.has_value());
-            assert(this->aggregate_.HasObserver(this));
+            assert(this->ensemble_.HasObserver(this));
 
         }
         else
         {
-            assert(!this->aggregate_.HasObserver(this));
-            this->aggregate_.Connect(this, &GroupConnect::OnAggregate_);
+            assert(!this->ensemble_.HasObserver(this));
+            this->ensemble_.Connect(this, &GroupConnect::OnEnsemble_);
         }
 
         this->observer_ = observer;
@@ -292,13 +292,13 @@ public:
     {
         if (!this->observer_)
         {
-            assert(!this->aggregate_.HasConnection());
+            assert(!this->ensemble_.HasConnection());
             assert(!this->valueConnection_.has_value());
 
             return;
         }
 
-        this->aggregate_.Disconnect(this);
+        this->ensemble_.Disconnect(this);
         this->valueConnection_.reset();
         this->observer_ = nullptr;
     }
@@ -308,10 +308,10 @@ public:
         this->Disconnect();
 
         PEX_CLEAR_NAME(this);
-        PEX_CLEAR_NAME(&this->aggregate_);
+        PEX_CLEAR_NAME(&this->ensemble_);
     }
 
-    static void OnAggregate_(void * context, const Plain &value)
+    static void OnEnsemble_(void * context, const Plain &value)
     {
         auto self = static_cast<GroupConnect *>(context);
         assert(self->valueConnection_.has_value());
@@ -345,7 +345,7 @@ public:
 
 private:
     UpstreamControl upstreamControl_;
-    Aggregate aggregate_;
+    Ensemble ensemble_;
     Observer *observer_;
     std::optional<ValueConnection> valueConnection_;
 };

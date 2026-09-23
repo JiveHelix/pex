@@ -91,17 +91,17 @@ struct TestFields
 };
 
 template<template<typename> typename T>
-struct TestTemplate
+struct TestSchema
 {
     T<int> one;
     T<long> two;
     T<double> three;
 
-    static constexpr auto fields = TestFields<TestTemplate>::fields;
+    static constexpr auto fields = TestFields<TestSchema>::fields;
     static constexpr auto fieldsTypeName = "Test";
 };
 
-using TerminusTestGroup = pex::Group<TestTemplate>;
+using TerminusTestGroup = pex::Group<TestSchema>;
 
 using TerminusTestPlain = TerminusTestGroup::Plain;
 
@@ -111,91 +111,16 @@ DECLARE_EQUALITY_OPERATORS(TerminusTestPlain)
 using TerminusTestModel = TerminusTestGroup::Model;
 using TerminusGroupObserver = TestObserver<TerminusTestModel>;
 
-#if 0
-
-TEST_CASE("Terminus group uses new observer after move.", "[terminus]")
-{
-    TerminusTestPlain values{{42, 43, 44.0}};
-
-    TerminusTestModel model(values);
-    TerminusGroupObserver first(model);
-
-    REQUIRE(first.observedValue == values);
-
-    values.one = 43;
-    first.Set(values);
-
-    REQUIRE(first.observedValue == values);
-
-    TerminusGroupObserver second(std::move(first));
-
-    REQUIRE(second.observedValue == values);
-
-    values.two = 99;
-    second.Set(values);
-
-    REQUIRE(second.observedValue == values);
-
-    TerminusGroupObserver third(model);
-    third = std::move(second);
-
-    REQUIRE(third.observedValue == values);
-
-    values.three = 45.0;
-    third.Set(values);
-
-    REQUIRE(third.observedValue == values);
-}
-
-
-TEST_CASE("Terminus group uses new observer after copy.", "[terminus]")
-{
-    TerminusTestPlain values{{42, 43, 44.0}};
-
-    TerminusTestModel model(values);
-    TerminusGroupObserver first(model);
-
-    REQUIRE(first.observedValue == values);
-
-    values.one = 43;
-    first.Set(values);
-
-    REQUIRE(first.observedValue == values);
-
-    TerminusGroupObserver second(first);
-
-    REQUIRE(second.observedValue == values);
-
-    values.two = 99;
-    second.Set(values);
-
-    REQUIRE(second.observedValue == values);
-
-    TerminusGroupObserver third(model);
-    third = second;
-
-    REQUIRE(third.observedValue == values);
-
-    values.three = 45.0;
-    third.Set(values);
-
-    REQUIRE(third.observedValue == values);
-}
-
-
-#endif
-
-
 using GroupControl =
     typename TerminusTestGroup::template Control<TerminusTestModel>;
 
-using AggregateObserver = TestObserver<GroupControl>;
+using EnsembleObserver = TestObserver<GroupControl>;
 
 // This tests that GroupControl can be passed by copy, then used to create
 // a Terminus.
-std::unique_ptr<AggregateObserver> MakeTestObserver(GroupControl control)
+std::unique_ptr<EnsembleObserver> MakeTestObserver(GroupControl control)
 {
-    return std::make_unique<AggregateObserver>(control);
+    return std::make_unique<EnsembleObserver>(control);
 }
 
 

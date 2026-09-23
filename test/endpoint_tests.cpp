@@ -20,16 +20,16 @@ struct TestFields
 
 
 template<template<typename> typename T>
-struct TestTemplate
+struct TestSchema
 {
     T<pex::List<int, 0>> values;
 
-    static constexpr auto fields = TestFields<TestTemplate>::fields;
+    static constexpr auto fields = TestFields<TestSchema>::fields;
     static constexpr auto fieldsTypeName = "Test";
 };
 
 
-using TestGroup = pex::Group<TestTemplate>;
+using TestGroup = pex::Group<TestSchema>;
 using TestModel = typename TestGroup::Model;
 using TestControl = typename TestGroup::template Control<TestModel>;
 

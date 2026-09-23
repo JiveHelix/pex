@@ -3,10 +3,10 @@ find_package(Nlohmann_json REQUIRED)
 add_catch2_test(
     NAME pex_tests
     SOURCES
-        aggregate_tests.cpp
         assign_tests.cpp
         choice_muxer_tests.cpp
         endpoint_tests.cpp
+        ensemble_tests.cpp
         filter_tests.cpp
         group_tests.cpp
         group_reflection_tests.cpp

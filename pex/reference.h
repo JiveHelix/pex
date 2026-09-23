@@ -724,14 +724,14 @@ public:
 };
 
 
-template<template<typename> typename Selector>
-struct DeferSelector
+template<template<typename> typename Tailor>
+struct DeferTailor
 {
     template<typename T, typename Enable = void>
     struct DeferHelper_
     {
         // Choose the single-valued Defer for this member
-        using Type = Defer<Selector<T>>;
+        using Type = Defer<Tailor<T>>;
     };
 
     template<typename T>
@@ -743,7 +743,7 @@ struct DeferSelector
     {
         // This member expands to a group.
         // Choose the appropriate DeferGroup
-        using Type = typename Selector<T>::Defer;
+        using Type = typename Tailor<T>::Defer;
     };
 
     template<typename T>
@@ -755,58 +755,58 @@ struct DeferSelector
     {
         // This member expands to a list.
         // Choose the appropriate DeferList
-        using Type = typename Selector<T>::Defer;
+        using Type = typename Tailor<T>::Defer;
     };
 
     template<typename T>
     struct DeferHelper_
     <
         T,
-        std::enable_if_t<IsModelWrapper<Selector<T>>>
+        std::enable_if_t<IsModelWrapper<Tailor<T>>>
     >
     {
         // This member expands to a PolyModel.
         // Choose the appropriate PolyDefer
-        using Type = PolyDefer<Selector<T>, typename Selector<T>::SuperModel>;
+        using Type = PolyDefer<Tailor<T>, typename Tailor<T>::SuperModel>;
     };
 
     template<typename T>
     struct DeferHelper_
     <
         T,
-        std::enable_if_t<IsControlWrapper<Selector<T>>>
+        std::enable_if_t<IsControlWrapper<Tailor<T>>>
     >
     {
         // This member expands to a PolyControl.
         // Choose the appropriate PolyDefer
-        using Type = PolyDefer<Selector<T>, typename Selector<T>::SuperControl>;
+        using Type = PolyDefer<Tailor<T>, typename Tailor<T>::SuperControl>;
     };
 
     template<typename T>
     struct DeferHelper_
     <
         T,
-        std::enable_if_t<IsValueContainer<Selector<T>>>
+        std::enable_if_t<IsValueContainer<Tailor<T>>>
     >
     {
-        using Type = DeferValueContainer<Selector<T>>;
+        using Type = DeferValueContainer<Tailor<T>>;
     };
 
     template<typename T>
     struct DeferHelper_
     <
         T,
-        std::enable_if_t<IsKeyValueContainer<Selector<T>>>
+        std::enable_if_t<IsKeyValueContainer<Tailor<T>>>
     >
     {
-        using Type = DeferKeyValueContainer<Selector<T>>;
+        using Type = DeferKeyValueContainer<Tailor<T>>;
     };
 
     template<typename T>
     struct DeferHelper_
     <
         T,
-        std::enable_if_t<IsSignal<Selector<T>>>
+        std::enable_if_t<IsSignal<Tailor<T>>>
     >
     {
         using Type = DescribeSignal;
@@ -870,19 +870,19 @@ SetByAccess(const Target &, const Source &)
 
 template
 <
-    template<template<typename> typename> typename Template,
-    template<typename> typename Selector,
+    template<template<typename> typename> typename Schema,
+    template<typename> typename Tailor,
     typename Upstream
 >
 class DeferGroup
     :
-    public Template<DeferSelector<Selector>::template Type>
+    public Schema<DeferTailor<Tailor>::template Type>
 {
 public:
     using Reflector =
-        Template<DeferSelector<Selector>::template Type>;
+        Schema<DeferTailor<Tailor>::template Type>;
 
-    using This = DeferGroup<Template, Selector, Upstream>;
+    using This = DeferGroup<Schema, Tailor, Upstream>;
 
     DeferGroup()
         :
@@ -1034,7 +1034,7 @@ public:
             return;
         }
 
-        // Notify all members before unmuting the aggregate observer.
+        // Notify all members before unmuting the ensemble observer.
         auto doNotify = [](auto &member)
         {
             using MemberType = std::remove_reference_t<decltype(member)>;
@@ -1143,22 +1143,22 @@ private:
 template
 <
     typename MemberType,
-    template<typename> typename Selector,
+    template<typename> typename Tailor,
     typename Upstream
 >
 class DeferList
 {
 public:
     using DeferredMember =
-        typename DeferSelector<Selector>::template Type<MemberType>;
+        typename DeferTailor<Tailor>::template Type<MemberType>;
 
     using Items = std::vector<DeferredMember>;
 
     using DeferredCount =
-        typename DeferSelector<Selector>::template Type<size_t>;
+        typename DeferTailor<Tailor>::template Type<size_t>;
 
     using DeferredSelected =
-        typename DeferSelector<Selector>::template Type<std::optional<size_t>>;
+        typename DeferTailor<Tailor>::template Type<std::optional<size_t>>;
 
     using Iterator = typename Items::iterator;
     using ConstIterator = typename Items::const_iterator;

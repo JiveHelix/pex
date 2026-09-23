@@ -17,9 +17,9 @@ namespace detail
 template
 <
     template<template<typename> typename> typename Schema,
-    template<typename> typename Selector
+    template<typename> typename Tailor
 >
-auto DeduceSchemaBase(const Schema<Selector> &) -> Schema<Selector>;
+auto DeduceSchemaBase(const Schema<Tailor> &) -> Schema<Tailor>;
 
 
 template<typename T, typename = void>

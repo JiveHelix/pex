@@ -5,11 +5,11 @@
 #include <jive/describe_type.h>
 
 #include <pex/identity.h>
-#include <pex/selectors.h>
+#include <pex/tailors.h>
 #include <pex/accessors.h>
 #include <pex/traits.h>
 #include <pex/detail/mute.h>
-#include <pex/detail/aggregate.h>
+#include <pex/detail/ensemble.h>
 #include <pex/detail/has_model.h>
 #include <pex/detail/choose_not_void.h>
 #include <pex/detail/traits.h>
@@ -19,15 +19,15 @@
 
 /**
 
-// The Group struct uses a Template type to create a POD
-// struct and corresponding Model and Control.
 
-// The Template type defines the members with template parameter types. This
-// allows the definition of the POD struct with pex::Identity, and the Model
-// and Control classes.
+// The Group struct uses a Schema type to define a pattern or blueprint for the
+// variants we will need, like Plain, Model, and Control
+
+// The Schema type defines the members with template parameter types. Tailors
+// then fashion customized type like pex::Identity, Model, Control, etc.
 
 template<template<typename> typename T>
-struct GpsTemplate
+struct GpsSchema
 {
     T<int64_t> time;
     T<double> latitude;
@@ -36,11 +36,32 @@ struct GpsTemplate
 };
 
 // Create the Plain-old-data structure, Model, and Control types
-using GpsGroup = Group<GpsTemplate>
+using GpsGroup = Group<GpsSchema>;
 
 using Gps = typename GpsGroup::Plain;
 using GpsModel = typename GpsGroup::Model;
 using GpsControl = typename GpsGroup::Control;
+
+
+// A Finisher type may be optionally specified to define a final form of any of
+// the types that Group defines.
+
+struct Finisher
+{
+    template<typename Base>
+    struct Plain: public Base
+    {
+        void MyFunction() { doSomething; }
+    };
+};
+
+using CustomizedGpsGroup = Group<GpsSchema, Finisher>;
+
+using Gps = typename CustomizedGpsGroup::Plain;
+
+Gps gps;
+gps.MyFunction();
+
 
 **/
 
@@ -53,70 +74,80 @@ namespace detail
 {
 
 
-template<typename Custom, typename T, typename = void>
-struct CustomizePlain_
+template<typename Finisher, typename T, typename = void>
+struct FinishPlain_
 {
     using Type = T;
 };
 
 
-template<typename Custom, typename T>
-struct CustomizePlain_<Custom, T, std::enable_if_t<HasPlainTemplate<Custom, T>>>
+template<typename Finisher, typename T>
+struct FinishPlain_
+<
+    Finisher,
+    T,
+    std::enable_if_t<HasPlainTemplate<Finisher, T>>
+>
 {
-    using Type = typename Custom::template Plain<T>;
+    using Type = typename Finisher::template Plain<T>;
 };
 
 
-template<typename Custom, typename T>
-struct CustomizePlain_
+template<typename Finisher, typename T>
+struct FinishPlain_
 <
-    Custom,
+    Finisher,
     T,
     std::enable_if_t
     <
-        HasPlain<Custom> && !HasPlainTemplate<Custom, T>
+        HasPlain<Finisher> && !HasPlainTemplate<Finisher, T>
     >
 >
 {
-    using Type = typename Custom::Plain;
+    using Type = typename Finisher::Plain;
 };
 
 
-template<typename Custom, typename T>
-using CustomizePlain = typename CustomizePlain_<Custom, T>::Type;
+template<typename Finisher, typename T>
+using FinishPlain = typename FinishPlain_<Finisher, T>::Type;
 
 
-template<typename Custom, typename T, typename = void>
-struct CustomizeModel_
+template<typename Finisher, typename T, typename = void>
+struct FinishModel_
 {
     using Type = T;
 };
 
 
-template<typename Custom, typename T>
-struct CustomizeModel_<Custom, T, std::enable_if_t<HasModelTemplate<Custom, T>>>
+template<typename Finisher, typename T>
+struct FinishModel_
+<
+    Finisher,
+    T,
+    std::enable_if_t<HasModelTemplate<Finisher, T>>
+>
 {
-    using Type = typename Custom::template Model<T>;
+    using Type = typename Finisher::template Model<T>;
 };
 
 
-template<typename Custom, typename T>
-struct CustomizeModel_
+template<typename Finisher, typename T>
+struct FinishModel_
 <
-    Custom,
+    Finisher,
     T,
     std::enable_if_t
     <
-        DeclaresModel<Custom> && !HasModelTemplate<Custom, T>
+        DeclaresModel<Finisher> && !HasModelTemplate<Finisher, T>
     >
 >
 {
-    using Type = typename Custom::Model;
+    using Type = typename Finisher::Model;
 };
 
 
-template<typename Custom, typename T>
-using CustomizeModel = typename CustomizeModel_<Custom, T>::Type;
+template<typename Finisher, typename T>
+using FinishModel = typename FinishModel_<Finisher, T>::Type;
 
 
 template<typename Target, typename Source>
@@ -185,90 +216,90 @@ struct StandardEmplace: public Base
 };
 
 
-template<typename Custom, typename T, typename = void>
-struct CustomizeControl_
+template<typename Finisher, typename T, typename = void>
+struct FinishControl_
 {
     using Type = StandardEmplace<T>;
 };
 
 
-template<typename Custom, typename T>
+template<typename Finisher, typename T>
 concept HasValidControlTemplate =
-    HasControlTemplate<Custom, T>
-    && HasEmplaceUpstream<typename Custom::template Control<T>>
-    && HasEmplaceCopy<typename Custom::template Control<T>>;
+    HasControlTemplate<Finisher, T>
+    && HasEmplaceUpstream<typename Finisher::template Control<T>>
+    && HasEmplaceCopy<typename Finisher::template Control<T>>;
 
 
-template<typename Custom, typename T>
-struct CustomizeControl_
+template<typename Finisher, typename T>
+struct FinishControl_
 <
-    Custom,
+    Finisher,
     T,
-    std::enable_if_t<HasControlTemplate<Custom, T>>
+    std::enable_if_t<HasControlTemplate<Finisher, T>>
 >
 {
 #if 0
     // This was meant to help track down compile errors.
     // Without Emplace implemented in custom controls, compilation will fail.
     static_assert(
-        HasValidControlTemplate<Custom, T>,
+        HasValidControlTemplate<Finisher, T>,
         "Expected customized Control template to override "
         "Emplace(Upstream &) and Emplace(const Control &)");
 #endif
 
-    using Type = typename Custom::template Control<T>;
+    using Type = typename Finisher::template Control<T>;
 };
 
-template<typename Custom, typename T>
-using CustomizeControl = typename CustomizeControl_<Custom, T>::Type;
+template<typename Finisher, typename T>
+using FinishControl = typename FinishControl_<Finisher, T>::Type;
 
 
-template<typename Custom, typename T, typename = void>
-struct CustomizeMux_
+template<typename Finisher, typename T, typename = void>
+struct FinishMux_
 {
     using Type = StandardEmplace<T>;
 };
 
-template<typename Custom, typename T>
-struct CustomizeMux_
+template<typename Finisher, typename T>
+struct FinishMux_
 <
-    Custom,
+    Finisher,
     T,
-    std::enable_if_t<HasMuxTemplate<Custom, T>>
+    std::enable_if_t<HasMuxTemplate<Finisher, T>>
 >
 {
-    using Type = typename Custom::template Mux<T>;
+    using Type = typename Finisher::template Mux<T>;
 };
 
-template<typename Custom, typename T>
-using CustomizeMux = typename CustomizeMux_<Custom, T>::Type;
+template<typename Finisher, typename T>
+using FinishMux = typename FinishMux_<Finisher, T>::Type;
 
 
-template<typename Custom, typename T, typename = void>
-struct CustomizeFollow_
+template<typename Finisher, typename T, typename = void>
+struct FinishFollow_
 {
     using Type = StandardEmplace<T>;
 };
 
-template<typename Custom, typename T>
-struct CustomizeFollow_
+template<typename Finisher, typename T>
+struct FinishFollow_
 <
-    Custom,
+    Finisher,
     T,
-    std::enable_if_t<HasFollowTemplate<Custom, T>>
+    std::enable_if_t<HasFollowTemplate<Finisher, T>>
 >
 {
-    using Type = typename Custom::template Follow<T>;
+    using Type = typename Finisher::template Follow<T>;
 };
 
-template<typename Custom, typename T>
-using CustomizeFollow = typename CustomizeFollow_<Custom, T>::Type;
+template<typename Finisher, typename T>
+using FinishFollow = typename FinishFollow_<Finisher, T>::Type;
 
 
 
 template
 <
-    typename Custom,
+    typename Finisher,
     typename PlainBase,
     typename ModelBase,
     typename ControlBase,
@@ -276,20 +307,20 @@ template
     typename FollowBase,
     typename = void
 >
-struct CheckCustom_: std::false_type {};
+struct CheckFinisher_: std::false_type {};
 
 template
 <
-    typename Custom,
+    typename Finisher,
     typename PlainBase,
     typename ModelBase,
     typename ControlBase,
     typename MuxBase,
     typename FollowBase
 >
-struct CheckCustom_
+struct CheckFinisher_
 <
-    Custom,
+    Finisher,
     PlainBase,
     ModelBase,
     ControlBase,
@@ -298,30 +329,30 @@ struct CheckCustom_
     std::enable_if_t
     <
         (
-            HasPlainTemplate<Custom, PlainBase>
-            || HasPlain<Custom>
-            || HasModelTemplate<Custom, ModelBase>
-            || DeclaresModel<Custom>
-            || HasControlTemplate<Custom, ControlBase>
-            || HasMuxTemplate<Custom, MuxBase>
-            || HasFollowTemplate<Custom, FollowBase>)
+            HasPlainTemplate<Finisher, PlainBase>
+            || HasPlain<Finisher>
+            || HasModelTemplate<Finisher, ModelBase>
+            || DeclaresModel<Finisher>
+            || HasControlTemplate<Finisher, ControlBase>
+            || HasMuxTemplate<Finisher, MuxBase>
+            || HasFollowTemplate<Finisher, FollowBase>)
     >
 >: std::true_type {};
 
 
 template
 <
-    typename Custom,
+    typename Finisher,
     typename PlainBase,
     typename ModelBase,
     typename ControlBase,
     typename MuxBase,
     typename FollowBase
 >
-inline constexpr bool CheckCustom =
-    CheckCustom_
+inline constexpr bool CheckFinisher =
+    CheckFinisher_
     <
-        Custom,
+        Finisher,
         PlainBase,
         ModelBase,
         ControlBase,
@@ -350,51 +381,51 @@ struct PlainT
 
 template
 <
-    template<template<typename> typename> typename Template_,
-    typename Custom = void
+    template<template<typename> typename> typename Schema_,
+    typename Finisher = void
 >
 struct GroupModel_
 {
     template<template<typename> typename T>
-    using Template = Template_<T>;
+    using Schema = Schema_<T>;
 
-    using Plain = detail::CustomizePlain<Custom, Template<pex::Identity>>;
+    using Plain = detail::FinishPlain<Finisher, Schema<pex::Identity>>;
 
-    template<template<typename> typename Selector, typename Upstream>
-    using DeferGroup = DeferGroup<Template, Selector, Upstream>;
+    template<template<typename> typename Tailor, typename Upstream>
+    using DeferGroup = DeferGroup<Schema, Tailor, Upstream>;
 
     template<typename Derived>
     using ModelAccessors = GroupAccessors
         <
             Plain,
-            Template,
-            ModelSelector,
+            Schema,
+            ModelTailor,
             Derived
         >;
 
     struct Model:
         public detail::MuteOwner,
         public detail::MuteControl,
-        public Template_<ModelSelector>,
+        public Schema_<ModelTailor>,
         public ModelAccessors<Model>
     {
     public:
         using Plain = typename GroupModel_::Plain;
         using Type = Plain;
-        using Defer = DeferGroup<ModelSelector, Model>;
+        using Defer = DeferGroup<ModelTailor, Model>;
 
         // TODO: Pick one
         template<typename T>
-        using Pex = pex::ModelSelector<T>;
+        using Pex = pex::ModelTailor<T>;
 
         template<typename T>
-        using Selector = pex::ModelSelector<T>;
+        using Tailor = pex::ModelTailor<T>;
 
         Model()
             :
             detail::MuteOwner(),
             detail::MuteControl(this->GetMuteNode()),
-            Template<ModelSelector>{},
+            Schema<ModelTailor>{},
             ModelAccessors<Model>{}
         {
             this->SetInitial(Plain{});
@@ -408,7 +439,7 @@ struct GroupModel_
             :
             detail::MuteOwner(),
             detail::MuteControl(this->GetMuteNode()),
-            Template<ModelSelector>{},
+            Schema<ModelTailor>{},
             ModelAccessors<Model>{}
         {
             this->SetInitial(plain);
@@ -442,79 +473,79 @@ struct GroupModel_
 
 template
 <
-    template<template<typename> typename> typename Template,
-    typename Custom = void
+    template<template<typename> typename> typename Schema,
+    typename Finisher = void
 >
-using GroupModel = typename GroupModel_<Template, Custom>::Model;
+using GroupModel = typename GroupModel_<Schema, Finisher>::Model;
 
 
 template
 <
-    template<template<typename> typename> typename Template_,
-    typename Custom = void
+    template<template<typename> typename> typename Schema_,
+    typename Finisher = void
 >
 struct Group
 {
     static constexpr bool isGroup = true;
 
     template<template<typename> typename T>
-    using Template = Template_<T>;
+    using Schema = Schema_<T>;
 
     static_assert(
-        std::is_void_v<Custom>
-            || detail::CheckCustom
+        std::is_void_v<Finisher>
+            || detail::CheckFinisher
                 <
-                    Custom,
-                    Template<pex::Identity>,
-                    Template<ModelSelector>,
-                    Template<ControlSelector>,
-                    Template<MuxSelector>,
-                    Template<FollowSelector>
+                    Finisher,
+                    Schema<pex::Identity>,
+                    Schema<ModelTailor>,
+                    Schema<ControlTailor>,
+                    Schema<MuxTailor>,
+                    Schema<FollowTailor>
                 >,
         "Expected at least one customization");
 
-    using Plain = detail::CustomizePlain<Custom, Template<pex::Identity>>;
+    using Plain = detail::FinishPlain<Finisher, Schema<pex::Identity>>;
     using Type = Plain;
 
-    template<template<typename> typename Selector, typename Upstream>
-    using DeferGroup = DeferGroup<Template, Selector, Upstream>;
+    template<template<typename> typename Tailor, typename Upstream>
+    using DeferGroup = DeferGroup<Schema, Tailor, Upstream>;
 
 private:
-    using CustomizedModel_ =
-        typename detail::CustomizeModel
+    using FinishdModel_ =
+        typename detail::FinishModel
         <
-            Custom,
-            GroupModel<Template, Custom>
+            Finisher,
+            GroupModel<Schema, Finisher>
         >;
 
 public:
     // Inject the types that GroupModel does not know about.
     struct Model
         :
-        public CustomizedModel_
+        public FinishdModel_
     {
         using GroupType = Group;
         static constexpr bool isGroupModel = true;
 
-        using CustomizedModel_::CustomizedModel_;
+        using FinishdModel_::FinishdModel_;
 
-        using CustomizedModel_::operator=;
+        using FinishdModel_::operator=;
     };
 
 
-    template<template<typename> typename Selector>
-    using Aggregate = detail::Aggregate<Plain, Template_, Selector>;
+    template<template<typename> typename Tailor>
+    using Ensemble = detail::Ensemble<Plain, Schema_, Tailor>;
 
     template<typename Derived>
     using ControlAccessors = GroupAccessors
         <
             Plain,
-            Template,
-            ControlSelector,
+            Schema,
+            ControlTailor,
             Derived
         >;
 
-    using ControlMembers = Template_<ControlSelector>;
+    using ControlMembers = Schema_<ControlTailor>;
 
     template<typename Upstream_>
     struct Control_:
@@ -525,14 +556,14 @@ public:
         using GroupType = Group;
         static constexpr bool isGroupControl = true;
 
-        using Aggregate = typename Group::template Aggregate<ControlSelector>;
+        using Ensemble = typename Group::template Ensemble<ControlTailor>;
         using AccessorsBase = ControlAccessors<Control_>;
         using Type = Plain;
         using Upstream = Upstream_;
 
         using Defer = DeferGroup
             <
-                ControlSelector,
+                ControlTailor,
                 Control_
             >;
 
@@ -546,10 +577,10 @@ public:
 
         // TODO: Pick one
         template<typename T>
-        using Pex = typename pex::ControlSelector<T>;
+        using Pex = typename pex::ControlTailor<T>;
 
         template<typename T>
-        using Selector = pex::ControlSelector<T>;
+        using Tailor = pex::ControlTailor<T>;
 
         Control_()
             :
@@ -646,7 +677,7 @@ public:
 
     template<typename Upstream>
     using Control =
-        typename detail::CustomizeControl<Custom, Control_<Upstream>>;
+        typename detail::FinishControl<Finisher, Control_<Upstream>>;
 
     using DefaultControl = Control<Model>;
 
@@ -654,12 +685,12 @@ public:
     using MuxAccessors = GroupAccessors
         <
             Plain,
-            Template,
-            MuxSelector,
+            Schema,
+            MuxTailor,
             Derived
         >;
 
-    using MuxMembers = Template_<MuxSelector>;
+    using MuxMembers = Schema_<MuxTailor>;
 
     struct Mux_:
         public detail::MuteMux,
@@ -670,15 +701,15 @@ public:
         static constexpr bool isGroupMux = true;
         static constexpr bool isPexCopyable = false;
 
-        // We must use FollowSelector to track changes to Mux values.
-        using Aggregate = typename Group::template Aggregate<FollowSelector>;
+        // We must use FollowTailor to track changes to Mux values.
+        using Ensemble = typename Group::template Ensemble<FollowTailor>;
         using AccessorsBase = MuxAccessors<Mux_>;
         using Type = Plain;
         using Upstream = Model;
 
         using Defer = DeferGroup
             <
-                MuxSelector,
+                MuxTailor,
                 Mux_
             >;
 
@@ -690,10 +721,10 @@ public:
 
         // TODO: Pick one
         template<typename T>
-        using Pex = typename pex::MuxSelector<T>;
+        using Pex = typename pex::MuxTailor<T>;
 
         template<typename T>
-        using Selector = typename pex::MuxSelector<T>;
+        using Tailor = typename pex::MuxTailor<T>;
 
         Mux_()
             :
@@ -795,18 +826,18 @@ public:
         }
     };
 
-    using Mux = typename detail::CustomizeMux<Custom, Mux_>;
+    using Mux = typename detail::FinishMux<Finisher, Mux_>;
 
     template<typename Derived>
     using FollowAccessors = GroupAccessors
         <
             Plain,
-            Template,
-            FollowSelector,
+            Schema,
+            FollowTailor,
             Derived
         >;
 
-    using FollowMembers = Template_<FollowSelector>;
+    using FollowMembers = Schema_<FollowTailor>;
 
     struct Follow_:
         public detail::MuteFollow,
@@ -818,14 +849,14 @@ public:
         // This structure behaves like a group control.
         static constexpr bool isGroupFollow = true;
 
-        using Aggregate = typename Group::template Aggregate<FollowSelector>;
+        using Ensemble = typename Group::template Ensemble<FollowTailor>;
         using AccessorsBase = FollowAccessors<Follow_>;
         using Type = Plain;
         using Upstream = Mux;
 
         using Defer = DeferGroup
             <
-                FollowSelector,
+                FollowTailor,
                 Follow_
             >;
 
@@ -839,10 +870,10 @@ public:
 
         // TODO: Pick one
         template<typename T>
-        using Pex = typename pex::FollowSelector<T>;
+        using Pex = typename pex::FollowTailor<T>;
 
         template<typename T>
-        using Selector = typename pex::FollowSelector<T>;
+        using Tailor = typename pex::FollowTailor<T>;
 
         Follow_()
             :
@@ -936,7 +967,7 @@ public:
         }
     };
 
-    using Follow = typename detail::CustomizeFollow<Custom, Follow_>;
+    using Follow = typename detail::FinishFollow<Finisher, Follow_>;
 
     static typename Model::Defer MakeDefer(Model &model)
     {

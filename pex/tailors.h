@@ -89,16 +89,16 @@ struct OptionalSelectTypes
 };
 
 
-/***** ModelSelector *****/
+/***** ModelTailor *****/
 template<typename T, typename = void>
-struct ModelSelector_
+struct ModelTailor_
 {
     using Type = model::Value<T>;
 };
 
 
 template<typename T>
-struct ModelSelector_
+struct ModelTailor_
 <
     T,
     std::enable_if_t<jive::IsValueContainer<T>>
@@ -108,7 +108,7 @@ struct ModelSelector_
 };
 
 template<typename T>
-struct ModelSelector_
+struct ModelTailor_
 <
     T,
     std::enable_if_t<jive::IsKeyValueContainer<T>>
@@ -118,13 +118,13 @@ struct ModelSelector_
 };
 
 template<typename T>
-struct ModelSelector_<T, std::enable_if_t<IsMakeSignal<T>>>
+struct ModelTailor_<T, std::enable_if_t<IsMakeSignal<T>>>
 {
     using Type = model::Signal;
 };
 
 template<typename T>
-struct ModelSelector_<T, std::enable_if_t<IsFiltered<T>>>
+struct ModelTailor_<T, std::enable_if_t<IsFiltered<T>>>
 {
     using Type =
         model::Value_
@@ -136,194 +136,194 @@ struct ModelSelector_<T, std::enable_if_t<IsFiltered<T>>>
 };
 
 template<typename T>
-struct ModelSelector_<T, std::enable_if_t<IsMakeRange<T>>>
+struct ModelTailor_<T, std::enable_if_t<IsMakeRange<T>>>
 {
     using Type = typename RangeTypes<T>::Model;
 };
 
 template<typename T>
-struct ModelSelector_<T, std::enable_if_t<IsMakeSelect<T>>>
+struct ModelTailor_<T, std::enable_if_t<IsMakeSelect<T>>>
 {
     using Type = typename SelectTypes<T>::Model;
 };
 
 template<typename T>
-struct ModelSelector_<T, std::enable_if_t<IsMakeOptionalSelect<T>>>
+struct ModelTailor_<T, std::enable_if_t<IsMakeOptionalSelect<T>>>
 {
     using Type = typename OptionalSelectTypes<T>::Model;
 };
 
 template<typename T>
-struct ModelSelector_<T, std::enable_if_t<IsDefineNodes<T>>>
+struct ModelTailor_<T, std::enable_if_t<IsDefineNodes<T>>>
 {
     using Type = typename T::Model;
 };
 
 template<typename T>
-struct ModelSelector_<T, std::enable_if_t<(IsGroup<T>)>>
+struct ModelTailor_<T, std::enable_if_t<(IsGroup<T>)>>
 {
     using Type = typename T::Model;
 };
 
 template<typename T>
-struct ModelSelector_<T, std::enable_if_t<(IsDerivedGroup<T>)>>
+struct ModelTailor_<T, std::enable_if_t<(IsDerivedGroup<T>)>>
 {
     using Type = typename T::Model;
 };
 
 template<typename T>
-struct ModelSelector_<T, std::enable_if_t<IsList<T>>>
+struct ModelTailor_<T, std::enable_if_t<IsList<T>>>
 {
     using Type = typename T::Model;
 };
 
 
 template<typename T>
-struct ModelSelector_<T, std::enable_if_t<IsMakePoly<T>>>
+struct ModelTailor_<T, std::enable_if_t<IsMakePoly<T>>>
 {
     using Type = poly::ModelWrapperTemplate<typename T::Supers>;
 };
 
 
 template<typename T>
-struct ModelSelector_<T, std::enable_if_t<IsMakeMute<T>>>
+struct ModelTailor_<T, std::enable_if_t<IsMakeMute<T>>>
 {
     using Type = detail::MuteModel;
 };
 
 
-/***** ControlSelector *****/
+/***** ControlTailor *****/
 template<typename T, typename = void>
-struct ControlSelector_
+struct ControlTailor_
 {
-    using Type = control::Value<typename ModelSelector_<T>::Type>;
+    using Type = control::Value<typename ModelTailor_<T>::Type>;
 };
 
 
 template<typename T>
-struct ControlSelector_
+struct ControlTailor_
 <
     T,
     std::enable_if_t<jive::IsValueContainer<T>>
 >
 {
-    using Type = control::ValueContainer<typename ModelSelector_<T>::Type>;
+    using Type = control::ValueContainer<typename ModelTailor_<T>::Type>;
 };
 
 template<typename T>
-struct ControlSelector_
+struct ControlTailor_
 <
     T,
     std::enable_if_t<jive::IsKeyValueContainer<T>>
 >
 {
-    using Type = control::KeyValueContainer<typename ModelSelector_<T>::Type>;
+    using Type = control::KeyValueContainer<typename ModelTailor_<T>::Type>;
 };
 
 template<typename T>
-struct ControlSelector_<T, std::enable_if_t<IsMakeSignal<T>>>
+struct ControlTailor_<T, std::enable_if_t<IsMakeSignal<T>>>
 {
-    using Type = control::Signal<typename ModelSelector_<T>::Type>;
+    using Type = control::Signal<typename ModelTailor_<T>::Type>;
 };
 
 template<typename T>
-struct ControlSelector_<T, std::enable_if_t<IsFiltered<T>>>
+struct ControlTailor_<T, std::enable_if_t<IsFiltered<T>>>
 {
     using Type = control::Value_
     <
-        typename ModelSelector_<T>::Type,
+        typename ModelTailor_<T>::Type,
         NoFilter,
         typename T::Access
     >;
 };
 
 template<typename T>
-struct ControlSelector_<T, std::enable_if_t<IsMakeRange<T>>>
+struct ControlTailor_<T, std::enable_if_t<IsMakeRange<T>>>
 {
     using Type = typename RangeTypes<T>
-        ::template Control<typename ModelSelector_<T>::Type>;
+        ::template Control<typename ModelTailor_<T>::Type>;
 };
 
 template<typename T>
-struct ControlSelector_<T, std::enable_if_t<IsMakeSelect<T>>>
+struct ControlTailor_<T, std::enable_if_t<IsMakeSelect<T>>>
 {
     using Type = typename SelectTypes<T>
-        ::template Control<typename ModelSelector_<T>::Type>;
+        ::template Control<typename ModelTailor_<T>::Type>;
 };
 
 template<typename T>
-struct ControlSelector_<T, std::enable_if_t<IsMakeOptionalSelect<T>>>
+struct ControlTailor_<T, std::enable_if_t<IsMakeOptionalSelect<T>>>
 {
     using Type = typename OptionalSelectTypes<T>
-        ::template Control<typename ModelSelector_<T>::Type>;
+        ::template Control<typename ModelTailor_<T>::Type>;
 };
 
 template<typename T>
-struct ControlSelector_<T, std::enable_if_t<IsDefineNodes<T>>>
+struct ControlTailor_<T, std::enable_if_t<IsDefineNodes<T>>>
 {
-    using Type = typename T::template Control<typename ModelSelector_<T>::Type>;
+    using Type = typename T::template Control<typename ModelTailor_<T>::Type>;
 };
 
 template<typename T>
-struct ControlSelector_<T, std::enable_if_t<(IsGroup<T>)>>
+struct ControlTailor_<T, std::enable_if_t<(IsGroup<T>)>>
 {
     using Type =
-        typename T::template Control<typename ModelSelector_<T>::Type>;
+        typename T::template Control<typename ModelTailor_<T>::Type>;
 };
 
 template<typename T>
-struct ControlSelector_<T, std::enable_if_t<(IsDerivedGroup<T>)>>
+struct ControlTailor_<T, std::enable_if_t<(IsDerivedGroup<T>)>>
 {
     using Type =
         typename T::Control;
 };
 
 template<typename T>
-struct ControlSelector_<T, std::enable_if_t<IsList<T>>>
+struct ControlTailor_<T, std::enable_if_t<IsList<T>>>
 {
     using Type =
-        typename T::template Control<typename ModelSelector_<T>::Type>;
+        typename T::template Control<typename ModelTailor_<T>::Type>;
 };
 
 template<typename T>
-struct ControlSelector_<T, std::enable_if_t<IsMakePoly<T>>>
+struct ControlTailor_<T, std::enable_if_t<IsMakePoly<T>>>
 {
     using Type =
         poly::ControlWrapperTemplate
         <
-            typename ModelSelector_<T>::Type,
+            typename ModelTailor_<T>::Type,
             typename T::Supers
         >;
 };
 
 
 template<typename T>
-struct ControlSelector_<T, std::enable_if_t<IsMakeMute<T>>>
+struct ControlTailor_<T, std::enable_if_t<IsMakeMute<T>>>
 {
     using Type = detail::MuteControlType;
 };
 
 
-/***** MuxSelector *****/
+/***** MuxTailor *****/
 template<typename T, typename = void>
-struct MuxSelector_
+struct MuxTailor_
 {
-    using Type = control::Mux<typename ModelSelector_<T>::Type>;
+    using Type = control::Mux<typename ModelTailor_<T>::Type>;
 };
 
 
 template<typename T>
-struct MuxSelector_
+struct MuxTailor_
 <
     T,
     std::enable_if_t<jive::IsValueContainer<T>>
 >
 {
-    using Type = control::ValueContainerMux<typename ModelSelector_<T>::Type>;
+    using Type = control::ValueContainerMux<typename ModelTailor_<T>::Type>;
 };
 
 template<typename T>
-struct MuxSelector_
+struct MuxTailor_
 <
     T,
     std::enable_if_t<jive::IsKeyValueContainer<T>>
@@ -331,176 +331,176 @@ struct MuxSelector_
 {
     using Type = control::KeyValueContainerMux
         <
-            typename ModelSelector_<T>::Type
+            typename ModelTailor_<T>::Type
         >;
 };
 
 template<typename T>
-struct MuxSelector_<T, std::enable_if_t<IsMakeSignal<T>>>
+struct MuxTailor_<T, std::enable_if_t<IsMakeSignal<T>>>
 {
     using Type = control::SignalMux;
 };
 
 template<typename T>
-struct MuxSelector_<T, std::enable_if_t<IsFiltered<T>>>
+struct MuxTailor_<T, std::enable_if_t<IsFiltered<T>>>
 {
     using Type = control::Mux
     <
-        typename ModelSelector_<T>::Type
+        typename ModelTailor_<T>::Type
     >;
 };
 
 template<typename T>
-struct MuxSelector_<T, std::enable_if_t<IsMakeRange<T>>>
+struct MuxTailor_<T, std::enable_if_t<IsMakeRange<T>>>
 {
     using Type = typename RangeTypes<T>::Mux;
 };
 
 template<typename T>
-struct MuxSelector_<T, std::enable_if_t<IsMakeSelect<T>>>
+struct MuxTailor_<T, std::enable_if_t<IsMakeSelect<T>>>
 {
     using Type = typename SelectTypes<T>::Mux;
 };
 
 template<typename T>
-struct MuxSelector_<T, std::enable_if_t<IsMakeOptionalSelect<T>>>
+struct MuxTailor_<T, std::enable_if_t<IsMakeOptionalSelect<T>>>
 {
     using Type = typename OptionalSelectTypes<T>::Mux;
 };
 
 template<typename T>
-struct MuxSelector_<T, std::enable_if_t<IsDefineNodes<T>>>
+struct MuxTailor_<T, std::enable_if_t<IsDefineNodes<T>>>
 {
     using Type = typename T::Mux;
 };
 
 template<typename T>
-struct MuxSelector_<T, std::enable_if_t<(IsGroup<T>)>>
+struct MuxTailor_<T, std::enable_if_t<(IsGroup<T>)>>
 {
     using Type = typename T::Mux;
 };
 
 template<typename T>
-struct MuxSelector_<T, std::enable_if_t<(IsDerivedGroup<T>)>>
+struct MuxTailor_<T, std::enable_if_t<(IsDerivedGroup<T>)>>
 {
     using Type = typename T::Mux;
 };
 
 template<typename T>
-struct MuxSelector_<T, std::enable_if_t<IsList<T>>>
+struct MuxTailor_<T, std::enable_if_t<IsList<T>>>
 {
     using Type = typename T::Mux;
 };
 
 template<typename T>
-struct MuxSelector_<T, std::enable_if_t<IsMakePoly<T>>>
+struct MuxTailor_<T, std::enable_if_t<IsMakePoly<T>>>
 {
-    using Type = typename ControlSelector_<T>::Type;
+    using Type = typename ControlTailor_<T>::Type;
 };
 
 template<typename T>
-struct MuxSelector_<T, std::enable_if_t<IsMakeMute<T>>>
+struct MuxTailor_<T, std::enable_if_t<IsMakeMute<T>>>
 {
     using Type = detail::MuteMuxType;
 };
 
 
-/***** FollowSelector *****/
+/***** FollowTailor *****/
 template<typename T, typename = void>
-struct FollowSelector_
+struct FollowTailor_
 {
-    using Type = control::Value<typename MuxSelector_<T>::Type>;
+    using Type = control::Value<typename MuxTailor_<T>::Type>;
 };
 
 
 template<typename T>
-struct FollowSelector_
+struct FollowTailor_
 <
     T,
     std::enable_if_t<jive::IsValueContainer<T>>
 >
 {
-    using Type = control::ValueContainer<typename MuxSelector_<T>::Type>;
+    using Type = control::ValueContainer<typename MuxTailor_<T>::Type>;
 };
 
 template<typename T>
-struct FollowSelector_
+struct FollowTailor_
 <
     T,
     std::enable_if_t<jive::IsKeyValueContainer<T>>
 >
 {
-    using Type = control::KeyValueContainer<typename MuxSelector_<T>::Type>;
+    using Type = control::KeyValueContainer<typename MuxTailor_<T>::Type>;
 };
 
 template<typename T>
-struct FollowSelector_<T, std::enable_if_t<IsMakeSignal<T>>>
+struct FollowTailor_<T, std::enable_if_t<IsMakeSignal<T>>>
 {
-    using Type = control::Signal<typename MuxSelector_<T>::Type>;
+    using Type = control::Signal<typename MuxTailor_<T>::Type>;
 };
 
 template<typename T>
-struct FollowSelector_<T, std::enable_if_t<IsFiltered<T>>>
+struct FollowTailor_<T, std::enable_if_t<IsFiltered<T>>>
 {
     using Type = control::Value_
     <
-        typename MuxSelector_<T>::Type,
+        typename MuxTailor_<T>::Type,
         NoFilter,
         typename T::Access
     >;
 };
 
 template<typename T>
-struct FollowSelector_<T, std::enable_if_t<IsMakeRange<T>>>
+struct FollowTailor_<T, std::enable_if_t<IsMakeRange<T>>>
 {
     using Type = typename RangeTypes<T>::Follow;
 };
 
 template<typename T>
-struct FollowSelector_<T, std::enable_if_t<IsMakeSelect<T>>>
+struct FollowTailor_<T, std::enable_if_t<IsMakeSelect<T>>>
 {
     using Type = typename SelectTypes<T>::Follow;
 };
 
 template<typename T>
-struct FollowSelector_<T, std::enable_if_t<IsMakeOptionalSelect<T>>>
+struct FollowTailor_<T, std::enable_if_t<IsMakeOptionalSelect<T>>>
 {
     using Type = typename OptionalSelectTypes<T>::Follow;
 };
 
 template<typename T>
-struct FollowSelector_<T, std::enable_if_t<IsDefineNodes<T>>>
+struct FollowTailor_<T, std::enable_if_t<IsDefineNodes<T>>>
 {
     using Type = typename T::template Follow<>;
 };
 
 template<typename T>
-struct FollowSelector_<T, std::enable_if_t<(IsGroup<T>)>>
+struct FollowTailor_<T, std::enable_if_t<(IsGroup<T>)>>
 {
     using Type = typename T::Follow;
 };
 
 template<typename T>
-struct FollowSelector_<T, std::enable_if_t<(IsDerivedGroup<T>)>>
+struct FollowTailor_<T, std::enable_if_t<(IsDerivedGroup<T>)>>
 {
     using Type = typename T::Follow;
 };
 
 template<typename T>
-struct FollowSelector_<T, std::enable_if_t<IsList<T>>>
+struct FollowTailor_<T, std::enable_if_t<IsList<T>>>
 {
     using Type = typename T::Follow;
 };
 
 template<typename T>
-struct FollowSelector_<T, std::enable_if_t<IsMakePoly<T>>>
+struct FollowTailor_<T, std::enable_if_t<IsMakePoly<T>>>
 {
-    using Type = typename ControlSelector_<T>::Type;
+    using Type = typename ControlTailor_<T>::Type;
 };
 
 
 template<typename T>
-struct FollowSelector_<T, std::enable_if_t<IsMakeMute<T>>>
+struct FollowTailor_<T, std::enable_if_t<IsMakeMute<T>>>
 {
     using Type = detail::MuteFollowType;
 };
@@ -510,19 +510,19 @@ struct FollowSelector_<T, std::enable_if_t<IsMakeMute<T>>>
 
 
 template<typename T>
-using ModelSelector = typename detail::ModelSelector_<T>::Type;
+using ModelTailor = typename detail::ModelTailor_<T>::Type;
 
 
 template<typename T>
-using ControlSelector = typename detail::ControlSelector_<T>::Type;
+using ControlTailor = typename detail::ControlTailor_<T>::Type;
 
 
 template<typename T>
-using MuxSelector = typename detail::MuxSelector_<T>::Type;
+using MuxTailor = typename detail::MuxTailor_<T>::Type;
 
 
 template<typename T>
-using FollowSelector = typename detail::FollowSelector_<T>::Type;
+using FollowTailor = typename detail::FollowTailor_<T>::Type;
 
 
 } // end namespace pex

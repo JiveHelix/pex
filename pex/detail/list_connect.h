@@ -1,7 +1,7 @@
 #pragma once
 
 #include "pex/list.h"
-#include "pex/selectors.h"
+#include "pex/tailors.h"
 #include "pex/promote_control.h"
 #include "pex/detail/forward.h"
 #include "pex/type_tester.h"
@@ -31,13 +31,13 @@ template
     typename T,
     typename Enable = void
 >
-struct ConnectableSelector_
+struct ConnectableTailor_
 {
     using Type = typename PromoteControl<T>::Type;
 };
 
 template<typename T>
-struct ConnectableSelector_
+struct ConnectableTailor_
 <
     T,
     std::enable_if_t<IsGroupNode<T>>
@@ -48,7 +48,7 @@ struct ConnectableSelector_
 
 
 template<typename T>
-struct ConnectableSelector_
+struct ConnectableTailor_
 <
     T,
     std::enable_if_t<IsListNode<T>>
@@ -59,7 +59,7 @@ struct ConnectableSelector_
 
 
 template<typename T>
-using ConnectableSelector = typename ConnectableSelector_<T>::Type;
+using ConnectableTailor = typename ConnectableTailor_<T>::Type;
 
 
 template<typename Observer, typename Item, typename = void>
@@ -102,7 +102,7 @@ public:
     using ListControl = typename PromoteControl<Upstream_>::Type;
 
     using Connectable =
-        ConnectableSelector<typename ListControl::ListItem>;
+        ConnectableTailor<typename ListControl::ListItem>;
 
     using Connectables = std::vector<Connectable>;
 

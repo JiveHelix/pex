@@ -11,7 +11,7 @@
 #include "pex/detail/mute.h"
 #include "pex/detail/log.h"
 #include "pex/reference.h"
-#include "pex/selectors.h"
+#include "pex/tailors.h"
 #include "pex/terminus.h"
 #include <pex/detail/forward.h>
 
@@ -49,11 +49,11 @@ using ListMember = typename ListMember_<T>::Type;
 
 
 template<typename ListMaker>
-using ListModelItem = typename ModelSelector<ListMaker>::ListItem;
+using ListModelItem = typename ModelTailor<ListMaker>::ListItem;
 
 
 template<typename ListMaker>
-using ListControlItem = typename ControlSelector<ListMaker>::ListItem;
+using ListControlItem = typename ControlTailor<ListMaker>::ListItem;
 
 
 template<typename T>
@@ -277,15 +277,15 @@ struct List
     struct ControlTypes
     {
         template<typename T>
-        using Selector = ControlSelector<T>;
+        using Tailor = ControlTailor<T>;
 
-        using ListItem = Selector<Member>;
+        using ListItem = Tailor<Member>;
         using Count = ::pex::control::ListCount;
         using ListOptionalIndex = ::pex::control::ListOptionalIndex;
         using ListFlag = ::pex::control::ListFlag;
     };
 
-    using Item = typename ModelSelector<Member>::Type;
+    using Item = typename ModelTailor<Member>::Type;
     using Type = std::vector<Item>;
 
     class Model
@@ -302,9 +302,9 @@ struct List
 
         // using ControlType = Control_<ControlTypes>;
         template<typename T>
-        using Selector = ModelSelector<T>;
+        using Tailor = ModelTailor<T>;
 
-        using ListItem = Selector<Member>;
+        using ListItem = Tailor<Member>;
         using Item = typename ListItem::Type;
         using Type = std::vector<Item>;
         using Count = ::pex::model::ListCount;
@@ -317,7 +317,7 @@ struct List
         using ListFlag = ::pex::model::ListFlag;
         using Access = GetAndSetTag;
 
-        using Defer = DeferList<Member, ModelSelector, Model>;
+        using Defer = DeferList<Member, ModelTailor, Model>;
 
         template<typename>
         friend class ::pex::Reference;
@@ -547,10 +547,10 @@ struct List
             auto newCount = newIndex + 1;
 
             // count observers will be notified at the end of this function.
-            // ScopeMute calls Mute on aggregate types (groups and lists) at
+            // ScopeMute calls Mute on ensemble types (groups and lists) at
             // the start of the scope, and unmutes at the end.
             // For any entity listening for a notification of this->count
-            // (which is not an aggregate type), they will be notifified when
+            // (which is not an ensemble type), they will be notifified when
             // deferCount is destroyed, even though scopeMute is still in
             // effect.
             {
@@ -1107,7 +1107,7 @@ struct List
         using ListOptionalIndex = typename Types::ListOptionalIndex;
 
         template<typename T>
-        using Selector = typename Types::template Selector<T>;
+        using Tailor = typename Types::template Tailor<T>;
 
         using Selected = ListOptionalIndex;
         using MemberAdded = ListOptionalIndex;
@@ -1151,7 +1151,7 @@ struct List
         using ReverseIterator = typename Vector::reverse_iterator;
         using ConstReverseIterator = typename Vector::const_reverse_iterator;
 
-        using Defer = DeferList<Member, ControlSelector, Control_>;
+        using Defer = DeferList<Member, ControlTailor, Control_>;
 
         static_assert(
             IsControl<ListItem>
@@ -1699,9 +1699,9 @@ struct List
         static constexpr auto observerName = "pex::List::Mux";
 
         template<typename T>
-        using Selector = MuxSelector<T>;
+        using Tailor = MuxTailor<T>;
 
-        using ListItem = Selector<Member>;
+        using ListItem = Tailor<Member>;
         using Item = typename ListItem::Type;
         using Type = std::vector<Item>;
         using Count = ::pex::mux::ListCount;
@@ -1749,7 +1749,7 @@ struct List
 
         using Access = GetAndSetTag;
 
-        using Defer = DeferList<Member, Selector, Mux>;
+        using Defer = DeferList<Member, Tailor, Mux>;
 
         template<typename>
         friend class ::pex::Reference;
@@ -2323,9 +2323,9 @@ struct List
     struct FollowTypes
     {
         template<typename T>
-        using Selector = FollowSelector<T>;
+        using Tailor = FollowTailor<T>;
 
-        using ListItem = Selector<Member>;
+        using ListItem = Tailor<Member>;
         using Count = ::pex::follow::ListCount;
         using ListOptionalIndex = ::pex::follow::ListOptionalIndex;
         using ListFlag = ::pex::follow::ListFlag;

@@ -7,7 +7,7 @@
 
 // Place types used by this translation unit in a namespace to avoid conflicts
 // with other translation units that are part of the catch2 unit tests.
-namespace aggregate
+namespace ensemble
 {
 
 
@@ -21,17 +21,17 @@ struct PointFields
 
 
 template<template<typename> typename T>
-struct PointTemplate
+struct PointSchema
 {
     T<double> x;
     T<double> y;
 
-    static constexpr auto fields = PointFields<PointTemplate<T>>::fields;
+    static constexpr auto fields = PointFields<PointSchema<T>>::fields;
     static constexpr auto fieldsTypeName = "Point";
 };
 
 
-using PointGroup = pex::Group<PointTemplate>;
+using PointGroup = pex::Group<PointSchema>;
 
 
 template<typename T>
@@ -44,17 +44,17 @@ struct CircleFields
 
 
 template<template<typename> typename T>
-struct CircleTemplate
+struct CircleSchema
 {
     T<PointGroup> center;
     T<double> radius;
 
-    static constexpr auto fields = CircleFields<CircleTemplate<T>>::fields;
+    static constexpr auto fields = CircleFields<CircleSchema<T>>::fields;
     static constexpr auto fieldsTypeName = "Circle";
 };
 
 
-using CircleGroup = pex::Group<CircleTemplate>;
+using CircleGroup = pex::Group<CircleSchema>;
 
 
 template<typename T>
@@ -69,19 +69,19 @@ struct StuffFields
 
 
 template<template<typename> typename T>
-struct StuffTemplate
+struct StuffSchema
 {
     T<CircleGroup> leftCircle;
     T<CircleGroup> rightCircle;
     T<PointGroup> aPoint;
     T<double> aLength;
 
-    static constexpr auto fields = StuffFields<StuffTemplate<T>>::fields;
+    static constexpr auto fields = StuffFields<StuffSchema<T>>::fields;
     static constexpr auto fieldsTypeName = "Stuff";
 };
 
 
-using StuffGroup = pex::Group<StuffTemplate>;
+using StuffGroup = pex::Group<StuffSchema>;
 
 
 using Point = typename PointGroup::Plain;
@@ -94,7 +94,7 @@ DECLARE_EQUALITY_OPERATORS(Circle)
 DECLARE_EQUALITY_OPERATORS(Stuff)
 
 
-} // end namespace aggregate
+} // end namespace ensemble
 
 
 template<typename T, typename = void>
@@ -116,24 +116,24 @@ inline constexpr bool HasMemberDisconnect = HasMemberDisconnect_<T>::value;
 
 
 
-TEST_CASE("control::Value has member function Disconnect", "[aggregate]")
+TEST_CASE("control::Value has member function Disconnect", "[ensemble]")
 {
     using Control = pex::control::Value<pex::model::Value<double>>;
     STATIC_REQUIRE(HasMemberDisconnect<Control>);
 }
 
 
-TEST_CASE("ControlSelector has member function Disconnect", "[aggregate]")
+TEST_CASE("ControlTailor has member function Disconnect", "[ensemble]")
 {
-    using Control = pex::ControlSelector<double>;
+    using Control = pex::ControlTailor<double>;
     STATIC_REQUIRE(HasMemberDisconnect<Control>);
 }
 
-TEST_CASE("AggregateSelector has member function Disconnect", "[aggregate]")
+TEST_CASE("EnsembleTailor has member function Disconnect", "[ensemble]")
 {
     using Control =
-        typename pex::detail::AggregateSelector<pex::ControlSelector>
-            ::template Template<double>;
+        pex::detail::EnsembleTailor<pex::ControlTailor>
+            ::template TailorType<double>;
 
     static_assert(pex::IsControl<Control>);
 
@@ -141,25 +141,25 @@ TEST_CASE("AggregateSelector has member function Disconnect", "[aggregate]")
 }
 
 
-TEST_CASE("Setting Aggregate does not repeat notifications", "[aggregate]")
+TEST_CASE("Setting Ensemble does not repeat notifications", "[ensemble]")
 {
-    using Model = typename aggregate::StuffGroup::Model;
-    using Control = typename aggregate::StuffGroup::template Control<Model>;
+    using Model = typename ensemble::StuffGroup::Model;
+    using Control = typename ensemble::StuffGroup::template Control<Model>;
     Model model;
     PEX_ROOT(model);
     Control control(model);
 
     TestObserver observer(control);
 
-    aggregate::Circle leftCircle{
+    ensemble::Circle leftCircle{
         {400.0, 800.0},
         42.0};
 
-    aggregate::Circle rightCircle{
+    ensemble::Circle rightCircle{
         {900.0, 800.0},
         36.0};
 
-    aggregate::Stuff stuff{
+    ensemble::Stuff stuff{
         leftCircle,
         rightCircle,
         {42.0, 42.0},
@@ -171,24 +171,24 @@ TEST_CASE("Setting Aggregate does not repeat notifications", "[aggregate]")
 }
 
 
-TEST_CASE("Deferred Aggregate does not repeat notifications", "[aggregate]")
+TEST_CASE("Deferred Ensemble does not repeat notifications", "[ensemble]")
 {
-    using Model = typename aggregate::StuffGroup::Model;
-    using Control = typename aggregate::StuffGroup::template Control<Model>;
+    using Model = typename ensemble::StuffGroup::Model;
+    using Control = typename ensemble::StuffGroup::template Control<Model>;
     Model model;
     PEX_ROOT(model);
     Control control(model);
     TestObserver observer(control);
 
-    aggregate::Circle leftCircle{
+    ensemble::Circle leftCircle{
         {400.0, 800.0},
         42.0};
 
-    aggregate::Circle rightCircle{
+    ensemble::Circle rightCircle{
         {900.0, 800.0},
         36.0};
 
-    aggregate::Stuff stuff{
+    ensemble::Stuff stuff{
         leftCircle,
         rightCircle,
         {42.0, 42.0},
@@ -207,18 +207,18 @@ TEST_CASE("Deferred Aggregate does not repeat notifications", "[aggregate]")
 }
 
 
-TEST_CASE("Deferred member struct does not repeat notifications", "[aggregate]")
+TEST_CASE("Deferred member struct does not repeat notifications", "[ensemble]")
 {
-    using Model = typename aggregate::StuffGroup::Model;
-    using Control = typename aggregate::StuffGroup::template Control<Model>;
+    using Model = typename ensemble::StuffGroup::Model;
+    using Control = typename ensemble::StuffGroup::template Control<Model>;
     Model model;
     PEX_ROOT(model);
     Control control(model);
     TestObserver observer(control);
 
-    aggregate::Stuff stuff{};
+    ensemble::Stuff stuff{};
 
-    aggregate::Circle rightCircle{
+    ensemble::Circle rightCircle{
         {900.0, 800.0},
         36.0};
 

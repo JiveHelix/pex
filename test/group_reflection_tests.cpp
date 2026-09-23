@@ -24,7 +24,7 @@ struct Units
 
 
 template<template<typename> typename T>
-struct PointTemplate
+struct PointSchema
 {
     T<double> x;
     T<double> y;
@@ -40,7 +40,7 @@ using ModelSelectString =
 using ControlSelectString = pex::control::Select<ModelSelectString>;
 
 
-struct PointGroupTemplates_
+struct PointGroupFinisher_
 {
     // Define a customized model
     template<typename GroupBase>
@@ -73,7 +73,7 @@ struct PointGroupTemplates_
 static_assert(pex::IsMakeSelect<pex::MakeSelect<std::string>>);
 
 
-using PointGroup = pex::Group<PointTemplate, PointGroupTemplates_>;
+using PointGroup = pex::Group<PointSchema, PointGroupFinisher_>;
 using PointModel = typename PointGroup::Model;
 using PointControl = typename PointGroup::template Control<PointModel>;
 
@@ -87,7 +87,7 @@ static_assert(
 
 
 template<template<typename> typename T>
-struct CircleTemplate
+struct CircleSchema
 {
     T<PointGroup> center;
     T<double> radius;
@@ -96,7 +96,7 @@ struct CircleTemplate
 };
 
 
-using CircleGroup = pex::Group<CircleTemplate>;
+using CircleGroup = pex::Group<CircleSchema>;
 
 using Point = typename PointGroup::Plain;
 using Circle = typename CircleGroup::Plain;
@@ -151,7 +151,7 @@ public:
 
 
 TEST_CASE(
-    "(Reflect) Terminus aggregate observer receives message.",
+    "(Reflect) Terminus ensemble observer receives message.",
     "[reflection]")
 {
     using Model = typename reflection::CircleGroup::Model;
@@ -171,7 +171,7 @@ TEST_CASE(
 
 
 TEST_CASE(
-    "(Reflect) Terminus aggregate member observer receives message.",
+    "(Reflect) Terminus ensemble member observer receives message.",
     "[reflection]")
 {
     using Model = typename reflection::CircleGroup::Model;
@@ -518,7 +518,7 @@ namespace reflection
 
 
 template<template<typename> typename T>
-struct CircleWithSignalTemplate
+struct CircleWithSignalSchema
 {
     T<reflection::CircleGroup> circle;
     T<pex::MakeSignal> redraw;
@@ -527,7 +527,7 @@ struct CircleWithSignalTemplate
 };
 
 
-using CircleWithSignalGroup = pex::Group<CircleWithSignalTemplate>;
+using CircleWithSignalGroup = pex::Group<CircleWithSignalSchema>;
 
 using CircleWithSignal = typename CircleWithSignalGroup::Plain;
 
@@ -580,7 +580,7 @@ namespace subgroup_reflection
 
 
 template<template<typename> typename T>
-struct ColorTemplate
+struct ColorSchema
 {
     T<int> red;
     T<int> green;
@@ -590,11 +590,11 @@ struct ColorTemplate
 };
 
 
-struct Color: public ColorTemplate<pex::Identity>
+struct Color: public ColorSchema<pex::Identity>
 {
     Color()
         :
-        ColorTemplate<pex::Identity>
+        ColorSchema<pex::Identity>
         {
             1,
             2,
@@ -606,18 +606,18 @@ struct Color: public ColorTemplate<pex::Identity>
 };
 
 
-struct ColorCustom
+struct ColorFinisher
 {
     using Plain = Color;
 };
 
 
-using ColorGroup = pex::Group<ColorTemplate, ColorCustom>;
+using ColorGroup = pex::Group<ColorSchema, ColorFinisher>;
 using ColorModel = typename ColorGroup::Model;
 
 
 template<template<typename> typename T>
-struct PixelTemplate
+struct PixelSchema
 {
     T<ColorGroup> color;
     T<int> x;
@@ -627,12 +627,12 @@ struct PixelTemplate
 };
 
 
-using PixelGroup = pex::Group<PixelTemplate>;
+using PixelGroup = pex::Group<PixelSchema>;
 using PixelModel = typename PixelGroup::Model;
 
 
 template<template<typename> typename T>
-struct FooTemplate
+struct FooSchema
 {
     T<PixelGroup> leftPixel;
     T<PixelGroup> rightPixel;
@@ -642,7 +642,7 @@ struct FooTemplate
 };
 
 
-struct FooCustom
+struct FooFinisher
 {
     template<typename Base>
     struct Plain: public Base
@@ -659,7 +659,7 @@ struct FooCustom
 };
 
 
-using FooGroup = pex::Group<FooTemplate, FooCustom>;
+using FooGroup = pex::Group<FooSchema, FooFinisher>;
 using FooModel = typename FooGroup::Model;
 
 

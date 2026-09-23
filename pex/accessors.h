@@ -5,9 +5,9 @@
 #include <fields/assign.h>
 #include <jive/for_each.h>
 #include "pex/reference.h"
-#include "pex/selectors.h"
+#include "pex/tailors.h"
 #include "pex/detail/value_connection.h"
-#include "pex/detail/aggregate.h"
+#include "pex/detail/ensemble.h"
 
 
 namespace pex
@@ -76,8 +76,8 @@ struct HasMute
 template
 <
     typename Plain_,
-    template<template<typename> typename> typename Template_,
-    template<typename> typename Selector,
+    template<template<typename> typename> typename Schema_,
+    template<typename> typename Tailor,
     typename Derived
 >
 class GroupAccessors
@@ -90,7 +90,7 @@ public:
     using Plain = Plain_;
 
     template<template<typename> typename T>
-    using GroupTemplate = Template_<T>;
+    using GroupSchema = Schema_<T>;
 
 public:
 #ifdef ENABLE_PEX_NAMES
@@ -248,8 +248,8 @@ public:
     {
         // DeferGroup will notify members of changes after all values have been
         // set.
-        // The aggregate notification will follow.
-        DeferGroup<Template_, Selector, Derived> deferGroup(
+        // The ensemble notification will follow.
+        DeferGroup<Schema_, Tailor, Derived> deferGroup(
             static_cast<Derived &>(*this));
 
         deferGroup.Set(plain);
