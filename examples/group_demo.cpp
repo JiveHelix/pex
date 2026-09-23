@@ -5,16 +5,6 @@
 #include <pex/identity.h>
 
 
-template<typename T>
-struct WeaponsFields
-{
-    static constexpr auto fields = std::make_tuple(
-        fields::Field(&T::firstFruit, "firstFruit"),
-        fields::Field(&T::secondFruit, "secondFruit"),
-        fields::Field(&T::notFruit, "notFruit"));
-};
-
-
 template<template<typename> typename T>
 struct WeaponsTemplate
 {
@@ -22,7 +12,6 @@ struct WeaponsTemplate
     T<std::string> secondFruit;
     T<std::string> notFruit;
 
-    static constexpr auto fields = WeaponsFields<WeaponsTemplate>::fields;
     static constexpr auto fieldsTypeName = "Weapons";
 };
 
@@ -34,17 +23,6 @@ using WeaponsModel = typename WeaponsGroup::Model;
 using WeaponsControl = typename WeaponsGroup::Control<WeaponsModel>;
 
 
-template<typename T>
-struct GpsFields
-{
-    static constexpr auto fields = std::make_tuple(
-        fields::Field(&T::time, "time"),
-        fields::Field(&T::latitude, "latitude"),
-        fields::Field(&T::longitude, "longitude"),
-        fields::Field(&T::elevation, "elevation"));
-};
-
-
 template<template<typename> typename T>
 struct GpsTemplate
 {
@@ -53,7 +31,6 @@ struct GpsTemplate
     T<double> longitude;
     T<double> elevation;
 
-    static constexpr auto fields = GpsFields<GpsTemplate>::fields;
     static constexpr auto fieldsTypeName = "Gps";
 };
 
@@ -75,32 +52,20 @@ inline GpsPlain DefaultGps()
 }
 
 
-// A struct that contains groups.
-template<typename T>
-struct AggregateFields
-{
-    static constexpr auto fields = std::make_tuple(
-        fields::Field(&T::airspeedVelocity, "airspeedVelocity"),
-        fields::Field(&T::weapons, "weapons"),
-        fields::Field(&T::gps, "gps"));
-};
-
-
 template<template<typename> typename T>
-struct AggregateTemplate
+struct CombinedTemplate
 {
     T<double> airspeedVelocity;
     T<WeaponsGroup> weapons;
     T<GpsGroup> gps;
 
-    static constexpr auto fields = AggregateFields<AggregateTemplate>::fields;
-    static constexpr auto fieldsTypeName = "Aggregate";
+    static constexpr auto fieldsTypeName = "Combined";
 };
 
 
-using AggregateGroup = pex::Group<AggregateTemplate>;
-using AggregateModel = typename AggregateGroup::Model;
-using AggregateControl = typename AggregateGroup::Control<AggregateModel>;
+using CombinedGroup = pex::Group<CombinedTemplate>;
+using CombinedModel = typename CombinedGroup::Model;
+using CombinedControl = typename CombinedGroup::Control<CombinedModel>;
 
 
 class WeaponsObserver
@@ -129,25 +94,10 @@ private:
 
 int main()
 {
-    AggregateModel model;
-
-    std::cout << "model.weapons.firstFruit: "
-        << &model.weapons.firstFruit << std::endl;
-
-    std::cout << "model.weapons.firstFruit.size(): "
-        << model.weapons.firstFruit.Get().size() << std::endl;
-
-    AggregateControl control(model);
-
-    std::cout << "control.weapons.firstFruit.size(): "
-        << control.weapons.firstFruit.Get().size() << std::endl;
-
-    std::cout << "control.weapons.firstFruit.size(): "
-        << control.weapons.firstFruit.Get().size() << std::endl;
+    CombinedModel model;
+    CombinedControl control(model);
 
     WeaponsObserver weaponsObserver(control.weapons);
-
-    std::cout << "endpoint connected" << std::endl;
 
     control.airspeedVelocity = 42.0;
     std::cout << "setting passion fruit" << std::endl;
@@ -177,6 +127,4 @@ int main()
     model.Set(plain);
 
     std::cout << fields::DescribeColorized(model.Get(), 0) << std::endl;
-
-    std::cout << "end of program" << std::endl;
 }
