@@ -220,4 +220,19 @@ template<typename ...T>
 inline constexpr bool IsMakePoly = detail::IsMakePoly_<T...>::value;
 
 
+template<template<typename> typename T>
+struct PlainU
+{
+    template<typename U>
+    using Plain = T<U>;
+};
+
+
+template<typename T>
+struct PlainT
+{
+    using Plain = T;
+};
+
+
 } // end namespace pex
