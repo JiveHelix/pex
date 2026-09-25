@@ -37,6 +37,7 @@ public:
     T<MakeSignal> moveToBottom;
 
     static constexpr auto fieldsTypeName = "Order";
+    static constexpr bool fieldsHidden = true;
 };
 
 
@@ -44,7 +45,6 @@ using OrderGroup = Group<OrderSchema>;
 using OrderModel = typename OrderGroup::Model;
 using OrderControl = typename OrderGroup::DefaultControl;
 using Order = typename OrderGroup::Plain;
-
 
 using IndicesList = std::vector<size_t>;
 

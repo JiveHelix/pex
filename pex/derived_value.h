@@ -80,12 +80,23 @@ public:
         const fields::Style &style,
         int indent) const override
     {
-        return fields::DescribeFields(
-            outputStream,
-            *this,
-            DerivedValueTemplate_::fields,
-            style,
-            indent);
+        if constexpr (fields::HasFields<DerivedValueTemplate_>)
+        {
+            return fields::DescribeFields(
+                outputStream,
+                *this,
+                DerivedValueTemplate_::fields,
+                style,
+                indent);
+        }
+        else
+        {
+            return fields::DescribeReflected(
+                outputStream,
+                *this,
+                style,
+                indent);
+        }
     }
 
     Json Unstructure() const override

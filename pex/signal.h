@@ -27,7 +27,7 @@ namespace pex
 
 struct DescribeSignal
 {
-
+    static constexpr bool fieldsHidden = true;
 };
 
 

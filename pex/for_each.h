@@ -53,14 +53,16 @@ namespace fields
 {
 
 
+// Sometimes a struct can be both aggregate and have a SchemaBase.
+// In those cases, always reflect the SchemaBase.
+// fields::ReflectorTypeImpl already matches aggregate structs.
 template<typename T>
 struct ReflectorTypeImpl
 <
     T,
     std::enable_if_t
     <
-        !fields::CanReflectImpl<std::remove_cvref_t<T>>
-        && !fields::DefinesReflector<T>
+        !fields::DefinesReflector<T>
         && pex::detail::HasSchemaBase<T>
     >
 >
