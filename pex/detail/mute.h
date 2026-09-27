@@ -46,10 +46,6 @@ struct Mute_
     {
         return this->isMuted;
     }
-
-    static constexpr auto fields = std::make_tuple(
-        fields::Field(&Mute_::isMuted, "isMuted"),
-        fields::Field(&Mute_::isSilenced, "isSilenced"));
 };
 
 

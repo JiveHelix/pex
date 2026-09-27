@@ -21,16 +21,6 @@ TEST_CASE("Select::Get returns value, not index", "[select]")
 }
 
 
-template<typename T>
-struct SomeFields
-{
-    static constexpr auto fields = std::make_tuple(
-        fields::Field(&T::x, "x"),
-        fields::Field(&T::y, "y"),
-        fields::Field(&T::rate, "rate"));
-};
-
-
 struct RateChoices
 {
     using Type = double;
@@ -49,7 +39,6 @@ struct SomeSchema
     T<double> y;
     T<pex::MakeSelect<RateChoices>> rate;
 
-    static constexpr auto fields = SomeFields<SomeSchema>::fields;
     static constexpr auto fieldsTypeName = "Some";
 };
 
@@ -137,16 +126,6 @@ TEST_CASE("Select observer is notified.", "[select]")
 }
 
 
-template<typename T>
-struct AnotherFields
-{
-    static constexpr auto fields = std::make_tuple(
-        fields::Field(&T::x, "x"),
-        fields::Field(&T::y, "y"),
-        fields::Field(&T::rate, "rate"));
-};
-
-
 struct RateSelect
 {
     using Type = double;
@@ -165,7 +144,6 @@ struct AnotherSchema
     T<double> y;
     T<pex::MakeSelect<RateSelect>> rate;
 
-    static constexpr auto fields = AnotherFields<AnotherSchema>::fields;
     static constexpr auto fieldsTypeName = "Another";
 };
 

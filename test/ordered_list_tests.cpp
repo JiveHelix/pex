@@ -273,22 +273,12 @@ TEST_CASE("Reordered OrderedList Erase by index", "[OrderedList]")
 }
 
 
-template<typename T>
-struct AnimalFields
-{
-    static constexpr auto fields = std::make_tuple(
-        fields::Field(&T::name, "name"),
-        fields::Field(&T::order, "order"));
-};
-
-
 template<template<typename> typename T>
 struct AnimalSchema
 {
     T<std::string> name;
     T<pex::OrderGroup> order;
 
-    static constexpr auto fields = AnimalFields<AnimalSchema>::fields;
     static constexpr auto fieldsTypeName = "Animal";
 };
 

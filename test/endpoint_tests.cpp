@@ -11,20 +11,12 @@ using json = nlohmann::json;
 namespace endpoint_tests
 {
 
-template<typename T>
-struct TestFields
-{
-    static constexpr auto fields = std::make_tuple(
-        fields::Field(&T::values, "values"));
-};
-
 
 template<template<typename> typename T>
 struct TestSchema
 {
     T<pex::List<int, 0>> values;
 
-    static constexpr auto fields = TestFields<TestSchema>::fields;
     static constexpr auto fieldsTypeName = "Test";
 };
 

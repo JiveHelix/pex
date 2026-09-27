@@ -81,15 +81,6 @@ TEST_CASE("Terminus uses new observer after copy.", "[terminus]")
 }
 
 
-template<typename T>
-struct TestFields
-{
-    static constexpr auto fields = std::make_tuple(
-        fields::Field(&T::one, "one"),
-        fields::Field(&T::two, "two"),
-        fields::Field(&T::three, "three"));
-};
-
 template<template<typename> typename T>
 struct TestSchema
 {
@@ -97,7 +88,6 @@ struct TestSchema
     T<long> two;
     T<double> three;
 
-    static constexpr auto fields = TestFields<TestSchema>::fields;
     static constexpr auto fieldsTypeName = "Test";
 };
 

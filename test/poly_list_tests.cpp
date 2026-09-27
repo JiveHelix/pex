@@ -117,17 +117,6 @@ struct CommonTemplates
 };
 
 
-template<typename T>
-class FixedWingFields
-{
-public:
-    static constexpr auto fields = std::make_tuple(
-        fields::Field(&T::maximumAltitude, "maximumAltitude"),
-        fields::Field(&T::range, "range"),
-        fields::Field(&T::wingspan, "wingspan"));
-};
-
-
 struct FixedWingTemplates: public CommonTemplates
 {
     template<template<typename> typename T>
@@ -138,7 +127,6 @@ struct FixedWingTemplates: public CommonTemplates
         T<double> range;
         T<double> wingspan;
 
-        static constexpr auto fields = FixedWingFields<Schema>::fields;
         static constexpr auto fieldsTypeName = "FixedWing";
     };
 
@@ -157,17 +145,6 @@ struct FixedWingTemplates: public CommonTemplates
 };
 
 
-template<typename T>
-class RotorWingFields
-{
-public:
-    static constexpr auto fields = std::make_tuple(
-        fields::Field(&T::maximumAltitude, "maximumAltitude"),
-        fields::Field(&T::range, "range"),
-        fields::Field(&T::rotorRadius, "rotorRadius"));
-};
-
-
 struct RotorWingTemplates: public CommonTemplates
 {
     template<template<typename> typename T>
@@ -177,8 +154,6 @@ struct RotorWingTemplates: public CommonTemplates
         T<double> maximumAltitude;
         T<double> range;
         T<double> rotorRadius;
-
-        static constexpr auto fields = RotorWingFields<Schema>::fields;
 
         static constexpr auto fieldsTypeName = "RotorWing";
     };
@@ -246,16 +221,6 @@ using FixedWingModelWrapper = typename FixedWingModel::ModelWrapper;
 using FixedWingControl = typename FixedWingDerivedGroup::Control;
 
 
-template<typename T>
-struct AirportFields
-{
-    static constexpr auto fields = std::make_tuple(
-        fields::Field(&T::runwayCount, "runwayCount"),
-        fields::Field(&T::dailyPassengerCount, "dailyPassengerCount"),
-        fields::Field(&T::aircraft, "aircraft"));
-};
-
-
 template<template<typename> typename T>
 class AirportSchema
 {
@@ -264,7 +229,6 @@ public:
     T<size_t> dailyPassengerCount;
     T<pex::List<pex::MakePoly<AircraftSupers>>> aircraft;
 
-    static constexpr auto fields = AirportFields<AirportSchema>::fields;
     static constexpr auto fieldsTypeName = "Airport";
 };
 
@@ -432,9 +396,6 @@ public:
     T<size_t> runwayCount;
     T<size_t> dailyPassengerCount;
     T<pex::OrderedListGroup<pex::List<pex::MakePoly<AircraftSupers>>>> aircraft;
-
-    static constexpr auto fields =
-        AirportFields<OrderedAirportSchema>::fields;
 
     static constexpr auto fieldsTypeName = "OrderedAirport";
 };
@@ -961,23 +922,11 @@ TEST_CASE("Poly list is observed after going to size 0.", "[List]")
 }
 
 
-template<typename T>
-struct SinglePolyFields
-{
-    static constexpr auto fields = std::make_tuple(
-        fields::Field(&T::fixedWing, "fixedWing"),
-        fields::Field(&T::rotorWing, "rotorWing"));
-};
-
-
 template<template<typename> typename T>
 struct SinglePolySchema
 {
     T<FixedWingDerivedGroup> fixedWing;
     T<RotorWingDerivedGroup> rotorWing;
-
-    static constexpr auto fields =
-        SinglePolyFields<SinglePolySchema>::fields;
 
     static constexpr auto fieldsTypeName = "Single";
 };

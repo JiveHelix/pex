@@ -53,24 +53,12 @@ public:
 };
 
 
-template<typename T>
-struct AssignTestFields
-{
-    static constexpr auto fields = std::make_tuple(
-        fields::Field(&T::foo, "foo"),
-        fields::Field(&T::wibble, "wibble"),
-        fields::Field(&T::wobble, "wobble"));
-};
-
-
 template<template<typename> typename T>
 struct AssignTestSchema
 {
     T<uint16_t> foo;
     T<double> wibble;
     T<std::string> wobble;
-
-    static constexpr auto fields = AssignTestFields<AssignTestSchema>::fields;
 };
 
 

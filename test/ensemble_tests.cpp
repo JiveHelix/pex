@@ -11,36 +11,17 @@ namespace ensemble
 {
 
 
-template<typename T>
-struct PointFields
-{
-    static constexpr auto fields = std::make_tuple(
-        fields::Field(&T::x, "x"),
-        fields::Field(&T::y, "y"));
-};
-
-
 template<template<typename> typename T>
 struct PointSchema
 {
     T<double> x;
     T<double> y;
 
-    static constexpr auto fields = PointFields<PointSchema<T>>::fields;
     static constexpr auto fieldsTypeName = "Point";
 };
 
 
 using PointGroup = pex::Group<PointSchema>;
-
-
-template<typename T>
-struct CircleFields
-{
-    static constexpr auto fields = std::make_tuple(
-        fields::Field(&T::center, "center"),
-        fields::Field(&T::radius, "radius"));
-};
 
 
 template<template<typename> typename T>
@@ -49,23 +30,11 @@ struct CircleSchema
     T<PointGroup> center;
     T<double> radius;
 
-    static constexpr auto fields = CircleFields<CircleSchema<T>>::fields;
     static constexpr auto fieldsTypeName = "Circle";
 };
 
 
 using CircleGroup = pex::Group<CircleSchema>;
-
-
-template<typename T>
-struct StuffFields
-{
-    static constexpr auto fields = std::make_tuple(
-        fields::Field(&T::leftCircle, "leftCircle"),
-        fields::Field(&T::rightCircle, "rightCircle"),
-        fields::Field(&T::aPoint, "aPoint"),
-        fields::Field(&T::aLength, "aLength"));
-};
 
 
 template<template<typename> typename T>
@@ -76,7 +45,6 @@ struct StuffSchema
     T<PointGroup> aPoint;
     T<double> aLength;
 
-    static constexpr auto fields = StuffFields<StuffSchema<T>>::fields;
     static constexpr auto fieldsTypeName = "Stuff";
 };
 

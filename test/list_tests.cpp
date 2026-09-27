@@ -166,25 +166,16 @@ TEST_CASE("List changes size when set.", "[List]")
 }
 
 
-template<typename T>
-struct GrootFields
-{
-    static constexpr auto fields = std::make_tuple(
-        fields::Field(&T::name, "name"),
-        fields::Field(&T::values, "values"));
-};
-
 template<template<typename> typename T>
 struct GrootSchema
 {
     T<std::string> name;
     T<pex::List<double, 4>> values;
 
-    static constexpr auto fields = GrootFields<GrootSchema>::fields;
     static constexpr auto fieldsTypeName = "Groot";
 };
 
-struct GroupTypes
+struct GroupFinisher
 {
     template<typename Base>
     struct Plain: public Base
@@ -200,7 +191,7 @@ struct GroupTypes
     };
 };
 
-using GrootGroup = pex::Group<GrootSchema, GroupTypes>;
+using GrootGroup = pex::Group<GrootSchema, GroupFinisher>;
 using Groot = typename GrootGroup::Plain;
 
 DECLARE_EQUALITY_OPERATORS(Groot)
@@ -240,15 +231,6 @@ TEST_CASE("List as group member", "[List]")
 }
 
 
-template<typename T>
-struct RocketFields
-{
-    static constexpr auto fields = std::make_tuple(
-        fields::Field(&T::x, "x"),
-        fields::Field(&T::y, "y"),
-        fields::Field(&T::z, "z"));
-};
-
 template<template<typename> typename T>
 struct RocketSchema
 {
@@ -256,7 +238,6 @@ struct RocketSchema
     T<double> y;
     T<double> z;
 
-    static constexpr auto fields = RocketFields<RocketSchema>::fields;
     static constexpr auto fieldsTypeName = "Rocket";
 };
 
@@ -268,15 +249,6 @@ using RocketControl = typename RocketGroup::template Control<RocketModel>;
 
 DECLARE_OUTPUT_STREAM_OPERATOR(Rocket)
 DECLARE_EQUALITY_OPERATORS(Rocket)
-
-
-template<typename T>
-struct DraxFields
-{
-    static constexpr auto fields = std::make_tuple(
-        fields::Field(&T::name, "name"),
-        fields::Field(&T::rockets, "rockets"));
-};
 
 
 struct ListTag {};
@@ -311,7 +283,6 @@ struct DraxSchema
         T<std::string> name;
         T<ChooseRocketList<Tag>> rockets;
 
-        static constexpr auto fields = DraxFields<Schema>::fields;
         static constexpr auto fieldsTypeName = "Drax";
     };
 };
@@ -540,16 +511,6 @@ TEMPLATE_TEST_CASE(
 
 
 // A structure that has a list of groups that also contain lists.
-template<typename T>
-struct GamoraFields
-{
-    static constexpr auto fields = std::make_tuple(
-        fields::Field(&T::name, "name"),
-        fields::Field(&T::draxes, "draxes"),
-        fields::Field(&T::groots, "groots"));
-};
-
-
 template<typename Tag>
 struct GamoraSchema
 {
@@ -560,7 +521,6 @@ struct GamoraSchema
         T<pex::List<DraxGroup<Tag>, 1>> draxes;
         T<pex::List<GrootGroup, 1>> groots;
 
-        static constexpr auto fields = GamoraFields<Schema>::fields;
         static constexpr auto fieldsTypeName = "Gamora";
     };
 };
@@ -859,21 +819,12 @@ TEMPLATE_TEST_CASE(
 }
 
 
-template<typename T>
-struct StarLordFields
-{
-    static constexpr auto fields = std::make_tuple(
-        fields::Field(&T::name, "name"),
-        fields::Field(&T::rocket, "rocket"));
-};
-
 template<template<typename> typename T>
 struct StarLordSchema
 {
     T<std::string> name;
     T<RocketGroup> rocket;
 
-    static constexpr auto fields = StarLordFields<StarLordSchema>::fields;
     static constexpr auto fieldsTypeName = "StarLord";
 };
 

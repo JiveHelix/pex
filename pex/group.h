@@ -94,6 +94,23 @@ struct GroupModel_
             Derived
         >;
 
+    static_assert(
+        []{
+            using Members = Schema_<pex::Identity>;
+
+            if constexpr (!fields::HasFields<Members>)
+            {
+                // We must use reflection to inspect the members.
+                // Check the member count.
+
+                return fields::GetMemberCount<Members>()
+                    <= fields::maximumReflectCount;
+            }
+
+            return true;
+        }(),
+        "pex group schema exceeds the fields reflection member limit");
+
     struct Model:
         public detail::MuteOwner,
         public detail::MuteControl,
@@ -247,6 +264,8 @@ public:
         public ControlMembers,
         public ControlAccessors<Control_<Upstream_>>
     {
+        using Reflector = ControlMembers;
+
         using GroupType = Group;
         static constexpr bool isGroupControl = true;
 

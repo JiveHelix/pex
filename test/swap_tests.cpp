@@ -17,16 +17,6 @@ namespace swap
 {
 
 
-template<typename T>
-struct PointFields
-{
-    static constexpr auto fields = std::make_tuple(
-        fields::Field(&T::x, "x"),
-        fields::Field(&T::y, "y"),
-        fields::Field(&T::units, "units"));
-};
-
-
 struct Units
 {
     using Type = std::string;
@@ -45,7 +35,6 @@ struct PointSchema
     T<double> y;
     T<pex::MakeSelect<Units>> units;
 
-    static constexpr auto fields = PointFields<PointSchema<T>>::fields;
     static constexpr auto fieldsTypeName = "Point";
 };
 
@@ -103,22 +92,12 @@ static_assert(
     >);
 
 
-template<typename T>
-struct CircleFields
-{
-    static constexpr auto fields = std::make_tuple(
-        fields::Field(&T::center, "center"),
-        fields::Field(&T::radius, "radius"));
-};
-
-
 template<template<typename> typename T>
 struct CircleSchema
 {
     T<PointGroup> center;
     T<double> radius;
 
-    static constexpr auto fields = CircleFields<CircleSchema<T>>::fields;
     static constexpr auto fieldsTypeName = "Circle";
 };
 
@@ -202,22 +181,12 @@ namespace swap
 {
 
 
-template<typename T>
-struct FooFields
-{
-    static constexpr auto fields = std::make_tuple(
-        fields::Field(&T::name, "name"),
-        fields::Field(&T::circles, "circles"));
-};
-
-
 template<template<typename> typename T>
 struct FooSchema
 {
     T<std::string> name;
     T<pex::List<CircleGroup>> circles;
 
-    static constexpr auto fields = FooFields<FooSchema<T>>::fields;
     static constexpr auto fieldsTypeName = "Foo";
 };
 

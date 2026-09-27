@@ -269,17 +269,6 @@ using ColorRanges =
     >;
 
 
-
-template<typename T>
-struct ColorFields
-{
-    static constexpr auto fields = std::make_tuple(
-        fields::Field(&T::red, "red"),
-        fields::Field(&T::green, "green"),
-        fields::Field(&T::blue, "blue"));
-};
-
-
 template<template<typename> typename T>
 struct ColorSchema
 {
@@ -287,23 +276,12 @@ struct ColorSchema
     T<typename ColorRanges::Group> green;
     T<typename ColorRanges::Group> blue;
 
-    static constexpr auto fields = ColorFields<ColorSchema>::fields;
     static constexpr auto fieldsTypeName = "Color";
 };
 
 
 using ColorGroup = pex::Group<ColorSchema>;
 using ColorModel = typename ColorGroup::Model;
-
-
-template<typename T>
-struct PixelFields
-{
-    static constexpr auto fields = std::make_tuple(
-        fields::Field(&T::color, "color"),
-        fields::Field(&T::x, "x"),
-        fields::Field(&T::y, "y"));
-};
 
 
 template<template<typename> typename T>
@@ -313,7 +291,6 @@ struct PixelSchema
     T<int> x;
     T<int> y;
 
-    static constexpr auto fields = PixelFields<PixelSchema>::fields;
     static constexpr auto fieldsTypeName = "Pixel";
 };
 

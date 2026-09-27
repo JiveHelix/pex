@@ -6,16 +6,6 @@
 
 using Json = nlohmann::json;
 
-template<typename T>
-struct FooFields
-{
-    static constexpr auto fields = std::make_tuple(
-        fields::Field(&T::x, "x"),
-        fields::Field(&T::x, "y"),
-        fields::Field(&T::x, "z"),
-        fields::Field(&T::sayHello, "sayHello"));
-};
-
 
 template<template<typename> typename T>
 struct FooSchema
@@ -25,7 +15,6 @@ struct FooSchema
     T<double> z;
     T<pex::MakeSignal> sayHello;
 
-    static constexpr auto fields = FooFields<FooSchema>::fields;
     static constexpr auto fieldsTypeName = "Foo";
 };
 

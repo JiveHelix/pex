@@ -5,16 +5,6 @@
 #include <fields/fields.h>
 
 
-template<typename T>
-struct PositionFields
-{
-    static constexpr auto fields = std::make_tuple(
-        fields::Field(&T::x, "x"),
-        fields::Field(&T::y, "y"),
-        fields::Field(&T::z, "z"));
-};
-
-
 template<template<typename> typename T>
 struct PositionSchema
 {
@@ -22,18 +12,7 @@ struct PositionSchema
     T<double> y;
     T<double> z;
 
-    static constexpr auto fields = PositionFields<PositionSchema>::fields;
     static constexpr auto fieldsTypeName = "Position";
-};
-
-
-template<typename T>
-struct RotationFields
-{
-    static constexpr auto fields = std::make_tuple(
-        fields::Field(&T::alpha, "alpha"),
-        fields::Field(&T::beta, "beta"),
-        fields::Field(&T::gamma, "gamma"));
 };
 
 
@@ -47,7 +26,6 @@ struct RotationSchema
     T<pex::MakeRange<double, Limit<-180>, Limit<180>>> beta;
     T<pex::MakeRange<double, Limit<-180>, Limit<180>>> gamma;
 
-    static constexpr auto fields = RotationFields<RotationSchema>::fields;
     static constexpr auto fieldsTypeName = "Rotation";
 };
 

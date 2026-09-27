@@ -29,22 +29,11 @@ using TesterRanges =
     >;
 
 
-template<typename T>
-struct TesterFields
-{
-    static constexpr auto fields = std::make_tuple(
-        fields::Field(&T::range, "range"));
-
-    static constexpr auto fieldsTypeName = "Tester";
-};
-
-
 template<template<typename> typename T>
 struct TesterSchema
 {
     T<typename TesterRanges<double>::Group> range;
 
-    static constexpr auto fields = TesterFields<TesterSchema>::fields;
     static constexpr auto fieldsTypeName = "Tester";
 };
 

@@ -213,21 +213,12 @@ TEMPLATE_TEST_CASE(
 }
 
 
-template<typename T>
-struct CoffeeFields
-{
-    static constexpr auto fields = std::make_tuple(
-        fields::Field(&T::id, "id"),
-        fields::Field(&T::price, "price"));
-};
-
 template<template<typename> typename T>
 struct CoffeeSchema
 {
     T<pex::ReadOnly<size_t>> id;
     T<double> price;
 
-    static constexpr auto fields = CoffeeFields<CoffeeSchema>::fields;
     static constexpr auto fieldsTypeName = "Coffee";
 };
 

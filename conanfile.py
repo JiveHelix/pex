@@ -3,7 +3,7 @@ from conan import ConanFile
 
 class PexConan(ConanFile):
     name = "pex"
-    version = "1.3.0"
+    version = "1.4.0"
 
     python_requires = "boiler/0.2"
     python_requires_extend = "boiler.LibraryConanFile"
