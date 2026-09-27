@@ -95,20 +95,7 @@ struct GroupModel_
         >;
 
     static_assert(
-        []{
-            using Members = Schema_<pex::Identity>;
-
-            if constexpr (!fields::HasFields<Members>)
-            {
-                // We must use reflection to inspect the members.
-                // Check the member count.
-
-                return fields::GetMemberCount<Members>()
-                    <= fields::maximumReflectCount;
-            }
-
-            return true;
-        }(),
+        fields::CheckMemberCountIsOkay<Schema_<pex::Identity>>(),
         "pex group schema exceeds the fields reflection member limit");
 
     struct Model:
