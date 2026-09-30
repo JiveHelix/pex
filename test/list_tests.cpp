@@ -664,6 +664,12 @@ TEMPLATE_TEST_CASE(
     Model secondModel;
 
     auto unstructured = fields::Unstructure<json>(model.Get());
+
+    REQUIRE(unstructured.contains("name"));
+    REQUIRE(unstructured.contains("draxes"));
+    REQUIRE(unstructured.contains("groots"));
+    REQUIRE(unstructured.at("name") == "I am Gamora");
+
     auto asString = unstructured.dump();
     auto recoveredUnstructured = json::parse(asString);
     auto recovered = fields::Structure<Gamora<TestType>>(recoveredUnstructured);
