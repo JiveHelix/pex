@@ -16,12 +16,12 @@
 #include <limits>
 #include <jive/type_traits.h>
 #include <jive/optional.h>
-#include "pex/value.h"
-#include "pex/detail/filters.h"
-#include "pex/reference.h"
-#include "pex/converting_filter.h"
-#include "pex/traits.h"
+#include <pex/value.h>
+#include <pex/reference.h>
+#include <pex/converting_filter.h>
+#include <pex/traits.h>
 #include <pex/terminus.h>
+#include <pex/range_options.h>
 #include <pex/default_value_node.h>
 #include <pex/detail/filters.h>
 
@@ -58,41 +58,34 @@ template<typename, typename>
 class RangeTerminus;
 
 
-template<
-    signed integral,
-    unsigned fractional = 0,
-    unsigned denominator = 1000000>
-struct Limit
-{
-    template<typename T = double>
-    static constexpr T Get()
-    {
-        if constexpr (std::is_integral_v<T>)
-        {
-            return static_cast<T>(integral);
-        }
-        else
-        {
-            return static_cast<T>(integral)
-                + (static_cast<T>(fractional)
-                    / static_cast<T>(denominator));
-        }
-    }
-};
-
-
 namespace model
 {
 
 
-template<typename T>
-struct RangeFilter
+template<typename T, typename Filter_ = NoFilter>
+struct RangeFilter: public FilterAdapter<T, Filter_>
 {
+    static_assert(
+        std::same_as<T, detail::FilteredType<T, Filter_>>,
+        "Range filter expects the return type to be unchanged");
+
+    using Filter = Filter_;
+    using FilterBase = FilterAdapter<T, Filter>;
     using PlainType = jive::RemoveOptional<T>;
     using Type = T;
 
     RangeFilter(PlainType minimum, PlainType maximum)
         :
+        FilterBase(),
+        minimum_(minimum),
+        maximum_(maximum)
+    {
+
+    }
+
+    RangeFilter(Filter filter, PlainType minimum, PlainType maximum)
+        :
+        FilterBase(filter),
         minimum_(minimum),
         maximum_(maximum)
     {
@@ -101,6 +94,7 @@ struct RangeFilter
 
     RangeFilter(const RangeFilter &other)
         :
+        FilterBase(other),
         minimum_(other.minimum_),
         maximum_(other.maximum_)
     {
@@ -109,6 +103,7 @@ struct RangeFilter
 
     RangeFilter & operator=(const RangeFilter &other)
     {
+        this->FilterBase::operator=(other);
         this->minimum_ = other.minimum_;
         this->maximum_ = other.maximum_;
 
@@ -117,7 +112,7 @@ struct RangeFilter
 
     Type Get(Type value) const
     {
-        return value;
+        return this->FilterOnGet_(value);
     }
 
     Type Set(Type value) const
@@ -133,13 +128,13 @@ struct RangeFilter
 
             return std::max(
                 this->minimum_,
-                std::min(*value, this->maximum_));
+                std::min(*this->FilterOnSet_(*value), this->maximum_));
         }
         else
         {
             return std::max(
                 this->minimum_,
-                std::min(value, this->maximum_));
+                std::min(this->FilterOnSet_(value), this->maximum_));
         }
     }
 
@@ -153,45 +148,21 @@ struct RangeFilter
         return this->maximum_;
     }
 
+    void SetExtrema(PlainType minimum, PlainType maximum)
+    {
+        this->minimum_ = minimum;
+        this->maximum_ = maximum;
+    }
+
 private:
     PlainType minimum_;
     PlainType maximum_;
 };
 
 
-template<typename T, typename Value, typename Enable = void>
-struct Minimum
-{
-    static constexpr auto value = Value::template Get<T>();
-};
-
-template<typename T, typename Value>
-struct Minimum<T, Value, std::enable_if_t<std::is_void_v<Value>>>
-{
-    static constexpr auto value = std::numeric_limits<T>::lowest();
-};
-
-template<typename T, typename Value, typename Enable = void>
-struct Maximum
-{
-    static constexpr auto value = Value::template Get<T>();
-};
-
-template<typename T, typename Value>
-struct Maximum<T, Value, std::enable_if_t<std::is_void_v<Value>>>
-{
-    static constexpr auto value = std::numeric_limits<T>::max();
-};
-
-
 template
 <
-    typename T,
-    // Defaults to numeric_limits<T>::lowest() and ::max()
-    typename initialMinimum = void,
-    typename initialMaximum = void,
-    template<typename, typename, typename>
-        typename ValueNode_ = ::pex::DefaultValueNode
+    typename Options
 >
 class Range: Separator
 {
@@ -199,24 +170,25 @@ public:
     static constexpr bool isRangeModel = true;
     static constexpr auto observerName = "pex::model::Range";
 
-    using Type = T;
+    using Type = Options::Type;
 
     static_assert(
-        std::is_arithmetic_v<jive::RemoveOptional<T>>,
+        std::is_arithmetic_v<jive::RemoveOptional<Type>>,
         "Designed only for arithmetic types.");
 
     // TODO: Make Access a template parameter.
     using Access = GetAndSetTag;
+    using Filter = typename Options::Filter;
+    using ComposedFilter = RangeFilter<Type, Filter>;
 
-    using ValueNode = ValueNode_<T, RangeFilter<T>, Access>;
+    using ValueNode =
+        typename Options::template ValueNode<Type, ComposedFilter, Access>;
+
     using Value = typename ValueNode::Model;
     using LimitType = jive::RemoveOptional<Type>;
 
-    static constexpr auto defaultMinimum =
-        Minimum<LimitType, initialMinimum>::value;
-
-    static constexpr auto defaultMaximum =
-        Maximum<LimitType, initialMaximum>::value;
+    static constexpr auto defaultMinimum = Options::minimum;
+    static constexpr auto defaultMaximum = Options::maximum;
 
     using Limit = typename ::pex::model::Value<jive::RemoveOptional<Type>>;
     using Callable = typename Value::Callable;
@@ -224,7 +196,7 @@ public:
 public:
     Range()
         :
-        value(RangeFilter<Type>(defaultMinimum, defaultMaximum)),
+        value(ComposedFilter(defaultMinimum, defaultMaximum)),
         minimum(defaultMinimum),
         maximum(defaultMaximum),
         reset(),
@@ -245,11 +217,32 @@ public:
         :
         value(
             value_,
-            RangeFilter<Type>(
-                Minimum<LimitType, initialMinimum>::value,
-                Maximum<LimitType, initialMaximum>::value)),
-        minimum(Minimum<LimitType, initialMinimum>::value),
-        maximum(Maximum<LimitType, initialMaximum>::value),
+            ComposedFilter(defaultMinimum, defaultMaximum)),
+
+        minimum(defaultMinimum),
+        maximum(defaultMaximum),
+        reset(),
+        defaultValue_(this->value.Get()),
+
+        resetTerminus_(
+            PEX_THIS("model::Range"),
+            PEX_MEMBER_PASS(this->reset),
+            &Range::OnReset_)
+    {
+        PEX_NAME("model::Range");
+        PEX_MEMBER(value);
+        PEX_MEMBER(minimum);
+        PEX_MEMBER(maximum);
+    }
+
+    Range(Type value_, Filter filter)
+        :
+        value(
+            value_,
+            ComposedFilter(filter, defaultMinimum, defaultMaximum)),
+
+        minimum(defaultMinimum),
+        maximum(defaultMaximum),
         reset(),
         defaultValue_(this->value.Get()),
 
@@ -293,6 +286,11 @@ public:
         return this->defaultValue_;
     }
 
+    void SetFilter(Filter filter)
+    {
+        this->value.GetFilter().SetFilter(filter);
+    }
+
     void SetLimits(LimitType minimum_, LimitType maximum_)
     {
         if (maximum_ < minimum_)
@@ -311,12 +309,11 @@ public:
         changeMinimum.Set(minimum_);
         changeMaximum.Set(maximum_);
 
-        this->value.SetFilter(
-            RangeFilter<Type>(
-                this->minimum.Get(),
-                this->maximum.Get()));
+        this->value.GetFilter().SetExtrema(
+            this->minimum.Get(),
+            this->maximum.Get());
 
-        if constexpr (jive::IsOptional<T>)
+        if constexpr (jive::IsOptional<Type>)
         {
             auto value_ = this->value.Get();
 
@@ -374,9 +371,9 @@ public:
 
         changeMinimum.Set(minimum_);
 
-        this->value.SetFilter(RangeFilter<Type>(
+        this->value.GetFilter().SetExtrema(
             this->minimum.Get(),
-            this->maximum.Get()));
+            this->maximum.Get());
 
         if constexpr (jive::IsOptional<Type>)
         {
@@ -409,9 +406,9 @@ public:
         auto changeMaximum = ::pex::Defer<Limit>(this->maximum);
         changeMaximum.Set(maximum_);
 
-        this->value.SetFilter(RangeFilter<Type>(
+        this->value.GetFilter().SetExtrema(
             this->minimum.Get(),
-            this->maximum.Get()));
+            this->maximum.Get());
 
         if constexpr (jive::IsOptional<Type>)
         {
@@ -457,7 +454,7 @@ public:
             changeMinimum.Clear();
         }
 
-        this->value.SetFilter(RangeFilter<Type>(minimum_, filterMaximum));
+        this->value.GetFilter().SetExtrema(minimum_, filterMaximum);
 
         if constexpr (jive::IsOptional<Type>)
         {
@@ -503,7 +500,7 @@ public:
             changeMaximum.Clear();
         }
 
-        this->value.SetFilter(RangeFilter<Type>(filterMinimum, maximum_));
+        this->value.GetFilter().SetExtrema(filterMinimum, maximum_);
 
         if constexpr (jive::IsOptional<Type>)
         {
@@ -613,6 +610,11 @@ public:
 };
 
 
+template<typename T>
+using DefaultRange = Range<DefaultRangeOptions<T>>;
+
+
+#if 0
 template<typename Upstream>
 class AddRange
 {
@@ -776,6 +778,9 @@ private:
     Limit minimum_;
     Limit maximum_;
 };
+
+
+#endif
 
 
 } // namespace model

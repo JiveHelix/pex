@@ -334,11 +334,18 @@ TEST_CASE("Observe filtered value", "[filters]")
 
 TEST_CASE("LinearRange is observable", "[filters]")
 {
-    using WeightRange = pex::model::Range<double>;
+    using WeightRange = pex::model::DefaultRange<double>;
     using WeightControl = pex::control::Range<WeightRange>;
     using FilteredWeight = pex::control::LinearRange<WeightControl>;
 
     WeightRange weightRange;
+
+    if (weightRange.Get() != 0)
+    {
+        throw std::logic_error("What happened to initialization?");
+    }
+
+    REQUIRE(weightRange.Get() == 0);
     PEX_ROOT(weightRange);
     weightRange.SetMinimum(100.0);
     weightRange.SetMaximum(150.0);
@@ -359,7 +366,7 @@ TEST_CASE("LinearRange is observable", "[filters]")
 
 TEST_CASE("Optional LinearRange is observable", "[filters]")
 {
-    using WeightRange = pex::model::Range<std::optional<double>>;
+    using WeightRange = pex::model::DefaultRange<std::optional<double>>;
     using WeightControl = pex::control::Range<WeightRange>;
     using FilteredWeight = pex::control::LinearRange<WeightControl>;
     using FilteredValue = typename FilteredWeight::Value;
@@ -390,7 +397,7 @@ TEST_CASE("Optional LinearRange is observable", "[filters]")
 
 TEST_CASE("Optional ConvertingRange is observable", "[filters]")
 {
-    using WeightRange = pex::model::Range<std::optional<double>>;
+    using WeightRange = pex::model::DefaultRange<std::optional<double>>;
     using WeightControl = pex::control::Range<WeightRange>;
     using FilteredWeight = pex::control::ConvertingRange<WeightControl, int>;
 

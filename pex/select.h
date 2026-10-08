@@ -266,6 +266,11 @@ public:
                 ConstReference(this->choices_).Get()));
     }
 
+    void Set(Argument<Type> value)
+    {
+        this->SetValue(value);
+    }
+
     size_t GetSelectedIndex() const
     {
         return this->selection_.Get();

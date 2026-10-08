@@ -12,10 +12,11 @@
 #pragma once
 
 #include <pex/default_value_node.h>
-#include "pex/no_filter.h"
-#include "pex/access_tag.h"
-#include "pex/model_value.h"
-#include "pex/traits.h"
+#include <pex/no_filter.h>
+#include <pex/access_tag.h>
+#include <pex/model_value.h>
+#include <pex/traits.h>
+#include <pex/range_options.h>
 
 namespace pex
 {
@@ -60,21 +61,28 @@ struct DefineNodes
 template
 <
     typename T,
-    typename Minimum_ = void,
-    typename Maximum_ = void,
-    typename Access_ = GetAndSetTag,
-    template<typename, typename, typename>
-    typename ValueNode_ = DefaultValueNode
+    IsLimit initialMinimum = DefaultLimit,
+    IsLimit initialMaximum = DefaultLimit,
+    typename Access_ = GetAndSetTag
 >
 struct MakeRange
 {
     using Type = T;
-    using Minimum = Minimum_;
-    using Maximum = Maximum_;
+    using Options = RangeOptions<T, initialMinimum, initialMaximum>;
     using Access = Access_;
+};
 
-    template<typename U, typename V, typename W>
-    using ValueNode = ValueNode_<U, V, W>;
+
+template
+<
+    typename Options_,
+    typename Access_ = GetAndSetTag
+>
+struct MakeRangeOptions
+{
+    using Type = typename Options_::Type;
+    using Options = Options_;
+    using Access = Access_;
 };
 
 

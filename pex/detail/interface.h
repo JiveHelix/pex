@@ -71,18 +71,11 @@ struct IsFiltered_<Filtered<T...>>: std::true_type {};
 
 template<typename ...T> struct IsMakeRange_: std::false_type {};
 
-template
-<
-    typename T,
-    typename U,
-    typename V,
-    typename W,
-    template<typename, typename, typename> typename X
->
-struct IsMakeRange_<MakeRange<T, U, V, W, X>>: std::true_type {};
-
 template<typename ...T>
 struct IsMakeRange_<MakeRange<T...>>: std::true_type {};
+
+template<typename ...T>
+struct IsMakeRange_<MakeRangeOptions<T...>>: std::true_type {};
 
 
 template<typename ...T> struct IsMakeSelect_: std::false_type {};

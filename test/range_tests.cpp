@@ -5,7 +5,7 @@
 #include <pex/linked_ranges.h>
 
 
-using Range = pex::model::Range<int>;
+using Range = pex::model::DefaultRange<int>;
 using Control = pex::control::Range<Range>;
 
 
@@ -33,7 +33,7 @@ TEST_CASE("Limits keep value within range.", "[range]")
 
 TEST_CASE("Limits keep optional value within range.", "[range]")
 {
-    using OptionalRange = pex::model::Range<std::optional<int>>;
+    using OptionalRange = pex::model::DefaultRange<std::optional<int>>;
     using OptionalControl = pex::control::Range<OptionalRange>;
 
     OptionalRange range;

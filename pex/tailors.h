@@ -23,16 +23,11 @@ namespace detail
 template<typename RangeMaker>
 struct RangeTypes
 {
-    using Type = typename RangeMaker::Type;
+    using Options = typename RangeMaker::Options;
+    using Type = typename Options::Type;
 
     using Model =
-        ::pex::model::Range
-        <
-            Type,
-            typename RangeMaker::Minimum,
-            typename RangeMaker::Maximum,
-            RangeMaker::template ValueNode
-        >;
+        ::pex::model::Range<Options>;
 
     using ControlAccess = typename RangeMaker::Access;
 

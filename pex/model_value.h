@@ -56,118 +56,12 @@ using ValueConnection =
         detail::FilteredType<T, Filter>
     >;
 
-namespace model
+
+template<typename Type, typename Filter_>
+class FilterAdapter
 {
-
-// Model must use unbound callbacks so it can send notifications to
-// different observer types.
-// All observers are stored as void *.
-template<typename T, typename Filter_, typename Access_ = GetAndSetTag>
-class Value_
-    :
-    // Callback values will be the type returned by the Filter, or T if
-    // the filter is void.
-    public detail::NotifyMany<ValueConnection<void, T, Filter_>, Access_>
-{
-    static_assert(!std::is_void_v<T>);
-
-    // Why are we using SetTag here?
-    static_assert(detail::FilterIsNoneOrValid<T, Filter_, SetTag>);
-
 public:
-    using Type = T;
-    using Plain = Type;
     using Filter = Filter_;
-    using Callable = typename ValueConnection<void, T, Filter>::Callable;
-
-    // All model nodes have writable access.
-    using Access = Access_;
-
-    template<typename>
-    friend class ::pex::Transaction;
-
-    template<typename>
-    friend class ::pex::Reference;
-
-    template<typename>
-    friend class ::pex::ValueContainerReference;
-
-    template<typename>
-    friend class ::pex::KeyValueContainerReference;
-
-    template<typename>
-    friend class ::pex::ConstReference;
-
-    template<typename>
-    friend class Direct;
-
-    template<typename, typename>
-    friend class Publisher;
-
-    Value_()
-        :
-        filter_{},
-        value_{this->FilterOnSet_(Type{})}
-    {
-        PEX_LOG(this);
-    }
-
-    explicit Value_(Type value)
-        :
-        filter_{},
-        value_{this->FilterOnSet_(value)}
-    {
-        PEX_LOG(this);
-    }
-
-    Value_(Type value, Filter filter)
-        :
-        filter_{filter},
-        value_{this->FilterOnSet_(value)}
-    {
-        PEX_LOG(this);
-    }
-
-    Value_(Filter filter)
-        :
-        filter_{filter},
-        value_{this->FilterOnSet_(Type{})}
-    {
-        PEX_LOG(this);
-    }
-
-    Value_(const Value_<Type, Filter> &) = delete;
-    Value_(Value_<Type, Filter> &&) = delete;
-
-    ~Value_()
-    {
-
-    }
-
-    /** Set the value and notify interfaces **/
-    void Set(Argument<Type> value)
-        requires (HasAccess<SetTag, Access>)
-    {
-        this->SetWithoutNotify_(value);
-        this->Notify();
-    }
-
-    Type Get() const
-    {
-        return this->value_;
-    }
-
-    explicit operator Type () const
-    {
-        return this->value_;
-    }
-
-    Value_ & operator=(Argument<Type> value)
-        requires (HasAccess<SetTag, Access>)
-    {
-        this->Set(value);
-        return *this;
-    }
 
     void SetFilter(Filter filter)
     {
@@ -184,26 +78,19 @@ public:
         return this->filter_;
     }
 
-    // This function is used in debug assertions to check that other entities
-    // hold a reference to a model value.
-    bool HasModel() const { return true; }
-
-    void Notify() const
+protected:
+    FilterAdapter()
+        :
+        filter_{}
     {
-        this->Notify_(this->value_);
+
     }
 
-protected:
-    void SetWithoutNotify_(Argument<Type> value)
+    FilterAdapter(Filter filter)
+        :
+        filter_(filter)
     {
-        if constexpr (detail::FilterIsNone<Filter>)
-        {
-            this->value_ = value;
-        }
-        else
-        {
-            this->value_ = this->FilterOnSet_(value);
-        }
+
     }
 
     Type FilterOnSet_(Argument<Type> value) const
@@ -325,8 +212,149 @@ protected:
             }
         }
     }
-
+private:
     Filter filter_;
+};
+
+
+namespace model
+{
+
+// Model must use unbound callbacks so it can send notifications to
+// different observer types.
+// All observers are stored as void *.
+template<typename T, typename Filter_, typename Access_ = GetAndSetTag>
+class Value_
+    :
+    // Callback values will be the type returned by the Filter, or T if
+    // the filter is void.
+    public detail::NotifyMany<ValueConnection<void, T, Filter_>, Access_>,
+    public FilterAdapter<T, Filter_>
+{
+    using FilterBase = FilterAdapter<T, Filter_>;
+
+    static_assert(!std::is_void_v<T>);
+
+    // Why are we using SetTag here?
+    static_assert(detail::FilterIsNoneOrValid<T, Filter_, SetTag>);
+
+public:
+    using Type = T;
+    using Plain = Type;
+    using Filter = Filter_;
+    using Callable = typename ValueConnection<void, T, Filter>::Callable;
+
+    // All model nodes have writable access.
+    using Access = Access_;
+
+    template<typename>
+    friend class ::pex::Transaction;
+
+    template<typename>
+    friend class ::pex::Reference;
+
+    template<typename>
+    friend class ::pex::ValueContainerReference;
+
+    template<typename>
+    friend class ::pex::KeyValueContainerReference;
+
+    template<typename>
+    friend class ::pex::ConstReference;
+
+    template<typename>
+    friend class Direct;
+
+    template<typename, typename>
+    friend class Publisher;
+
+    Value_()
+        :
+        FilterBase(),
+        value_{this->FilterOnSet_(Type{})}
+    {
+        PEX_LOG(this);
+    }
+
+    explicit Value_(Type value)
+        :
+        FilterBase(),
+        value_{this->FilterOnSet_(value)}
+    {
+        PEX_LOG(this);
+    }
+
+    Value_(Type value, Filter filter)
+        :
+        FilterBase(filter),
+        value_{this->FilterOnSet_(value)}
+    {
+        PEX_LOG(this);
+    }
+
+    Value_(Filter filter)
+        :
+        FilterBase(filter),
+        value_{this->FilterOnSet_(Type{})}
+    {
+        PEX_LOG(this);
+    }
+
+    Value_(const Value_<Type, Filter> &) = delete;
+    Value_(Value_<Type, Filter> &&) = delete;
+
+    ~Value_()
+    {
+
+    }
+
+    /** Set the value and notify interfaces **/
+    void Set(Argument<Type> value)
+        requires (HasAccess<SetTag, Access>)
+    {
+        this->SetWithoutNotify_(value);
+        this->Notify();
+    }
+
+    Type Get() const
+    {
+        return this->value_;
+    }
+
+    explicit operator Type () const
+    {
+        return this->value_;
+    }
+
+    Value_ & operator=(Argument<Type> value)
+        requires (HasAccess<SetTag, Access>)
+    {
+        this->Set(value);
+        return *this;
+    }
+
+    // This function is used in debug assertions to check that other entities
+    // hold a reference to a model value.
+    bool HasModel() const { return true; }
+
+    void Notify() const
+    {
+        this->Notify_(this->value_);
+    }
+
+protected:
+    void SetWithoutNotify_(Argument<Type> value)
+    {
+        if constexpr (detail::FilterIsNone<Filter>)
+        {
+            this->value_ = value;
+        }
+        else
+        {
+            this->value_ = this->FilterOnSet_(value);
+        }
+    }
+
     Type value_;
 };
 
