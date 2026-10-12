@@ -195,11 +195,7 @@ TEST_CASE("Linked ranges has comparison operators", "[range]")
     using TestRanges =
         pex::LinkedRanges
         <
-            double,
-            pex::Limit<0>,
-            pex::Limit<0>,
-            pex::Limit<10>,
-            pex::Limit<10>
+            pex::RangeOptions<double, pex::Limit<0>, pex::Limit<10>>
         >;
 
     static_assert(
@@ -261,11 +257,7 @@ namespace linked
 using ColorRanges =
     pex::LinkedRanges
     <
-        int,
-        pex::Limit<0>,
-        pex::Limit<0>,
-        pex::Limit<255>,
-        pex::Limit<255>
+        pex::RangeOptions<int, pex::Limit<0>, pex::Limit<255>>
     >;
 
 

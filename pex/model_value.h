@@ -238,6 +238,10 @@ class Value_
     // Why are we using SetTag here?
     static_assert(detail::FilterIsNoneOrValid<T, Filter_, SetTag>);
 
+    static_assert(
+        std::same_as<T, detail::FilteredType<T, Filter_>>,
+        "model filters cannot change the type.");
+
 public:
     using Type = T;
     using Plain = Type;

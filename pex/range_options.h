@@ -11,8 +11,8 @@ namespace pex
 template
 <
     typename T,
-    IsLimit initialMinimum,
-    IsLimit initialMaximum,
+    IsLimit initialMinimum_,
+    IsLimit initialMaximum_,
     typename Filter_ = ::pex::NoFilter,
     template<typename, typename, typename>
     typename ValueNode_ = ::pex::DefaultValueNode
@@ -21,6 +21,8 @@ struct RangeOptions
 {
     using Type = T;
     using LimitType = jive::RemoveOptional<Type>;
+    using initialMinimum = initialMinimum_;
+    using initialMaximum = initialMaximum_;
 
     // Defaults to numeric_limits<T>::lowest() and ::max()
     static constexpr auto minimum = Minimum<LimitType, initialMinimum>::value;

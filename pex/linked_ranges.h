@@ -10,33 +10,17 @@
 namespace pex
 {
 
-// TODO: Rename LinkedRange to Range
-
-
-template<typename T>
-struct LinkedRangesSettings
-{
-    T low;
-    T high;
-
-    static constexpr auto fieldsTypeName = "LinkedRanges";
-};
-
-
-TEMPLATE_COMPARISON_OPERATORS(LinkedRangesSettings)
-
+// TODO: Rename LinkedRanges to Range
 
 template
 <
-    typename Type,
-    typename LowLimit,
-    typename LowValue,
-    typename HighLimit,
-    typename HighValue
+    typename Options,
+    typename Access = pex::GetAndSetTag
 >
 struct LinkedRanges
 {
-    using RangeMaker = MakeRange<Type, LowLimit, HighLimit>;
+    using RangeMaker = MakeRangeOptions<Options, Access>;
+    using Type = typename Options::Type;
 
     template<template<typename> typename T>
     struct Schema
@@ -49,22 +33,20 @@ struct LinkedRanges
 
     struct Finisher
     {
-        struct Plain: public LinkedRangesSettings<Type>
+        struct Plain: public Schema<pex::Identity>
         {
-            using Reflector = LinkedRangesSettings<Type>;
+            using Reflector = Schema<pex::Identity>;
 
-            Plain(Type low_, Type high_)
+            Plain()
                 :
-                LinkedRangesSettings<Type>{low_, high_}
+                Reflector{Options::minimum, Options::maximum}
             {
 
             }
 
-            Plain()
+            Plain(Type low, Type high)
                 :
-                LinkedRangesSettings<Type>{
-                    LowValue::template Get<Type>(),
-                    HighValue::template Get<Type>()}
+                Reflector{low, high}
             {
 
             }
@@ -72,6 +54,11 @@ struct LinkedRanges
             Type GetRange() const
             {
                 return this->high - this->low;
+            }
+
+            bool operator==(const Plain &other) const
+            {
+                return this->low == other.low && this->high == other.high;
             }
         };
 
@@ -178,22 +165,8 @@ struct LinkedRanges
 };
 
 
-template<typename Range>
-struct MakeLinkedRanges_
-{
-    using Type = LinkedRanges
-    <
-        typename Range::Type,
-        typename Range::Minimum,
-        typename Range::Minimum,
-        typename Range::Maximum,
-        typename Range::Maximum
-    >;
-};
-
-
-template<typename Range>
-using MakeLinkedRanges = typename MakeLinkedRanges_<Range>::Type;
+template<typename RangeMaker>
+using MakeLinkedRanges = LinkedRanges<typename RangeMaker::Options>;
 
 
 } // end namespace pex

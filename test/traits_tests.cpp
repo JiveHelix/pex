@@ -21,11 +21,7 @@ template<typename Float>
 using TesterRanges =
     pex::LinkedRanges
     <
-        Float,
-        TesterLowerBound,
-        TesterLow,
-        TesterUpperBound,
-        TesterHigh
+        pex::RangeOptions<Float, TesterLowerBound, TesterUpperBound>
     >;
 
 
@@ -38,20 +34,7 @@ struct TesterSchema
 };
 
 
-struct TesterSettings:
-    public TesterSchema<pex::Identity>
-{
-    TesterSettings()
-        :
-        TesterSchema<pex::Identity>{
-            TesterRanges<double>::Settings{}}
-    {
-
-    }
-};
-
-
-using TesterGroup = pex::Group<TesterSchema, pex::PlainT<TesterSettings>>;
+using TesterGroup = pex::Group<TesterSchema>;
 
 
 } // end namespace traits_tests

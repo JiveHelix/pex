@@ -288,9 +288,21 @@ public:
 
     void SetFilter(Filter filter)
     {
-        this->value.GetFilter().SetFilter(filter);
+        // value.GetFilter() returns a type that is convertible to
+        // ComposedFilter &.
+        // We are changing the inner filter type, not the RangeFilter itself.
+        static_cast<ComposedFilter &>(this->value.GetFilter())
+            .SetFilter(filter);
     }
 
+private:
+    void SetExtrema_(LimitType minimum_, LimitType maximum_)
+    {
+        static_cast<ComposedFilter &>(this->value.GetFilter())
+            .SetExtrema(minimum_, maximum_);
+    }
+
+public:
     void SetLimits(LimitType minimum_, LimitType maximum_)
     {
         if (maximum_ < minimum_)
@@ -309,7 +321,7 @@ public:
         changeMinimum.Set(minimum_);
         changeMaximum.Set(maximum_);
 
-        this->value.GetFilter().SetExtrema(
+        this->SetExtrema_(
             this->minimum.Get(),
             this->maximum.Get());
 
@@ -371,7 +383,7 @@ public:
 
         changeMinimum.Set(minimum_);
 
-        this->value.GetFilter().SetExtrema(
+        this->SetExtrema_(
             this->minimum.Get(),
             this->maximum.Get());
 
@@ -406,7 +418,7 @@ public:
         auto changeMaximum = ::pex::Defer<Limit>(this->maximum);
         changeMaximum.Set(maximum_);
 
-        this->value.GetFilter().SetExtrema(
+        this->SetExtrema_(
             this->minimum.Get(),
             this->maximum.Get());
 
@@ -454,7 +466,7 @@ public:
             changeMinimum.Clear();
         }
 
-        this->value.GetFilter().SetExtrema(minimum_, filterMaximum);
+        this->SetExtrema_(minimum_, filterMaximum);
 
         if constexpr (jive::IsOptional<Type>)
         {
@@ -500,7 +512,7 @@ public:
             changeMaximum.Clear();
         }
 
-        this->value.GetFilter().SetExtrema(filterMinimum, maximum_);
+        this->SetExtrema_(filterMinimum, maximum_);
 
         if constexpr (jive::IsOptional<Type>)
         {
