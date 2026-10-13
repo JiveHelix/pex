@@ -14,7 +14,7 @@
 #include <fields/fields.h>
 #include "pex/value.h"
 #include "pex/signal.h"
-#include "pex/range.h"
+#include "pex/bounded.h"
 
 #include "pex/select.h"
 #include "pex/reference.h"

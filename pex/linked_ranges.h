@@ -3,7 +3,7 @@
 #include <fields/fields.h>
 #include <pex/interface.h>
 #include <pex/group.h>
-#include <pex/range_terminus.h>
+#include <pex/bounded_terminus.h>
 #include <pex/tailors.h>
 
 
@@ -19,14 +19,14 @@ template
 >
 struct LinkedRanges
 {
-    using RangeMaker = MakeRangeOptions<Options, Access>;
+    using BoundedMaker = MakeBoundedOptions<Options, Access>;
     using Type = typename Options::Type;
 
     template<template<typename> typename T>
     struct Schema
     {
-        T<RangeMaker> low;
-        T<RangeMaker> high;
+        T<BoundedMaker> low;
+        T<BoundedMaker> high;
 
         static constexpr auto fieldsTypeName = "LinkedRanges";
     };
@@ -51,7 +51,7 @@ struct LinkedRanges
 
             }
 
-            Type GetRange() const
+            Type GetSpan() const
             {
                 return this->high - this->low;
             }
@@ -66,13 +66,13 @@ struct LinkedRanges
         struct Model: public Base
         {
         private:
-            using Low = ControlTailor<RangeMaker>;
+            using Low = ControlTailor<BoundedMaker>;
 
-            using LowTerminus = pex::RangeTerminus<Model, Low>;
+            using LowTerminus = pex::BoundedTerminus<Model, Low>;
 
-            using High = ControlTailor<RangeMaker>;
+            using High = ControlTailor<BoundedMaker>;
 
-            using HighTerminus = pex::RangeTerminus<Model, High>;
+            using HighTerminus = pex::BoundedTerminus<Model, High>;
 
             LowTerminus lowTerminus_;
             HighTerminus highTerminus_;
@@ -123,12 +123,12 @@ struct LinkedRanges
                     .SetWithoutNotify(plain.high);
 
                 this->high.value.SetFilter(
-                    pex::model::RangeFilter<Type>(
+                    pex::model::BoundedFilter<Type>(
                         this->high.minimum.Get(),
                         this->high.maximum.Get()));
 
                 this->low.value.SetFilter(
-                    pex::model::RangeFilter<Type>(
+                    pex::model::BoundedFilter<Type>(
                         this->low.minimum.Get(),
                         this->low.maximum.Get()));
 
@@ -165,8 +165,8 @@ struct LinkedRanges
 };
 
 
-template<typename RangeMaker>
-using MakeLinkedRanges = LinkedRanges<typename RangeMaker::Options>;
+template<typename BoundedMaker>
+using MakeLinkedRanges = LinkedRanges<typename BoundedMaker::Options>;
 
 
 } // end namespace pex

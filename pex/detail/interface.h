@@ -69,13 +69,13 @@ template<typename ...T>
 struct IsFiltered_<Filtered<T...>>: std::true_type {};
 
 
-template<typename ...T> struct IsMakeRange_: std::false_type {};
+template<typename ...T> struct IsMakeBounded_: std::false_type {};
 
 template<typename ...T>
-struct IsMakeRange_<MakeRange<T...>>: std::true_type {};
+struct IsMakeBounded_<MakeBounded<T...>>: std::true_type {};
 
 template<typename ...T>
-struct IsMakeRange_<MakeRangeOptions<T...>>: std::true_type {};
+struct IsMakeBounded_<MakeBoundedOptions<T...>>: std::true_type {};
 
 
 template<typename ...T> struct IsMakeSelect_: std::false_type {};

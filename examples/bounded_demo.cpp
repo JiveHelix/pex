@@ -22,9 +22,9 @@ using pex::Limit;
 template<template<typename> typename T>
 struct RotationSchema
 {
-    T<pex::MakeRange<double, Limit<-90>, Limit<90>>> alpha;
-    T<pex::MakeRange<double, Limit<-180>, Limit<180>>> beta;
-    T<pex::MakeRange<double, Limit<-180>, Limit<180>>> gamma;
+    T<pex::MakeBounded<double, Limit<-90>, Limit<90>>> alpha;
+    T<pex::MakeBounded<double, Limit<-180>, Limit<180>>> beta;
+    T<pex::MakeBounded<double, Limit<-180>, Limit<180>>> gamma;
 
     static constexpr auto fieldsTypeName = "Rotation";
 };

@@ -30,7 +30,7 @@ struct Identity_
         || IsDefineNodes<T>
         || IsGroup<T>
         || IsList<T>
-        || IsMakeRange<T>
+        || IsMakeBounded<T>
     >
 >
 {

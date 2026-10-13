@@ -1,17 +1,17 @@
 
 #include <catch2/catch.hpp>
 #include <pex/value.h>
-#include <pex/range.h>
+#include <pex/bounded.h>
 #include <pex/linked_ranges.h>
 
 
-using Range = pex::model::DefaultRange<int>;
-using Control = pex::control::Range<Range>;
+using Bounded = pex::model::DefaultBounded<int>;
+using Control = pex::control::Bounded<Bounded>;
 
 
 TEST_CASE("Limits keep value within range.", "[range]")
 {
-    Range range(18);
+    Bounded range(18);
     range.SetLimits(0, 20);
 
     Control control(range);
@@ -33,8 +33,8 @@ TEST_CASE("Limits keep value within range.", "[range]")
 
 TEST_CASE("Limits keep optional value within range.", "[range]")
 {
-    using OptionalRange = pex::model::DefaultRange<std::optional<int>>;
-    using OptionalControl = pex::control::Range<OptionalRange>;
+    using OptionalRange = pex::model::DefaultBounded<std::optional<int>>;
+    using OptionalControl = pex::control::Bounded<OptionalRange>;
 
     OptionalRange range;
     REQUIRE(!range.Get());
@@ -64,7 +64,7 @@ TEST_CASE("Limits keep optional value within range.", "[range]")
 
 TEST_CASE("Limits filter propagates to controls.", "[range]")
 {
-    Range range(18);
+    Bounded range(18);
     range.SetLimits(0, 20);
 
     Control control(range);
@@ -100,12 +100,12 @@ struct Filter
 };
 
 
-using FilteredRange = pex::control::Range<Control, Filter>;
+using FilteredRange = pex::control::Bounded<Control, Filter>;
 
 
 TEST_CASE("Chaining ranges together to add a filter.", "[range]")
 {
-    Range range(18);
+    Bounded range(18);
     range.SetLimits(0, 20);
 
     Control control(range);
@@ -151,9 +151,9 @@ struct Observer: Separator
 };
 
 
-TEST_CASE("Range value is echoed to observers.", "[range]")
+TEST_CASE("Bounded value is echoed to observers.", "[range]")
 {
-    Range range(18);
+    Bounded range(18);
     range.SetLimits(0, 20);
 
     Control control(range);
@@ -166,7 +166,7 @@ TEST_CASE("Range value is echoed to observers.", "[range]")
 
 TEST_CASE("Model value is echoed to observers.", "[range]")
 {
-    Range range(18);
+    Bounded range(18);
     range.SetLimits(0, 20);
 
     Control control(range);
@@ -179,7 +179,7 @@ TEST_CASE("Model value is echoed to observers.", "[range]")
 
 TEST_CASE("Limited value is echoed to observers.", "[range]")
 {
-    Range range(18);
+    Bounded range(18);
     range.SetLimits(0, 20);
 
     Control control(range);
@@ -195,7 +195,7 @@ TEST_CASE("Linked ranges has comparison operators", "[range]")
     using TestRanges =
         pex::LinkedRanges
         <
-            pex::RangeOptions<double, pex::Limit<0>, pex::Limit<10>>
+            pex::BoundedOptions<double, pex::Limit<0>, pex::Limit<10>>
         >;
 
     static_assert(
@@ -216,12 +216,17 @@ TEST_CASE("Linked ranges has comparison operators", "[range]")
 }
 
 
-TEST_CASE("Range limits are never optional.", "[range]")
+TEST_CASE("Bounded limits are never optional.", "[range]")
 {
-    using MakeRange =
-        pex::MakeRange<std::optional<double>, pex::Limit<-45>, pex::Limit<45>>;
+    using MakeBounded =
+        pex::MakeBounded
+        <
+            std::optional<double>,
+            pex::Limit<-45>,
+            pex::Limit<45>
+        >;
 
-    using RangeControl = pex::ControlTailor<MakeRange>;
+    using RangeControl = pex::ControlTailor<MakeBounded>;
 
     STATIC_REQUIRE(
         !jive::IsOptional
@@ -235,18 +240,24 @@ TEST_CASE("Range limits are never optional.", "[range]")
             decltype(std::declval<RangeControl>().maximum.Get())
         >);
 
-    using LinearRange =
-        pex::control::LinearRange
+    using LinearBounded =
+        pex::control::LinearBounded
         <
             typename RangeControl::Upstream,
             typename RangeControl::Access
         >;
 
     STATIC_REQUIRE(
-        !jive::IsOptional<decltype(std::declval<LinearRange>().minimum.Get())>);
+        !jive::IsOptional
+        <
+            decltype(std::declval<LinearBounded>().minimum.Get())
+        >);
 
     STATIC_REQUIRE(
-        !jive::IsOptional<decltype(std::declval<LinearRange>().maximum.Get())>);
+        !jive::IsOptional
+        <
+            decltype(std::declval<LinearBounded>().maximum.Get())
+        >);
 }
 
 
@@ -257,7 +268,7 @@ namespace linked
 using ColorRanges =
     pex::LinkedRanges
     <
-        pex::RangeOptions<int, pex::Limit<0>, pex::Limit<255>>
+        pex::BoundedOptions<int, pex::Limit<0>, pex::Limit<255>>
     >;
 
 

@@ -361,23 +361,23 @@ template<typename T>
 concept IsModelWrapper = T::isModelWrapper;
 
 template<typename T>
-concept IsRangeModel = T::isRangeModel;
+concept IsBoundedModel = T::isBoundedModel;
 
 template<typename T>
-concept IsRangeControl = T::isRangeControl;
+concept IsBoundedControl = T::isBoundedControl;
 
 template<typename T>
-concept IsRangeMux = T::isRangeMux;
+concept IsBoundedMux = T::isBoundedMux;
 
 template<typename T>
-concept IsRangeFollow = T::isRangeFollow;
+concept IsBoundedFollow = T::isBoundedFollow;
 
 template<typename T>
-concept IsRangeNode =
-    IsRangeModel<T>
-    || IsRangeControl<T>
-    || IsRangeMux<T>
-    || IsRangeFollow<T>;
+concept IsBoundedNode =
+    IsBoundedModel<T>
+    || IsBoundedControl<T>
+    || IsBoundedMux<T>
+    || IsBoundedFollow<T>;
 
 template<typename T>
 concept IsSelectModel = T::isSelectModel;

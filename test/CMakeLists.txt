@@ -13,7 +13,7 @@ add_catch2_test(
         list_tests.cpp
         ordered_list_tests.cpp
         poly_list_tests.cpp
-        range_tests.cpp
+        bounded_tests.cpp
         select_tests.cpp
         signal_tests.cpp
         swap_tests.cpp

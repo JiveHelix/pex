@@ -3,7 +3,7 @@
 
 #include "pex/model_value.h"
 #include "pex/control_value.h"
-#include "pex/range.h"
+#include "pex/bounded.h"
 #include "pex/select.h"
 #include "pex/signal.h"
 #include "pex/interface.h"
@@ -20,23 +20,23 @@ namespace detail
 {
 
 
-template<typename RangeMaker>
-struct RangeTypes
+template<typename BoundedMaker>
+struct BoundedTypes
 {
-    using Options = typename RangeMaker::Options;
+    using Options = typename BoundedMaker::Options;
     using Type = typename Options::Type;
 
     using Model =
-        ::pex::model::Range<Options>;
+        ::pex::model::Bounded<Options>;
 
-    using ControlAccess = typename RangeMaker::Access;
+    using ControlAccess = typename BoundedMaker::Access;
 
     template<typename Upstream>
     using Control =
-        ::pex::control::Range<Upstream, NoFilter, ControlAccess>;
+        ::pex::control::Bounded<Upstream, NoFilter, ControlAccess>;
 
-    using Mux = ::pex::control::RangeMux<Model>;
-    using Follow = ::pex::control::RangeFollow<Mux, NoFilter, ControlAccess>;
+    using Mux = ::pex::control::BoundedMux<Model>;
+    using Follow = ::pex::control::BoundedFollow<Mux, NoFilter, ControlAccess>;
 };
 
 
@@ -131,9 +131,9 @@ struct ModelTailor_<T, std::enable_if_t<IsFiltered<T>>>
 };
 
 template<typename T>
-struct ModelTailor_<T, std::enable_if_t<IsMakeRange<T>>>
+struct ModelTailor_<T, std::enable_if_t<IsMakeBounded<T>>>
 {
-    using Type = typename RangeTypes<T>::Model;
+    using Type = typename BoundedTypes<T>::Model;
 };
 
 template<typename T>
@@ -233,9 +233,9 @@ struct ControlTailor_<T, std::enable_if_t<IsFiltered<T>>>
 };
 
 template<typename T>
-struct ControlTailor_<T, std::enable_if_t<IsMakeRange<T>>>
+struct ControlTailor_<T, std::enable_if_t<IsMakeBounded<T>>>
 {
-    using Type = typename RangeTypes<T>
+    using Type = typename BoundedTypes<T>
         ::template Control<typename ModelTailor_<T>::Type>;
 };
 
@@ -346,9 +346,9 @@ struct MuxTailor_<T, std::enable_if_t<IsFiltered<T>>>
 };
 
 template<typename T>
-struct MuxTailor_<T, std::enable_if_t<IsMakeRange<T>>>
+struct MuxTailor_<T, std::enable_if_t<IsMakeBounded<T>>>
 {
-    using Type = typename RangeTypes<T>::Mux;
+    using Type = typename BoundedTypes<T>::Mux;
 };
 
 template<typename T>
@@ -446,9 +446,9 @@ struct FollowTailor_<T, std::enable_if_t<IsFiltered<T>>>
 };
 
 template<typename T>
-struct FollowTailor_<T, std::enable_if_t<IsMakeRange<T>>>
+struct FollowTailor_<T, std::enable_if_t<IsMakeBounded<T>>>
 {
-    using Type = typename RangeTypes<T>::Follow;
+    using Type = typename BoundedTypes<T>::Follow;
 };
 
 template<typename T>

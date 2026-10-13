@@ -3,7 +3,7 @@
 #include <vector>
 #include <pex/detail/traits.h>
 #include <pex/group.h>
-#include <pex/range.h>
+#include <pex/bounded.h>
 #include <pex/linked_ranges.h>
 
 
@@ -21,7 +21,7 @@ template<typename Float>
 using TesterRanges =
     pex::LinkedRanges
     <
-        pex::RangeOptions<Float, TesterLowerBound, TesterUpperBound>
+        pex::BoundedOptions<Float, TesterLowerBound, TesterUpperBound>
     >;
 
 

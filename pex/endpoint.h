@@ -5,7 +5,7 @@
 #include <fields/core.h>
 #include "pex/detail/group_connect.h"
 #include "pex/terminus.h"
-#include "pex/range_terminus.h"
+#include "pex/bounded_terminus.h"
 #include "pex/select_terminus.h"
 #include "pex/list.h"
 #include "pex/detail/list_connect.h"
@@ -37,10 +37,10 @@ struct MakeConnector_<T, std::enable_if_t<IsGroupNode<T>>>
 
 
 template<typename T>
-struct MakeConnector_<T, std::enable_if_t<IsRangeNode<T>>>
+struct MakeConnector_<T, std::enable_if_t<IsBoundedNode<T>>>
 {
     template<typename Observer>
-    using Type = RangeTerminus<Observer, T>;
+    using Type = BoundedTerminus<Observer, T>;
 };
 
 

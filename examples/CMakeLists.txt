@@ -20,10 +20,10 @@ target_link_libraries(
     pex)
 
 
-add_executable(range_demo range_demo.cpp)
+add_executable(bounded_demo bounded_demo.cpp)
 
 target_link_libraries(
-    range_demo
+    bounded_demo
     PUBLIC
     project_warnings
     project_options

@@ -1,5 +1,5 @@
 /**
-  * @file range.h
+  * @file bounded.h
   *
   * @brief A class encapsulating a bounded value, with pex::Value's for value,
   * minimum, and maximum.
@@ -21,7 +21,7 @@
 #include <pex/converting_filter.h>
 #include <pex/traits.h>
 #include <pex/terminus.h>
-#include <pex/range_options.h>
+#include <pex/bounded_options.h>
 #include <pex/default_value_node.h>
 #include <pex/detail/filters.h>
 
@@ -38,24 +38,22 @@ namespace pex
 {
 
 
-// TODO: Rename Range to Bounded or Clamped
-
 
 // Forward declarations
-// Necessary for the friend declarations in model::Range
+// Necessary for the friend declarations in model::Bounded
 
 namespace control
 {
 
 template<typename, typename, typename>
-class Range;
+class Bounded;
 
 
 } // end namespace control
 
 
 template<typename, typename>
-class RangeTerminus;
+class BoundedTerminus;
 
 
 namespace model
@@ -63,18 +61,18 @@ namespace model
 
 
 template<typename T, typename Filter_ = NoFilter>
-struct RangeFilter: public FilterAdapter<T, Filter_>
+struct BoundedFilter: public FilterAdapter<T, Filter_>
 {
     static_assert(
         std::same_as<T, detail::FilteredType<T, Filter_>>,
-        "Range filter expects the return type to be unchanged");
+        "Bounded filter expects the return type to be unchanged");
 
     using Filter = Filter_;
     using FilterBase = FilterAdapter<T, Filter>;
     using PlainType = jive::RemoveOptional<T>;
     using Type = T;
 
-    RangeFilter(PlainType minimum, PlainType maximum)
+    BoundedFilter(PlainType minimum, PlainType maximum)
         :
         FilterBase(),
         minimum_(minimum),
@@ -83,7 +81,7 @@ struct RangeFilter: public FilterAdapter<T, Filter_>
 
     }
 
-    RangeFilter(Filter filter, PlainType minimum, PlainType maximum)
+    BoundedFilter(Filter filter, PlainType minimum, PlainType maximum)
         :
         FilterBase(filter),
         minimum_(minimum),
@@ -92,7 +90,7 @@ struct RangeFilter: public FilterAdapter<T, Filter_>
 
     }
 
-    RangeFilter(const RangeFilter &other)
+    BoundedFilter(const BoundedFilter &other)
         :
         FilterBase(other),
         minimum_(other.minimum_),
@@ -101,7 +99,7 @@ struct RangeFilter: public FilterAdapter<T, Filter_>
 
     }
 
-    RangeFilter & operator=(const RangeFilter &other)
+    BoundedFilter & operator=(const BoundedFilter &other)
     {
         this->FilterBase::operator=(other);
         this->minimum_ = other.minimum_;
@@ -164,11 +162,11 @@ template
 <
     typename Options
 >
-class Range: Separator
+class Bounded: Separator
 {
 public:
-    static constexpr bool isRangeModel = true;
-    static constexpr auto observerName = "pex::model::Range";
+    static constexpr bool isBoundedModel = true;
+    static constexpr auto observerName = "pex::model::Bounded";
 
     using Type = Options::Type;
 
@@ -179,7 +177,7 @@ public:
     // TODO: Make Access a template parameter.
     using Access = GetAndSetTag;
     using Filter = typename Options::Filter;
-    using ComposedFilter = RangeFilter<Type, Filter>;
+    using ComposedFilter = BoundedFilter<Type, Filter>;
 
     using ValueNode =
         typename Options::template ValueNode<Type, ComposedFilter, Access>;
@@ -194,7 +192,7 @@ public:
     using Callable = typename Value::Callable;
 
 public:
-    Range()
+    Bounded()
         :
         value(ComposedFilter(defaultMinimum, defaultMaximum)),
         minimum(defaultMinimum),
@@ -203,17 +201,17 @@ public:
         defaultValue_(value.Get()),
 
         resetTerminus_(
-            PEX_THIS("model::Range"),
+            PEX_THIS("model::Bounded"),
             PEX_MEMBER_PASS(this->reset),
-            &Range::OnReset_)
+            &Bounded::OnReset_)
     {
-        PEX_NAME("model::Range");
+        PEX_NAME("model::Bounded");
         PEX_MEMBER(value);
         PEX_MEMBER(minimum);
         PEX_MEMBER(maximum);
     }
 
-    explicit Range(Type value_)
+    explicit Bounded(Type value_)
         :
         value(
             value_,
@@ -225,17 +223,17 @@ public:
         defaultValue_(this->value.Get()),
 
         resetTerminus_(
-            PEX_THIS("model::Range"),
+            PEX_THIS("model::Bounded"),
             PEX_MEMBER_PASS(this->reset),
-            &Range::OnReset_)
+            &Bounded::OnReset_)
     {
-        PEX_NAME("model::Range");
+        PEX_NAME("model::Bounded");
         PEX_MEMBER(value);
         PEX_MEMBER(minimum);
         PEX_MEMBER(maximum);
     }
 
-    Range(Type value_, Filter filter)
+    Bounded(Type value_, Filter filter)
         :
         value(
             value_,
@@ -247,17 +245,17 @@ public:
         defaultValue_(this->value.Get()),
 
         resetTerminus_(
-            PEX_THIS("model::Range"),
+            PEX_THIS("model::Bounded"),
             PEX_MEMBER_PASS(this->reset),
-            &Range::OnReset_)
+            &Bounded::OnReset_)
     {
-        PEX_NAME("model::Range");
+        PEX_NAME("model::Bounded");
         PEX_MEMBER(value);
         PEX_MEMBER(minimum);
         PEX_MEMBER(maximum);
     }
 
-    ~Range()
+    ~Bounded()
     {
         PEX_CLEAR_NAME(this);
         PEX_CLEAR_NAME(&this->value);
@@ -290,7 +288,7 @@ public:
     {
         // value.GetFilter() returns a type that is convertible to
         // ComposedFilter &.
-        // We are changing the inner filter type, not the RangeFilter itself.
+        // We are changing the inner filter type, not the BoundedFilter itself.
         static_cast<ComposedFilter &>(this->value.GetFilter())
             .SetFilter(filter);
     }
@@ -551,7 +549,7 @@ public:
         return this->value.Get();
     }
 
-    Range & operator=(Argument<Type> value_)
+    Bounded & operator=(Argument<Type> value_)
     {
         this->Set(value_);
         return *this;
@@ -579,10 +577,10 @@ public:
     }
 
     template<typename, typename, typename>
-    friend class ::pex::control::Range;
+    friend class ::pex::control::Bounded;
 
     template<typename, typename>
-    friend class ::pex::RangeTerminus;
+    friend class ::pex::BoundedTerminus;
 
     template<typename>
     friend class ::pex::Reference;
@@ -614,7 +612,7 @@ public:
     using ResetTerminus =
         pex::Terminus
         <
-            Range,
+            Bounded,
             ::pex::control::Signal<::pex::model::Signal>
         >;
 
@@ -623,24 +621,24 @@ public:
 
 
 template<typename T>
-using DefaultRange = Range<DefaultRangeOptions<T>>;
+using DefaultBounded = Bounded<DefaultBoundedOptions<T>>;
 
 
 #if 0
 template<typename Upstream>
-class AddRange
+class AddBounded
 {
     static_assert(
         std::is_arithmetic_v<typename Upstream::Type>,
         "Designed only for arithmetic types.");
 
 public:
-    // The Range value is a control to a model somewhere else.
+    // The Bounded value is a control to a model somewhere else.
     using Value =
         pex::control::FilteredValue
         <
             Upstream,
-            RangeFilter<typename Upstream::Type>
+            BoundedFilter<typename Upstream::Type>
         >;
 
     static_assert(!IsCopyable<Value>);
@@ -648,11 +646,11 @@ public:
 
     using Type = typename Value::Type;
 
-    // The Range limits are stored here in the model.
+    // The Bounded limits are stored here in the model.
     using Limit = typename ::pex::model::Value<Type>;
 
 public:
-    AddRange()
+    AddBounded()
         :
         value_(),
         minimum_(std::numeric_limits<Type>::lowest()),
@@ -661,18 +659,18 @@ public:
 
     }
 
-    AddRange(PexArgument<Upstream> upstream)
+    AddBounded(PexArgument<Upstream> upstream)
         :
         value_(upstream),
         minimum_(std::numeric_limits<Type>::lowest()),
         maximum_(std::numeric_limits<Type>::max())
     {
-        this->value_.SetFilter(RangeFilter<Type>(
+        this->value_.SetFilter(BoundedFilter<Type>(
             this->minimum_.Get(),
             this->maximum_.Get()));
     }
 
-    ~AddRange()
+    ~AddBounded()
     {
         PEX_LOG("Disconnect ", LookupPexName(this));
         this->value_.Disconnect(this);
@@ -682,14 +680,14 @@ public:
     {
         this->value_ = Value(upstream);
 
-        this->value_.SetFilter(RangeFilter<Type>(
+        this->value_.SetFilter(BoundedFilter<Type>(
             this->minimum_.Get(),
             this->maximum_.Get()));
 
-        PEX_LOG("model::AddRange: ", LookupPexName(this));
-        PEX_LOG("model::AddRange.value_: ", &this->value_);
-        PEX_LOG("model::AddRange.minimum_: ", &this->minimum_);
-        PEX_LOG("model::AddRange.maximum_: ", &this->maximum_);
+        PEX_LOG("model::AddBounded: ", LookupPexName(this));
+        PEX_LOG("model::AddBounded.value_: ", &this->value_);
+        PEX_LOG("model::AddBounded.minimum_: ", &this->minimum_);
+        PEX_LOG("model::AddBounded.maximum_: ", &this->maximum_);
     }
 
     void SetLimits(Type minimum, Type maximum)
@@ -711,7 +709,7 @@ public:
         changeMinimum.Set(minimum);
         changeMaximum.Set(maximum);
 
-        this->value_.SetFilter(RangeFilter<Type>(
+        this->value_.SetFilter(BoundedFilter<Type>(
             this->minimum_.Get(),
             this->maximum_.Get()));
 
@@ -734,7 +732,7 @@ public:
         auto changeMinimum = ::pex::Defer<Limit>(this->minimum_);
         changeMinimum.Set(minimum);
 
-        this->value_.SetFilter(RangeFilter<Type>(
+        this->value_.SetFilter(BoundedFilter<Type>(
             this->minimum_.Get(),
             this->maximum_.Get()));
 
@@ -752,7 +750,7 @@ public:
         auto changeMaximum = ::pex::Defer<Limit>(this->maximum_);
         changeMaximum.Set(maximum);
 
-        this->value_.SetFilter(RangeFilter<Type>(
+        this->value_.SetFilter(BoundedFilter<Type>(
             this->minimum_.Get(),
             this->maximum_.Get()));
 
@@ -783,7 +781,7 @@ public:
     }
 
     template<typename, typename, typename>
-    friend class ::pex::control::Range;
+    friend class ::pex::control::Bounded;
 
 private:
     Value value_;
@@ -821,7 +819,7 @@ template
     typename Filter_ = NoFilter,
     typename Access_ = pex::GetAndSetTag
 >
-class Range: Separator
+class Bounded: Separator
 {
 public:
     using Upstream = Upstream_;
@@ -830,7 +828,7 @@ public:
     using Unfiltered = typename Upstream::Value::Type;
     using Access = Access_;
 
-    static constexpr bool isRangeControl = true;
+    static constexpr bool isBoundedControl = true;
 
     static constexpr bool isPexCopyable =
         pex::detail::FilterIsNoneOrStatic<Unfiltered, Filter>;
@@ -860,37 +858,37 @@ public:
     using LimitType = typename Limit::Type;
     using Callable = typename Value::Callable;
 
-    Range()
+    Bounded()
         :
         value(),
         minimum(),
         maximum(),
         reset()
     {
-        PEX_NAME("control::Range");
+        PEX_NAME("control::Bounded");
         PEX_MEMBER(value);
         PEX_MEMBER(minimum);
         PEX_MEMBER(maximum);
         PEX_MEMBER(reset);
     }
 
-    Range(Upstream &upstream)
+    Bounded(Upstream &upstream)
         :
         value(upstream.value),
         minimum(upstream.minimum),
         maximum(upstream.maximum),
         reset(upstream.reset)
     {
-        PEX_NAME("control::Range");
+        PEX_NAME("control::Bounded");
         PEX_MEMBER(value);
         PEX_MEMBER(minimum);
         PEX_MEMBER(maximum);
         PEX_MEMBER(reset);
     }
 
-    Range(Upstream &upstream, const Filter &filter)
+    Bounded(Upstream &upstream, const Filter &filter)
         :
-        Range(upstream)
+        Bounded(upstream)
     {
         this->SetFilter(filter);
     }
@@ -903,7 +901,7 @@ public:
         this->reset.Emplace(upstream.reset);
     }
 
-    void Emplace(const Range &other)
+    void Emplace(const Bounded &other)
     {
         this->value.Emplace(other.value);
         this->minimum.Emplace(other.minimum);
@@ -924,14 +922,14 @@ public:
     }
 
     template<typename OtherFilter, typename OtherAccess>
-    Range(const Range<Upstream, OtherFilter, OtherAccess> &other)
+    Bounded(const Bounded<Upstream, OtherFilter, OtherAccess> &other)
         :
         value(other.value),
         minimum(other.minimum),
         maximum(other.maximum),
         reset(other.reset)
     {
-        PEX_NAME("control::Range");
+        PEX_NAME("control::Bounded");
         PEX_MEMBER(value);
         PEX_MEMBER(minimum);
         PEX_MEMBER(maximum);
@@ -939,8 +937,8 @@ public:
     }
 
     template<typename OtherFilter, typename OtherAccess>
-    Range(
-        const Range<Upstream, OtherFilter, OtherAccess> &other,
+    Bounded(
+        const Bounded<Upstream, OtherFilter, OtherAccess> &other,
         const Filter &filter)
         :
         value(other.value),
@@ -948,7 +946,7 @@ public:
         maximum(other.maximum),
         reset(other.reset)
     {
-        PEX_NAME("control::Range");
+        PEX_NAME("control::Bounded");
         PEX_MEMBER(value);
         PEX_MEMBER(minimum);
         PEX_MEMBER(maximum);
@@ -958,8 +956,8 @@ public:
     }
 
     template<typename OtherFilter, typename OtherAccess>
-    Range & operator=(
-        const Range<Upstream, OtherFilter, OtherAccess> &other)
+    Bounded & operator=(
+        const Bounded<Upstream, OtherFilter, OtherAccess> &other)
     {
         this->value = other.value;
         this->minimum = other.minimum;
@@ -969,21 +967,21 @@ public:
         return *this;
     }
 
-    Range(const Range &other)
+    Bounded(const Bounded &other)
         :
         value(other.value),
         minimum(other.minimum),
         maximum(other.maximum),
         reset(other.reset)
     {
-        PEX_NAME("control::Range");
+        PEX_NAME("control::Bounded");
         PEX_MEMBER(value);
         PEX_MEMBER(minimum);
         PEX_MEMBER(maximum);
         PEX_MEMBER(reset);
     }
 
-    Range & operator=(const Range &other)
+    Bounded & operator=(const Bounded &other)
     {
         this->value = other.value;
         this->minimum = other.minimum;
@@ -993,21 +991,21 @@ public:
         return *this;
     }
 
-    Range(Range &&other)
+    Bounded(Bounded &&other)
         :
         value(std::move(other.value)),
         minimum(std::move(other.minimum)),
         maximum(std::move(other.maximum)),
         reset(std::move(other.reset))
     {
-        PEX_NAME("control::Range");
+        PEX_NAME("control::Bounded");
         PEX_MEMBER(value);
         PEX_MEMBER(minimum);
         PEX_MEMBER(maximum);
         PEX_MEMBER(reset);
     }
 
-    ~Range()
+    ~Bounded()
     {
         PEX_CLEAR_NAME(this);
         PEX_CLEAR_NAME(&this->value);
@@ -1016,7 +1014,7 @@ public:
         PEX_CLEAR_NAME(&this->reset);
     }
 
-    Range & operator=(Range &&other)
+    Bounded & operator=(Bounded &&other)
     {
         this->value = std::move(other.value);
         this->minimum = std::move(other.minimum);
@@ -1056,7 +1054,7 @@ public:
         this->value.Set(value_);
     }
 
-    Range & operator=(Argument<Type> value_)
+    Bounded & operator=(Argument<Type> value_)
     {
         this->value.Set(value_);
         return *this;
@@ -1108,14 +1106,14 @@ private:
 
 
 template<typename Upstream_>
-class RangeMux: Separator
+class BoundedMux: Separator
 {
 public:
     using Upstream = Upstream_;
     using Model = Upstream;
     using Unfiltered = typename Upstream::Value::Type;
 
-    static constexpr bool isRangeMux = true;
+    static constexpr bool isBoundedMux = true;
 
     using ValueNode = typename Upstream::ValueNode;
     using Value = typename ValueNode::Mux;
@@ -1127,39 +1125,39 @@ public:
     using LimitType = typename Limit::Type;
     using Callable = typename Value::Callable;
 
-    RangeMux()
+    BoundedMux()
         :
         value(),
         minimum(),
         maximum(),
         reset()
     {
-        PEX_NAME("control::RangeMux");
+        PEX_NAME("control::BoundedMux");
         PEX_MEMBER(value);
         PEX_MEMBER(minimum);
         PEX_MEMBER(maximum);
         PEX_MEMBER(reset);
     }
 
-    RangeMux(Upstream &upstream)
+    BoundedMux(Upstream &upstream)
         :
         value(upstream.value),
         minimum(upstream.minimum),
         maximum(upstream.maximum),
         reset(upstream.reset)
     {
-        PEX_NAME("control::RangeMux");
+        PEX_NAME("control::BoundedMux");
         PEX_MEMBER(value);
         PEX_MEMBER(minimum);
         PEX_MEMBER(maximum);
         PEX_MEMBER(reset);
     }
 
-    RangeMux(const RangeMux &other) = delete;
-    RangeMux & operator=(const RangeMux &other) = delete;
-    RangeMux(RangeMux &&other) = delete;
+    BoundedMux(const BoundedMux &other) = delete;
+    BoundedMux & operator=(const BoundedMux &other) = delete;
+    BoundedMux(BoundedMux &&other) = delete;
 
-    ~RangeMux()
+    ~BoundedMux()
     {
         PEX_CLEAR_NAME(this);
         PEX_CLEAR_NAME(&this->value);
@@ -1168,7 +1166,7 @@ public:
         PEX_CLEAR_NAME(&this->reset);
     }
 
-    RangeMux & operator=(RangeMux &&other)
+    BoundedMux & operator=(BoundedMux &&other)
     {
         this->value = std::move(other.value);
         this->minimum = std::move(other.minimum);
@@ -1186,7 +1184,7 @@ public:
         this->reset.Emplace(upstream.reset);
     }
 
-    void Emplace(const RangeMux &other)
+    void Emplace(const BoundedMux &other)
     {
         this->value.Emplace(other.value);
         this->minimum.Emplace(other.minimum);
@@ -1224,7 +1222,7 @@ public:
         this->value.Set(value_);
     }
 
-    RangeMux & operator=(Argument<Type> value_)
+    BoundedMux & operator=(Argument<Type> value_)
     {
         this->value.Set(value_);
         return *this;
@@ -1289,13 +1287,13 @@ template
     typename Filter = NoFilter,
     typename Access = pex::GetAndSetTag
 >
-struct RangeFollow: public Range<Upstream, Filter, Access>
+struct BoundedFollow: public Bounded<Upstream, Filter, Access>
 {
 public:
-    static constexpr bool isRangeControl = false;
-    static constexpr bool isRangeFollow = true;
+    static constexpr bool isBoundedControl = false;
+    static constexpr bool isBoundedFollow = true;
 
-    using Base = Range<Upstream, Filter, Access>;
+    using Base = Bounded<Upstream, Filter, Access>;
     using Base::Base;
 };
 
@@ -1307,7 +1305,7 @@ template
     typename Converted,
     typename Access = pex::GetAndSetTag
 >
-using ConvertingRange = Range
+using ConvertingBounded = Bounded
     <
         Upstream,
         ConvertingFilter
@@ -1326,9 +1324,9 @@ template
     typename Filter,
     typename Access
 >
-auto MakeConvertingRange(Range<Upstream, Filter, Access> range)
+auto MakeConvertingBounded(Bounded<Upstream, Filter, Access> range)
 {
-    using Result = ConvertingRange<Upstream, Converted, Access>;
+    using Result = ConvertingBounded<Upstream, Converted, Access>;
     return Result(range);
 }
 
@@ -1339,7 +1337,7 @@ template
     typename Upstream,
     typename Access = pex::GetAndSetTag
 >
-using LinearRange = Range
+using LinearBounded = Bounded
     <
         Upstream,
         LinearFilter<typename Upstream::Value::Type>,
@@ -1353,7 +1351,7 @@ template
     int slope,
     typename Access = pex::GetAndSetTag
 >
-using StaticLinearRange = Range
+using StaticLinearBounded = Bounded
     <
         Upstream,
         StaticLinearFilter<typename Upstream::Value::Type, slope>,
@@ -1367,7 +1365,7 @@ template
     unsigned base,
     unsigned divisor
 >
-using LogarithmicRange = Range
+using LogarithmicBounded = Bounded
     <
         Upstream,
         LogarithmicFilter<typename Upstream::Value::Type, base, divisor>

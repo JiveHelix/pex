@@ -17,7 +17,7 @@ template
     template<typename, typename, typename>
     typename ValueNode_ = ::pex::DefaultValueNode
 >
-struct RangeOptions
+struct BoundedOptions
 {
     using Type = T;
     using LimitType = jive::RemoveOptional<Type>;
@@ -36,7 +36,7 @@ struct RangeOptions
 
 
 template<typename T>
-using DefaultRangeOptions = RangeOptions<T, DefaultLimit, DefaultLimit>;
+using DefaultBoundedOptions = BoundedOptions<T, DefaultLimit, DefaultLimit>;
 
 
 } // end namespace pex

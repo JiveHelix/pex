@@ -9,7 +9,7 @@ namespace pex
 
 
 template<typename Observer, typename Upstream_>
-class RangeTerminus
+class BoundedTerminus
 {
 public:
     using UpstreamControl = typename PromoteControl<Upstream_>::Type;
@@ -26,7 +26,7 @@ public:
 
     static constexpr bool isPexCopyable = UpstreamControl::isPexCopyable;
 
-    RangeTerminus()
+    BoundedTerminus()
         :
         value{},
         minimum{},
@@ -35,7 +35,7 @@ public:
 
     }
 
-    explicit RangeTerminus(const UpstreamControl &pex)
+    explicit BoundedTerminus(const UpstreamControl &pex)
         :
         value(pex.value),
         minimum(pex.minimum),
@@ -44,7 +44,7 @@ public:
 
     }
 
-    RangeTerminus(
+    BoundedTerminus(
         Observer *observer,
         const UpstreamControl &pex,
         Callable callable)
@@ -56,7 +56,7 @@ public:
 
     }
 
-    RangeTerminus(Observer *observer, UpstreamControl &&pex)
+    BoundedTerminus(Observer *observer, UpstreamControl &&pex)
         :
         value(observer, std::move(pex.value)),
         minimum(observer, std::move(pex.minimum)),
@@ -65,7 +65,7 @@ public:
 
     }
 
-    RangeTerminus(
+    BoundedTerminus(
         Observer *observer,
         typename PromoteControl<Upstream_>::Upstream &upstream)
         :
@@ -83,13 +83,13 @@ public:
         this->maximum.ChangeUpstream(upstream.maximum_);
     }
 
-    RangeTerminus(const RangeTerminus &other) = delete;
-    RangeTerminus(RangeTerminus &&other) = delete;
-    RangeTerminus & operator=(const RangeTerminus &) = delete;
-    RangeTerminus & operator=(RangeTerminus &&) = delete;
+    BoundedTerminus(const BoundedTerminus &other) = delete;
+    BoundedTerminus(BoundedTerminus &&other) = delete;
+    BoundedTerminus & operator=(const BoundedTerminus &) = delete;
+    BoundedTerminus & operator=(BoundedTerminus &&) = delete;
 
     // Copy construct
-    RangeTerminus(Observer *observer, const RangeTerminus &other)
+    BoundedTerminus(Observer *observer, const BoundedTerminus &other)
         :
         value(observer, other.value),
         minimum(observer, other.minimum),
@@ -100,9 +100,9 @@ public:
 
     // Copy construct from other observer
     template<typename O>
-    RangeTerminus(
+    BoundedTerminus(
         Observer *observer,
-        const RangeTerminus<O, Upstream_> &other)
+        const BoundedTerminus<O, Upstream_> &other)
         :
         value(observer, other.value),
         minimum(observer, other.minimum),
@@ -112,7 +112,7 @@ public:
     }
 
     // Move construct
-    RangeTerminus(Observer *observer, RangeTerminus &&other)
+    BoundedTerminus(Observer *observer, BoundedTerminus &&other)
         :
         value(observer, std::move(other.value)),
         minimum(observer, std::move(other.minimum)),
@@ -123,9 +123,9 @@ public:
 
     // Move construct from other observer
     template<typename O>
-    RangeTerminus(
+    BoundedTerminus(
         Observer *observer,
-        RangeTerminus<O, Upstream_> &&other)
+        BoundedTerminus<O, Upstream_> &&other)
         :
         value(observer, std::move(other.value)),
         minimum(observer, std::move(other.minimum)),
@@ -158,9 +158,9 @@ public:
     }
 
     // Copy assign
-    RangeTerminus & Assign(
+    BoundedTerminus & Assign(
         Observer *observer,
-        const RangeTerminus<Observer, Upstream_> &other)
+        const BoundedTerminus<Observer, Upstream_> &other)
     {
         this->value.Assign(observer, other.value);
         this->minimum.Assign(observer, other.minimum);
@@ -170,9 +170,9 @@ public:
     }
 
     // Move assign
-    RangeTerminus & Assign(
+    BoundedTerminus & Assign(
         Observer *observer,
-        RangeTerminus<Observer, Upstream_> &&other)
+        BoundedTerminus<Observer, Upstream_> &&other)
     {
         this->value.Assign(observer, std::move(other.value));
         this->minimum.Assign(observer, std::move(other.minimum));

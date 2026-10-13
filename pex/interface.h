@@ -16,7 +16,7 @@
 #include <pex/access_tag.h>
 #include <pex/model_value.h>
 #include <pex/traits.h>
-#include <pex/range_options.h>
+#include <pex/bounded_options.h>
 
 namespace pex
 {
@@ -65,10 +65,10 @@ template
     IsLimit initialMaximum = DefaultLimit,
     typename Access_ = GetAndSetTag
 >
-struct MakeRange
+struct MakeBounded
 {
     using Type = T;
-    using Options = RangeOptions<T, initialMinimum, initialMaximum>;
+    using Options = BoundedOptions<T, initialMinimum, initialMaximum>;
     using Access = Access_;
 };
 
@@ -78,7 +78,7 @@ template
     typename Options_,
     typename Access_ = GetAndSetTag
 >
-struct MakeRangeOptions
+struct MakeBoundedOptions
 {
     using Type = typename Options_::Type;
     using Options = Options_;
@@ -215,7 +215,7 @@ template<typename ...T>
 inline constexpr bool IsFiltered = detail::IsFiltered_<T...>::value;
 
 template<typename ...T>
-inline constexpr bool IsMakeRange = detail::IsMakeRange_<T...>::value;
+inline constexpr bool IsMakeBounded = detail::IsMakeBounded_<T...>::value;
 
 template<typename ...T>
 inline constexpr bool IsMakeSelect = detail::IsMakeSelect_<T...>::value;

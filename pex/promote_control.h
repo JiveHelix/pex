@@ -3,7 +3,7 @@
 #include "pex/traits.h"
 #include "pex/signal.h"
 #include "pex/control_value.h"
-#include <pex/range.h>
+#include <pex/bounded.h>
 #include <pex/list.h>
 #include <pex/select.h>
 #include <pex/optional_select.h>
@@ -29,7 +29,7 @@ struct PromoteControl
     static_assert(!IsSelectNode<Pex>);
     static_assert(!IsOptionalSelectNode<Pex>);
     static_assert(!IsGroupNode<Pex>);
-    static_assert(!IsRangeNode<Pex>);
+    static_assert(!IsBoundedNode<Pex>);
 
     using Type = control::Value_<Pex>;
     using Upstream = Pex;
@@ -85,9 +85,9 @@ struct PromoteControl<Pex, std::enable_if_t<IsSignalModel<Pex>>>
 
 
 template<typename P>
-struct PromoteControl<P, std::enable_if_t<IsRangeModel<P>>>
+struct PromoteControl<P, std::enable_if_t<IsBoundedModel<P>>>
 {
-    using Type = control::Range<P>;
+    using Type = control::Bounded<P>;
     using Upstream = P;
 
     template<typename U>
@@ -98,7 +98,7 @@ struct PromoteControl<P, std::enable_if_t<IsRangeModel<P>>>
 
 
 template<typename P>
-struct PromoteControl<P, std::enable_if_t<IsRangeControl<P>>>
+struct PromoteControl<P, std::enable_if_t<IsBoundedControl<P>>>
 {
     using Type = P;
     using Upstream = typename P::Upstream;
@@ -111,9 +111,9 @@ struct PromoteControl<P, std::enable_if_t<IsRangeControl<P>>>
 
 
 template<typename P>
-struct PromoteControl<P, std::enable_if_t<IsRangeMux<P>>>
+struct PromoteControl<P, std::enable_if_t<IsBoundedMux<P>>>
 {
-    using Type = control::RangeFollow<P>;
+    using Type = control::BoundedFollow<P>;
     using Upstream = P;
 
     template<typename U>
@@ -124,7 +124,7 @@ struct PromoteControl<P, std::enable_if_t<IsRangeMux<P>>>
 
 
 template<typename P>
-struct PromoteControl<P, std::enable_if_t<IsRangeFollow<P>>>
+struct PromoteControl<P, std::enable_if_t<IsBoundedFollow<P>>>
 {
     using Type = P;
     using Upstream = typename P::Upstream;

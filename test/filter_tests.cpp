@@ -15,7 +15,7 @@
 #include "pex/value.h"
 #include "pex/group.h"
 #include "pex/converting_filter.h"
-#include "pex/range.h"
+#include "pex/bounded.h"
 #include <pex/terminus.h>
 
 
@@ -65,7 +65,7 @@ public:
 
 
 template<typename T>
-struct RangeFilter
+struct BoundedFilter
 {
     T Set(T value) const
     {
@@ -97,9 +97,9 @@ TEMPLATE_TEST_CASE(
     TestType high = static_cast<TestType>(M_PI);
 
     using Model =
-        pex::model::FilteredValue<TestType, RangeFilter<TestType>>;
+        pex::model::FilteredValue<TestType, BoundedFilter<TestType>>;
 
-    RangeFilter<TestType> filter{low, high};
+    BoundedFilter<TestType> filter{low, high};
     using Control = pex::control::Value<Model>;
 
     Model model{filter};
@@ -147,9 +147,9 @@ TEMPLATE_TEST_CASE(
     TestType high = 96;
 
     using Model =
-        pex::model::FilteredValue<TestType, RangeFilter<TestType>>;
+        pex::model::FilteredValue<TestType, BoundedFilter<TestType>>;
 
-    RangeFilter<TestType> filter{low, high};
+    BoundedFilter<TestType> filter{low, high};
     Model model{filter};
     PEX_ROOT(model);
     using Control = pex::control::Value<Model>;
@@ -332,52 +332,52 @@ TEST_CASE("Observe filtered value", "[filters]")
 }
 
 
-TEST_CASE("LinearRange is observable", "[filters]")
+TEST_CASE("LinearBounded is observable", "[filters]")
 {
-    using WeightRange = pex::model::DefaultRange<double>;
-    using WeightControl = pex::control::Range<WeightRange>;
-    using FilteredWeight = pex::control::LinearRange<WeightControl>;
+    using WeightBounded = pex::model::DefaultBounded<double>;
+    using WeightControl = pex::control::Bounded<WeightBounded>;
+    using FilteredWeight = pex::control::LinearBounded<WeightControl>;
 
-    WeightRange weightRange;
+    WeightBounded weightBounded;
 
-    if (weightRange.Get() != 0)
+    if (weightBounded.Get() != 0)
     {
         throw std::logic_error("What happened to initialization?");
     }
 
-    REQUIRE(weightRange.Get() == 0);
-    PEX_ROOT(weightRange);
-    weightRange.SetMinimum(100.0);
-    weightRange.SetMaximum(150.0);
+    REQUIRE(weightBounded.Get() == 0);
+    PEX_ROOT(weightBounded);
+    weightBounded.SetMinimum(100.0);
+    weightBounded.SetMaximum(150.0);
 
-    WeightControl control(weightRange);
+    WeightControl control(weightBounded);
     FilteredWeight filteredWeight(control);
 
-    using FilteredCopyable = pex::control::Range<FilteredWeight>;
+    using FilteredCopyable = pex::control::Bounded<FilteredWeight>;
 
     auto observer = Observer(FilteredCopyable(filteredWeight).value);
 
     control.value.Set(125.0);
 
-    REQUIRE(weightRange.Get() == 125);
+    REQUIRE(weightBounded.Get() == 125);
     REQUIRE(observer.observedValue == 125);
 }
 
 
-TEST_CASE("Optional LinearRange is observable", "[filters]")
+TEST_CASE("Optional LinearBounded is observable", "[filters]")
 {
-    using WeightRange = pex::model::DefaultRange<std::optional<double>>;
-    using WeightControl = pex::control::Range<WeightRange>;
-    using FilteredWeight = pex::control::LinearRange<WeightControl>;
+    using WeightBounded = pex::model::DefaultBounded<std::optional<double>>;
+    using WeightControl = pex::control::Bounded<WeightBounded>;
+    using FilteredWeight = pex::control::LinearBounded<WeightControl>;
     using FilteredValue = typename FilteredWeight::Value;
 
-    WeightRange weightRange;
-    PEX_ROOT(weightRange);
-    weightRange.SetMinimum(100.0);
-    weightRange.SetMaximum(150.0);
+    WeightBounded weightBounded;
+    PEX_ROOT(weightBounded);
+    weightBounded.SetMinimum(100.0);
+    weightBounded.SetMaximum(150.0);
 
-    WeightControl control(weightRange);
-    REQUIRE(!weightRange.Get());
+    WeightControl control(weightBounded);
+    REQUIRE(!weightBounded.Get());
 
     using FilteredCopyable = pex::control::Value<FilteredValue>;
 
@@ -395,19 +395,19 @@ TEST_CASE("Optional LinearRange is observable", "[filters]")
 }
 
 
-TEST_CASE("Optional ConvertingRange is observable", "[filters]")
+TEST_CASE("Optional ConvertingBounded is observable", "[filters]")
 {
-    using WeightRange = pex::model::DefaultRange<std::optional<double>>;
-    using WeightControl = pex::control::Range<WeightRange>;
-    using FilteredWeight = pex::control::ConvertingRange<WeightControl, int>;
+    using WeightBounded = pex::model::DefaultBounded<std::optional<double>>;
+    using WeightControl = pex::control::Bounded<WeightBounded>;
+    using FilteredWeight = pex::control::ConvertingBounded<WeightControl, int>;
 
-    WeightRange weightRange;
-    PEX_ROOT(weightRange);
-    weightRange.SetMinimum(100.0);
-    weightRange.SetMaximum(150.0);
+    WeightBounded weightBounded;
+    PEX_ROOT(weightBounded);
+    weightBounded.SetMinimum(100.0);
+    weightBounded.SetMaximum(150.0);
 
-    WeightControl control(weightRange);
-    REQUIRE(!weightRange.Get());
+    WeightControl control(weightBounded);
+    REQUIRE(!weightBounded.Get());
 
     auto observer = Observer(FilteredWeight(control).value);
     control.value.Set(125.0);
