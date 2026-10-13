@@ -10,14 +10,13 @@
 namespace pex
 {
 
-// TODO: Rename LinkedRanges to Range
 
 template
 <
     typename Options,
     typename Access = pex::GetAndSetTag
 >
-struct LinkedRanges
+struct Range
 {
     using BoundedMaker = MakeBoundedOptions<Options, Access>;
     using Type = typename Options::Type;
@@ -28,7 +27,7 @@ struct LinkedRanges
         T<BoundedMaker> low;
         T<BoundedMaker> high;
 
-        static constexpr auto fieldsTypeName = "LinkedRanges";
+        static constexpr auto fieldsTypeName = "Range";
     };
 
     struct Finisher
@@ -78,7 +77,7 @@ struct LinkedRanges
             HighTerminus highTerminus_;
 
         public:
-            static constexpr auto observerName = "LinkedRanges::Model";
+            static constexpr auto observerName = "Range::Model";
 
             Model()
                 :
@@ -90,7 +89,7 @@ struct LinkedRanges
                 this->high.TrimMinimum(this->low.Get());
 
                 PEX_LOG(
-                    "Connecting LinkedRanges::Model as observer: ",
+                    "Connecting Range::Model as observer: ",
                     LookupPexName(this));
 
                 this->lowTerminus_.Emplace(this, this->low, &Model::OnLow_);
@@ -166,7 +165,7 @@ struct LinkedRanges
 
 
 template<typename BoundedMaker>
-using MakeLinkedRanges = LinkedRanges<typename BoundedMaker::Options>;
+using MakeRange = Range<typename BoundedMaker::Options>;
 
 
 } // end namespace pex

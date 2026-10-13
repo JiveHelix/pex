@@ -4,7 +4,7 @@
 #include <pex/detail/traits.h>
 #include <pex/group.h>
 #include <pex/bounded.h>
-#include <pex/linked_ranges.h>
+#include <pex/range.h>
 
 
 namespace traits_tests
@@ -18,8 +18,8 @@ using TesterHigh = pex::Limit<0, 25, 100>;
 
 
 template<typename Float>
-using TesterRanges =
-    pex::LinkedRanges
+using TesterRange =
+    pex::Range
     <
         pex::BoundedOptions<Float, TesterLowerBound, TesterUpperBound>
     >;
@@ -28,7 +28,7 @@ using TesterRanges =
 template<template<typename> typename T>
 struct TesterSchema
 {
-    T<typename TesterRanges<double>::Group> range;
+    T<typename TesterRange<double>::Group> range;
 
     static constexpr auto fieldsTypeName = "Tester";
 };
@@ -45,14 +45,14 @@ TEST_CASE("Test HasPlain, HasModel, HasControl", "[traits]")
     STATIC_REQUIRE(
         pex::detail::HasModelTemplate
         <
-            typename traits_tests::TesterRanges<double>::Finisher,
+            typename traits_tests::TesterRange<double>::Finisher,
             traits_tests::TesterSchema<pex::Identity>
         >);
 
     STATIC_REQUIRE(
         pex::detail::HasPlain
         <
-            typename traits_tests::TesterRanges<double>::Finisher
+            typename traits_tests::TesterRange<double>::Finisher
         >);
 
     using Model = traits_tests::TesterGroup::Model;

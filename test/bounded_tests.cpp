@@ -2,7 +2,7 @@
 #include <catch2/catch.hpp>
 #include <pex/value.h>
 #include <pex/bounded.h>
-#include <pex/linked_ranges.h>
+#include <pex/range.h>
 
 
 using Bounded = pex::model::DefaultBounded<int>;
@@ -192,8 +192,8 @@ TEST_CASE("Limited value is echoed to observers.", "[range]")
 
 TEST_CASE("Linked ranges has comparison operators", "[range]")
 {
-    using TestRanges =
-        pex::LinkedRanges
+    using TestRange =
+        pex::Range
         <
             pex::BoundedOptions<double, pex::Limit<0>, pex::Limit<10>>
         >;
@@ -210,7 +210,7 @@ TEST_CASE("Linked ranges has comparison operators", "[range]")
             >
         >);
 
-    using TestSettings = typename TestRanges::Settings;
+    using TestSettings = typename TestRange::Settings;
 
     STATIC_REQUIRE(jive::HasEqualTo<TestSettings>);
 }
@@ -261,12 +261,12 @@ TEST_CASE("Bounded limits are never optional.", "[range]")
 }
 
 
-namespace linked
+namespace range_test
 {
 
 
-using ColorRanges =
-    pex::LinkedRanges
+using ColorRange =
+    pex::Range
     <
         pex::BoundedOptions<int, pex::Limit<0>, pex::Limit<255>>
     >;
@@ -275,9 +275,9 @@ using ColorRanges =
 template<template<typename> typename T>
 struct ColorSchema
 {
-    T<typename ColorRanges::Group> red;
-    T<typename ColorRanges::Group> green;
-    T<typename ColorRanges::Group> blue;
+    T<typename ColorRange::Group> red;
+    T<typename ColorRange::Group> green;
+    T<typename ColorRange::Group> blue;
 
     static constexpr auto fieldsTypeName = "Color";
 };
@@ -328,13 +328,13 @@ using PixelGroup = pex::Group<PixelSchema, PixelFinisher>;
 using PixelModel = typename PixelGroup::Model;
 
 
-} // end namespace linked
+} // end namespace range_test
 
 
 TEST_CASE("Linked ranges can be overridden in owner's initializer.", "[range]")
 {
-    linked::ColorModel color;
-    linked::PixelModel pixel;
+    range_test::ColorModel color;
+    range_test::PixelModel pixel;
 
     REQUIRE(color.red.high.Get() == 255);
     REQUIRE(pixel.color.red.high.Get() == 1023);
