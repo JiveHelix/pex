@@ -168,7 +168,7 @@ public:
     static constexpr bool isBoundedModel = true;
     static constexpr auto observerName = "pex::model::Bounded";
 
-    using Type = Options::Type;
+    using Type = typename Options::Type;
 
     static_assert(
         std::is_arithmetic_v<jive::RemoveOptional<Type>>,
